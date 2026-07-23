@@ -27,7 +27,7 @@ interface AdmissionDeanPortalProps {
   user: any;
 }
 
-const VALID_TABS = ['overview','applications','seats','scholarships','enquiries','counselling','payments'] as const;
+const VALID_TABS = ['overview','applications','faculty_leaves','seats','scholarships','enquiries','counselling','payments'] as const;
 type AdmissionTab = typeof VALID_TABS[number];
 
 export const AdmissionDeanPortal: React.FC<AdmissionDeanPortalProps> = ({ user }) => {
@@ -50,6 +50,15 @@ export const AdmissionDeanPortal: React.FC<AdmissionDeanPortalProps> = ({ user }
   const [enquiries, setEnquiries] = useState<any[]>([]);
   const [counsellingSessions, setCounsellingSessions] = useState<any[]>([]);
   const [paymentLedger, setPaymentLedger] = useState<any[]>([]);
+
+  // Faculty Leave & OD Requests state
+  const [facultyRequests, setFacultyRequests] = useState<any[]>([]);
+  const [facultyFilter, setFacultyFilter] = useState<'PENDING' | 'APPROVED' | 'REJECTED' | 'ALL'>('PENDING');
+  const [selectedFacultyReq, setSelectedFacultyReq] = useState<any | null>(null);
+  const [actionModalOpen, setActionModalOpen] = useState(false);
+  const [actionReqType, setActionReqType] = useState<'APPROVE' | 'REJECT'>('APPROVE');
+  const [actionRemarks, setActionRemarks] = useState('');
+  const [auditModalOpen, setAuditModalOpen] = useState(false);
 
   // Search & Filters
   const [appSearch, setAppSearch] = useState('');
@@ -90,23 +99,28 @@ export const AdmissionDeanPortal: React.FC<AdmissionDeanPortalProps> = ({ user }
   const fetchData = async () => {
     setIsLoading(true);
     try {
-      const [analyticsRes, appsRes, seatsRes, scholarshipsRes, enquiriesRes, counsellingRes, paymentsRes] = await Promise.all([
-        api.get('/enterprise/admission/analytics'),
-        api.get('/enterprise/admission/applications'),
-        api.get('/enterprise/admission/seats'),
-        api.get('/enterprise/admission/scholarships'),
-        api.get('/enterprise/admission/enquiries'),
-        api.get('/enterprise/admission/counselling'),
-        api.get('/enterprise/admission/payments')
+      const [analyticsRes, appsRes, seatsRes, scholarshipsRes, enquiriesRes, counsellingRes, paymentsRes, wfRes] = await Promise.all([
+        api.get('/enterprise/admission/analytics').catch(() => null),
+        api.get('/enterprise/admission/applications').catch(() => null),
+        api.get('/enterprise/admission/seats').catch(() => null),
+        api.get('/enterprise/admission/scholarships').catch(() => null),
+        api.get('/enterprise/admission/enquiries').catch(() => null),
+        api.get('/enterprise/admission/counselling').catch(() => null),
+        api.get('/enterprise/admission/payments').catch(() => null),
+        api.get('/workflows/requests').catch(() => null)
       ]);
 
-      if (analyticsRes.data?.status === 'success') setAnalytics(analyticsRes.data.data);
-      if (appsRes.data?.status === 'success') setApplications(appsRes.data.data);
-      if (seatsRes.data?.status === 'success') setIntakeMatrix(seatsRes.data.data);
-      if (scholarshipsRes.data?.status === 'success') setScholarships(scholarshipsRes.data.data);
-      if (enquiriesRes.data?.status === 'success') setEnquiries(enquiriesRes.data.data);
-      if (counsellingRes.data?.status === 'success') setCounsellingSessions(counsellingRes.data.data);
-      if (paymentsRes.data?.status === 'success') setPaymentLedger(paymentsRes.data.data);
+      if (analyticsRes?.data?.status === 'success') setAnalytics(analyticsRes.data.data);
+      if (appsRes?.data?.status === 'success') setApplications(appsRes.data.data);
+      if (seatsRes?.data?.status === 'success') setIntakeMatrix(seatsRes.data.data);
+      if (scholarshipsRes?.data?.status === 'success') setScholarships(scholarshipsRes.data.data);
+      if (enquiriesRes?.data?.status === 'success') setEnquiries(enquiriesRes.data.data);
+      if (counsellingRes?.data?.status === 'success') setCounsellingSessions(counsellingRes.data.data);
+      if (paymentsRes?.data?.status === 'success') setPaymentLedger(paymentsRes.data.data);
+      if (wfRes?.data?.status === 'success') {
+        const facReqs = wfRes.data.data.filter((r: any) => r.facultyRequesterId || r.facultyRequester);
+        setFacultyRequests(facReqs);
+      }
 
     } catch (err) {
       toast.error('Failed to load admission command registry.');
@@ -462,6 +476,7 @@ export const AdmissionDeanPortal: React.FC<AdmissionDeanPortalProps> = ({ user }
         {[
           { key: 'overview', label: 'Admission Overview', icon: LayoutDashboard },
           { key: 'applications', label: 'Candidate Screening', icon: Users },
+          { key: 'faculty_leaves', label: 'Faculty Leave & OD Approvals', icon: FileText },
           { key: 'seats', label: 'Seat Allocations', icon: Layers },
           { key: 'scholarships', label: 'Scholarships & Waivers', icon: Award },
           { key: 'enquiries', label: 'Admission CRM', icon: UserPlus },
@@ -1131,6 +1146,302 @@ export const AdmissionDeanPortal: React.FC<AdmissionDeanPortalProps> = ({ user }
           </div>
         </div>
       )}
+
+      {/* Tab Contents: Faculty Leave & OD Approvals */}
+      {activeTab === 'faculty_leaves' && (() => {
+        const pendingDean = facultyRequests.filter((r: any) => r.status === 'HOD_APPROVED' || (r.currentStep === 'DEAN' && r.status !== 'APPROVED' && r.status !== 'REJECTED_BY_DEAN'));
+        const approvedDean = facultyRequests.filter((r: any) => r.status === 'APPROVED');
+        const rejectedDean = facultyRequests.filter((r: any) => ['REJECTED_BY_DEAN', 'REJECTED_BY_HOD'].includes(r.status));
+
+        const filteredFacultyReqs = facultyRequests.filter((r: any) => {
+          if (facultyFilter === 'PENDING') return r.status === 'HOD_APPROVED' || (r.currentStep === 'DEAN' && r.status !== 'APPROVED' && r.status !== 'REJECTED_BY_DEAN');
+          if (facultyFilter === 'APPROVED') return r.status === 'APPROVED';
+          if (facultyFilter === 'REJECTED') return ['REJECTED_BY_DEAN', 'REJECTED_BY_HOD'].includes(r.status);
+          return true;
+        });
+
+        const handleActionSubmit = async () => {
+          if (!selectedFacultyReq) return;
+          setActionLoading(true);
+          try {
+            const res = await api.post(`/workflows/requests/${selectedFacultyReq.id}/action`, {
+              action: actionReqType,
+              comment: actionRemarks || (actionReqType === 'APPROVE' ? 'Final approved by Admission Dean' : 'Rejected by Admission Dean')
+            });
+            if (res.data?.status === 'success') {
+              toast.success(`Faculty request ${actionReqType === 'APPROVE' ? 'Final Approved' : 'Rejected'}.`);
+              setActionModalOpen(false);
+              setSelectedFacultyReq(null);
+              setActionRemarks('');
+              fetchData();
+            }
+          } catch (err: any) {
+            toast.error(err.response?.data?.message || 'Action failed.');
+          } finally {
+            setActionLoading(false);
+          }
+        };
+
+        return (
+          <div className="space-y-6 animate-in fade-in duration-300 text-left">
+            <div className="flex flex-wrap justify-between items-center gap-2 border-b pb-3 no-print">
+              <div>
+                <h3 className="text-sm font-extrabold uppercase">Faculty Leave & OD Approvals</h3>
+                <p className="text-[10px] text-muted-foreground mt-0.5">Final Level-2 authorization management for HOD-approved Faculty Leave and On-Duty applications across all departments.</p>
+              </div>
+              <button onClick={() => handleExport('Faculty Leave Approvals', 'CSV')} className="h-8 border hover:bg-muted px-2.5 rounded-lg flex flex-wrap items-center gap-1 text-xs">
+                <Download className="h-3.5 w-3.5" /> Export CSV
+              </button>
+            </div>
+
+            {/* Summary cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="border bg-amber-50/70 border-amber-200 p-4 rounded-xl shadow-sm flex justify-between items-center">
+                <div>
+                  <span className="text-[9px] uppercase font-bold text-amber-700 tracking-wider block">Pending Final Approval</span>
+                  <span className="text-2xl font-extrabold text-amber-800">{pendingDean.length}</span>
+                </div>
+                <Clock className="h-6 w-6 text-amber-600" />
+              </div>
+              <div className="border bg-emerald-50/70 border-emerald-200 p-4 rounded-xl shadow-sm flex justify-between items-center">
+                <div>
+                  <span className="text-[9px] uppercase font-bold text-emerald-700 tracking-wider block">Final Approved</span>
+                  <span className="text-2xl font-extrabold text-emerald-800">{approvedDean.length}</span>
+                </div>
+                <CheckCircle className="h-6 w-6 text-emerald-600" />
+              </div>
+              <div className="border bg-rose-50/70 border-rose-200 p-4 rounded-xl shadow-sm flex justify-between items-center">
+                <div>
+                  <span className="text-[9px] uppercase font-bold text-rose-700 tracking-wider block">Rejected</span>
+                  <span className="text-2xl font-extrabold text-rose-800">{rejectedDean.length}</span>
+                </div>
+                <XCircle className="h-6 w-6 text-rose-600" />
+              </div>
+            </div>
+
+            {/* Sub-tab filter buttons */}
+            <div className="flex border rounded-xl overflow-hidden text-xs font-bold w-fit bg-card">
+              {[
+                { id: 'PENDING', label: 'HOD Approved (Pending Dean)' },
+                { id: 'APPROVED', label: 'Final Approved' },
+                { id: 'REJECTED', label: 'Rejected' },
+                { id: 'ALL', label: 'All Requests' },
+              ].map(f => (
+                <button
+                  key={f.id}
+                  type="button"
+                  onClick={() => setFacultyFilter(f.id as any)}
+                  className={`px-4 py-2 border-r last:border-r-0 transition-colors ${
+                    facultyFilter === f.id
+                      ? 'bg-primary text-primary-foreground font-extrabold'
+                      : 'bg-card text-muted-foreground hover:bg-muted'
+                  }`}
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Main Table */}
+            <div className="border bg-card p-5 rounded-xl shadow-sm text-xs font-bold text-left overflow-x-auto">
+              {filteredFacultyReqs.length === 0 ? (
+                <div className="py-12 text-center text-muted-foreground italic">
+                  No faculty leave/OD requests found for selected view filter.
+                </div>
+              ) : (
+                <table className="w-full text-left border-collapse text-[11px]">
+                  <thead>
+                    <tr className="border-b bg-muted/20 text-[9px] uppercase font-bold text-muted-foreground">
+                      <th className="p-3">Faculty Member</th>
+                      <th className="p-3">Department</th>
+                      <th className="p-3">Request Details</th>
+                      <th className="p-3">Duration</th>
+                      <th className="p-3">HOD Remarks</th>
+                      <th className="p-3 text-center">Status</th>
+                      <th className="p-3 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y">
+                    {filteredFacultyReqs.map((req: any, idx: number) => {
+                      const fac = req.facultyRequester;
+                      const days = req.startDate && req.endDate
+                        ? Math.ceil((new Date(req.endDate).getTime() - new Date(req.startDate).getTime()) / (1000 * 3600 * 24)) + 1
+                        : 1;
+                      const hodHistory = req.history?.find((h: any) => h.stage === 'HOD');
+
+                      return (
+                        <tr key={req.id || idx} className="hover:bg-muted/10 transition-colors">
+                          <td className="p-3">
+                            <p className="font-extrabold text-foreground">{fac ? `${fac.firstName} ${fac.lastName}` : 'Faculty Member'}</p>
+                            <p className="text-[9px] text-muted-foreground font-mono">Emp ID: {fac?.employeeId || 'N/A'}</p>
+                            <p className="text-[9px] text-muted-foreground">{fac?.email}</p>
+                          </td>
+                          <td className="p-3 font-semibold text-muted-foreground">
+                            {fac?.department?.name || 'N/A'}
+                          </td>
+                          <td className="p-3 max-w-[200px] space-y-1">
+                            <span className={`inline-block px-2 py-0.5 rounded text-[8px] font-black uppercase ${
+                              req.type === 'FACULTY_OD' ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' : 'bg-orange-50 text-orange-700 border border-orange-200'
+                            }`}>
+                              {req.type === 'FACULTY_OD' ? 'ON DUTY (OD)' : 'LEAVE'}
+                            </span>
+                            <p className="font-bold text-foreground truncate">{req.title || req.type}</p>
+                            <p className="text-[9px] text-muted-foreground leading-relaxed line-clamp-2">{req.reason}</p>
+                          </td>
+                          <td className="p-3 whitespace-nowrap space-y-1">
+                            <p className="font-bold text-foreground">
+                              {req.startDate ? new Date(req.startDate).toLocaleDateString('en-IN') : 'N/A'} to{' '}
+                              {req.endDate ? new Date(req.endDate).toLocaleDateString('en-IN') : 'N/A'}
+                            </p>
+                            <span className="inline-block bg-slate-100 px-1.5 py-0.5 rounded text-[9px] font-black text-slate-600">
+                              {days} {days === 1 ? 'Day' : 'Days'}
+                            </span>
+                          </td>
+                          <td className="p-3 max-w-[180px]">
+                            <p className="text-[9px] text-muted-foreground">
+                              <span className="font-extrabold text-slate-700 block">By: {hodHistory?.actionByName || 'HOD'}</span>
+                              {hodHistory?.comment || 'Approved by HOD'}
+                            </p>
+                          </td>
+                          <td className="p-3 text-center whitespace-nowrap">
+                            <span className={`px-2 py-0.5 rounded-full text-[9px] font-black border ${
+                              req.status === 'HOD_APPROVED' ? 'bg-amber-50 text-amber-700 border-amber-200' :
+                              req.status === 'APPROVED' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+                              req.status === 'REJECTED_BY_DEAN' ? 'bg-rose-50 text-rose-700 border-rose-200' :
+                              req.status === 'REJECTED_BY_HOD' ? 'bg-rose-50 text-rose-700 border-rose-200' :
+                              'bg-slate-50 text-slate-700 border-slate-200'
+                            }`}>
+                              {req.status === 'HOD_APPROVED' ? 'HOD Approved' :
+                               req.status === 'APPROVED' ? 'Final Approved' :
+                               req.status === 'REJECTED_BY_DEAN' ? 'Rejected by Dean' :
+                               req.status === 'REJECTED_BY_HOD' ? 'Rejected by HOD' : req.status}
+                            </span>
+                          </td>
+                          <td className="p-3 text-right whitespace-nowrap">
+                            <div className="flex justify-end gap-1.5">
+                              {(req.status === 'HOD_APPROVED' || (req.currentStep === 'DEAN' && req.status !== 'APPROVED' && req.status !== 'REJECTED_BY_DEAN')) && (
+                                <>
+                                  <button
+                                    onClick={() => {
+                                      setSelectedFacultyReq(req);
+                                      setActionReqType('APPROVE');
+                                      setActionRemarks('');
+                                      setActionModalOpen(true);
+                                    }}
+                                    className="px-2.5 py-1 bg-emerald-600 text-white rounded text-[10px] font-bold hover:bg-emerald-700 shadow-sm"
+                                  >
+                                    Final Approve
+                                  </button>
+                                  <button
+                                    onClick={() => {
+                                      setSelectedFacultyReq(req);
+                                      setActionReqType('REJECT');
+                                      setActionRemarks('');
+                                      setActionModalOpen(true);
+                                    }}
+                                    className="px-2.5 py-1 bg-rose-600 text-white rounded text-[10px] font-bold hover:bg-rose-700 shadow-sm"
+                                  >
+                                    Reject
+                                  </button>
+                                </>
+                              )}
+                              <button
+                                onClick={() => {
+                                  setSelectedFacultyReq(req);
+                                  setAuditModalOpen(true);
+                                }}
+                                className="px-2 py-1 border rounded text-[10px] font-bold hover:bg-muted"
+                              >
+                                Audit Log
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              )}
+            </div>
+
+            {/* Action Remarks Modal */}
+            {actionModalOpen && selectedFacultyReq && (
+              <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                <div className="bg-card w-full max-w-md border rounded-xl shadow-xl p-5 space-y-4 text-xs font-semibold">
+                  <div className="flex justify-between items-center border-b pb-2">
+                    <h4 className="text-sm font-extrabold uppercase text-foreground">
+                      {actionReqType === 'APPROVE' ? 'Final Approve Faculty Request' : 'Reject Faculty Request'}
+                    </h4>
+                    <button onClick={() => setActionModalOpen(false)} className="text-muted-foreground hover:text-foreground">✕</button>
+                  </div>
+                  <p className="text-muted-foreground text-[11px]">
+                    Faculty Member: <span className="font-bold text-foreground">{selectedFacultyReq.facultyRequester?.firstName} {selectedFacultyReq.facultyRequester?.lastName}</span>
+                  </p>
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-[10px] uppercase font-bold text-muted-foreground">Final Remarks / Notes</label>
+                    <textarea
+                      value={actionRemarks}
+                      onChange={e => setActionRemarks(e.target.value)}
+                      placeholder={actionReqType === 'APPROVE' ? 'Enter final approval remarks...' : 'Enter rejection reason...'}
+                      rows={3}
+                      className="border rounded-lg bg-background p-2.5 text-xs outline-none focus:ring-2 focus:ring-primary/30"
+                    />
+                  </div>
+                  <div className="flex justify-end gap-2 pt-2">
+                    <button onClick={() => setActionModalOpen(false)} className="px-3 py-1.5 border rounded-lg font-bold">Cancel</button>
+                    <button
+                      onClick={handleActionSubmit}
+                      disabled={actionLoading}
+                      className={`px-4 py-1.5 text-white rounded-lg font-bold shadow-sm ${
+                        actionReqType === 'APPROVE' ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-rose-600 hover:bg-rose-700'
+                      }`}
+                    >
+                      {actionLoading ? 'Processing...' : actionReqType === 'APPROVE' ? 'Confirm Final Approval' : 'Confirm Rejection'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Audit Log Modal */}
+            {auditModalOpen && selectedFacultyReq && (
+              <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                <div className="bg-card w-full max-w-lg border rounded-xl shadow-xl p-5 space-y-4 text-xs font-semibold">
+                  <div className="flex justify-between items-center border-b pb-2">
+                    <h4 className="text-sm font-extrabold uppercase text-foreground">Audit Log & Timeline</h4>
+                    <button onClick={() => setAuditModalOpen(false)} className="text-muted-foreground hover:text-foreground">✕</button>
+                  </div>
+                  <div className="space-y-3 max-h-[60vh] overflow-y-auto">
+                    <div className="bg-muted/30 p-3 rounded-lg space-y-1">
+                      <p className="text-[10px] font-bold text-muted-foreground uppercase">Request Info</p>
+                      <p className="font-bold text-foreground">{selectedFacultyReq.title || selectedFacultyReq.type}</p>
+                      <p className="text-[11px] text-muted-foreground">{selectedFacultyReq.reason}</p>
+                    </div>
+
+                    <div className="border-l-2 border-primary/30 pl-4 space-y-4 py-2">
+                      {selectedFacultyReq.history?.map((h: any, i: number) => (
+                        <div key={h.id || i} className="relative space-y-0.5">
+                          <span className="absolute -left-[21px] top-1 h-2.5 w-2.5 rounded-full bg-primary border-2 border-card" />
+                          <div className="flex justify-between text-[10px]">
+                            <span className="font-extrabold uppercase text-primary">{h.stage} Stage — {h.action}</span>
+                            <span className="text-muted-foreground">{new Date(h.createdAt).toLocaleString('en-IN')}</span>
+                          </div>
+                          <p className="text-xs font-bold text-foreground">{h.actionByName}</p>
+                          <p className="text-[11px] text-muted-foreground">{h.comment}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="flex justify-end pt-2">
+                    <button onClick={() => setAuditModalOpen(false)} className="px-4 py-1.5 border rounded-lg font-bold">Close</button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+          </div>
+        );
+      })()}
 
       {/* Tab Contents: Fee ledger (View Only) */}
       {activeTab === 'payments' && (

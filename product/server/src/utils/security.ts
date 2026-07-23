@@ -587,11 +587,12 @@ export class SecurityHelper {
       return [
         { name: 'Admission Overview',   path: '/?tab=overview',        icon: 'LayoutDashboard', componentKey: 'dashboard', order: 1 },
         { name: 'Candidate Screening',  path: '/?tab=applications',    icon: 'Users',           componentKey: 'dashboard', order: 2 },
-        { name: 'Seat Allocations',     path: '/?tab=seats',           icon: 'Layers',          componentKey: 'dashboard', order: 3 },
-        { name: 'Scholarships & Waivers',path: '/?tab=scholarships',   icon: 'Award',           componentKey: 'dashboard', order: 4 },
-        { name: 'Admission CRM',        path: '/?tab=enquiries',       icon: 'UserPlus',        componentKey: 'dashboard', order: 5 },
-        { name: 'Counselling Rounds',   path: '/?tab=counselling',     icon: 'Calendar',        componentKey: 'dashboard', order: 6 },
-        { name: 'Fee Ledger',           path: '/?tab=payments',        icon: 'DollarSign',      componentKey: 'dashboard', order: 7 },
+        { name: 'Faculty Leave & OD Approvals', path: '/?tab=faculty_leaves', icon: 'FileText', componentKey: 'dashboard', order: 3 },
+        { name: 'Seat Allocations',     path: '/?tab=seats',           icon: 'Layers',          componentKey: 'dashboard', order: 4 },
+        { name: 'Scholarships & Waivers',path: '/?tab=scholarships',   icon: 'Award',           componentKey: 'dashboard', order: 5 },
+        { name: 'Admission CRM',        path: '/?tab=enquiries',       icon: 'UserPlus',        componentKey: 'dashboard', order: 6 },
+        { name: 'Counselling Rounds',   path: '/?tab=counselling',     icon: 'Calendar',        componentKey: 'dashboard', order: 7 },
+        { name: 'Fee Ledger',           path: '/?tab=payments',        icon: 'DollarSign',      componentKey: 'dashboard', order: 8 },
       ];
     }
 

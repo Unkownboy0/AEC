@@ -1046,6 +1046,70 @@ async function main() {
     },
   });
 
+  // Seed Faculty Leave & OD Requests
+  const facLeaveReq = await prisma.workflowRequest.create({
+    data: {
+      facultyRequesterId: faculty.id,
+      departmentId: deptCSE.id,
+      type: 'FACULTY_LEAVE',
+      title: 'Casual Leave — Family Event',
+      reason: 'Attending family event. Emergency Contact: 9876543210',
+      startDate: new Date('2026-07-25'),
+      endDate: new Date('2026-07-26'),
+      status: 'HOD_APPROVED',
+      currentStep: 'DEAN',
+      attachments: '["https://example.com/docs/leave_letter.pdf"]',
+    },
+  });
+
+  await prisma.workflowHistory.create({
+    data: {
+      requestId: facLeaveReq.id,
+      stage: 'FACULTY',
+      action: 'SUBMIT',
+      comment: 'Submitted Casual Leave request: Casual Leave — Family Event',
+      actionById: mentorUser.id,
+      actionByName: 'Ada Lovelace',
+    },
+  });
+
+  await prisma.workflowHistory.create({
+    data: {
+      requestId: facLeaveReq.id,
+      stage: 'HOD',
+      action: 'APPROVE',
+      comment: 'HOD approved and forwarded to Admission Dean for final review.',
+      actionById: mentorUser.id,
+      actionByName: 'Prof. Grace Hopper (HOD)',
+    },
+  });
+
+  const facOdReq = await prisma.workflowRequest.create({
+    data: {
+      facultyRequesterId: faculty.id,
+      departmentId: deptCSE.id,
+      type: 'FACULTY_OD',
+      title: 'Duty — International IEEE Conference Presentation',
+      reason: 'Presenting research paper on AI in Education. Emergency Contact: 9876543210',
+      startDate: new Date('2026-07-28'),
+      endDate: new Date('2026-07-30'),
+      status: 'PENDING',
+      currentStep: 'HOD',
+      attachments: '["https://example.com/docs/ieee_invitation.pdf"]',
+    },
+  });
+
+  await prisma.workflowHistory.create({
+    data: {
+      requestId: facOdReq.id,
+      stage: 'FACULTY',
+      action: 'SUBMIT',
+      comment: 'Submitted On-Duty request for IEEE conference.',
+      actionById: mentorUser.id,
+      actionByName: 'Ada Lovelace',
+    },
+  });
+
   // 21. Seed Counseling Record
   await prisma.counselingRecord.create({
     data: {
@@ -1217,7 +1281,11 @@ async function main() {
     ];
 
     for (const app of apps) {
-      await prisma.admissionApplication.create({ data: app });
+      await prisma.admissionApplication.upsert({
+        where: { applicationNo: app.applicationNo },
+        update: {},
+        create: app,
+      });
     }
     console.log('📝 Seeded Admission Applications.');
   }

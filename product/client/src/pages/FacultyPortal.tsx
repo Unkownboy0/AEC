@@ -217,6 +217,10 @@ export const FacultyPortal: React.FC<FacultyPortalProps> = ({ user }) => {
   const [leaveStart, setLeaveStart] = useState('');
   const [leaveEnd, setLeaveEnd] = useState('');
   const [leaveType, setLeaveType] = useState('FACULTY_LEAVE');
+  const [leaveCategory, setLeaveCategory] = useState('Casual Leave');
+  const [odCategory, setOdCategory] = useState('Duty');
+  const [emergencyContact, setEmergencyContact] = useState('');
+  const [leaveAttachment, setLeaveAttachment] = useState('');
 
   // Publications
   const [publications, setPublications] = useState<any[]>([
@@ -1381,18 +1385,23 @@ export const FacultyPortal: React.FC<FacultyPortalProps> = ({ user }) => {
   // Submit Leave Form
   const handleLeaveSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!leaveTitle || !leaveReason) {
+    if (!leaveReason) {
       toast.error('Please fill in leave details.');
       return;
     }
+    const category = leaveType === 'FACULTY_LEAVE' ? leaveCategory : odCategory;
+    const title = leaveTitle || `${category} (${leaveType === 'FACULTY_LEAVE' ? 'Leave' : 'OD'})`;
+    const fullReason = emergencyContact ? `${leaveReason}\nEmergency Contact: ${emergencyContact}` : leaveReason;
+    const attachments = leaveAttachment ? JSON.stringify([leaveAttachment]) : '[]';
+
     try {
       const res = await api.post('/workflows/requests', {
         type: leaveType,
-        title: leaveTitle,
-        reason: leaveReason,
+        title,
+        reason: fullReason,
         startDate: leaveStart || undefined,
         endDate: leaveEnd || undefined,
-        attachments: '[]'
+        attachments
       });
       if (res.data?.status === 'success') {
         toast.success(`${leaveType === 'FACULTY_OD' ? 'OD' : 'Leave'} authorization request submitted for HOD review.`);
@@ -1400,6 +1409,8 @@ export const FacultyPortal: React.FC<FacultyPortalProps> = ({ user }) => {
         setLeaveReason('');
         setLeaveStart('');
         setLeaveEnd('');
+        setEmergencyContact('');
+        setLeaveAttachment('');
         // Refresh requests
         const wfRes = await api.get('/workflows/requests');
         if (wfRes.data?.status === 'success') {
@@ -1409,6 +1420,21 @@ export const FacultyPortal: React.FC<FacultyPortalProps> = ({ user }) => {
     } catch (err: any) {
       console.error('Failed to submit leave request:', err);
       toast.error(err.response?.data?.message || 'Failed to submit leave request.');
+    }
+  };
+
+  const handleCancelLeave = async (requestId: string) => {
+    try {
+      const res = await api.post(`/workflows/requests/${requestId}/cancel`);
+      if (res.data?.status === 'success') {
+        toast.success('Request cancelled successfully.');
+        const wfRes = await api.get('/workflows/requests');
+        if (wfRes.data?.status === 'success') {
+          setWorkflowRequests(wfRes.data.data);
+        }
+      }
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Failed to cancel request.');
     }
   };
 
@@ -4079,22 +4105,26 @@ export const FacultyPortal: React.FC<FacultyPortalProps> = ({ user }) => {
         {activeTab === 'leaves' && (() => {
           const myRequests = workflowRequests.filter((r: any) => r.facultyRequesterId === profileData?.id);
           const pendingCount   = myRequests.filter((r: any) => ['PENDING', 'PENDING_HOD'].includes(r.status)).length;
-          const approvedCount  = myRequests.filter((r: any) => ['APPROVED', 'HOD_APPROVED'].includes(r.status)).length;
-          const rejectedCount  = myRequests.filter((r: any) => ['REJECTED', 'REJECTED_BY_HOD'].includes(r.status)).length;
+          const approvedCount  = myRequests.filter((r: any) => r.status === 'APPROVED').length;
+          const rejectedCount  = myRequests.filter((r: any) => ['REJECTED_BY_HOD', 'REJECTED_BY_DEAN', 'REJECTED'].includes(r.status)).length;
           const totalCount     = myRequests.length;
 
+          const calculatedDays = leaveStart && leaveEnd
+            ? Math.max(1, Math.ceil((new Date(leaveEnd).getTime() - new Date(leaveStart).getTime()) / (1000 * 3600 * 24)) + 1)
+            : 0;
+
           return (
-            <div className="space-y-6 animate-in fade-in duration-300">
+            <div className="space-y-6 animate-in fade-in duration-300 text-left">
 
               {/* Page header */}
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                 <div>
                   <h2 className="text-lg font-extrabold tracking-tight text-foreground">My Leave & OD Requests</h2>
-                  <p className="text-xs text-muted-foreground mt-0.5">Submit and track your own leave or on-duty requests</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">Submit and track your own leave or on-duty requests with live 2-level HOD → Admission Dean approval</p>
                 </div>
                 <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-muted-foreground border rounded-lg px-3 py-1.5 bg-muted/30">
                   <span className="h-2 w-2 rounded-full bg-emerald-500 inline-block animate-pulse" />
-                  Auto-routed · HOD → Admission Dean
+                  Auto-routed · HOD (L1) → Admission Dean (L2 Final)
                 </div>
               </div>
 
@@ -4111,9 +4141,9 @@ export const FacultyPortal: React.FC<FacultyPortalProps> = ({ user }) => {
                   <span className="text-[10px] text-amber-600">Awaiting HOD / Dean</span>
                 </div>
                 <div className="border bg-emerald-50 border-emerald-200 rounded-xl p-4 shadow-sm flex flex-col gap-1">
-                  <span className="text-[9px] uppercase font-bold text-emerald-600 tracking-wider">Approved</span>
+                  <span className="text-[9px] uppercase font-bold text-emerald-600 tracking-wider">Final Approved</span>
                   <span className="text-2xl font-extrabold text-emerald-700">{approvedCount}</span>
-                  <span className="text-[10px] text-emerald-600">Sanctioned</span>
+                  <span className="text-[10px] text-emerald-600">Fully Sanctioned</span>
                 </div>
                 <div className="border bg-rose-50 border-rose-200 rounded-xl p-4 shadow-sm flex flex-col gap-1">
                   <span className="text-[9px] uppercase font-bold text-rose-600 tracking-wider">Rejected</span>
@@ -4136,7 +4166,7 @@ export const FacultyPortal: React.FC<FacultyPortalProps> = ({ user }) => {
 
                   <form onSubmit={handleLeaveSubmit} className="space-y-3.5 text-xs font-semibold">
                     <div className="flex flex-col gap-1.5">
-                      <label className="text-[9px] uppercase font-bold text-muted-foreground">Request Type</label>
+                      <label className="text-[9px] uppercase font-bold text-muted-foreground">Request Category</label>
                       <select
                         value={leaveType}
                         onChange={e => setLeaveType(e.target.value)}
@@ -4147,21 +4177,54 @@ export const FacultyPortal: React.FC<FacultyPortalProps> = ({ user }) => {
                       </select>
                     </div>
 
+                    {leaveType === 'FACULTY_LEAVE' ? (
+                      <div className="flex flex-col gap-1.5">
+                        <label className="text-[9px] uppercase font-bold text-muted-foreground">Leave Type</label>
+                        <select
+                          value={leaveCategory}
+                          onChange={e => setLeaveCategory(e.target.value)}
+                          className="h-9 border rounded-lg bg-background px-2 text-xs font-semibold focus:ring-2 focus:ring-primary/30 outline-none"
+                        >
+                          <option value="Casual Leave">Casual Leave</option>
+                          <option value="Sick Leave">Sick Leave</option>
+                          <option value="Earned Leave">Earned Leave</option>
+                          <option value="Maternity Leave">Maternity Leave</option>
+                          <option value="Paternity Leave">Paternity Leave</option>
+                          <option value="Special Leave">Special Leave</option>
+                        </select>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col gap-1.5">
+                        <label className="text-[9px] uppercase font-bold text-muted-foreground">OD Type</label>
+                        <select
+                          value={odCategory}
+                          onChange={e => setOdCategory(e.target.value)}
+                          className="h-9 border rounded-lg bg-background px-2 text-xs font-semibold focus:ring-2 focus:ring-primary/30 outline-none"
+                        >
+                          <option value="Duty">Duty</option>
+                          <option value="Seminar">Seminar</option>
+                          <option value="Exam Invigilation">Exam Invigilation</option>
+                          <option value="Valuation">Valuation</option>
+                          <option value="Conference">Conference</option>
+                          <option value="Research">Research</option>
+                        </select>
+                      </div>
+                    )}
+
                     <div className="flex flex-col gap-1.5">
                       <label className="text-[9px] uppercase font-bold text-muted-foreground">Subject / Title</label>
                       <input
                         type="text"
-                        required
                         value={leaveTitle}
                         onChange={e => setLeaveTitle(e.target.value)}
-                        placeholder="e.g. Medical checkup"
+                        placeholder={`e.g. ${leaveType === 'FACULTY_LEAVE' ? 'Medical Leave' : 'Conference Presentation'}`}
                         className="h-9 border rounded-lg bg-background px-3 focus:ring-2 focus:ring-primary/30 outline-none"
                       />
                     </div>
 
                     <div className="grid grid-cols-2 gap-2">
                       <div className="flex flex-col gap-1.5">
-                        <label className="text-[9px] uppercase font-bold text-muted-foreground">Start Date</label>
+                        <label className="text-[9px] uppercase font-bold text-muted-foreground">From Date</label>
                         <input
                           type="date"
                           required
@@ -4171,7 +4234,7 @@ export const FacultyPortal: React.FC<FacultyPortalProps> = ({ user }) => {
                         />
                       </div>
                       <div className="flex flex-col gap-1.5">
-                        <label className="text-[9px] uppercase font-bold text-muted-foreground">End Date</label>
+                        <label className="text-[9px] uppercase font-bold text-muted-foreground">To Date</label>
                         <input
                           type="date"
                           required
@@ -4182,21 +4245,49 @@ export const FacultyPortal: React.FC<FacultyPortalProps> = ({ user }) => {
                       </div>
                     </div>
 
+                    {calculatedDays > 0 && (
+                      <div className="bg-primary/5 border border-primary/20 p-2 rounded-lg text-center font-bold text-xs text-primary">
+                        Total Duration: {calculatedDays} {calculatedDays === 1 ? 'Day' : 'Days'}
+                      </div>
+                    )}
+
                     <div className="flex flex-col gap-1.5">
-                      <label className="text-[9px] uppercase font-bold text-muted-foreground">Reason / Details</label>
+                      <label className="text-[9px] uppercase font-bold text-muted-foreground">Reason</label>
                       <textarea
                         required
                         value={leaveReason}
                         onChange={e => setLeaveReason(e.target.value)}
                         placeholder="Explain your reason in detail..."
-                        rows={4}
+                        rows={3}
                         className="border rounded-lg bg-background p-2.5 text-xs resize-none focus:ring-2 focus:ring-primary/30 outline-none"
+                      />
+                    </div>
+
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-[9px] uppercase font-bold text-muted-foreground">Emergency Contact</label>
+                      <input
+                        type="text"
+                        value={emergencyContact}
+                        onChange={e => setEmergencyContact(e.target.value)}
+                        placeholder="Name / Phone Number during absence"
+                        className="h-9 border rounded-lg bg-background px-3 focus:ring-2 focus:ring-primary/30 outline-none"
+                      />
+                    </div>
+
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-[9px] uppercase font-bold text-muted-foreground">Supporting Document (URL / Link)</label>
+                      <input
+                        type="url"
+                        value={leaveAttachment}
+                        onChange={e => setLeaveAttachment(e.target.value)}
+                        placeholder="https://document-link.com/file.pdf"
+                        className="h-9 border rounded-lg bg-background px-3 focus:ring-2 focus:ring-primary/30 outline-none"
                       />
                     </div>
 
                     <button
                       type="submit"
-                      className="w-full h-9 bg-primary text-primary-foreground rounded-lg font-bold hover:bg-primary/90 transition-colors flex items-center justify-center gap-2 text-xs"
+                      className="w-full h-9 bg-primary text-primary-foreground rounded-lg font-bold hover:bg-primary/90 transition-colors flex items-center justify-center gap-2 text-xs shadow-sm"
                     >
                       <Send className="h-3.5 w-3.5" />
                       Submit Request to HOD
@@ -4205,18 +4296,18 @@ export const FacultyPortal: React.FC<FacultyPortalProps> = ({ user }) => {
 
                   {/* Workflow info */}
                   <div className="bg-muted/30 border rounded-lg p-3 space-y-1.5 text-[10px]">
-                    <p className="font-extrabold uppercase tracking-wider text-muted-foreground text-[9px]">Approval Workflow</p>
+                    <p className="font-extrabold uppercase tracking-wider text-muted-foreground text-[9px]">Approval Hierarchy</p>
                     <div className="flex items-center gap-1.5 text-muted-foreground font-semibold">
-                      <span className="h-1.5 w-1.5 rounded-full bg-primary inline-block" /> You (Faculty)
+                      <span className="h-1.5 w-1.5 rounded-full bg-primary inline-block" /> Faculty (You)
                     </div>
                     <div className="flex items-center gap-1.5 text-muted-foreground font-semibold pl-3">
-                      <span className="h-1.5 w-1.5 rounded-full bg-amber-500 inline-block" /> HOD Review
+                      <span className="h-1.5 w-1.5 rounded-full bg-amber-500 inline-block" /> HOD (Level 1 Approval)
                     </div>
                     <div className="flex items-center gap-1.5 text-muted-foreground font-semibold pl-6">
-                      <span className="h-1.5 w-1.5 rounded-full bg-blue-500 inline-block" /> Admission Dean
+                      <span className="h-1.5 w-1.5 rounded-full bg-indigo-500 inline-block" /> Admission Dean (Level 2 Final)
                     </div>
                     <div className="flex items-center gap-1.5 text-emerald-600 font-bold pl-9">
-                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 inline-block" /> Final Decision
+                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 inline-block" /> Final Status
                     </div>
                   </div>
                 </div>
@@ -4227,7 +4318,7 @@ export const FacultyPortal: React.FC<FacultyPortalProps> = ({ user }) => {
                     <div className="h-7 w-7 rounded-lg bg-indigo-100 flex items-center justify-center">
                       <Clock className="h-3.5 w-3.5 text-indigo-600" />
                     </div>
-                    <h3 className="text-sm font-extrabold uppercase tracking-tight">Request History</h3>
+                    <h3 className="text-sm font-extrabold uppercase tracking-tight">Request History & Status Tracker</h3>
                     <span className="ml-auto text-[10px] bg-muted border rounded-full px-2 py-0.5 font-bold">{myRequests.length} total</span>
                   </div>
 
@@ -4236,7 +4327,7 @@ export const FacultyPortal: React.FC<FacultyPortalProps> = ({ user }) => {
                       <div className="h-14 w-14 rounded-full bg-muted flex items-center justify-center">
                         <FileText className="h-6 w-6 text-muted-foreground" />
                       </div>
-                      <p className="text-sm font-bold text-foreground">No requests yet</p>
+                      <p className="text-sm font-bold text-foreground">No requests submitted yet</p>
                       <p className="text-xs text-muted-foreground max-w-xs">Submit your first Leave or OD request using the form on the left.</p>
                     </div>
                   ) : (
@@ -4244,39 +4335,35 @@ export const FacultyPortal: React.FC<FacultyPortalProps> = ({ user }) => {
                       <table className="w-full text-left text-xs font-semibold">
                         <thead>
                           <tr className="border-b text-[9px] uppercase font-bold text-muted-foreground">
-                            <th className="py-2 pl-3">Title / Reason</th>
+                            <th className="py-2 pl-3">Title & Reason</th>
                             <th className="py-2">Type</th>
                             <th className="py-2">Duration</th>
-                            <th className="py-2 text-center">Current Stage</th>
-                            <th className="py-2 text-right pr-3">Status</th>
+                            <th className="py-2 text-center">Status Tracker</th>
+                            <th className="py-2 text-right pr-3">Actions</th>
                           </tr>
                         </thead>
                         <tbody>
                           {myRequests.map((item: any, idx: number) => {
-                            const statusColors: Record<string, string> = {
-                              PENDING: 'bg-amber-50 text-amber-700 border-amber-200',
-                              PENDING_HOD: 'bg-amber-50 text-amber-700 border-amber-200',
-                              MENTOR_APPROVED: 'bg-blue-50 text-blue-700 border-blue-200',
-                              HOD_APPROVED: 'bg-indigo-50 text-indigo-700 border-indigo-200',
-                              APPROVED: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-                              REJECTED: 'bg-rose-50 text-rose-700 border-rose-200',
-                              REJECTED_BY_HOD: 'bg-rose-50 text-rose-700 border-rose-200',
-                              REJECTED_BY_MENTOR: 'bg-rose-50 text-rose-700 border-rose-200',
-                            };
-                            const stageLabel: Record<string, string> = {
-                              MENTOR: 'Faculty Advisor',
-                              HOD: 'HOD Review',
-                              DEAN: 'Admission Dean',
-                              PRINCIPAL: 'Principal',
-                            };
                             const formattedStart = item.startDate ? new Date(item.startDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }) : '—';
                             const formattedEnd   = item.endDate   ? new Date(item.endDate).toLocaleDateString('en-IN',   { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
+
+                            const statusDisplay: Record<string, { label: string; class: string }> = {
+                              PENDING: { label: 'Submitted (Pending HOD)', class: 'bg-amber-50 text-amber-700 border-amber-200' },
+                              PENDING_HOD: { label: 'Submitted (Pending HOD)', class: 'bg-amber-50 text-amber-700 border-amber-200' },
+                              HOD_APPROVED: { label: 'HOD Approved (Forwarded to Dean)', class: 'bg-indigo-50 text-indigo-700 border-indigo-200' },
+                              APPROVED: { label: 'Final Approved', class: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+                              REJECTED_BY_HOD: { label: 'Rejected by HOD', class: 'bg-rose-50 text-rose-700 border-rose-200' },
+                              REJECTED_BY_DEAN: { label: 'Rejected by Admission Dean', class: 'bg-rose-50 text-rose-700 border-rose-200' },
+                              CANCELLED: { label: 'Cancelled', class: 'bg-slate-100 text-slate-600 border-slate-200' },
+                            };
+
+                            const currentStatus = statusDisplay[item.status] || { label: item.status.replace(/_/g, ' '), class: 'bg-slate-50 text-slate-700 border-slate-200' };
 
                             return (
                               <tr key={item.id || idx} className="border-b last:border-b-0 hover:bg-muted/40 transition-colors duration-150">
                                 <td className="py-3 pl-3 pr-2 max-w-[180px]">
                                   <div className="font-bold text-foreground truncate">{item.title}</div>
-                                  <div className="text-[10px] text-muted-foreground mt-0.5 line-clamp-1">{item.reason}</div>
+                                  <div className="text-[10px] text-muted-foreground mt-0.5 line-clamp-2 whitespace-pre-wrap">{item.reason}</div>
                                 </td>
                                 <td className="py-3 px-2">
                                   <span className={`px-2 py-0.5 rounded-full text-[9px] font-black border whitespace-nowrap ${
@@ -4291,16 +4378,22 @@ export const FacultyPortal: React.FC<FacultyPortalProps> = ({ user }) => {
                                   {formattedStart} → {formattedEnd}
                                 </td>
                                 <td className="py-3 px-2 text-center">
-                                  <span className="text-[9px] font-extrabold uppercase tracking-tight text-foreground">
-                                    {stageLabel[item.currentStep] || item.currentStep}
+                                  <span className={`px-2.5 py-1 rounded-full text-[9px] font-extrabold border whitespace-nowrap ${currentStatus.class}`}>
+                                    {currentStatus.label}
                                   </span>
                                 </td>
                                 <td className="py-3 pl-2 pr-3 text-right">
-                                  <span className={`px-2 py-0.5 rounded-full text-[9px] font-black border whitespace-nowrap ${
-                                    statusColors[item.status] || 'bg-slate-50 text-slate-700 border-slate-200'
-                                  }`}>
-                                    {item.status.replace(/_/g, ' ')}
-                                  </span>
+                                  {['PENDING', 'PENDING_HOD'].includes(item.status) ? (
+                                    <button
+                                      onClick={() => handleCancelLeave(item.id)}
+                                      className="px-2.5 py-1 border border-rose-200 text-rose-600 hover:bg-rose-50 rounded text-[10px] font-bold transition-colors"
+                                      title="Cancel Request before HOD review"
+                                    >
+                                      Cancel
+                                    </button>
+                                  ) : (
+                                    <span className="text-[10px] text-muted-foreground font-semibold">—</span>
+                                  )}
                                 </td>
                               </tr>
                             );

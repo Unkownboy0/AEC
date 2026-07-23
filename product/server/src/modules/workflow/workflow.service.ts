@@ -341,7 +341,15 @@ export class WorkflowService {
     const actorId = user ? user.id : 'SYSTEM';
 
     if (action === 'REJECT') {
-      nextStatus = request.currentStep === 'MENTOR' ? 'REJECTED_BY_MENTOR' : 'REJECTED_BY_HOD';
+      if (request.currentStep === 'MENTOR') {
+        nextStatus = 'REJECTED_BY_MENTOR';
+      } else if (request.currentStep === 'HOD') {
+        nextStatus = 'REJECTED_BY_HOD';
+      } else if (request.currentStep === 'DEAN') {
+        nextStatus = 'REJECTED_BY_DEAN';
+      } else {
+        nextStatus = 'REJECTED';
+      }
     } else if (action === 'CLARIFICATION') {
       nextStatus = 'CLARIFICATION_REQUESTED';
     } else if (action === 'FORWARD' || action === 'APPROVE') {
@@ -405,16 +413,15 @@ export class WorkflowService {
       
       if (departmentHod) {
         await this.sendNotification(
-          `New Faculty Approved Request: ${request.student?.firstName} ${request.student?.lastName}`,
-          `A ${request.type} request "${request.title}" from ${request.student?.firstName} ${request.student?.lastName} has been approved by their Faculty Advisor / Class Advisor and is pending your HOD approval.`,
+          `🔔 New Student Request: ${request.student?.firstName} ${request.student?.lastName}`,
+          `A ${request.type} request "${request.title}" from ${request.student?.firstName} ${request.student?.lastName} has been approved by Advisor and is pending your HOD approval.`,
           'EMAIL',
           departmentHod.userId || undefined
         );
       }
 
-      // Notify Student
       await this.sendNotification(
-        `Request Status Update: Approved by Faculty/Advisor`,
+        `🔔 Request Approved by Faculty/Advisor`,
         `Your request "${request.title}" has been approved by your Faculty Advisor / Class Advisor and sent to HOD for final approval.`,
         'EMAIL',
         request.student?.userId || undefined
@@ -422,27 +429,29 @@ export class WorkflowService {
 
     } else if (nextStatus === 'REJECTED_BY_MENTOR') {
       await this.sendNotification(
-        `Request Status Update: Rejected by Faculty/Advisor`,
+        `🔔 Request Rejected by Faculty/Advisor`,
         `Your request has been rejected by your Faculty Advisor / Class Advisor. Remarks: ${comment || 'None'}`,
         'EMAIL',
         request.student?.userId || undefined
       );
 
     } else if (nextStatus === 'HOD_APPROVED' && request.facultyRequesterId) {
-      const deanRole = await prisma.role.findFirst({ where: { name: 'Academic Dean' } });
-      const deanUser = deanRole ? await prisma.user.findFirst({ where: { roleId: deanRole.id } }) : null;
-      if (deanUser) {
+      // Notify Admission Dean
+      const deanRole = await prisma.role.findFirst({ where: { name: 'Admission Dean' } });
+      const deanUsers = deanRole ? await prisma.user.findMany({ where: { roleId: deanRole.id } }) : [];
+      for (const deanUser of deanUsers) {
         await this.sendNotification(
-          `New HOD Approved Faculty Request: ${request.facultyRequester?.firstName} ${request.facultyRequester?.lastName}`,
-          `A ${request.type} request "${request.title}" from Faculty member ${request.facultyRequester?.firstName} ${request.facultyRequester?.lastName} has been approved by HOD and is pending your final Dean approval.`,
+          `🔔 HOD Approved Faculty Leave/OD Request`,
+          `Faculty Leave/OD request from ${request.facultyRequester?.firstName} ${request.facultyRequester?.lastName} has been approved by HOD and is pending your final approval.`,
           'EMAIL',
           deanUser.id || undefined
         );
       }
 
+      // Notify Faculty
       await this.sendNotification(
-        `Request Status Update: Approved by HOD`,
-        `Your request "${request.title}" has been approved by HOD and forwarded to Academic Dean for final review.`,
+        `🔔 HOD Approved`,
+        `Your Leave/OD request has been approved by HOD and forwarded to Admission Dean.`,
         'EMAIL',
         request.facultyRequester?.userId || undefined
       );
@@ -450,25 +459,35 @@ export class WorkflowService {
     } else if (nextStatus === 'REJECTED_BY_HOD') {
       if (request.facultyRequesterId) {
         await this.sendNotification(
-          `Request Status Update: Rejected by HOD`,
-          `Your request has been rejected by HOD. Remarks: ${comment || 'None'}`,
+          `🔔 HOD Rejected`,
+          `Your Leave/OD request has been rejected by HOD. Remarks: ${comment || 'None'}`,
           'EMAIL',
           request.facultyRequester?.userId || undefined
         );
       } else {
         await this.sendNotification(
-          `Request Status Update: Rejected by HOD`,
+          `🔔 Request Rejected by HOD`,
           `Your request has been rejected by HOD. Remarks: ${comment || 'None'}`,
           'EMAIL',
           request.student?.userId || undefined
         );
       }
 
+    } else if (nextStatus === 'REJECTED_BY_DEAN') {
+      if (request.facultyRequesterId) {
+        await this.sendNotification(
+          `🔔 Final Rejected`,
+          `Your Leave/OD request has been rejected by Admission Dean. Remarks: ${comment || 'None'}`,
+          'EMAIL',
+          request.facultyRequester?.userId || undefined
+        );
+      }
+
     } else if (nextStatus === 'APPROVED') {
       if (request.facultyRequesterId) {
         await this.sendNotification(
-          `Request Status Update: Approved`,
-          `Your request has been approved by Academic Dean.`,
+          `🔔 Final Approved`,
+          `Your Leave/OD request has been fully approved.`,
           'EMAIL',
           request.facultyRequester?.userId || undefined
         );
@@ -582,20 +601,33 @@ export class WorkflowService {
    */
   async cancelRequest(requestId: string, userEmail: string) {
     const student = await prisma.student.findFirst({ where: { email: userEmail } });
+    let faculty = null;
     if (!student) {
-      throw new NotFoundException('Student profile not found');
+      faculty = await prisma.faculty.findFirst({ where: { email: userEmail } });
+    }
+
+    if (!student && !faculty) {
+      throw new NotFoundException('User profile not found for this session');
     }
 
     const request = await prisma.workflowRequest.findUnique({
       where: { id: requestId }
     });
 
-    if (!request || request.studentId !== student.id) {
-      throw new NotFoundException('Request not found or access denied');
+    if (!request) {
+      throw new NotFoundException('Request not found');
     }
 
-    if (request.status !== 'PENDING' && request.status !== 'MENTOR_APPROVED' && !request.status.startsWith('PENDING')) {
-      throw new BadRequestException('Only pending requests can be cancelled');
+    if (student && request.studentId !== student.id) {
+      throw new UnauthorizedException('Access denied');
+    }
+
+    if (faculty && request.facultyRequesterId !== faculty.id) {
+      throw new UnauthorizedException('Access denied');
+    }
+
+    if (request.status !== 'PENDING' && !request.status.startsWith('PENDING')) {
+      throw new BadRequestException('Only pending requests can be cancelled (before approval)');
     }
 
     const updated = await prisma.workflowRequest.update({
@@ -606,11 +638,11 @@ export class WorkflowService {
     await prisma.workflowHistory.create({
       data: {
         requestId,
-        stage: 'STUDENT',
+        stage: faculty ? 'FACULTY' : 'STUDENT',
         action: 'CANCEL',
-        comment: 'Request cancelled by student',
-        actionById: student.userId || 'STUDENT',
-        actionByName: `${student.firstName} ${student.lastName}`,
+        comment: 'Request cancelled by requester',
+        actionById: (faculty ? faculty.userId : student?.userId) || 'USER',
+        actionByName: faculty ? `${faculty.firstName} ${faculty.lastName}` : `${student?.firstName} ${student?.lastName}`,
       }
     });
 
