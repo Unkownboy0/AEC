@@ -400,7 +400,7 @@ export const HODPortal: React.FC<HODPortalProps> = ({ user }) => {
                 <tbody className="divide-y">
                   {requests
                     .filter(item => {
-                      if (workflowTab === 'PENDING') return item.currentStep === 'HOD' && item.status === 'MENTOR_APPROVED';
+                      if (workflowTab === 'PENDING') return item.currentStep === 'HOD' && (item.status === 'MENTOR_APPROVED' || (item.facultyRequesterId && item.status === 'PENDING'));
                       if (workflowTab === 'APPROVED') return item.status === 'APPROVED';
                       if (workflowTab === 'REJECTED') return ['REJECTED', 'REJECTED_BY_MENTOR', 'REJECTED_BY_HOD'].includes(item.status);
                       if (workflowTab === 'DEPARTMENT') return true;
@@ -417,13 +417,27 @@ export const HODPortal: React.FC<HODPortalProps> = ({ user }) => {
                       return (
                         <tr key={item.id || idx} className="border-b last:border-b-0 hover:bg-muted/10">
                           <td className="p-3 space-y-1">
-                            <p className="font-extrabold text-foreground">{item.student?.firstName} {item.student?.lastName}</p>
-                            <p className="text-[9px] text-muted-foreground font-mono uppercase">
-                              Reg: {item.student?.registerNo || 'N/A'} · Adm: {item.student?.admissionNo || 'N/A'}
-                            </p>
-                            <p className="text-[9px] text-muted-foreground font-mono uppercase">
-                              Sem {item.student?.semester?.number || 'N/A'} · Sec {item.student?.section?.name || 'N/A'}
-                            </p>
+                            {item.facultyRequester ? (
+                              <>
+                                <p className="font-extrabold text-indigo-700">{item.facultyRequester.firstName} {item.facultyRequester.lastName} [FACULTY]</p>
+                                <p className="text-[9px] text-muted-foreground font-mono uppercase">
+                                  Emp ID: {item.facultyRequester.employeeId || 'N/A'}
+                                </p>
+                                <p className="text-[9px] text-muted-foreground font-mono uppercase">
+                                  Dept: {item.facultyRequester.department?.name || 'N/A'}
+                                </p>
+                              </>
+                            ) : (
+                              <>
+                                <p className="font-extrabold text-foreground">{item.student?.firstName} {item.student?.lastName}</p>
+                                <p className="text-[9px] text-muted-foreground font-mono uppercase">
+                                  Reg: {item.student?.registerNo || 'N/A'} · Adm: {item.student?.admissionNo || 'N/A'}
+                                </p>
+                                <p className="text-[9px] text-muted-foreground font-mono uppercase">
+                                  Sem {item.student?.semester?.number || 'N/A'} · Sec {item.student?.section?.name || 'N/A'}
+                                </p>
+                              </>
+                            )}
                           </td>
                           <td className="p-3 space-y-1">
                             <span className="inline-block bg-primary/10 border border-primary/20 px-2 py-0.5 rounded text-[8px] text-primary font-black uppercase">
@@ -513,7 +527,7 @@ export const HODPortal: React.FC<HODPortalProps> = ({ user }) => {
                       );
                     })}
                   {requests.filter(item => {
-                    if (workflowTab === 'PENDING') return item.currentStep === 'HOD' && item.status === 'MENTOR_APPROVED';
+                    if (workflowTab === 'PENDING') return item.currentStep === 'HOD' && (item.status === 'MENTOR_APPROVED' || (item.facultyRequesterId && item.status === 'PENDING'));
                     if (workflowTab === 'APPROVED') return item.status === 'APPROVED';
                     if (workflowTab === 'REJECTED') return ['REJECTED', 'REJECTED_BY_MENTOR', 'REJECTED_BY_HOD'].includes(item.status);
                     if (workflowTab === 'DEPARTMENT') return true;
@@ -537,10 +551,16 @@ export const HODPortal: React.FC<HODPortalProps> = ({ user }) => {
             <div className="bg-card w-full max-w-md p-6 rounded-2xl shadow-xl border space-y-4 text-left animate-in zoom-in-95 duration-200">
               <div>
                 <h3 className="text-sm font-black uppercase text-foreground">
-                  {actionType === 'APPROVE' ? 'Approve Student Request' : 'Reject Student Request'}
+                  {actionType === 'APPROVE'
+                    ? (actionRequest.facultyRequester ? 'Approve Faculty Request' : 'Approve Student Request')
+                    : (actionRequest.facultyRequester ? 'Reject Faculty Request' : 'Reject Student Request')
+                  }
                 </h3>
                 <p className="text-[10px] text-muted-foreground mt-0.5 font-bold">
-                  Request for {actionRequest.student?.firstName} {actionRequest.student?.lastName} · Category: {actionRequest.type}
+                  Request for {actionRequest.facultyRequester
+                    ? `${actionRequest.facultyRequester.firstName} ${actionRequest.facultyRequester.lastName}`
+                    : `${actionRequest.student?.firstName} ${actionRequest.student?.lastName}`
+                  } · Category: {actionRequest.type}
                 </p>
               </div>
 

@@ -1073,6 +1073,14 @@ export const AdmissionDeanPortal: React.FC<AdmissionDeanPortalProps> = ({ user }
     'Mechanical Engineering': { intake: 60, filled: 42 }
   });
 
+  const [activeSection, setActiveSection] = useState<'admissions' | 'workflows'>('admissions');
+  const [workflows, setWorkflows] = useState<any[]>([]);
+  const [workflowsLoading, setWorkflowsLoading] = useState(false);
+  const [actionRequest, setActionRequest] = useState<any | null>(null);
+  const [actionType, setActionType] = useState<'APPROVE' | 'REJECT' | null>(null);
+  const [actionComment, setActionComment] = useState('');
+  const [commentModalOpen, setCommentModalOpen] = useState(false);
+
   const fetchStudents = async () => {
     try {
       const res = await api.get('/enterprise/students');
@@ -1084,9 +1092,30 @@ export const AdmissionDeanPortal: React.FC<AdmissionDeanPortalProps> = ({ user }
     }
   };
 
+  const fetchWorkflows = async () => {
+    setWorkflowsLoading(true);
+    try {
+      const res = await api.get('/workflows/requests');
+      if (res.data?.status === 'success') {
+        setWorkflows(res.data.data);
+      }
+    } catch (err) {
+      console.error('Failed to load Dean workflows:', err);
+    } finally {
+      setWorkflowsLoading(false);
+    }
+  };
+
   useEffect(() => {
     fetchStudents();
+    fetchWorkflows();
   }, []);
+
+  useEffect(() => {
+    if (activeSection === 'workflows') {
+      fetchWorkflows();
+    }
+  }, [activeSection]);
 
   const handleVerify = (studentId: string) => {
     toast.success(`Documents verified for Student Registration.`);
@@ -1095,6 +1124,19 @@ export const AdmissionDeanPortal: React.FC<AdmissionDeanPortalProps> = ({ user }
 
   const handleRecommendConcession = (name: string) => {
     toast.success(`Fee concession recommended to Principal for ${name}.`);
+  };
+
+  const handleWorkflowAction = async (id: string, action: 'APPROVE' | 'REJECT', comment: string) => {
+    try {
+      const res = await api.post(`/workflows/requests/${id}/action`, { action, comment });
+      if (res.data?.status === 'success') {
+        toast.success(`Faculty request actioned successfully.`);
+        fetchWorkflows();
+      }
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err.response?.data?.message || 'Action failed.');
+    }
   };
 
   return (
@@ -1118,111 +1160,88 @@ export const AdmissionDeanPortal: React.FC<AdmissionDeanPortalProps> = ({ user }
         </div>
       </div>
 
-      {/* Seat availability progress */}
-      <div className="border bg-card p-5 rounded-xl shadow-sm space-y-4 text-xs font-semibold">
-        <div className="flex justify-between items-center border-b pb-2">
-          <h3 className="text-sm font-extrabold uppercase">Departmental Intake Matrix</h3>
-          <button onClick={() => handleExport('Admission Intake Stats', 'PDF')} className="h-8 border hover:bg-muted text-xs px-2.5 rounded-lg flex flex-wrap items-center gap-1">
-            <Download className="h-3.5 w-3.5" /> Intake Report
-          </button>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          {Object.entries(seatTracker).map(([dept, details], idx) => {
-            const pct = Math.round((details.filled / details.intake) * 100);
-            return (
-              <div key={idx} className="border p-4 rounded-xl bg-slate-50/50 space-y-2">
-                <span className="text-[10px] text-muted-foreground font-black block truncate">{dept}</span>
-                <div className="flex justify-between items-baseline font-black">
-                  <span className="text-2xl">{details.filled}</span>
-                  <span className="text-[10px] text-muted-foreground">/ {details.intake} seats</span>
-                </div>
-                <div className="w-full bg-muted h-2 rounded-full overflow-hidden">
-                  <div className="bg-emerald-500 h-full transition-all" style={{ width: `${pct}%` }} />
-                </div>
-                <span className="text-[9px] text-emerald-600 block text-right font-black">{pct}% filled</span>
-              </div>
-            );
-          })}
-        </div>
+      {/* Navigation tabs */}
+      <div className="flex gap-2 border-b pb-px">
+        <button
+          onClick={() => setActiveSection('admissions')}
+          className={`px-4 py-2 text-xs font-bold transition-all border-b-2 ${
+            activeSection === 'admissions'
+              ? 'border-primary text-primary font-extrabold'
+              : 'border-transparent text-muted-foreground hover:text-foreground'
+          }`}
+        >
+          Admissions & Intakes
+        </button>
+        <button
+          onClick={() => setActiveSection('workflows')}
+          className={`px-4 py-2 text-xs font-bold transition-all border-b-2 flex items-center gap-1.5 ${
+            activeSection === 'workflows'
+              ? 'border-primary text-primary font-extrabold'
+              : 'border-transparent text-muted-foreground hover:text-foreground'
+          }`}
+        >
+          Faculty Leave/OD Requests
+          {workflows.filter(w => w.status === 'HOD_APPROVED' && w.currentStep === 'DEAN').length > 0 && (
+            <span className="bg-rose-500 text-white rounded-full text-[9px] px-1.5 py-0.2 ml-1 animate-pulse">
+              {workflows.filter(w => w.status === 'HOD_APPROVED' && w.currentStep === 'DEAN').length}
+            </span>
+          )}
+        </button>
       </div>
 
-      {/* Table: Auto-provisioning logs */}
-      <div className="border bg-card p-5 rounded-xl shadow-sm space-y-4 text-xs font-semibold">
-        <h3 className="text-sm font-extrabold uppercase border-b pb-2">Auto-Provisioned Account Registry</h3>
-        {isMobile ? (
-          <div className="space-y-3">
-            {students.slice(0, 10).map((std: any, idx: number) => {
-              const autoUsername = std.admissionNo ? std.admissionNo.toLowerCase() : '';
-              const isVerified = std.status === 'VERIFIED';
-              return (
-                <div key={std.id || idx} className="p-4 border rounded-xl bg-background space-y-2.5 text-xs font-semibold text-left">
-                  <div className="flex justify-between items-center border-b pb-2">
-                    <span className="font-extrabold text-slate-800 text-xs">{std.firstName} {std.lastName}</span>
-                    <span className="text-[10px] text-primary font-mono">{std.admissionNo}</span>
-                  </div>
-                  <div className="flex flex-col gap-1 text-[10px] text-muted-foreground">
-                    <p><span className="font-bold text-slate-700">Email:</span> {std.email || 'N/A'}</p>
-                    <p><span className="font-bold text-slate-700">Phone:</span> {std.phone || 'N/A'}</p>
-                    <p><span className="font-bold text-slate-700">Username:</span> <span className="font-mono text-[9px] bg-slate-50 px-1 py-0.5 rounded border select-all">{autoUsername}@geetorus.com</span></p>
-                  </div>
-                  <div className="flex justify-between items-center pt-2.5 border-t">
-                    <span className={`inline-flex items-center gap-1 text-[9px] font-extrabold px-2 py-0.5 rounded border ${
-                      isVerified ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : 'bg-amber-50 text-amber-600 border-amber-200'
-                    }`}>
-                      {isVerified ? 'VERIFIED' : 'PENDING'}
-                    </span>
-                    <div className="flex flex-wrap gap-1.5">
-                      {!isVerified && (
-                        <button
-                          onClick={() => handleVerify(std.id)}
-                          className="px-2 py-1 bg-emerald-500 hover:bg-emerald-600 text-white rounded font-bold text-[9px]"
-                        >
-                          Verify Documents
-                        </button>
-                      )}
-                      <button
-                        onClick={() => handleRecommendConcession(`${std.firstName} ${std.lastName}`)}
-                        className="px-2 py-1 bg-indigo-50 border border-indigo-200 hover:bg-indigo-100 text-indigo-600 rounded font-bold text-[9px]"
-                      >
-                        Scholarship Recommendation
-                      </button>
+      {activeSection === 'admissions' && (
+        <>
+          {/* Seat availability progress */}
+          <div className="border bg-card p-5 rounded-xl shadow-sm space-y-4 text-xs font-semibold">
+            <div className="flex justify-between items-center border-b pb-2">
+              <h3 className="text-sm font-extrabold uppercase">Departmental Intake Matrix</h3>
+              <button onClick={() => handleExport('Admission Intake Stats', 'PDF')} className="h-8 border hover:bg-muted text-xs px-2.5 rounded-lg flex flex-wrap items-center gap-1">
+                <Download className="h-3.5 w-3.5" /> Intake Report
+              </button>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              {Object.entries(seatTracker).map(([dept, details], idx) => {
+                const pct = Math.round((details.filled / details.intake) * 100);
+                return (
+                  <div key={idx} className="border p-4 rounded-xl bg-slate-50/50 space-y-2">
+                    <span className="text-[10px] text-muted-foreground font-black block truncate">{dept}</span>
+                    <div className="flex justify-between items-baseline font-black">
+                      <span className="text-2xl">{details.filled}</span>
+                      <span className="text-[10px] text-muted-foreground">/ {details.intake} seats</span>
                     </div>
+                    <div className="w-full bg-muted h-2 rounded-full overflow-hidden">
+                      <div className="bg-emerald-500 h-full transition-all" style={{ width: `${pct}%` }} />
+                    </div>
+                    <span className="text-[9px] text-emerald-600 block text-right font-black">{pct}% filled</span>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left">
-              <thead className="bg-muted/50 text-muted-foreground uppercase text-[10px]">
-                <tr>
-                  <th className="p-2">Student Name</th>
-                  <th className="p-2">Admission No</th>
-                  <th className="p-2">Email</th>
-                  <th className="p-2">Auto Username</th>
-                  <th className="p-2">Status</th>
-                  <th className="p-2 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y text-xs">
+
+          {/* Table: Auto-provisioning logs */}
+          <div className="border bg-card p-5 rounded-xl shadow-sm space-y-4 text-xs font-semibold">
+            <h3 className="text-sm font-extrabold uppercase border-b pb-2">Auto-Provisioned Account Registry</h3>
+            {isMobile ? (
+              <div className="space-y-3">
                 {students.slice(0, 10).map((std: any, idx: number) => {
                   const autoUsername = std.admissionNo ? std.admissionNo.toLowerCase() : '';
                   const isVerified = std.status === 'VERIFIED';
                   return (
-                    <tr key={std.id || idx}>
-                      <td className="p-2 font-bold">{std.firstName} {std.lastName}</td>
-                      <td className="p-2 text-primary font-mono text-[10px]">{std.admissionNo}</td>
-                      <td className="p-2 text-muted-foreground">{std.email || 'N/A'}</td>
-                      <td className="p-2 font-mono text-[10px]">{autoUsername}@geetorus.com</td>
-                      <td className="p-2">
-                        <span className={`inline-flex items-center gap-1 text-[9px] font-extrabold px-2 py-0.5 rounded border ${
+                    <div key={std.id || idx} className="p-4 border rounded-xl bg-background space-y-2.5 text-xs font-semibold text-left">
+                      <div className="flex justify-between items-center border-b pb-2">
+                        <span className="font-extrabold text-slate-800 text-xs">{std.firstName} {std.lastName}</span>
+                        <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase border ${
                           isVerified ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : 'bg-amber-50 text-amber-600 border-amber-200'
                         }`}>
                           {isVerified ? 'VERIFIED' : 'PENDING'}
                         </span>
-                      </td>
-                      <td className="p-2 text-right space-x-1">
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 text-[10px] font-bold text-muted-foreground">
+                        <div><span className="text-slate-400">ADM:</span> {std.admissionNo}</div>
+                        <div><span className="text-slate-400">USER:</span> {autoUsername}@geetorus.com</div>
+                      </div>
+                      <div className="flex gap-2 pt-2 border-t justify-end">
                         {!isVerified && (
                           <button
                             onClick={() => handleVerify(std.id)}
@@ -1237,19 +1256,230 @@ export const AdmissionDeanPortal: React.FC<AdmissionDeanPortalProps> = ({ user }
                         >
                           Scholarship Recommendation
                         </button>
-                      </td>
-                    </tr>
+                      </div>
+                    </div>
                   );
                 })}
-              </tbody>
-            </table>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left">
+                  <thead className="bg-muted/50 text-muted-foreground uppercase text-[10px]">
+                    <tr>
+                      <th className="p-2">Student Name</th>
+                      <th className="p-2">Admission No</th>
+                      <th className="p-2">Email</th>
+                      <th className="p-2">Auto Username</th>
+                      <th className="p-2">Status</th>
+                      <th className="p-2 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y text-xs font-semibold">
+                    {students.slice(0, 10).map((std: any, idx: number) => {
+                      const autoUsername = std.admissionNo ? std.admissionNo.toLowerCase() : '';
+                      const isVerified = std.status === 'VERIFIED';
+                      return (
+                        <tr key={std.id || idx}>
+                          <td className="p-2 font-bold">{std.firstName} {std.lastName}</td>
+                          <td className="p-2 text-primary font-mono text-[10px]">{std.admissionNo}</td>
+                          <td className="p-2 text-muted-foreground">{std.email || 'N/A'}</td>
+                          <td className="p-2 font-mono text-[10px]">{autoUsername}@geetorus.com</td>
+                          <td className="p-2">
+                            <span className={`inline-flex items-center gap-1 text-[9px] font-extrabold px-2 py-0.5 rounded border ${
+                              isVerified ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : 'bg-amber-50 text-amber-600 border-amber-200'
+                            }`}>
+                              {isVerified ? 'VERIFIED' : 'PENDING'}
+                            </span>
+                          </td>
+                          <td className="p-2 text-right space-x-1">
+                            {!isVerified && (
+                              <button
+                                onClick={() => handleVerify(std.id)}
+                                className="px-2 py-1 bg-emerald-500 hover:bg-emerald-600 text-white rounded font-bold text-[9px]"
+                              >
+                                Verify Documents
+                              </button>
+                            )}
+                            <button
+                              onClick={() => handleRecommendConcession(`${std.firstName} ${std.lastName}`)}
+                              className="px-2 py-1 bg-indigo-50 border border-indigo-200 hover:bg-indigo-100 text-indigo-600 rounded font-bold text-[9px]"
+                            >
+                              Scholarship Recommendation
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+            {students.length === 0 && (
+              <p className="text-xs text-muted-foreground py-6 text-center">No student profiles found.</p>
+            )}
           </div>
-        )}
-          {students.length === 0 && (
-            <p className="text-xs text-muted-foreground py-6 text-center">No student profiles found.</p>
+        </>
+      )}
+
+      {activeSection === 'workflows' && (
+        <div className="border bg-card p-5 rounded-xl shadow-sm space-y-4 text-xs font-semibold">
+          <div className="border-b pb-2 flex justify-between items-center">
+            <h3 className="text-sm font-extrabold uppercase">Faculty Leave & OD Approvals</h3>
+            <button onClick={fetchWorkflows} className="p-1 bg-muted/50 hover:bg-muted border rounded-lg">
+              <RefreshCw className="h-3.5 w-3.5" />
+            </button>
+          </div>
+
+          {workflowsLoading ? (
+            <div className="py-8 text-center text-muted-foreground animate-pulse">Loading requests...</div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="border-b bg-muted/20 text-[9px] uppercase font-bold text-muted-foreground">
+                    <th className="p-3 pl-4">Faculty Member</th>
+                    <th className="p-3">Department</th>
+                    <th className="p-3">Category & Type</th>
+                    <th className="p-3">Dates & Reason</th>
+                    <th className="p-3">Status</th>
+                    <th className="p-3 text-center pr-4">Decisions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y text-xs font-semibold">
+                  {workflows.map((item: any, idx: number) => {
+                    const days = item.startDate && item.endDate
+                      ? Math.ceil((new Date(item.endDate).getTime() - new Date(item.startDate).getTime()) / (1000 * 3600 * 24)) + 1
+                      : 0;
+
+                    const isPending = item.status === 'HOD_APPROVED' && item.currentStep === 'DEAN';
+
+                    return (
+                      <tr key={item.id || idx} className="hover:bg-muted/10">
+                        <td className="p-3 pl-4 font-bold text-foreground">
+                          {item.facultyRequester?.firstName} {item.facultyRequester?.lastName}
+                          <span className="text-[9px] block text-muted-foreground mt-0.5">Emp ID: {item.facultyRequester?.employeeId}</span>
+                        </td>
+                        <td className="p-3 text-muted-foreground text-[10px]">{item.facultyRequester?.department?.name || 'N/A'}</td>
+                        <td className="p-3">
+                          <span className={`inline-block px-2 py-0.5 rounded text-[8px] border font-black uppercase ${
+                            item.type === 'FACULTY_OD' ? 'bg-indigo-50 text-indigo-700 border-indigo-200' : 'bg-orange-50 text-orange-700 border-orange-200'
+                          }`}>
+                            {item.type === 'FACULTY_OD' ? 'ON DUTY (OD)' : 'LEAVE'}
+                          </span>
+                          <span className="block font-bold text-xs mt-1 text-foreground">{item.title}</span>
+                        </td>
+                        <td className="p-3 space-y-1">
+                          <div className="font-bold text-[10px]">
+                            {item.startDate ? new Date(item.startDate).toLocaleDateString() : ''} to {item.endDate ? new Date(item.endDate).toLocaleDateString() : ''} ({days} Days)
+                          </div>
+                          <p className="text-[10px] text-muted-foreground whitespace-pre-wrap max-w-xs">{item.reason}</p>
+                        </td>
+                        <td className="p-3">
+                          <span className={`inline-block px-2 py-0.5 border text-[9px] font-black rounded uppercase ${
+                            item.status === 'APPROVED' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+                            item.status.includes('REJECT') ? 'bg-rose-50 text-rose-700 border-rose-200' :
+                            'bg-amber-50 text-amber-700 border-amber-200'
+                          }`}>
+                            {item.status.replace(/_/g, ' ')}
+                          </span>
+                        </td>
+                        <td className="p-3 text-center pr-4">
+                          {isPending ? (
+                            <div className="flex justify-center gap-1.5">
+                              <button
+                                onClick={() => {
+                                  setActionRequest(item);
+                                  setActionType('APPROVE');
+                                  setActionComment('');
+                                  setCommentModalOpen(true);
+                                }}
+                                className="p-1 bg-emerald-500 text-white rounded hover:bg-emerald-600 transition"
+                                title="Approve Request"
+                              >
+                                <Check className="h-3.5 w-3.5" />
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setActionRequest(item);
+                                  setActionType('REJECT');
+                                  setActionComment('');
+                                  setCommentModalOpen(true);
+                                }}
+                                className="p-1 bg-rose-500 text-white rounded hover:bg-rose-600 transition"
+                                title="Reject Request"
+                              >
+                                <X className="h-3.5 w-3.5" />
+                              </button>
+                            </div>
+                          ) : (
+                            <span className="text-[10px] text-muted-foreground uppercase font-bold">Actioned</span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  {workflows.length === 0 && (
+                    <tr>
+                      <td colSpan={6} className="p-8 text-center text-muted-foreground text-xs">
+                        No Faculty Leave or OD requests pending review.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
           )}
         </div>
-      </div>
+      )}
+
+      {/* Decision Modal */}
+      {commentModalOpen && actionRequest && (
+        <div className="fixed inset-0 bg-black/55 backdrop-blur-sm flex items-center justify-center z-50 animate-in fade-in duration-200">
+          <div className="bg-card w-full max-w-md p-6 rounded-2xl shadow-xl border space-y-4 text-left animate-in zoom-in-95 duration-200">
+            <div>
+              <h3 className="text-sm font-black uppercase text-foreground">
+                {actionType === 'APPROVE' ? 'Approve Faculty Request' : 'Reject Faculty Request'}
+              </h3>
+              <p className="text-[10px] text-muted-foreground mt-0.5 font-bold">
+                Request by {actionRequest.facultyRequester?.firstName} {actionRequest.facultyRequester?.lastName} · Type: {actionRequest.type}
+              </p>
+            </div>
+
+            <div className="space-y-1.5 text-xs font-semibold">
+              <label className="text-[9px] uppercase font-bold text-muted-foreground">Comments / Remarks</label>
+              <textarea
+                value={actionComment}
+                onChange={e => setActionComment(e.target.value)}
+                placeholder="Enter comments..."
+                className="w-full h-24 border rounded-xl bg-background p-3 focus:outline-none focus:ring-1 focus:ring-primary text-xs font-semibold resize-none"
+              />
+            </div>
+
+            <div className="flex gap-3 justify-end pt-2 border-t">
+              <button
+                type="button"
+                onClick={() => setCommentModalOpen(false)}
+                className="px-4 py-2 border bg-card hover:bg-muted rounded-xl text-xs font-bold transition-all"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  handleWorkflowAction(actionRequest.id, actionType!, actionComment);
+                  setCommentModalOpen(false);
+                }}
+                className={`px-4 py-2 text-white rounded-xl text-xs font-bold transition-all ${
+                  actionType === 'APPROVE' ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-rose-600 hover:bg-rose-700'
+                }`}
+              >
+                Confirm
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
   );
 };
 

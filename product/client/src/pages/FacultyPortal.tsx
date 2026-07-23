@@ -215,6 +215,7 @@ export const FacultyPortal: React.FC<FacultyPortalProps> = ({ user }) => {
   const [leaveReason, setLeaveReason] = useState('');
   const [leaveStart, setLeaveStart] = useState('');
   const [leaveEnd, setLeaveEnd] = useState('');
+  const [leaveType, setLeaveType] = useState('FACULTY_LEAVE');
 
   // Publications
   const [publications, setPublications] = useState<any[]>([
@@ -1383,10 +1384,31 @@ export const FacultyPortal: React.FC<FacultyPortalProps> = ({ user }) => {
       toast.error('Please fill in leave details.');
       return;
     }
-    setLeaves([...leaves, { title: leaveTitle, startDate: leaveStart, endDate: leaveEnd, status: 'PENDING' }]);
-    setLeaveTitle('');
-    setLeaveReason('');
-    toast.success('Leave authorization request submitted for HOD review.');
+    try {
+      const res = await api.post('/workflows/requests', {
+        type: leaveType,
+        title: leaveTitle,
+        reason: leaveReason,
+        startDate: leaveStart || undefined,
+        endDate: leaveEnd || undefined,
+        attachments: '[]'
+      });
+      if (res.data?.status === 'success') {
+        toast.success(`${leaveType === 'FACULTY_OD' ? 'OD' : 'Leave'} authorization request submitted for HOD review.`);
+        setLeaveTitle('');
+        setLeaveReason('');
+        setLeaveStart('');
+        setLeaveEnd('');
+        // Refresh requests
+        const wfRes = await api.get('/workflows/requests');
+        if (wfRes.data?.status === 'success') {
+          setWorkflowRequests(wfRes.data.data);
+        }
+      }
+    } catch (err: any) {
+      console.error('Failed to submit leave request:', err);
+      toast.error(err.response?.data?.message || 'Failed to submit leave request.');
+    }
   };
 
   // Post Marks
@@ -4058,8 +4080,20 @@ export const FacultyPortal: React.FC<FacultyPortalProps> = ({ user }) => {
             
             {/* Create leave application form */}
             <div className="border bg-card p-5 rounded-xl shadow-sm space-y-4 md:col-span-1">
-              <h3 className="text-sm font-extrabold uppercase border-b pb-2">Apply for leave</h3>
+              <h3 className="text-sm font-extrabold uppercase border-b pb-2">Apply for leave / OD</h3>
               <form onSubmit={handleLeaveSubmit} className="space-y-4 text-xs font-semibold">
+                <div className="flex flex-col gap-1">
+                  <label className="text-[9px] uppercase font-bold text-muted-foreground">Request Type</label>
+                  <select
+                    value={leaveType}
+                    onChange={e => setLeaveType(e.target.value)}
+                    className="h-9 border rounded bg-background px-2"
+                  >
+                    <option value="FACULTY_LEAVE">Leave Request</option>
+                    <option value="FACULTY_OD">On Duty (OD) Request</option>
+                  </select>
+                </div>
+
                 <div className="flex flex-col gap-1">
                   <label className="text-[9px] uppercase font-bold text-muted-foreground">Subject Title</label>
                   <input
@@ -4073,7 +4107,7 @@ export const FacultyPortal: React.FC<FacultyPortalProps> = ({ user }) => {
                 </div>
 
                 <div className="flex flex-col gap-1">
-                  <label className="text-[9px] uppercase font-bold text-muted-foreground">Leave start date</label>
+                  <label className="text-[9px] uppercase font-bold text-muted-foreground">Start date</label>
                   <input
                     type="date"
                     required
@@ -4084,7 +4118,7 @@ export const FacultyPortal: React.FC<FacultyPortalProps> = ({ user }) => {
                 </div>
 
                 <div className="flex flex-col gap-1">
-                  <label className="text-[9px] uppercase font-bold text-muted-foreground">Leave end date</label>
+                  <label className="text-[9px] uppercase font-bold text-muted-foreground">End date</label>
                   <input
                     type="date"
                     required
@@ -4106,7 +4140,7 @@ export const FacultyPortal: React.FC<FacultyPortalProps> = ({ user }) => {
                 </div>
 
                 <button type="submit" className="w-full h-9 bg-primary text-primary-foreground rounded font-bold hover:bg-primary/95">
-                  Submit Leave Request
+                  Submit Request
                 </button>
               </form>
             </div>
@@ -4118,23 +4152,65 @@ export const FacultyPortal: React.FC<FacultyPortalProps> = ({ user }) => {
                 <table className="w-full text-left">
                   <thead>
                     <tr className="border-b text-[9px] uppercase font-bold text-muted-foreground">
-                      <th className="py-2">Title</th>
+                      <th className="py-2 pl-4">Title / Reason</th>
+                      <th className="py-2">Type</th>
                       <th className="py-2">Duration</th>
-                      <th className="py-2">Status</th>
+                      <th className="py-2 text-center">Stage</th>
+                      <th className="py-2 text-right pr-4">Status</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {leaves.map((item, idx) => (
-                      <tr key={idx} className="border-b last:border-b-0 hover:bg-muted/10">
-                        <td className="py-3 font-bold">{item.title}</td>
-                        <td className="py-3 font-mono text-muted-foreground">{item.startDate} to {item.endDate}</td>
-                        <td className="py-3">
-                          <span className={`px-2 py-0.5 rounded text-[9px] font-bold ${
-                            item.status === 'APPROVED' ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'
-                          }`}>{item.status}</span>
+                    {workflowRequests
+                      .filter((r: any) => r.facultyRequesterId === profileData?.id)
+                      .map((item: any, idx: number) => {
+                        const statusColors: Record<string, string> = {
+                          PENDING: 'bg-amber-50 text-amber-700 border-amber-200',
+                          PENDING_HOD: 'bg-amber-50 text-amber-700 border-amber-200',
+                          HOD_APPROVED: 'bg-blue-50 text-blue-700 border-blue-200',
+                          APPROVED: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+                          REJECTED: 'bg-rose-50 text-rose-700 border-rose-200',
+                          REJECTED_BY_HOD: 'bg-rose-50 text-rose-700 border-rose-200'
+                        };
+
+                        const formattedStart = item.startDate ? new Date(item.startDate).toLocaleDateString() : 'N/A';
+                        const formattedEnd = item.endDate ? new Date(item.endDate).toLocaleDateString() : 'N/A';
+
+                        return (
+                          <tr key={item.id || idx} className="border-b last:border-b-0 hover:bg-muted/50 transition-colors duration-150">
+                            <td className="py-3.5 pl-4 pr-3">
+                              <div className="font-bold text-foreground text-xs">{item.title}</div>
+                              <div className="text-[10px] text-muted-foreground mt-0.5">{item.reason}</div>
+                            </td>
+                            <td className="py-3.5 px-3">
+                              <span className={`px-2 py-0.5 rounded-full text-[9px] font-black border ${
+                                item.type === 'FACULTY_OD' ? 'bg-indigo-50 text-indigo-700 border-indigo-200' : 'bg-orange-50 text-orange-700 border-orange-200'
+                              }`}>
+                                {item.type === 'FACULTY_OD' ? 'ON DUTY (OD)' : 'LEAVE'}
+                              </span>
+                            </td>
+                            <td className="py-3.5 px-3 font-mono text-[10px] text-muted-foreground whitespace-nowrap">
+                              {formattedStart} to {formattedEnd}
+                            </td>
+                            <td className="py-3.5 px-3 text-center uppercase tracking-tight text-[10px] font-extrabold text-foreground">
+                              {item.currentStep}
+                            </td>
+                            <td className="py-3.5 pl-3 pr-4 text-right">
+                              <span className={`px-2.5 py-1 rounded-full text-[10px] font-black border ${
+                                statusColors[item.status] || 'bg-slate-50 text-slate-700 border-slate-200'
+                              }`}>
+                                {item.status.replace(/_/g, ' ')}
+                              </span>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    {workflowRequests.filter((r: any) => r.facultyRequesterId === profileData?.id).length === 0 && (
+                      <tr>
+                        <td colSpan={5} className="py-8 text-center text-muted-foreground text-xs">
+                          No Leave or OD requests submitted yet.
                         </td>
                       </tr>
-                    ))}
+                    )}
                   </tbody>
                 </table>
               </div>

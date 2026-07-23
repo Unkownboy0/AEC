@@ -682,6 +682,7 @@ model Faculty {
   mentoredStudents   Student[]           @relation("StudentMentor")
   mentorAssignments  MentorAssignment[]  @relation("MentorAssignmentMentor")
   chatMessages      ChatMessage[]
+  workflowRequestsAsRequester WorkflowRequest[] @relation("FacultyRequester")
 
   archived   Boolean   @default(false)
   archivedAt DateTime?
@@ -922,20 +923,22 @@ model Ticket {
 
 model WorkflowRequest {
   id           String            @id @default(uuid())
-  studentId    String
-  student      Student           @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  type         String // LEAVE, OD, BONAFIDE, TC, CONDUCT_CERTIFICATE, HOSTEL_LEAVE, BUS_PASS, SCHOLARSHIP, INTERNSHIP_PERMISSION, IV_PERMISSION, MEDICAL_LEAVE
+  studentId    String?
+  student      Student?          @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  type         String // LEAVE, OD, BONAFIDE, TC, CONDUCT_CERTIFICATE, HOSTEL_LEAVE, BUS_PASS, SCHOLARSHIP, INTERNSHIP_PERMISSION, IV_PERMISSION, MEDICAL_LEAVE, FACULTY_LEAVE, FACULTY_OD
   title        String
   reason       String
   startDate    DateTime?
   endDate      DateTime?
-  status       String            @default("PENDING_MENTOR") // PENDING_MENTOR, PENDING_HOD, PENDING_DEAN, PENDING_PRINCIPAL, APPROVED, REJECTED, CLARIFICATION_REQUESTED
+  status       String            @default("PENDING_MENTOR") // PENDING_MENTOR, PENDING_HOD, PENDING_DEAN, PENDING_PRINCIPAL, APPROVED, REJECTED, CLARIFICATION_REQUESTED, HOD_APPROVED
   currentStep  String            @default("MENTOR") // MENTOR, HOD, DEAN, PRINCIPAL
   attachments  String            @default("[]") // JSON string of urls
   mentorId       String?           @map("mentor_id")
   facultyId      String?           @map("faculty_id")
   classAdvisorId String?           @map("class_advisor_id")
   departmentId   String?           @map("department_id")
+  facultyRequesterId String?       @map("faculty_requester_id")
+  facultyRequester   Faculty?      @relation("FacultyRequester", fields: [facultyRequesterId], references: [id], onDelete: SetNull)
   history      WorkflowHistory[]
   createdAt    DateTime          @default(now())
   updatedAt    DateTime          @updatedAt
