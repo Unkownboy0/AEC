@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import {
   Shield, Users, GraduationCap, Building, Landmark, Activity,
   CheckCircle, AlertTriangle, Sparkles, BookOpen, Key, User,
@@ -61,13 +62,20 @@ interface PrincipalPortalProps {
 }
 export const PrincipalPortal: React.FC<PrincipalPortalProps> = ({ user }) => {
   const { isMobile } = useDevice();
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const [tickets, setTickets] = useState<any[]>([]);
   const [stats, setStats] = useState<any>(null);
   const [departments, setDepartments] = useState<any[]>([]);
   const [workflows, setWorkflows] = useState<any[]>([]);
 
-  // Navigation tab
-  const [principalTab, setPrincipalTab] = useState<'overview' | 'placements' | 'complaints' | 'activities'>('overview');
+  // Navigation tab derived from URL
+  const rawTab = searchParams.get('tab');
+  const validPrincipalTabs = ['overview', 'placements', 'complaints', 'activities'];
+  const principalTab = rawTab && validPrincipalTabs.includes(rawTab) ? (rawTab as 'overview' | 'placements' | 'complaints' | 'activities') : 'overview';
+  const setPrincipalTab = (tab: 'overview' | 'placements' | 'complaints' | 'activities') => {
+    navigate(`/?tab=${tab}`, { replace: true });
+  };
 
   // Filters state
   const [selectedYear, setSelectedYear] = useState('2026-2027');
@@ -533,7 +541,13 @@ interface VicePrincipalPortalProps {
   user: any;
 }
 export const VicePrincipalPortal: React.FC<VicePrincipalPortalProps> = ({ user }) => {
-  const [vpTab, setVpTab] = useState<'operations' | 'overview'>('operations');
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const rawTab = searchParams.get('tab');
+  const vpTab = rawTab === 'overview' ? 'overview' : 'operations';
+  const setVpTab = (tab: 'operations' | 'overview') => {
+    navigate(`/?tab=${tab}`, { replace: true });
+  };
   const [requests, setRequests] = useState<any[]>([]);
   const [predictions, setPredictions] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);

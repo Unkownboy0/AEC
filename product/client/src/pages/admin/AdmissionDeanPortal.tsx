@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Users, UserCheck, ShieldAlert, Award,
   Clock, DollarSign, Download, Plus, Search, CheckCircle,
@@ -26,8 +27,21 @@ interface AdmissionDeanPortalProps {
   user: any;
 }
 
+const VALID_TABS = ['overview','applications','seats','scholarships','enquiries','counselling','payments'] as const;
+type AdmissionTab = typeof VALID_TABS[number];
+
 export const AdmissionDeanPortal: React.FC<AdmissionDeanPortalProps> = ({ user }) => {
-  const [activeTab, setActiveTab] = useState<'overview' | 'applications' | 'seats' | 'scholarships' | 'enquiries' | 'counselling' | 'payments'>('overview');
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+
+  // Derive active tab from URL ?tab= param (sidebar navigation support)
+  const rawTab = searchParams.get('tab') as AdmissionTab | null;
+  const activeTab: AdmissionTab = rawTab && (VALID_TABS as readonly string[]).includes(rawTab) ? rawTab : 'overview';
+
+  const setActiveTab = (tab: AdmissionTab) => {
+    setSelectedApp(null);
+    navigate(`/?tab=${tab}`, { replace: true });
+  };
   const [analytics, setAnalytics] = useState<any | null>(null);
   const [applications, setApplications] = useState<any[]>([]);
   const [selectedApp, setSelectedApp] = useState<any | null>(null);
@@ -102,9 +116,10 @@ export const AdmissionDeanPortal: React.FC<AdmissionDeanPortalProps> = ({ user }
     }
   };
 
+  // Fetch once on mount only
   useEffect(() => {
     fetchData();
-  }, [activeTab]);
+  }, []);
 
   // Bulk Selection Handlers
   const handleSelectApp = (id: string) => {
