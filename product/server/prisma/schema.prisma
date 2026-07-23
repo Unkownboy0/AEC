@@ -206,6 +206,8 @@ model Department {
   updatedAt        DateTime           @updatedAt
   MentorAssignment MentorAssignment[]
   circulars        HodCircular[]
+  admissionApplications AdmissionApplication[]
+  departmentIntake      DepartmentIntake?
 
   @@map("departments")
 }
@@ -238,6 +240,7 @@ model Program {
   createdAt        DateTime           @default(now())
   updatedAt        DateTime           @updatedAt
   MentorAssignment MentorAssignment[]
+  admissionApplications AdmissionApplication[]
 
   @@unique([name, departmentId])
   @@index([departmentId])
@@ -1386,6 +1389,101 @@ model TimetablePublish {
   updatedAt      DateTime @updatedAt
 
   @@map("timetable_publishes")
+}
+
+model AdmissionApplication {
+  id                  String               @id @default(uuid())
+  applicationNo       String               @unique
+  firstName           String
+  lastName            String
+  parentName          String
+  phone               String
+  email               String
+  gender              String?
+  category            String?
+  academicMarks       Float
+  status              String               @default("PENDING") // PENDING, REVIEWING, APPROVED, REJECTED, HOLD, ADDITIONAL_DOCS_REQUESTED, CONFIRMED
+  paymentStatus       String               @default("PENDING") // PENDING, COMPLETED, REFUNDED
+  scholarshipStatus   String               @default("NONE") // NONE, APPLIED, APPROVED, REJECTED
+  scholarshipType     String?
+  scholarshipAmount   Float?
+  documents           String               @default("[]") // JSON string: [{ name: "10th Marksheet", url: "...", status: "PENDING" | "APPROVED" | "REJECTED" | "REUPLOAD_REQUESTED" }]
+  verificationHistory String               @default("[]") // JSON string
+  waitlistNumber      Int?
+  counsellingStatus   String               @default("NOT_SCHEDULED") // NOT_SCHEDULED, SCHEDULED, COMPLETED
+  counsellingSessionId String?
+  counsellingNotes    String?
+  departmentId        String
+  department          Department           @relation(fields: [departmentId], references: [id])
+  programId           String
+  program             Program              @relation(fields: [programId], references: [id])
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+
+  @@map("admission_applications")
+}
+
+model ScholarshipApplication {
+  id                 String   @id @default(uuid())
+  applicationId      String
+  applicantName      String
+  type               String // Government, Private, Merit, Sports
+  amount             Float
+  details            String?
+  status             String   @default("PENDING") // PENDING, APPROVED, REJECTED, CLARIFICATION_REQUESTED
+  clarificationNotes String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@map("scholarship_applications")
+}
+
+model StudentEnquiry {
+  id                 String    @id @default(uuid())
+  studentName        String
+  parentName         String?
+  phone              String
+  email              String?
+  source             String // Phone Call, Walk-in, Website Lead, Campaign Lead
+  status             String    @default("NEW") // NEW, IN_PROGRESS, FOLLOW_UP_SCHEDULED, CONVERTED, CLOSED
+  assignedCounsellor String?
+  followUpDate       DateTime?
+  notes              String?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  @@map("student_enquiries")
+}
+
+model CounsellingSession {
+  id          String   @id @default(uuid())
+  title       String
+  dateTime    DateTime
+  counsellor  String
+  notes       String?
+  studentIds  String // JSON string list of applicationIds or studentIds
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("counselling_sessions")
+}
+
+model DepartmentIntake {
+  id                    String     @id @default(uuid())
+  departmentId          String     @unique
+  department            Department @relation(fields: [departmentId], references: [id])
+  intakeCapacity        Int
+  availableSeats        Int
+  filledSeats           Int        @default(0)
+  reservedSeats         Int        @default(0)
+  managementQuotaIntake Int        @default(0)
+  managementQuotaFilled Int        @default(0)
+  governmentQuotaIntake Int        @default(0)
+  governmentQuotaFilled Int        @default(0)
+  createdAt             DateTime   @default(now())
+  updatedAt             DateTime   @updatedAt
+
+  @@map("department_intakes")
 }
 
 

@@ -140,4 +140,26 @@ router.get('/vp/feed', vpController.getFeed);
 router.post('/vp/escalate', vpController.escalate);
 router.post('/vp/audit', vpController.recordAudit);
 
+// Admission Dean Operations Module
+import { AdmissionController } from './admission.controller';
+const admissionController = new AdmissionController();
+router.get('/admission/analytics', admissionController.getAnalytics);
+router.get('/admission/applications', admissionController.listApplications);
+router.get('/admission/applications/:id', admissionController.getApplication);
+router.put('/admission/applications/:id/status', admissionController.updateApplicationStatus);
+router.post('/admission/applications/bulk-status', admissionController.bulkUpdateStatus);
+router.post('/admission/applications/:id/verify-document', admissionController.verifyDocument);
+router.get('/admission/seats', admissionController.listSeats);
+router.post('/admission/seats/allocate', admissionController.autoAllocateMeritSeats);
+router.post('/admission/seats/:id/allocate', admissionController.allocateSeat);
+router.post('/admission/seats/:id/transfer', admissionController.transferDepartment);
+router.get('/admission/enquiries', admissionController.listEnquiries);
+router.post('/admission/enquiries', admissionController.createEnquiry);
+router.put('/admission/enquiries/:id', admissionController.updateEnquiry);
+router.post('/admission/enquiries/:id/convert', admissionController.convertEnquiry);
+router.get('/admission/counselling', admissionController.listCounselling);
+router.post('/admission/counselling', admissionController.createCounselling);
+router.get('/admission/scholarships', admissionController.listScholarships);
+router.get('/admission/payments', admissionController.listPayments);
+
 export default router;

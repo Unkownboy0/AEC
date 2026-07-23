@@ -13,6 +13,7 @@ import { PlacementDashboard } from '../components/placement/PlacementDashboard';
 import { ComplaintMonitoringCenter } from '../components/complaint/ComplaintMonitoringCenter';
 import { CampusActivitiesMonitoring } from '../components/activity/CampusActivitiesMonitoring';
 import { VPOperationsMonitoring } from '../components/vp/VPOperationsMonitoring';
+import { AdmissionDeanPortal as AdmissionDeanPortalComponent } from './admin/AdmissionDeanPortal';
 
 // Helper for actual report exports (PDF & EXCEL)
 const handleExport = async (reportType: string, format: 'PDF' | 'EXCEL' | 'CSV') => {
@@ -1064,6 +1065,9 @@ interface AdmissionDeanPortalProps {
   user: any;
 }
 export const AdmissionDeanPortal: React.FC<AdmissionDeanPortalProps> = ({ user }) => {
+  return <AdmissionDeanPortalComponent user={user} />;
+};
+const AdmissionDeanPortalLegacy: React.FC<AdmissionDeanPortalProps> = ({ user }) => {
   const { isMobile } = useDevice();
   const [students, setStudents] = useState<any[]>([]);
   const [seatTracker] = useState<Record<string, { intake: number, filled: number }>>({

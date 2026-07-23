@@ -150,6 +150,37 @@ async function main() {
   }
   console.log(`🔗 College Admin Role mapped with ${collegeAdminPermsCount} permissions.`);
 
+  // 3c. Connect Permissions to Admission Dean
+  const admissionDeanRole = rolesMap['Admission Dean'];
+  let admissionDeanPermsCount = 0;
+  for (const perm of permissions) {
+    if (
+      perm.name.startsWith('admissions:') ||
+      perm.name.startsWith('scholarships:') ||
+      perm.name.startsWith('enquiries:') ||
+      perm.name.startsWith('counselling:') ||
+      perm.name.startsWith('students:') ||
+      perm.name.startsWith('reports:') ||
+      perm.name.startsWith('fees:')
+    ) {
+      await prisma.rolePermission.upsert({
+        where: {
+          roleId_permissionId: {
+            roleId: admissionDeanRole.id,
+            permissionId: perm.id,
+          },
+        },
+        update: {},
+        create: {
+          roleId: admissionDeanRole.id,
+          permissionId: perm.id,
+        },
+      });
+      admissionDeanPermsCount++;
+    }
+  }
+  console.log(`🔗 Admission Dean Role mapped with ${admissionDeanPermsCount} permissions.`);
+
   // 4. Create default Super Admin user
   const adminEmail = 'admin@geetorus.com';
   const existingUser = await prisma.user.findUnique({
@@ -1061,6 +1092,7 @@ async function main() {
     { name: 'Support Tickets', path: '/support', icon: 'LifeBuoy', componentKey: 'support', order: 20 },
     { name: 'Timetable Engine', path: '/hod/timetable', icon: 'Clock', componentKey: 'timetable_engine', order: 21 },
     { name: 'Placement Engine', path: '/placements/dashboard', icon: 'Briefcase', componentKey: 'placement_engine', order: 22 },
+    { name: 'Admission Center', path: '/admission-dean/dashboard', icon: 'UserPlus', componentKey: 'admission_dean_dashboard', permissionRequired: 'admissions:read', order: 23 },
   ];
 
   for (const item of menuItems) {
@@ -1085,6 +1117,110 @@ async function main() {
     });
   }
   console.log('📑 Dynamic menu items seeded.');
+
+  // 24. Seed Department intakes
+  const depts = await prisma.department.findMany();
+  for (const d of depts) {
+    let capacity = 120;
+    if (d.code === 'CSE') capacity = 180;
+    if (d.code === 'MECH' || d.code === 'CIVIL') capacity = 60;
+    
+    await prisma.departmentIntake.upsert({
+      where: { departmentId: d.id },
+      update: {},
+      create: {
+        departmentId: d.id,
+        intakeCapacity: capacity,
+        availableSeats: capacity,
+        filledSeats: 0,
+        reservedSeats: Math.round(capacity * 0.1),
+        managementQuotaIntake: Math.round(capacity * 0.3),
+        managementQuotaFilled: 0,
+        governmentQuotaIntake: Math.round(capacity * 0.6),
+        governmentQuotaFilled: 0,
+      }
+    });
+  }
+  console.log('🏁 Seeded Department Intakes.');
+
+  // 25. Seed enquiries
+  const enquiriesData = [
+    { studentName: 'Alice Green', parentName: 'Mark Green', phone: '+91 91111 22222', email: 'alice@gmail.com', source: 'Website Lead', notes: 'Interested in B.Tech CSE' },
+    { studentName: 'Bob White', parentName: 'Peter White', phone: '+91 92222 33333', email: 'bob@gmail.com', source: 'Walk-in', notes: 'Inquired about scholarships for ECE' },
+    { studentName: 'Charlie Black', parentName: 'David Black', phone: '+91 93333 44444', email: 'charlie@gmail.com', source: 'Phone Call', notes: 'Asked about hostel accommodation and fee concessions' }
+  ];
+  for (const enq of enquiriesData) {
+    await prisma.studentEnquiry.create({ data: enq });
+  }
+  console.log('📞 Seeded Student Enquiries.');
+
+  // 26. Seed Counselling Session
+  const session = await prisma.counsellingSession.create({
+    data: {
+      title: 'First Round Counselling (Merit List)',
+      dateTime: new Date(Date.now() + 24 * 3600 * 1000), // tomorrow
+      counsellor: 'Dr. Sarah Smith',
+      notes: 'Focus on ECE & CSE allocations',
+      studentIds: '[]'
+    }
+  });
+  console.log('💬 Seeded Counselling Session.');
+
+  // 27. Seed Admission Applications
+  const cseDept = depts.find(d => d.code === 'CSE');
+  const program = await prisma.program.findFirst({ where: { departmentId: cseDept?.id } });
+  
+  if (cseDept && program) {
+    const apps = [
+      {
+        applicationNo: 'APP20260001',
+        firstName: 'Daniel',
+        lastName: 'Craig',
+        parentName: 'James Craig',
+        phone: '+91 98888 12345',
+        email: 'daniel@gmail.com',
+        gender: 'Male',
+        category: 'General',
+        academicMarks: 94.5,
+        status: 'PENDING',
+        paymentStatus: 'COMPLETED',
+        scholarshipStatus: 'NONE',
+        documents: JSON.stringify([
+          { name: '10th Marksheet', url: 'https://campusos.s3.amazonaws.com/docs/10th.pdf', status: 'PENDING' },
+          { name: '12th Marksheet', url: 'https://campusos.s3.amazonaws.com/docs/12th.pdf', status: 'PENDING' },
+          { name: 'Aadhar / ID Proof', url: 'https://campusos.s3.amazonaws.com/docs/aadhar.pdf', status: 'PENDING' }
+        ]),
+        departmentId: cseDept.id,
+        programId: program.id
+      },
+      {
+        applicationNo: 'APP20260002',
+        firstName: 'Emma',
+        lastName: 'Watson',
+        parentName: 'Chris Watson',
+        phone: '+91 97777 54321',
+        email: 'emma@gmail.com',
+        gender: 'Female',
+        category: 'OBC',
+        academicMarks: 88.2,
+        status: 'REVIEWING',
+        paymentStatus: 'COMPLETED',
+        scholarshipStatus: 'APPLIED',
+        scholarshipType: 'Merit',
+        documents: JSON.stringify([
+          { name: '10th Marksheet', url: 'https://campusos.s3.amazonaws.com/docs/10th.pdf', status: 'APPROVED' },
+          { name: '12th Marksheet', url: 'https://campusos.s3.amazonaws.com/docs/12th.pdf', status: 'PENDING' }
+        ]),
+        departmentId: cseDept.id,
+        programId: program.id
+      }
+    ];
+
+    for (const app of apps) {
+      await prisma.admissionApplication.create({ data: app });
+    }
+    console.log('📝 Seeded Admission Applications.');
+  }
 
   console.log('✅ All complete enterprise academic modules seeded successfully!');
 }
