@@ -522,6 +522,79 @@ export class SecurityHelper {
       }
     }
 
+    // ── Principal ─────────────────────────────────────────────────────────────
+    if (role === 'Principal') {
+      return [
+        { name: 'Executive Dashboard', path: '/?tab=overview',        icon: 'LayoutDashboard', componentKey: 'dashboard', order: 1 },
+        { name: 'Institution Analytics',path: '/?tab=analytics',      icon: 'BarChart2',       componentKey: 'dashboard', order: 2 },
+        { name: 'All Departments',      path: '/?tab=departments',    icon: 'Building',        componentKey: 'dashboard', order: 3 },
+        { name: 'Faculty Overview',     path: '/?tab=faculty',        icon: 'UserCheck',       componentKey: 'dashboard', order: 4 },
+        { name: 'Student Overview',     path: '/?tab=students',       icon: 'Users',           componentKey: 'dashboard', order: 5 },
+        { name: 'Academic Programs',    path: '/?tab=academics',      icon: 'GraduationCap',   componentKey: 'dashboard', order: 6 },
+        { name: 'Examination Board',    path: '/?tab=exams',          icon: 'FileSpreadsheet', componentKey: 'dashboard', order: 7 },
+        { name: 'Fee & Finance',        path: '/?tab=fees',           icon: 'Landmark',        componentKey: 'dashboard', order: 8 },
+        { name: 'Leave Approvals',      path: '/?tab=leave_approvals',icon: 'ShieldAlert',     componentKey: 'dashboard', order: 9 },
+        { name: 'Placements',           path: '/?tab=placements',     icon: 'Briefcase',       componentKey: 'dashboard', order: 10 },
+        { name: 'Complaints Board',     path: '/?tab=complaints',     icon: 'AlertTriangle',   componentKey: 'dashboard', order: 11 },
+        { name: 'Campus Activities',    path: '/?tab=campus_life',    icon: 'Compass',         componentKey: 'dashboard', order: 12 },
+        { name: 'Reports & Analytics',  path: '/?tab=reports',        icon: 'FileBarChart',    componentKey: 'dashboard', order: 13 },
+        { name: 'Notifications',        path: '/?tab=notifications',  icon: 'Bell',            componentKey: 'dashboard', order: 14 },
+      ];
+    }
+
+    // ── Vice Principal ─────────────────────────────────────────────────────────
+    if (role === 'Vice Principal') {
+      return [
+        { name: 'VP Dashboard',         path: '/?tab=overview',        icon: 'LayoutDashboard', componentKey: 'dashboard', order: 1 },
+        { name: 'Operations Monitor',   path: '/?tab=operations',      icon: 'Activity',        componentKey: 'dashboard', order: 2 },
+        { name: 'Department Control',   path: '/?tab=departments',     icon: 'Building',        componentKey: 'dashboard', order: 3 },
+        { name: 'Faculty Management',   path: '/?tab=faculty',         icon: 'UserCheck',       componentKey: 'dashboard', order: 4 },
+        { name: 'Student Affairs',      path: '/?tab=students',        icon: 'Users',           componentKey: 'dashboard', order: 5 },
+        { name: 'Attendance Overview',  path: '/?tab=attendance',      icon: 'CalendarDays',    componentKey: 'dashboard', order: 6 },
+        { name: 'Leave Approvals',      path: '/?tab=leave_approvals', icon: 'ShieldAlert',     componentKey: 'dashboard', order: 7 },
+        { name: 'Examination Control',  path: '/?tab=exams',           icon: 'FileSpreadsheet', componentKey: 'dashboard', order: 8 },
+        { name: 'Placements',           path: '/?tab=placements',      icon: 'Briefcase',       componentKey: 'dashboard', order: 9 },
+        { name: 'Grievances & Complaints', path: '/?tab=complaints',   icon: 'AlertTriangle',   componentKey: 'dashboard', order: 10 },
+        { name: 'Campus Activities',    path: '/?tab=campus_life',     icon: 'Compass',         componentKey: 'dashboard', order: 11 },
+        { name: 'Reports',              path: '/?tab=reports',         icon: 'FileBarChart',    componentKey: 'dashboard', order: 12 },
+        { name: 'Audit & Escalations',  path: '/?tab=audit',           icon: 'Shield',          componentKey: 'dashboard', order: 13 },
+        { name: 'Notifications',        path: '/?tab=notifications',   icon: 'Bell',            componentKey: 'dashboard', order: 14 },
+      ];
+    }
+
+    // ── Academic Dean ──────────────────────────────────────────────────────────
+    if (role === 'Academic Dean') {
+      return [
+        { name: 'Academic Dashboard',   path: '/?tab=overview',        icon: 'LayoutDashboard', componentKey: 'dashboard', order: 1 },
+        { name: 'Curriculum Overview',  path: '/?tab=curriculum',      icon: 'BookOpen',        componentKey: 'dashboard', order: 2 },
+        { name: 'Academic Programs',    path: '/?tab=academics',       icon: 'GraduationCap',   componentKey: 'dashboard', order: 3 },
+        { name: 'Department Reports',   path: '/?tab=departments',     icon: 'Building',        componentKey: 'dashboard', order: 4 },
+        { name: 'Faculty Oversight',    path: '/?tab=faculty',         icon: 'UserCheck',       componentKey: 'dashboard', order: 5 },
+        { name: 'Student Performance',  path: '/?tab=students',        icon: 'Users',           componentKey: 'dashboard', order: 6 },
+        { name: 'Attendance Analytics', path: '/?tab=attendance',      icon: 'CalendarDays',    componentKey: 'dashboard', order: 7 },
+        { name: 'Timetable Engine',     path: '/hod/timetable',        icon: 'Clock',           componentKey: 'timetable_engine', order: 8 },
+        { name: 'Examination Board',    path: '/?tab=exams',           icon: 'FileSpreadsheet', componentKey: 'dashboard', order: 9 },
+        { name: 'Research & Portfolio', path: '/?tab=research',        icon: 'Trophy',          componentKey: 'dashboard', order: 10 },
+        { name: 'Placements',           path: '/?tab=placements',      icon: 'Briefcase',       componentKey: 'dashboard', order: 11 },
+        { name: 'Leave Approvals',      path: '/?tab=leave_approvals', icon: 'ShieldAlert',     componentKey: 'dashboard', order: 12 },
+        { name: 'Reports & Analytics',  path: '/?tab=reports',         icon: 'FileBarChart',    componentKey: 'dashboard', order: 13 },
+        { name: 'Notifications',        path: '/?tab=notifications',   icon: 'Bell',            componentKey: 'dashboard', order: 14 },
+      ];
+    }
+
+    // ── Admission Dean ─────────────────────────────────────────────────────────
+    if (role === 'Admission Dean') {
+      return [
+        { name: 'Admission Overview',   path: '/?tab=overview',        icon: 'LayoutDashboard', componentKey: 'dashboard', order: 1 },
+        { name: 'Candidate Screening',  path: '/?tab=applications',    icon: 'Users',           componentKey: 'dashboard', order: 2 },
+        { name: 'Seat Allocations',     path: '/?tab=seats',           icon: 'Layers',          componentKey: 'dashboard', order: 3 },
+        { name: 'Scholarships & Waivers',path: '/?tab=scholarships',   icon: 'Award',           componentKey: 'dashboard', order: 4 },
+        { name: 'Admission CRM',        path: '/?tab=enquiries',       icon: 'UserPlus',        componentKey: 'dashboard', order: 5 },
+        { name: 'Counselling Rounds',   path: '/?tab=counselling',     icon: 'Calendar',        componentKey: 'dashboard', order: 6 },
+        { name: 'Fee Ledger',           path: '/?tab=payments',        icon: 'DollarSign',      componentKey: 'dashboard', order: 7 },
+      ];
+    }
+
     // Super Admin sees everything
     if (role === 'Super Admin' || permissions.includes('*:*') || permissions.includes('*')) {
       return prisma.menuItem.findMany({ where: { isActive: true }, orderBy: { order: 'asc' } });
