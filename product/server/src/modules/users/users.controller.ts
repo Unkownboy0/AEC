@@ -1,0 +1,180 @@
+import { Request, Response, NextFunction } from 'express';
+import { UsersService } from './users.service';
+
+export class UsersController {
+  private service = new UsersService();
+
+  list = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const result = await this.service.listUsers(req.query);
+      res.status(200).json({
+        status: 'success',
+        data: result,
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  create = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const currentUserId = req.user!.id;
+      const ip = req.ip || req.socket.remoteAddress;
+      const ua = req.headers['user-agent'];
+
+      const result = await this.service.createUser(req.body, currentUserId, ip, ua);
+      res.status(201).json({
+        status: 'success',
+        data: result,
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  update = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const currentUserId = req.user!.id;
+      const ip = req.ip || req.socket.remoteAddress;
+      const ua = req.headers['user-agent'];
+
+      const result = await this.service.updateUser(req.params.id, req.body, currentUserId, ip, ua);
+      res.status(200).json({
+        status: 'success',
+        data: result,
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  delete = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const currentUserId = req.user!.id;
+      const ip = req.ip || req.socket.remoteAddress;
+      const ua = req.headers['user-agent'];
+
+      await this.service.deleteUser(req.params.id, currentUserId, ip, ua);
+      res.status(200).json({
+        status: 'success',
+        message: 'User deleted successfully',
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  resetPassword = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const currentUserId = req.user!.id;
+      const { newPassword } = req.body;
+      const ip = req.ip || req.socket.remoteAddress;
+      const ua = req.headers['user-agent'];
+
+      if (!newPassword || newPassword.length < 6) {
+        res.status(400).json({
+          status: 'error',
+          message: 'Password must be at least 6 characters long',
+        });
+        return;
+      }
+
+      await this.service.resetUserPassword(req.params.id, newPassword, currentUserId, ip, ua);
+      res.status(200).json({
+        status: 'success',
+        message: 'Password reset successfully',
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  import = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const currentUserId = req.user!.id;
+      const { rows } = req.body;
+      const ip = req.ip || req.socket.remoteAddress;
+      const ua = req.headers['user-agent'];
+
+      if (!Array.isArray(rows)) {
+        res.status(400).json({
+          status: 'error',
+          message: 'Rows array is required in request body',
+        });
+        return;
+      }
+
+      const result = await this.service.bulkImport(rows, currentUserId, ip, ua);
+      res.status(200).json({
+        status: 'success',
+        data: result,
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  updateProfile = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const currentUserId = req.user!.id;
+      const ip = req.ip || req.socket.remoteAddress;
+      const ua = req.headers['user-agent'];
+
+      const result = await this.service.updateProfile(currentUserId, req.body, ip, ua);
+      res.status(200).json({
+        status: 'success',
+        data: result,
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  getDirectoryStats = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const stats = await this.service.getDirectoryStats();
+      res.status(200).json({
+        status: 'success',
+        data: { stats }
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  generateCredentials = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const creds = await this.service.generateCredentials(req.body);
+      res.status(200).json({
+        status: 'success',
+        data: creds
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  assignSubjects = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const currentUserId = req.user!.id;
+      const ip = req.ip || req.socket.remoteAddress;
+      const ua = req.headers['user-agent'];
+      const result = await this.service.assignSubjects(req.body, currentUserId, ip, ua);
+      res.status(200).json({ status: 'success', data: result });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  assignMentor = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const currentUserId = req.user!.id;
+      const ip = req.ip || req.socket.remoteAddress;
+      const ua = req.headers['user-agent'];
+      const result = await this.service.assignMentor(req.body, currentUserId, ip, ua);
+      res.status(200).json({ status: 'success', data: result });
+    } catch (error) {
+      next(error);
+    }
+  };
+}

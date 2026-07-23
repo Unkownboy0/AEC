@@ -1,0 +1,50 @@
+// ==========================================
+// HOD DEPARTMENTAL CIRCULAR SCHEMAS
+// ==========================================
+
+model HodCircular {
+  id             String                   @id @default(uuid())
+  title          String
+  category       String
+  priority       String                   @default("NORMAL") // LOW, NORMAL, HIGH, URGENT
+  description    String?
+  content        String
+  status         String                   @default("DRAFT") // DRAFT, PUBLISHED, ARCHIVED
+  images         String                   @default("[]") // JSON array of { url, name, size }
+  attachmentUrl  String?
+  attachmentName String?
+  publishedAt    DateTime?
+  createdAt      DateTime                 @default(now())
+  updatedAt      DateTime                 @updatedAt
+
+  // Department isolation fields
+  departmentId   String
+  department     Department               @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  publishedById  String
+  publishedBy    User                     @relation("CircularCreator", fields: [publishedById], references: [id])
+
+  // Read status tracking
+  recipients     HodCircularReadTracker[]
+
+  @@index([departmentId])
+  @@index([publishedById])
+  @@map("hod_circulars")
+}
+
+model HodCircularReadTracker {
+  id             String       @id @default(uuid())
+  circularId     String
+  circular       HodCircular  @relation(fields: [circularId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  status         String       @default("DELIVERED") // DELIVERED, READ
+  readAt         DateTime?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@unique([circularId, userId])
+  @@index([circularId])
+  @@index([userId])
+  @@map("hod_circular_read_trackers")
+}

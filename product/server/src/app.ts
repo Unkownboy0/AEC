@@ -1,0 +1,113 @@
+import express from 'express';
+import cors from 'cors';
+import helmet from 'helmet';
+import path from 'path';
+import authRoutes from './modules/auth/auth.routes';
+import dashboardRoutes from './modules/dashboard/dashboard.routes';
+import usersRoutes from './modules/users/users.routes';
+import rolesRoutes from './modules/roles/roles.routes';
+import settingsRoutes from './modules/settings/settings.routes';
+import academicsRoutes from './modules/academics/academics.routes';
+import mastersRoutes from './modules/masters/masters.routes';
+import securityRoutes from './modules/security/security.routes';
+import backupsRoutes from './modules/backup/backup.routes';
+import filesRoutes from './modules/files/files.routes';
+import notificationsRoutes from './modules/notifications/notifications.routes';
+import reportsRoutes from './modules/reports/reports.routes';
+import enterpriseRoutes from './modules/enterprise/enterprise.routes';
+import workflowRoutes from './modules/workflow/workflow.routes';
+import timetableRoutes from './modules/timetable/timetable.routes';
+import aiRoutes from './modules/ai/ai.routes';
+import assignmentsRoutes from './modules/enterprise/assignments.routes';
+import chatRoutes from './modules/chat/chat.routes';
+import circularRoutes from './modules/enterprise/circular.routes';
+
+import { errorHandler } from './core/middlewares/error.middleware';
+import { logger } from './utils/logger';
+import { env } from './config/env';
+
+const app = express();
+
+// Security HTTP headers
+app.use(helmet());
+
+// Serve uploaded files statically
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+
+// Enable CORS
+const allowedOrigins = env.ALLOWED_ORIGINS.split(',');
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      // Allow requests with no origin (like mobile apps or curl)
+      if (!origin) return callback(null, true);
+      if (allowedOrigins.indexOf(origin) !== -1 || env.NODE_ENV === 'development') {
+        return callback(null, true);
+      }
+      return callback(new Error('Not allowed by CORS'));
+    },
+    credentials: true,
+  })
+);
+
+// Body parser (increase limit for base64 file uploads)
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// Request logging middleware
+app.use((req, res, next) => {
+  logger.http(`${req.method} ${req.url} - IP: ${req.ip}`);
+  next();
+});
+
+import { authRateLimiter, apiRateLimiter } from './core/middlewares/rateLimit.middleware';
+import { sanitizeInput } from './core/middlewares/sanitize.middleware';
+
+// Global input sanitization
+app.use(sanitizeInput);
+
+// Global API rate limiting
+app.use('/api', apiRateLimiter);
+
+// Mount Routes
+app.get('/api/health', (req, res) => {
+  res.status(200).json({
+    status: 'success',
+    timestamp: new Date().toISOString(),
+    environment: env.NODE_ENV,
+    uptime: process.uptime(),
+  });
+});
+
+app.use('/api/auth', authRateLimiter, authRoutes);
+app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/users', usersRoutes);
+app.use('/api/roles', rolesRoutes);
+app.use('/api/settings', settingsRoutes);
+app.use('/api/academics', academicsRoutes);
+app.use('/api/masters', mastersRoutes);
+app.use('/api/security', securityRoutes);
+app.use('/api/backups', backupsRoutes);
+app.use('/api/files', filesRoutes);
+app.use('/api/notifications', notificationsRoutes);
+app.use('/api/reports', reportsRoutes);
+app.use('/api/enterprise', enterpriseRoutes);
+app.use('/api/workflows', workflowRoutes);
+app.use('/api/timetables', timetableRoutes);
+app.use('/api/ai', aiRoutes);
+app.use('/api/assignments', assignmentsRoutes);
+app.use('/api/chat', chatRoutes);
+app.use('/api/circulars', circularRoutes);
+
+// Fallback Route
+app.use('*', (req, res, next) => {
+  res.status(404).json({
+    status: 'error',
+    message: `Cannot ${req.method} ${req.baseUrl}`,
+  });
+});
+
+// Centralized error boundary
+app.use(errorHandler);
+
+export default app;
