@@ -11,6 +11,7 @@ import { Loading } from '../components/ui/Loading';
 import api from '../lib/axios';
 import { useAuth } from '../context/AuthContext';
 import { useDevice } from '../context/DeviceContext';
+import { DigitalIdCard } from './DigitalIdCard';
 
 import { useSearchParams } from 'react-router-dom';
 
@@ -1926,6 +1927,11 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ user }) => {
 
         {/* 2. DIGITAL STUDENT ID */}
         {activeTab === 'student_id' && (
+          <div className="py-6 w-full">
+            <DigitalIdCard role="Student" entityId={studentInfo?.id} />
+          </div>
+        )}
+        {activeTab === 'student_id_legacy_disabled' && (
           <div className="flex flex-col items-center justify-center py-10 space-y-6">
             
             {/* Embedded styles for browser print dialog formatting */}

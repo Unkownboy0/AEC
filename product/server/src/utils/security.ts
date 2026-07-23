@@ -461,7 +461,7 @@ export class SecurityHelper {
 
         // 9. Department Timetable
         if (permissions.some(p => p.startsWith('timetable:') || p.startsWith('academics:'))) {
-          menuList.push({ name: 'Department Timetable', path: '/?tab=timetable', icon: 'Clock', componentKey: 'dashboard', order: 9 });
+          menuList.push({ name: 'Department Timetable', path: '/hod/timetable', icon: 'Clock', componentKey: 'timetable_engine', order: 9 });
         }
 
         // 10. Department Subjects — unique page: subject list, faculty mapping, credits
@@ -510,13 +510,14 @@ export class SecurityHelper {
           { name: 'Department Students', path: '/?tab=students', icon: 'Users', componentKey: 'dashboard', order: 4 },
           { name: 'Department Faculty', path: '/?tab=faculty', icon: 'UserCheck', componentKey: 'dashboard', order: 5 },
           { name: 'Department Attendance', path: '/hod/attendance', icon: 'CalendarDays', componentKey: 'department_attendance', order: 6 },
-          { name: 'Department Subjects', path: '/hod/subjects', icon: 'BookOpen', componentKey: 'department_subjects', order: 7 },
-          { name: 'Department Results', path: '/hod/department-results', icon: 'Award', componentKey: 'department_results', order: 8 },
-          { name: 'Academic Performance', path: '/hod/academic-performance', icon: 'TrendingUp', componentKey: 'academic_performance', order: 9 },
-          { name: 'Faculty Performance', path: '/hod/faculty-performance', icon: 'BarChart2', componentKey: 'faculty_performance', order: 10 },
-          { name: 'Leave & OD Approvals', path: '/?tab=workflows', icon: 'ShieldAlert', componentKey: 'dashboard', order: 11 },
-          { name: 'Circulars & Announcements', path: '/hod/circulars', icon: 'Send', componentKey: 'hod_circulars', order: 12 },
-          { name: 'Reports & Analytics', path: '/hod/reports', icon: 'FileBarChart', componentKey: 'department_reports', order: 13 },
+          { name: 'Department Timetable', path: '/hod/timetable', icon: 'Clock', componentKey: 'timetable_engine', order: 7 },
+          { name: 'Department Subjects', path: '/hod/subjects', icon: 'BookOpen', componentKey: 'department_subjects', order: 8 },
+          { name: 'Department Results', path: '/hod/department-results', icon: 'Award', componentKey: 'department_results', order: 9 },
+          { name: 'Academic Performance', path: '/hod/academic-performance', icon: 'TrendingUp', componentKey: 'academic_performance', order: 10 },
+          { name: 'Faculty Performance', path: '/hod/faculty-performance', icon: 'BarChart2', componentKey: 'faculty_performance', order: 11 },
+          { name: 'Leave & OD Approvals', path: '/?tab=workflows', icon: 'ShieldAlert', componentKey: 'dashboard', order: 12 },
+          { name: 'Circulars & Announcements', path: '/hod/circulars', icon: 'Send', componentKey: 'hod_circulars', order: 13 },
+          { name: 'Reports & Analytics', path: '/hod/reports', icon: 'FileBarChart', componentKey: 'department_reports', order: 14 },
         ];
       }
     }

@@ -17,4 +17,10 @@ router.post('/slots/faculty-create', controller.facultyCreateSlot);
 router.put('/slots/faculty-update/:id', controller.facultyUpdateSlot);
 router.delete('/slots/faculty-delete/:id', controller.facultyDeleteSlot);
 
+// Timetable Approval/Publishing flow
+router.get('/publish-status', controller.getPublishStatus);
+router.post('/submit-review', controller.submitForReview);
+router.put('/review/:id', controller.reviewTimetable);
+router.put('/publish/:id', controller.publishTimetable);
+
 export default router;

@@ -1059,6 +1059,8 @@ async function main() {
     { name: 'System Settings', path: '/settings', icon: 'Settings', componentKey: 'settings', permissionRequired: 'settings:read', order: 18 },
     { name: 'Help Support', path: '/help', icon: 'HelpCircle', componentKey: 'help', order: 19 },
     { name: 'Support Tickets', path: '/support', icon: 'LifeBuoy', componentKey: 'support', order: 20 },
+    { name: 'Timetable Engine', path: '/hod/timetable', icon: 'Clock', componentKey: 'timetable_engine', order: 21 },
+    { name: 'Placement Engine', path: '/placements/dashboard', icon: 'Briefcase', componentKey: 'placement_engine', order: 22 },
   ];
 
   for (const item of menuItems) {

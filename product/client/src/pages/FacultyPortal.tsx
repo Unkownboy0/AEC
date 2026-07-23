@@ -7,6 +7,7 @@ import { Loading } from '../components/ui/Loading';
 import api from '../lib/axios';
 import { MentorPortal } from './RolePortals';
 import { Shield } from 'lucide-react';
+import { DigitalIdCard } from './DigitalIdCard';
 
 import { useDevice } from '../context/DeviceContext';
 import { useAuth } from '../context/AuthContext';
@@ -4629,6 +4630,13 @@ export const FacultyPortal: React.FC<FacultyPortalProps> = ({ user }) => {
                 </div>
               )}
             </div>
+          </div>
+        )}
+
+        {/* MY DIGITAL ID CARD */}
+        {activeTab === 'id_card' && (
+          <div className="py-6">
+            <DigitalIdCard role="Faculty" entityId={profileData?.id} />
           </div>
         )}
 

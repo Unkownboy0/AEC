@@ -421,4 +421,242 @@ export class PlacementController {
       res.status(200).json({ status: 'success', message: 'Audit skipped.' });
     }
   };
+
+  /**
+   * List all placement drives
+   */
+  listDrives = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const drives = await prisma.placementDrive.findMany({
+        orderBy: { driveDate: 'desc' },
+        include: {
+          applications: {
+            include: {
+              student: {
+                include: {
+                  department: true
+                }
+              }
+            }
+          }
+        }
+      });
+      res.status(200).json({ status: 'success', data: drives });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * Create a new placement drive
+   */
+  createDrive = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const {
+        title,
+        company,
+        industry,
+        hrContact,
+        package: jobPackage,
+        role,
+        eligibilityCgpa,
+        eligibilityDept,
+        eligibilityYear,
+        maxArrears,
+        minAttendance,
+        driveDate,
+        location,
+        description
+      } = req.body;
+
+      const drive = await prisma.placementDrive.create({
+        data: {
+          title,
+          company,
+          industry,
+          hrContact,
+          package: parseFloat(jobPackage) || 0,
+          role,
+          eligibilityCgpa: parseFloat(eligibilityCgpa) || 0,
+          eligibilityDept,
+          eligibilityYear,
+          maxArrears: parseInt(maxArrears, 10) || 0,
+          minAttendance: parseFloat(minAttendance) || 75.0,
+          driveDate: new Date(driveDate),
+          location,
+          description,
+          status: 'OPEN'
+        }
+      });
+
+      res.status(201).json({ status: 'success', data: drive });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * Update placement drive details
+   */
+  updateDrive = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { id } = req.params;
+      const {
+        title,
+        company,
+        industry,
+        hrContact,
+        package: jobPackage,
+        role,
+        eligibilityCgpa,
+        eligibilityDept,
+        eligibilityYear,
+        maxArrears,
+        minAttendance,
+        driveDate,
+        location,
+        description,
+        status
+      } = req.body;
+
+      const drive = await prisma.placementDrive.update({
+        where: { id },
+        data: {
+          title,
+          company,
+          industry,
+          hrContact,
+          package: jobPackage !== undefined ? parseFloat(jobPackage) : undefined,
+          role,
+          eligibilityCgpa: eligibilityCgpa !== undefined ? parseFloat(eligibilityCgpa) : undefined,
+          eligibilityDept,
+          eligibilityYear,
+          maxArrears: maxArrears !== undefined ? parseInt(maxArrears, 10) : undefined,
+          minAttendance: minAttendance !== undefined ? parseFloat(minAttendance) : undefined,
+          driveDate: driveDate ? new Date(driveDate) : undefined,
+          location,
+          description,
+          status
+        }
+      });
+
+      res.status(200).json({ status: 'success', data: drive });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * Delete / Archive placement drive
+   */
+  deleteDrive = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { id } = req.params;
+      await prisma.placementDrive.delete({ where: { id } });
+      res.status(200).json({ status: 'success', message: 'Drive deleted successfully.' });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * Apply for placement drive
+   */
+  applyToDrive = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { driveId, studentId } = req.body;
+
+      // Create application
+      const application = await prisma.placementApplication.create({
+        data: {
+          driveId,
+          studentId,
+          status: 'APPLIED'
+        }
+      });
+
+      res.status(201).json({ status: 'success', data: application });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * List all applications for a drive
+   */
+  listApplications = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { driveId } = req.params;
+      const apps = await prisma.placementApplication.findMany({
+        where: driveId ? { driveId } : {},
+        include: {
+          student: {
+            include: {
+              department: true,
+              user: true
+            }
+          },
+          drive: true
+        }
+      });
+      res.status(200).json({ status: 'success', data: apps });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * Update application status
+   */
+  updateApplicationStatus = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { id } = req.params;
+      const { status } = req.body;
+
+      const app = await prisma.placementApplication.update({
+        where: { id },
+        data: { status },
+        include: { student: true, drive: true }
+      });
+
+      // If selected/placed, also create/upsert a PlacementRecord for aggregate metrics integration!
+      if (status === 'SELECTED' || status === 'PLACED') {
+        const studentRoll = app.student.admissionNo || 'ROLL-MOCK';
+        await prisma.placementRecord.create({
+          data: {
+            studentRoll,
+            company: app.drive.company,
+            package: app.drive.package,
+            role: app.drive.role,
+            status: 'SELECTED',
+            driveDate: app.drive.driveDate
+          }
+        });
+      }
+
+      res.status(200).json({ status: 'success', data: app });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * Upload / Verify offer letter URL
+   */
+  uploadOfferLetter = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { id } = req.params;
+      const { offerLetterUrl } = req.body;
+
+      const app = await prisma.placementApplication.update({
+        where: { id },
+        data: { offerLetterUrl },
+        include: { student: true, drive: true }
+      });
+
+      res.status(200).json({ status: 'success', data: app });
+    } catch (error) {
+      next(error);
+    }
+  };
 }

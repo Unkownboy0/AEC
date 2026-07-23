@@ -182,4 +182,79 @@ export class TimetableController {
       next(error);
     }
   };
+
+  /**
+   * Submit timetable for Academic Dean review
+   */
+  submitForReview = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { departmentId, semesterId, academicYearId } = req.body;
+      const record = await prisma.timetablePublish.upsert({
+        where: { id: `${departmentId}_${semesterId}_${academicYearId}` },
+        update: { status: 'HOD_REVIEW' },
+        create: {
+          id: `${departmentId}_${semesterId}_${academicYearId}`,
+          departmentId,
+          semesterId,
+          academicYearId,
+          status: 'HOD_REVIEW'
+        }
+      });
+      res.status(200).json({ status: 'success', data: record });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * Review timetable (Dean approval/rejection)
+   */
+  reviewTimetable = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { id } = req.params; // compound id e.g. `${departmentId}_${semesterId}_${academicYearId}`
+      const { status } = req.body; // 'DEAN_APPROVED' or 'DRAFT'
+
+      const record = await prisma.timetablePublish.update({
+        where: { id },
+        data: { status }
+      });
+      res.status(200).json({ status: 'success', data: record });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * Publish approved timetable
+   */
+  publishTimetable = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { id } = req.params;
+      const record = await prisma.timetablePublish.update({
+        where: { id },
+        data: {
+          status: 'PUBLISHED',
+          publishedAt: new Date()
+        }
+      });
+      res.status(200).json({ status: 'success', data: record });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * Get current publish status of department timetable
+   */
+  getPublishStatus = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { departmentId, semesterId, academicYearId } = req.query as Record<string, string>;
+      const record = await prisma.timetablePublish.findUnique({
+        where: { id: `${departmentId}_${semesterId}_${academicYearId}` }
+      });
+      res.status(200).json({ status: 'success', data: record || { status: 'DRAFT' } });
+    } catch (error) {
+      next(error);
+    }
+  };
 }

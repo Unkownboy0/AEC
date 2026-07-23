@@ -4,6 +4,8 @@ import { auditRequest, UserPayload, SecurityHelper } from '../../utils/security'
 import { prisma } from '../../lib/prisma';
 import { buildStudentIDCardPDF } from '../../utils/idcard.pdf';
 import { generateAttendanceReportPdf } from '../../utils/attendance.pdf';
+import jwt from 'jsonwebtoken';
+import { env } from '../../config/env';
 
 export class EnterpriseController {
   private service = new EnterpriseService();
@@ -1117,6 +1119,202 @@ export class EnterpriseController {
       res.status(200).json({
         status: 'success',
         message: 'Mentorship assignment removed successfully.'
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * Get Student ID Card Data & QR Token
+   */
+  getStudentIdCard = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { id } = req.params;
+      const student = await prisma.student.findUnique({
+        where: { id },
+        include: {
+          department: true,
+          semester: true,
+          section: true,
+          academicYear: true,
+          user: true
+        }
+      });
+
+      if (!student) {
+        return res.status(404).json({ status: 'error', message: 'Student not found.' });
+      }
+
+      // Generate verification token (QR code content)
+      const qrPayload = {
+        type: 'STUDENT',
+        id: student.id,
+        name: `${student.firstName} ${student.lastName}`,
+        admissionNo: student.admissionNo,
+        department: student.department?.name || 'N/A',
+        role: 'Student'
+      };
+      const token = jwt.sign(qrPayload, env.JWT_SECRET, { expiresIn: '365d' });
+
+      // Upsert DigitalIdCard record
+      await prisma.digitalIdCard.upsert({
+        where: { id: student.id }, // Use student ID as primary identifier
+        update: { qrCode: token, isActive: true },
+        create: { id: student.id, type: 'STUDENT', entityId: student.id, qrCode: token, isActive: true }
+      });
+
+      res.status(200).json({
+        status: 'success',
+        data: {
+          id: student.id,
+          photo: student.user?.profilePhoto || null,
+          name: `${student.firstName} ${student.lastName}`,
+          registerNo: student.admissionNo, // Maps to admission number as unique student reg identifier
+          department: student.department?.name || 'N/A',
+          year: student.academicYear?.name || 'N/A',
+          section: student.section?.name || 'N/A',
+          bloodGroup: student.bloodGroup || 'N/A',
+          qrCodeToken: token,
+          collegeLogo: '/logo.png', // Fallback placeholder
+          signature: '/signature.png' // Fallback placeholder
+        }
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * Get Faculty ID Card Data & QR Token
+   */
+  getFacultyIdCard = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { id } = req.params;
+      const faculty = await prisma.faculty.findUnique({
+        where: { id },
+        include: {
+          department: true,
+          user: true
+        }
+      });
+
+      if (!faculty) {
+        return res.status(404).json({ status: 'error', message: 'Faculty not found.' });
+      }
+
+      // Generate verification token (QR code content)
+      const qrPayload = {
+        type: 'FACULTY',
+        id: faculty.id,
+        name: `${faculty.firstName} ${faculty.lastName}`,
+        employeeId: faculty.employeeId,
+        department: faculty.department?.name || 'N/A',
+        role: 'Faculty'
+      };
+      const token = jwt.sign(qrPayload, env.JWT_SECRET, { expiresIn: '365d' });
+
+      // Upsert DigitalIdCard record
+      await prisma.digitalIdCard.upsert({
+        where: { id: faculty.id },
+        update: { qrCode: token, isActive: true },
+        create: { id: faculty.id, type: 'FACULTY', entityId: faculty.id, qrCode: token, isActive: true }
+      });
+
+      res.status(200).json({
+        status: 'success',
+        data: {
+          id: faculty.id,
+          photo: faculty.user?.profilePhoto || null,
+          name: `${faculty.firstName} ${faculty.lastName}`,
+          employeeId: faculty.employeeId,
+          department: faculty.department?.name || 'N/A',
+          designation: faculty.designation || 'Faculty Member',
+          qrCodeToken: token,
+          collegeLogo: '/logo.png',
+          signature: '/signature.png'
+        }
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * Public endpoint to decode token & verify identity from QR Code scan
+   */
+  verifyIdCard = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { token } = req.params;
+      
+      let decoded: any;
+      try {
+        decoded = jwt.verify(token, env.JWT_SECRET);
+      } catch (err) {
+        return res.status(400).json({
+          status: 'error',
+          message: 'Invalid or expired identification token.'
+        });
+      }
+
+      // Check if identity card is active in database
+      const idCardRecord = await prisma.digitalIdCard.findFirst({
+        where: { entityId: decoded.id, isActive: true }
+      });
+
+      if (!idCardRecord) {
+        return res.status(404).json({
+          status: 'error',
+          message: 'Verification failed: Identification card is inactive or has been suspended.'
+        });
+      }
+
+      // Fetch latest profile info
+      let profileDetails: any = null;
+      if (decoded.type === 'STUDENT') {
+        const student = await prisma.student.findUnique({
+          where: { id: decoded.id },
+          include: { department: true, user: true }
+        });
+        if (student) {
+          profileDetails = {
+            photo: student.user?.profilePhoto || null,
+            name: `${student.firstName} ${student.lastName}`,
+            code: student.admissionNo,
+            department: student.department?.name || 'N/A',
+            role: 'Student'
+          };
+        }
+      } else {
+        const faculty = await prisma.faculty.findUnique({
+          where: { id: decoded.id },
+          include: { department: true, user: true }
+        });
+        if (faculty) {
+          profileDetails = {
+            photo: faculty.user?.profilePhoto || null,
+            name: `${faculty.firstName} ${faculty.lastName}`,
+            code: faculty.employeeId,
+            department: faculty.department?.name || 'N/A',
+            role: 'Faculty'
+          };
+        }
+      }
+
+      if (!profileDetails) {
+        return res.status(404).json({
+          status: 'error',
+          message: 'Record not found in the database.'
+        });
+      }
+
+      res.status(200).json({
+        status: 'success',
+        data: {
+          verified: true,
+          isActive: true,
+          ...profileDetails
+        }
       });
     } catch (error) {
       next(error);

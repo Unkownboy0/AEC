@@ -584,6 +584,7 @@ model Student {
   mentorAssignments MentorAssignment[]     @relation("MentorAssignmentStudent")
   chatMessages      ChatMessage[]
   tickets           Ticket[]
+  placementApplications PlacementApplication[]
 
   archived   Boolean   @default(false)
   archivedAt DateTime?
@@ -1322,6 +1323,69 @@ model HodCircularReadTracker {
   @@index([circularId])
   @@index([userId])
   @@map("hod_circular_read_trackers")
+}
+
+model PlacementDrive {
+  id             String   @id @default(uuid())
+  title          String
+  company        String
+  industry       String?
+  hrContact      String?
+  package        Float
+  role           String
+  eligibilityCgpa Float   @default(0)
+  eligibilityDept String?  // JSON array of dept IDs, or "ALL"
+  eligibilityYear String?  // e.g. "4", "3"
+  maxArrears     Int      @default(0)
+  minAttendance  Float    @default(75)
+  driveDate      DateTime
+  location       String?
+  status         String   @default("OPEN") // OPEN, CLOSED, ARCHIVED
+  description    String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  applications   PlacementApplication[]
+
+  @@map("placement_drives")
+}
+
+model PlacementApplication {
+  id          String         @id @default(uuid())
+  driveId     String
+  drive       PlacementDrive @relation(fields: [driveId], references: [id], onDelete: Cascade)
+  studentId   String
+  student     Student        @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  status      String         @default("APPLIED") // APPLIED, SHORTLISTED, SELECTED, REJECTED
+  offerLetterUrl String?
+  appliedAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  @@unique([driveId, studentId])
+  @@map("placement_applications")
+}
+
+model DigitalIdCard {
+  id          String   @id @default(uuid())
+  type        String   // STUDENT, FACULTY
+  entityId    String   // studentId or facultyId
+  qrCode      String   // JWT-signed verification token
+  isActive    Boolean  @default(true)
+  generatedAt DateTime @default(now())
+
+  @@map("digital_id_cards")
+}
+
+model TimetablePublish {
+  id             String   @id @default(uuid())
+  departmentId   String
+  semesterId     String
+  academicYearId String
+  status         String   @default("DRAFT") // DRAFT, HOD_REVIEW, DEAN_APPROVED, PUBLISHED
+  publishedAt    DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@map("timetable_publishes")
 }
 
 

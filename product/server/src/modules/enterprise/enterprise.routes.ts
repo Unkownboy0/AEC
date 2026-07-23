@@ -5,8 +5,15 @@ import { requireAuth } from '../../core/middlewares/auth.middleware';
 const router = Router();
 const controller = new EnterpriseController();
 
-// Guard all enterprise endpoints with authentication
+// Public QR Code verification endpoint (does not require login)
+router.get('/id-card/verify/:token', controller.verifyIdCard);
+
+// Guard all other enterprise endpoints with authentication
 router.use(requireAuth);
+
+// ID Cards (requires authentication)
+router.get('/id-card/student/:id', controller.getStudentIdCard);
+router.get('/id-card/faculty/:id', controller.getFacultyIdCard);
 
 router.post('/bulk-action', controller.bulkAction);
 
@@ -96,6 +103,16 @@ const placementController = new PlacementController();
 router.get('/placements/analytics', placementController.getAnalytics);
 router.get('/placements/records', placementController.getRecords);
 router.post('/placements/audit', placementController.recordAudit);
+
+// Placement Drive Management
+router.get('/placements/drives', placementController.listDrives);
+router.post('/placements/drives', placementController.createDrive);
+router.put('/placements/drives/:id', placementController.updateDrive);
+router.delete('/placements/drives/:id', placementController.deleteDrive);
+router.post('/placements/drives/apply', placementController.applyToDrive);
+router.get('/placements/drives/:driveId/applications', placementController.listApplications);
+router.put('/placements/applications/:id/status', placementController.updateApplicationStatus);
+router.post('/placements/applications/:id/offer-letter', placementController.uploadOfferLetter);
 
 // Complaint Monitoring Center (Institution-Wide Read-Only & Escalation)
 import { ComplaintController } from './complaint.controller';

@@ -42,6 +42,9 @@ import { FacultyPerformance } from '../pages/hod/FacultyPerformance';
 import { DepartmentReports } from '../pages/hod/DepartmentReports';
 import { CircularManagement } from '../pages/hod/CircularManagement';
 import { FacultyCircularsPage } from '../pages/FacultyCircularsPage';
+import { TimetableEngine } from '../pages/hod/TimetableEngine';
+import { PlacementEngine } from '../pages/admin/PlacementEngine';
+import { IdCardVerify } from '../pages/IdCardVerify';
 
 import Profile from '../pages/Profile';
 
@@ -82,6 +85,8 @@ const COMPONENT_MAP: Record<string, React.ComponentType<any>> = {
   department_reports: DepartmentReports,
   hod_circulars: CircularManagement,
   faculty_circulars: FacultyCircularsPage,
+  timetable_engine: TimetableEngine,
+  placement_engine: PlacementEngine,
 };
 
 export const AppRouter: React.FC = () => {
@@ -94,6 +99,7 @@ export const AppRouter: React.FC = () => {
         <Route path="/login" element={<Login />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password" element={<ResetPassword />} />
+        <Route path="/verify/:token" element={<IdCardVerify />} />
 
         {/* Protected App Routes */}
         <Route
