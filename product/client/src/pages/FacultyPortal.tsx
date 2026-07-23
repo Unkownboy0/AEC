@@ -4074,150 +4074,246 @@ export const FacultyPortal: React.FC<FacultyPortalProps> = ({ user }) => {
           </div>
         )}
 
-        {/* LEAVE APPLICATIONS */}
-        {activeTab === 'leaves' && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            
-            {/* Create leave application form */}
-            <div className="border bg-card p-5 rounded-xl shadow-sm space-y-4 md:col-span-1">
-              <h3 className="text-sm font-extrabold uppercase border-b pb-2">Apply for leave / OD</h3>
-              <form onSubmit={handleLeaveSubmit} className="space-y-4 text-xs font-semibold">
-                <div className="flex flex-col gap-1">
-                  <label className="text-[9px] uppercase font-bold text-muted-foreground">Request Type</label>
-                  <select
-                    value={leaveType}
-                    onChange={e => setLeaveType(e.target.value)}
-                    className="h-9 border rounded bg-background px-2"
-                  >
-                    <option value="FACULTY_LEAVE">Leave Request</option>
-                    <option value="FACULTY_OD">On Duty (OD) Request</option>
-                  </select>
+        {/* MY LEAVE / OD REQUESTS TAB — full dashboard */}
+        {activeTab === 'leaves' && (() => {
+          const myRequests = workflowRequests.filter((r: any) => r.facultyRequesterId === profileData?.id);
+          const pendingCount   = myRequests.filter((r: any) => ['PENDING', 'PENDING_HOD'].includes(r.status)).length;
+          const approvedCount  = myRequests.filter((r: any) => ['APPROVED', 'HOD_APPROVED'].includes(r.status)).length;
+          const rejectedCount  = myRequests.filter((r: any) => ['REJECTED', 'REJECTED_BY_HOD'].includes(r.status)).length;
+          const totalCount     = myRequests.length;
+
+          return (
+            <div className="space-y-6 animate-in fade-in duration-300">
+
+              {/* Page header */}
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                <div>
+                  <h2 className="text-lg font-extrabold tracking-tight text-foreground">My Leave & OD Requests</h2>
+                  <p className="text-xs text-muted-foreground mt-0.5">Submit and track your own leave or on-duty requests</p>
+                </div>
+                <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-muted-foreground border rounded-lg px-3 py-1.5 bg-muted/30">
+                  <span className="h-2 w-2 rounded-full bg-emerald-500 inline-block animate-pulse" />
+                  Auto-routed · HOD → Admission Dean
+                </div>
+              </div>
+
+              {/* Stats cards row */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                <div className="border bg-card rounded-xl p-4 shadow-sm flex flex-col gap-1">
+                  <span className="text-[9px] uppercase font-bold text-muted-foreground tracking-wider">Total Requests</span>
+                  <span className="text-2xl font-extrabold text-foreground">{totalCount}</span>
+                  <span className="text-[10px] text-muted-foreground">All time</span>
+                </div>
+                <div className="border bg-amber-50 border-amber-200 rounded-xl p-4 shadow-sm flex flex-col gap-1">
+                  <span className="text-[9px] uppercase font-bold text-amber-600 tracking-wider">Pending</span>
+                  <span className="text-2xl font-extrabold text-amber-700">{pendingCount}</span>
+                  <span className="text-[10px] text-amber-600">Awaiting HOD / Dean</span>
+                </div>
+                <div className="border bg-emerald-50 border-emerald-200 rounded-xl p-4 shadow-sm flex flex-col gap-1">
+                  <span className="text-[9px] uppercase font-bold text-emerald-600 tracking-wider">Approved</span>
+                  <span className="text-2xl font-extrabold text-emerald-700">{approvedCount}</span>
+                  <span className="text-[10px] text-emerald-600">Sanctioned</span>
+                </div>
+                <div className="border bg-rose-50 border-rose-200 rounded-xl p-4 shadow-sm flex flex-col gap-1">
+                  <span className="text-[9px] uppercase font-bold text-rose-600 tracking-wider">Rejected</span>
+                  <span className="text-2xl font-extrabold text-rose-700">{rejectedCount}</span>
+                  <span className="text-[10px] text-rose-600">Not approved</span>
+                </div>
+              </div>
+
+              {/* Content grid: form + history */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+
+                {/* Submit form */}
+                <div className="border bg-card p-5 rounded-xl shadow-sm space-y-4 md:col-span-1">
+                  <div className="flex items-center gap-2 border-b pb-3">
+                    <div className="h-7 w-7 rounded-lg bg-primary/10 flex items-center justify-center">
+                      <FileText className="h-3.5 w-3.5 text-primary" />
+                    </div>
+                    <h3 className="text-sm font-extrabold uppercase tracking-tight">Apply for Leave / OD</h3>
+                  </div>
+
+                  <form onSubmit={handleLeaveSubmit} className="space-y-3.5 text-xs font-semibold">
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-[9px] uppercase font-bold text-muted-foreground">Request Type</label>
+                      <select
+                        value={leaveType}
+                        onChange={e => setLeaveType(e.target.value)}
+                        className="h-9 border rounded-lg bg-background px-2 text-xs font-semibold focus:ring-2 focus:ring-primary/30 outline-none"
+                      >
+                        <option value="FACULTY_LEAVE">Leave Request</option>
+                        <option value="FACULTY_OD">On Duty (OD) Request</option>
+                      </select>
+                    </div>
+
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-[9px] uppercase font-bold text-muted-foreground">Subject / Title</label>
+                      <input
+                        type="text"
+                        required
+                        value={leaveTitle}
+                        onChange={e => setLeaveTitle(e.target.value)}
+                        placeholder="e.g. Medical checkup"
+                        className="h-9 border rounded-lg bg-background px-3 focus:ring-2 focus:ring-primary/30 outline-none"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="flex flex-col gap-1.5">
+                        <label className="text-[9px] uppercase font-bold text-muted-foreground">Start Date</label>
+                        <input
+                          type="date"
+                          required
+                          value={leaveStart}
+                          onChange={e => setLeaveStart(e.target.value)}
+                          className="h-9 border rounded-lg bg-background px-2 focus:ring-2 focus:ring-primary/30 outline-none"
+                        />
+                      </div>
+                      <div className="flex flex-col gap-1.5">
+                        <label className="text-[9px] uppercase font-bold text-muted-foreground">End Date</label>
+                        <input
+                          type="date"
+                          required
+                          value={leaveEnd}
+                          onChange={e => setLeaveEnd(e.target.value)}
+                          className="h-9 border rounded-lg bg-background px-2 focus:ring-2 focus:ring-primary/30 outline-none"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-[9px] uppercase font-bold text-muted-foreground">Reason / Details</label>
+                      <textarea
+                        required
+                        value={leaveReason}
+                        onChange={e => setLeaveReason(e.target.value)}
+                        placeholder="Explain your reason in detail..."
+                        rows={4}
+                        className="border rounded-lg bg-background p-2.5 text-xs resize-none focus:ring-2 focus:ring-primary/30 outline-none"
+                      />
+                    </div>
+
+                    <button
+                      type="submit"
+                      className="w-full h-9 bg-primary text-primary-foreground rounded-lg font-bold hover:bg-primary/90 transition-colors flex items-center justify-center gap-2 text-xs"
+                    >
+                      <Send className="h-3.5 w-3.5" />
+                      Submit Request to HOD
+                    </button>
+                  </form>
+
+                  {/* Workflow info */}
+                  <div className="bg-muted/30 border rounded-lg p-3 space-y-1.5 text-[10px]">
+                    <p className="font-extrabold uppercase tracking-wider text-muted-foreground text-[9px]">Approval Workflow</p>
+                    <div className="flex items-center gap-1.5 text-muted-foreground font-semibold">
+                      <span className="h-1.5 w-1.5 rounded-full bg-primary inline-block" /> You (Faculty)
+                    </div>
+                    <div className="flex items-center gap-1.5 text-muted-foreground font-semibold pl-3">
+                      <span className="h-1.5 w-1.5 rounded-full bg-amber-500 inline-block" /> HOD Review
+                    </div>
+                    <div className="flex items-center gap-1.5 text-muted-foreground font-semibold pl-6">
+                      <span className="h-1.5 w-1.5 rounded-full bg-blue-500 inline-block" /> Admission Dean
+                    </div>
+                    <div className="flex items-center gap-1.5 text-emerald-600 font-bold pl-9">
+                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 inline-block" /> Final Decision
+                    </div>
+                  </div>
                 </div>
 
-                <div className="flex flex-col gap-1">
-                  <label className="text-[9px] uppercase font-bold text-muted-foreground">Subject Title</label>
-                  <input
-                    type="text"
-                    required
-                    value={leaveTitle}
-                    onChange={e => setLeaveTitle(e.target.value)}
-                    placeholder="e.g. Medical Checkup leave"
-                    className="h-9 border rounded bg-background px-3"
-                  />
-                </div>
+                {/* History table */}
+                <div className="border bg-card p-5 rounded-xl shadow-sm space-y-4 md:col-span-2">
+                  <div className="flex items-center gap-2 border-b pb-3">
+                    <div className="h-7 w-7 rounded-lg bg-indigo-100 flex items-center justify-center">
+                      <Clock className="h-3.5 w-3.5 text-indigo-600" />
+                    </div>
+                    <h3 className="text-sm font-extrabold uppercase tracking-tight">Request History</h3>
+                    <span className="ml-auto text-[10px] bg-muted border rounded-full px-2 py-0.5 font-bold">{myRequests.length} total</span>
+                  </div>
 
-                <div className="flex flex-col gap-1">
-                  <label className="text-[9px] uppercase font-bold text-muted-foreground">Start date</label>
-                  <input
-                    type="date"
-                    required
-                    value={leaveStart}
-                    onChange={e => setLeaveStart(e.target.value)}
-                    className="h-9 border rounded bg-background px-3"
-                  />
-                </div>
-
-                <div className="flex flex-col gap-1">
-                  <label className="text-[9px] uppercase font-bold text-muted-foreground">End date</label>
-                  <input
-                    type="date"
-                    required
-                    value={leaveEnd}
-                    onChange={e => setLeaveEnd(e.target.value)}
-                    className="h-9 border rounded bg-background px-3"
-                  />
-                </div>
-
-                <div className="flex flex-col gap-1">
-                  <label className="text-[9px] uppercase font-bold text-muted-foreground">Detailed reasons</label>
-                  <textarea
-                    required
-                    value={leaveReason}
-                    onChange={e => setLeaveReason(e.target.value)}
-                    placeholder="Explain reasons..."
-                    className="h-20 border rounded bg-background p-2.5"
-                  />
-                </div>
-
-                <button type="submit" className="w-full h-9 bg-primary text-primary-foreground rounded font-bold hover:bg-primary/95">
-                  Submit Request
-                </button>
-              </form>
-            </div>
-
-            {/* List submitted leave requests */}
-            <div className="border bg-card p-5 rounded-xl shadow-sm space-y-4 md:col-span-2">
-              <h3 className="text-sm font-extrabold uppercase border-b pb-2">Leave Request History</h3>
-              <div className="overflow-x-auto text-xs font-semibold">
-                <table className="w-full text-left">
-                  <thead>
-                    <tr className="border-b text-[9px] uppercase font-bold text-muted-foreground">
-                      <th className="py-2 pl-4">Title / Reason</th>
-                      <th className="py-2">Type</th>
-                      <th className="py-2">Duration</th>
-                      <th className="py-2 text-center">Stage</th>
-                      <th className="py-2 text-right pr-4">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {workflowRequests
-                      .filter((r: any) => r.facultyRequesterId === profileData?.id)
-                      .map((item: any, idx: number) => {
-                        const statusColors: Record<string, string> = {
-                          PENDING: 'bg-amber-50 text-amber-700 border-amber-200',
-                          PENDING_HOD: 'bg-amber-50 text-amber-700 border-amber-200',
-                          HOD_APPROVED: 'bg-blue-50 text-blue-700 border-blue-200',
-                          APPROVED: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-                          REJECTED: 'bg-rose-50 text-rose-700 border-rose-200',
-                          REJECTED_BY_HOD: 'bg-rose-50 text-rose-700 border-rose-200'
-                        };
-
-                        const formattedStart = item.startDate ? new Date(item.startDate).toLocaleDateString() : 'N/A';
-                        const formattedEnd = item.endDate ? new Date(item.endDate).toLocaleDateString() : 'N/A';
-
-                        return (
-                          <tr key={item.id || idx} className="border-b last:border-b-0 hover:bg-muted/50 transition-colors duration-150">
-                            <td className="py-3.5 pl-4 pr-3">
-                              <div className="font-bold text-foreground text-xs">{item.title}</div>
-                              <div className="text-[10px] text-muted-foreground mt-0.5">{item.reason}</div>
-                            </td>
-                            <td className="py-3.5 px-3">
-                              <span className={`px-2 py-0.5 rounded-full text-[9px] font-black border ${
-                                item.type === 'FACULTY_OD' ? 'bg-indigo-50 text-indigo-700 border-indigo-200' : 'bg-orange-50 text-orange-700 border-orange-200'
-                              }`}>
-                                {item.type === 'FACULTY_OD' ? 'ON DUTY (OD)' : 'LEAVE'}
-                              </span>
-                            </td>
-                            <td className="py-3.5 px-3 font-mono text-[10px] text-muted-foreground whitespace-nowrap">
-                              {formattedStart} to {formattedEnd}
-                            </td>
-                            <td className="py-3.5 px-3 text-center uppercase tracking-tight text-[10px] font-extrabold text-foreground">
-                              {item.currentStep}
-                            </td>
-                            <td className="py-3.5 pl-3 pr-4 text-right">
-                              <span className={`px-2.5 py-1 rounded-full text-[10px] font-black border ${
-                                statusColors[item.status] || 'bg-slate-50 text-slate-700 border-slate-200'
-                              }`}>
-                                {item.status.replace(/_/g, ' ')}
-                              </span>
-                            </td>
+                  {myRequests.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-14 text-center gap-3">
+                      <div className="h-14 w-14 rounded-full bg-muted flex items-center justify-center">
+                        <FileText className="h-6 w-6 text-muted-foreground" />
+                      </div>
+                      <p className="text-sm font-bold text-foreground">No requests yet</p>
+                      <p className="text-xs text-muted-foreground max-w-xs">Submit your first Leave or OD request using the form on the left.</p>
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left text-xs font-semibold">
+                        <thead>
+                          <tr className="border-b text-[9px] uppercase font-bold text-muted-foreground">
+                            <th className="py-2 pl-3">Title / Reason</th>
+                            <th className="py-2">Type</th>
+                            <th className="py-2">Duration</th>
+                            <th className="py-2 text-center">Current Stage</th>
+                            <th className="py-2 text-right pr-3">Status</th>
                           </tr>
-                        );
-                      })}
-                    {workflowRequests.filter((r: any) => r.facultyRequesterId === profileData?.id).length === 0 && (
-                      <tr>
-                        <td colSpan={5} className="py-8 text-center text-muted-foreground text-xs">
-                          No Leave or OD requests submitted yet.
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
+                        </thead>
+                        <tbody>
+                          {myRequests.map((item: any, idx: number) => {
+                            const statusColors: Record<string, string> = {
+                              PENDING: 'bg-amber-50 text-amber-700 border-amber-200',
+                              PENDING_HOD: 'bg-amber-50 text-amber-700 border-amber-200',
+                              MENTOR_APPROVED: 'bg-blue-50 text-blue-700 border-blue-200',
+                              HOD_APPROVED: 'bg-indigo-50 text-indigo-700 border-indigo-200',
+                              APPROVED: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+                              REJECTED: 'bg-rose-50 text-rose-700 border-rose-200',
+                              REJECTED_BY_HOD: 'bg-rose-50 text-rose-700 border-rose-200',
+                              REJECTED_BY_MENTOR: 'bg-rose-50 text-rose-700 border-rose-200',
+                            };
+                            const stageLabel: Record<string, string> = {
+                              MENTOR: 'Faculty Advisor',
+                              HOD: 'HOD Review',
+                              DEAN: 'Admission Dean',
+                              PRINCIPAL: 'Principal',
+                            };
+                            const formattedStart = item.startDate ? new Date(item.startDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }) : '—';
+                            const formattedEnd   = item.endDate   ? new Date(item.endDate).toLocaleDateString('en-IN',   { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
+
+                            return (
+                              <tr key={item.id || idx} className="border-b last:border-b-0 hover:bg-muted/40 transition-colors duration-150">
+                                <td className="py-3 pl-3 pr-2 max-w-[180px]">
+                                  <div className="font-bold text-foreground truncate">{item.title}</div>
+                                  <div className="text-[10px] text-muted-foreground mt-0.5 line-clamp-1">{item.reason}</div>
+                                </td>
+                                <td className="py-3 px-2">
+                                  <span className={`px-2 py-0.5 rounded-full text-[9px] font-black border whitespace-nowrap ${
+                                    item.type === 'FACULTY_OD'
+                                      ? 'bg-indigo-50 text-indigo-700 border-indigo-200'
+                                      : 'bg-orange-50 text-orange-700 border-orange-200'
+                                  }`}>
+                                    {item.type === 'FACULTY_OD' ? 'ON DUTY' : 'LEAVE'}
+                                  </span>
+                                </td>
+                                <td className="py-3 px-2 text-[10px] text-muted-foreground whitespace-nowrap">
+                                  {formattedStart} → {formattedEnd}
+                                </td>
+                                <td className="py-3 px-2 text-center">
+                                  <span className="text-[9px] font-extrabold uppercase tracking-tight text-foreground">
+                                    {stageLabel[item.currentStep] || item.currentStep}
+                                  </span>
+                                </td>
+                                <td className="py-3 pl-2 pr-3 text-right">
+                                  <span className={`px-2 py-0.5 rounded-full text-[9px] font-black border whitespace-nowrap ${
+                                    statusColors[item.status] || 'bg-slate-50 text-slate-700 border-slate-200'
+                                  }`}>
+                                    {item.status.replace(/_/g, ' ')}
+                                  </span>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+
               </div>
             </div>
-
-          </div>
-        )}
+          );
+        })()}
 
         {activeTab === 'mentor_workspace' && (
           <MentorPortal user={user} />

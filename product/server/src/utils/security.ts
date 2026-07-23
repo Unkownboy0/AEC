@@ -393,8 +393,11 @@ export class SecurityHelper {
           menuList.push({ name: 'Reports', path: '/?tab=reports', icon: 'FileBarChart', componentKey: 'dashboard', order: 16 });
         }
 
-        // 16. AI Teaching Assistant
-        menuList.push({ name: 'AI Teaching Assistant', path: '/?tab=ai_assistant', icon: 'Cpu', componentKey: 'dashboard', order: 17 });
+        // 16. My Leave / OD Requests (Faculty's own leave applications)
+        menuList.push({ name: 'My Leave / OD Requests', path: '/?tab=leaves', icon: 'CalendarOff', componentKey: 'dashboard', order: 17 });
+
+        // 17. AI Teaching Assistant
+        menuList.push({ name: 'AI Teaching Assistant', path: '/?tab=ai_assistant', icon: 'Cpu', componentKey: 'dashboard', order: 18 });
 
         return menuList;
       } catch (e) {
@@ -411,8 +414,9 @@ export class SecurityHelper {
           { name: 'Mentor Workspace', path: '/?tab=mentor_workspace', icon: 'Shield', componentKey: 'dashboard', order: 9 },
           { name: 'Student Leave / OD Requests', path: '/?tab=leave_requests', icon: 'FileText', componentKey: 'dashboard', order: 10 },
           { name: 'Advisor Messaging', path: '/?tab=messages', icon: 'MessageSquare', componentKey: 'dashboard', order: 11 },
-          { name: 'Circulars', path: '/faculty/circulars', icon: 'Bell', componentKey: 'faculty_circulars', order: 12 },
-          { name: 'Reports', path: '/?tab=reports', icon: 'FileBarChart', componentKey: 'dashboard', order: 13 },
+          { name: 'My Leave / OD Requests', path: '/?tab=leaves', icon: 'CalendarOff', componentKey: 'dashboard', order: 12 },
+          { name: 'Circulars', path: '/faculty/circulars', icon: 'Bell', componentKey: 'faculty_circulars', order: 13 },
+          { name: 'Reports', path: '/?tab=reports', icon: 'FileBarChart', componentKey: 'dashboard', order: 14 },
         ];
       }
     }
