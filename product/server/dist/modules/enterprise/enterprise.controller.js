@@ -1,4 +1,7 @@
 "use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.EnterpriseController = void 0;
 const enterprise_service_1 = require("./enterprise.service");
@@ -6,6 +9,8 @@ const security_1 = require("../../utils/security");
 const prisma_1 = require("../../lib/prisma");
 const idcard_pdf_1 = require("../../utils/idcard.pdf");
 const attendance_pdf_1 = require("../../utils/attendance.pdf");
+const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
+const env_1 = require("../../config/env");
 class EnterpriseController {
     service = new enterprise_service_1.EnterpriseService();
     // ==========================================
@@ -192,6 +197,115 @@ class EnterpriseController {
             res.setHeader('Content-Type', 'application/pdf');
             res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
             res.status(200).send(pdfBuffer);
+        }
+        catch (error) {
+            next(error);
+        }
+    };
+    getMappingValidation = async (req, res, next) => {
+        try {
+            const students = await prisma_1.prisma.student.findMany({
+                where: { deleted: false },
+                include: { department: true, semester: true, section: true, mentor: true }
+            });
+            const flagged = students.filter(s => !s.mentorId || !s.facultyId || !s.classAdvisorId || !s.departmentId || !s.sectionId || !s.academicYearId);
+            const missingMentor = students.filter(s => !s.mentorId || !s.facultyId);
+            const missingAdvisor = students.filter(s => !s.classAdvisorId);
+            const missingDept = students.filter(s => !s.departmentId || !s.sectionId);
+            res.status(200).json({
+                status: 'success',
+                data: {
+                    totalCount: students.length,
+                    flaggedCount: flagged.length,
+                    missingMentorCount: missingMentor.length,
+                    missingAdvisorCount: missingAdvisor.length,
+                    missingDeptCount: missingDept.length,
+                    flaggedStudents: flagged.map(s => ({
+                        id: s.id,
+                        admissionNo: s.admissionNo,
+                        firstName: s.firstName,
+                        lastName: s.lastName,
+                        email: s.email,
+                        phone: s.phone,
+                        departmentId: s.departmentId,
+                        departmentName: s.department?.name || 'Missing',
+                        sectionId: s.sectionId,
+                        sectionName: s.section?.name || 'Missing',
+                        mentorId: s.mentorId,
+                        mentorName: s.mentor ? `${s.mentor.firstName} ${s.mentor.lastName}` : 'Missing',
+                        facultyId: s.facultyId,
+                        classAdvisorId: s.classAdvisorId
+                    }))
+                }
+            });
+        }
+        catch (error) {
+            next(error);
+        }
+    };
+    runAutoAssign = async (req, res, next) => {
+        try {
+            const user = req.user;
+            const unmapped = await prisma_1.prisma.student.findMany({
+                where: {
+                    OR: [
+                        { mentorId: null },
+                        { facultyId: null },
+                        { classAdvisorId: null }
+                    ],
+                    deleted: false
+                }
+            });
+            let assignedCount = 0;
+            for (const student of unmapped) {
+                if (!student.departmentId)
+                    continue;
+                // Find default faculty advisor in the same department
+                const faculty = await prisma_1.prisma.faculty.findFirst({
+                    where: { departmentId: student.departmentId, deleted: false }
+                });
+                if (faculty) {
+                    // Assign mentor, faculty, and class advisor
+                    await prisma_1.prisma.student.update({
+                        where: { id: student.id },
+                        data: {
+                            mentorId: faculty.id,
+                            facultyId: faculty.id,
+                            classAdvisorId: faculty.id
+                        }
+                    });
+                    // Create MentorAssignment log
+                    await prisma_1.prisma.mentorAssignment.create({
+                        data: {
+                            mentorId: faculty.id,
+                            studentId: student.id,
+                            departmentId: student.departmentId,
+                            programId: student.programId,
+                            semesterId: student.semesterId,
+                            sectionId: student.sectionId,
+                            academicYearId: student.academicYearId,
+                            assignedBy: user.id,
+                            status: 'ACTIVE'
+                        }
+                    });
+                    assignedCount++;
+                }
+            }
+            await prisma_1.prisma.userActivityLog.create({
+                data: {
+                    userId: user.id,
+                    action: 'UPDATE',
+                    module: 'STUDENTS',
+                    description: `Ran student-faculty auto-assignment mapping engine. Auto-assigned ${assignedCount} students.`,
+                    ipAddress: req.ip,
+                    userAgent: req.headers['user-agent']
+                }
+            });
+            res.status(200).json({
+                status: 'success',
+                message: `Auto-assigned ${assignedCount} students successfully.`,
+                assignedCount
+            });
         }
         catch (error) {
             next(error);
@@ -668,6 +782,14 @@ class EnterpriseController {
                 const { mentorId } = req.body;
                 await this.service.bulkAssignMentor(ids, mentorId, user.id, req.ip, req.headers['user-agent']);
             }
+            else if (action === 'assign-department') {
+                const { departmentId } = req.body;
+                await this.service.bulkAssignDepartment(ids, departmentId, user.id, req.ip, req.headers['user-agent']);
+            }
+            else if (action === 'assign-section') {
+                const { sectionId } = req.body;
+                await this.service.bulkAssignSection(ids, sectionId, user.id, req.ip, req.headers['user-agent']);
+            }
             res.status(200).json({ status: 'success', message: `Bulk ${action} executed` });
         }
         catch (error) {
@@ -945,6 +1067,190 @@ class EnterpriseController {
             res.status(200).json({
                 status: 'success',
                 message: 'Mentorship assignment removed successfully.'
+            });
+        }
+        catch (error) {
+            next(error);
+        }
+    };
+    /**
+     * Get Student ID Card Data & QR Token
+     */
+    getStudentIdCard = async (req, res, next) => {
+        try {
+            const { id } = req.params;
+            const student = await prisma_1.prisma.student.findUnique({
+                where: { id },
+                include: {
+                    department: true,
+                    semester: true,
+                    section: true,
+                    academicYear: true,
+                    user: true
+                }
+            });
+            if (!student) {
+                return res.status(404).json({ status: 'error', message: 'Student not found.' });
+            }
+            // Generate verification token (QR code content)
+            const qrPayload = {
+                type: 'STUDENT',
+                id: student.id,
+                name: `${student.firstName} ${student.lastName}`,
+                admissionNo: student.admissionNo,
+                department: student.department?.name || 'N/A',
+                role: 'Student'
+            };
+            const token = jsonwebtoken_1.default.sign(qrPayload, env_1.env.JWT_SECRET, { expiresIn: '365d' });
+            // Upsert DigitalIdCard record
+            await prisma_1.prisma.digitalIdCard.upsert({
+                where: { id: student.id }, // Use student ID as primary identifier
+                update: { qrCode: token, isActive: true },
+                create: { id: student.id, type: 'STUDENT', entityId: student.id, qrCode: token, isActive: true }
+            });
+            res.status(200).json({
+                status: 'success',
+                data: {
+                    id: student.id,
+                    photo: student.user?.profilePhoto || null,
+                    name: `${student.firstName} ${student.lastName}`,
+                    registerNo: student.admissionNo, // Maps to admission number as unique student reg identifier
+                    department: student.department?.name || 'N/A',
+                    year: student.academicYear?.name || 'N/A',
+                    section: student.section?.name || 'N/A',
+                    bloodGroup: student.bloodGroup || 'N/A',
+                    qrCodeToken: token,
+                    collegeLogo: '/logo.png', // Fallback placeholder
+                    signature: '/signature.png' // Fallback placeholder
+                }
+            });
+        }
+        catch (error) {
+            next(error);
+        }
+    };
+    /**
+     * Get Faculty ID Card Data & QR Token
+     */
+    getFacultyIdCard = async (req, res, next) => {
+        try {
+            const { id } = req.params;
+            const faculty = await prisma_1.prisma.faculty.findUnique({
+                where: { id },
+                include: {
+                    department: true,
+                    user: true
+                }
+            });
+            if (!faculty) {
+                return res.status(404).json({ status: 'error', message: 'Faculty not found.' });
+            }
+            // Generate verification token (QR code content)
+            const qrPayload = {
+                type: 'FACULTY',
+                id: faculty.id,
+                name: `${faculty.firstName} ${faculty.lastName}`,
+                employeeId: faculty.employeeId,
+                department: faculty.department?.name || 'N/A',
+                role: 'Faculty'
+            };
+            const token = jsonwebtoken_1.default.sign(qrPayload, env_1.env.JWT_SECRET, { expiresIn: '365d' });
+            // Upsert DigitalIdCard record
+            await prisma_1.prisma.digitalIdCard.upsert({
+                where: { id: faculty.id },
+                update: { qrCode: token, isActive: true },
+                create: { id: faculty.id, type: 'FACULTY', entityId: faculty.id, qrCode: token, isActive: true }
+            });
+            res.status(200).json({
+                status: 'success',
+                data: {
+                    id: faculty.id,
+                    photo: faculty.user?.profilePhoto || null,
+                    name: `${faculty.firstName} ${faculty.lastName}`,
+                    employeeId: faculty.employeeId,
+                    department: faculty.department?.name || 'N/A',
+                    designation: faculty.designation || 'Faculty Member',
+                    qrCodeToken: token,
+                    collegeLogo: '/logo.png',
+                    signature: '/signature.png'
+                }
+            });
+        }
+        catch (error) {
+            next(error);
+        }
+    };
+    /**
+     * Public endpoint to decode token & verify identity from QR Code scan
+     */
+    verifyIdCard = async (req, res, next) => {
+        try {
+            const { token } = req.params;
+            let decoded;
+            try {
+                decoded = jsonwebtoken_1.default.verify(token, env_1.env.JWT_SECRET);
+            }
+            catch (err) {
+                return res.status(400).json({
+                    status: 'error',
+                    message: 'Invalid or expired identification token.'
+                });
+            }
+            // Check if identity card is active in database
+            const idCardRecord = await prisma_1.prisma.digitalIdCard.findFirst({
+                where: { entityId: decoded.id, isActive: true }
+            });
+            if (!idCardRecord) {
+                return res.status(404).json({
+                    status: 'error',
+                    message: 'Verification failed: Identification card is inactive or has been suspended.'
+                });
+            }
+            // Fetch latest profile info
+            let profileDetails = null;
+            if (decoded.type === 'STUDENT') {
+                const student = await prisma_1.prisma.student.findUnique({
+                    where: { id: decoded.id },
+                    include: { department: true, user: true }
+                });
+                if (student) {
+                    profileDetails = {
+                        photo: student.user?.profilePhoto || null,
+                        name: `${student.firstName} ${student.lastName}`,
+                        code: student.admissionNo,
+                        department: student.department?.name || 'N/A',
+                        role: 'Student'
+                    };
+                }
+            }
+            else {
+                const faculty = await prisma_1.prisma.faculty.findUnique({
+                    where: { id: decoded.id },
+                    include: { department: true, user: true }
+                });
+                if (faculty) {
+                    profileDetails = {
+                        photo: faculty.user?.profilePhoto || null,
+                        name: `${faculty.firstName} ${faculty.lastName}`,
+                        code: faculty.employeeId,
+                        department: faculty.department?.name || 'N/A',
+                        role: 'Faculty'
+                    };
+                }
+            }
+            if (!profileDetails) {
+                return res.status(404).json({
+                    status: 'error',
+                    message: 'Record not found in the database.'
+                });
+            }
+            res.status(200).json({
+                status: 'success',
+                data: {
+                    verified: true,
+                    isActive: true,
+                    ...profileDetails
+                }
             });
         }
         catch (error) {

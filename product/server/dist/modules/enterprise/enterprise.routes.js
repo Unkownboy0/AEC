@@ -5,10 +5,17 @@ const enterprise_controller_1 = require("./enterprise.controller");
 const auth_middleware_1 = require("../../core/middlewares/auth.middleware");
 const router = (0, express_1.Router)();
 const controller = new enterprise_controller_1.EnterpriseController();
-// Guard all enterprise endpoints with authentication
+// Public QR Code verification endpoint (does not require login)
+router.get('/id-card/verify/:token', controller.verifyIdCard);
+// Guard all other enterprise endpoints with authentication
 router.use(auth_middleware_1.requireAuth);
+// ID Cards (requires authentication)
+router.get('/id-card/student/:id', controller.getStudentIdCard);
+router.get('/id-card/faculty/:id', controller.getFacultyIdCard);
 router.post('/bulk-action', controller.bulkAction);
 // Students
+router.get('/students/mapping-validation', controller.getMappingValidation);
+router.post('/students/auto-assign', controller.runAutoAssign);
 router.get('/students', controller.listStudents);
 router.get('/students/:id/id-card/pdf', controller.downloadIdCardPdf);
 router.get('/students/:id/attendance/pdf', controller.downloadAttendancePdf);
@@ -74,5 +81,64 @@ router.post('/internships/documents/:id/verify', controller.verifyInternshipDocu
 // Mentor Assignments
 router.post('/mentors/assign', controller.assignStudentsToMentor);
 router.post('/mentors/remove', controller.removeStudentFromMentor);
+// Placements Dashboard (Read-Only & Audit)
+const placement_controller_1 = require("./placement.controller");
+const placementController = new placement_controller_1.PlacementController();
+router.get('/placements/analytics', placementController.getAnalytics);
+router.get('/placements/records', placementController.getRecords);
+router.post('/placements/audit', placementController.recordAudit);
+// Placement Drive Management
+router.get('/placements/drives', placementController.listDrives);
+router.post('/placements/drives', placementController.createDrive);
+router.put('/placements/drives/:id', placementController.updateDrive);
+router.delete('/placements/drives/:id', placementController.deleteDrive);
+router.post('/placements/drives/apply', placementController.applyToDrive);
+router.get('/placements/drives/:driveId/applications', placementController.listApplications);
+router.put('/placements/applications/:id/status', placementController.updateApplicationStatus);
+router.post('/placements/applications/:id/offer-letter', placementController.uploadOfferLetter);
+// Complaint Monitoring Center (Institution-Wide Read-Only & Escalation)
+const complaint_controller_1 = require("./complaint.controller");
+const complaintController = new complaint_controller_1.ComplaintController();
+router.get('/complaints/analytics', complaintController.getAnalytics);
+router.get('/complaints/feed', complaintController.getFeed);
+router.post('/complaints/:id/remarks', complaintController.addInternalRemark);
+router.post('/complaints/:id/escalate', complaintController.escalateComplaint);
+router.post('/complaints/audit', complaintController.recordAudit);
+// Campus Activities Monitoring Center (Read-Only & NAAC/NBA Accreditation Reports)
+const activity_controller_1 = require("./activity.controller");
+const activityController = new activity_controller_1.ActivityController();
+router.get('/activities/analytics', activityController.getAnalytics);
+router.get('/activities/feed', activityController.getFeed);
+router.get('/activities/calendar', activityController.getCalendar);
+router.post('/activities/audit', activityController.recordAudit);
+// Vice Principal (VP) Operations & Monitoring Module
+const vp_controller_1 = require("./vp.controller");
+const vpController = new vp_controller_1.VPController();
+router.get('/vp/analytics', vpController.getAnalytics);
+router.get('/vp/departments', vpController.getDepartments);
+router.get('/vp/feed', vpController.getFeed);
+router.post('/vp/escalate', vpController.escalate);
+router.post('/vp/audit', vpController.recordAudit);
+// Admission Dean Operations Module
+const admission_controller_1 = require("./admission.controller");
+const admissionController = new admission_controller_1.AdmissionController();
+router.get('/admission/analytics', admissionController.getAnalytics);
+router.get('/admission/applications', admissionController.listApplications);
+router.get('/admission/applications/:id', admissionController.getApplication);
+router.put('/admission/applications/:id/status', admissionController.updateApplicationStatus);
+router.post('/admission/applications/bulk-status', admissionController.bulkUpdateStatus);
+router.post('/admission/applications/:id/verify-document', admissionController.verifyDocument);
+router.get('/admission/seats', admissionController.listSeats);
+router.post('/admission/seats/allocate', admissionController.autoAllocateMeritSeats);
+router.post('/admission/seats/:id/allocate', admissionController.allocateSeat);
+router.post('/admission/seats/:id/transfer', admissionController.transferDepartment);
+router.get('/admission/enquiries', admissionController.listEnquiries);
+router.post('/admission/enquiries', admissionController.createEnquiry);
+router.put('/admission/enquiries/:id', admissionController.updateEnquiry);
+router.post('/admission/enquiries/:id/convert', admissionController.convertEnquiry);
+router.get('/admission/counselling', admissionController.listCounselling);
+router.post('/admission/counselling', admissionController.createCounselling);
+router.get('/admission/scholarships', admissionController.listScholarships);
+router.get('/admission/payments', admissionController.listPayments);
 exports.default = router;
 //# sourceMappingURL=enterprise.routes.js.map

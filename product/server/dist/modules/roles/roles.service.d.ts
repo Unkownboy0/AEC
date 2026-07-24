@@ -141,10 +141,13 @@ export declare class RolesService {
             passwordHash: string;
             firstName: string;
             lastName: string;
+            phone: string | null;
             roleId: string;
             lockedUntil: Date | null;
+            failedLoginAttempts: number;
             forcePasswordChange: boolean;
             profilePhoto: string | null;
+            passwordChangedAt: Date | null;
             createdAt: Date;
             updatedAt: Date;
         }[];
@@ -243,5 +246,40 @@ export declare class RolesService {
     }>;
     applyTemplate(templateId: string, roleId: string): Promise<{
         success: boolean;
+    }>;
+    private static globalPermissionVersion;
+    static getPermissionVersion(): number;
+    static bumpPermissionVersion(): number;
+    /**
+     * Get current matrix permission version timestamp
+     */
+    getMatrixVersion(): Promise<{
+        version: number;
+    }>;
+    /**
+     * Simulate target role view for Super Admin
+     */
+    simulateRole(targetRoleName: string, requestingUser: any): Promise<{
+        simulationMode: boolean;
+        originalRole: any;
+        simulatedRole: string;
+        permissions: string[];
+        simulatedUser: {
+            id: any;
+            email: any;
+            role: string;
+            permissions: string[];
+        };
+    }>;
+    /**
+     * Bulk role assignment & department transfer
+     */
+    bulkOperation(data: {
+        userIds: string[];
+        targetRoleId?: string;
+        departmentId?: string;
+    }): Promise<{
+        success: boolean;
+        count: number;
     }>;
 }

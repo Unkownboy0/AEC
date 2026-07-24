@@ -17,10 +17,10 @@ export declare class TimetableService {
             deleted: boolean;
             deletedAt: Date | null;
             name: string;
-            credits: number;
             startDate: Date;
             endDate: Date;
             isCurrent: boolean;
+            credits: number;
         };
         section: {
             status: string;
@@ -77,9 +77,9 @@ export declare class TimetableService {
             email: string;
             firstName: string;
             lastName: string;
+            phone: string;
             createdAt: Date;
             updatedAt: Date;
-            phone: string;
             dob: Date;
             gender: string | null;
             bloodGroup: string | null;

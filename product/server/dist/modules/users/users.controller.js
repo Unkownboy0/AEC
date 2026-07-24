@@ -122,6 +122,54 @@ class UsersController {
             next(error);
         }
     };
+    getDirectoryStats = async (req, res, next) => {
+        try {
+            const stats = await this.service.getDirectoryStats();
+            res.status(200).json({
+                status: 'success',
+                data: { stats }
+            });
+        }
+        catch (error) {
+            next(error);
+        }
+    };
+    generateCredentials = async (req, res, next) => {
+        try {
+            const creds = await this.service.generateCredentials(req.body);
+            res.status(200).json({
+                status: 'success',
+                data: creds
+            });
+        }
+        catch (error) {
+            next(error);
+        }
+    };
+    assignSubjects = async (req, res, next) => {
+        try {
+            const currentUserId = req.user.id;
+            const ip = req.ip || req.socket.remoteAddress;
+            const ua = req.headers['user-agent'];
+            const result = await this.service.assignSubjects(req.body, currentUserId, ip, ua);
+            res.status(200).json({ status: 'success', data: result });
+        }
+        catch (error) {
+            next(error);
+        }
+    };
+    assignMentor = async (req, res, next) => {
+        try {
+            const currentUserId = req.user.id;
+            const ip = req.ip || req.socket.remoteAddress;
+            const ua = req.headers['user-agent'];
+            const result = await this.service.assignMentor(req.body, currentUserId, ip, ua);
+            res.status(200).json({ status: 'success', data: result });
+        }
+        catch (error) {
+            next(error);
+        }
+    };
 }
 exports.UsersController = UsersController;
 //# sourceMappingURL=users.controller.js.map

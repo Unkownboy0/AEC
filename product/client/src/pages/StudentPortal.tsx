@@ -15,6 +15,8 @@ import { DigitalIdCard } from './DigitalIdCard';
 
 import { useSearchParams } from 'react-router-dom';
 
+const renderMarkdown = (text: string) => text;
+
 interface StudentPortalProps {
   user: any;
 }
@@ -1770,12 +1772,12 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ user }) => {
                         {!isUser && (
                           <div className="h-7 w-7 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center mr-2 mt-1 shrink-0 text-[10px] font-black">AI</div>
                         )}
-                        <div className={`p-3 rounded-2xl max-w-[80%] whitespace-pre-line leading-relaxed text-left ${
+                        <div className={`p-3 rounded-2xl max-w-[80%] leading-relaxed text-left ${
                           isUser
-                            ? 'bg-primary text-primary-foreground rounded-br-sm'
+                            ? 'bg-primary text-primary-foreground rounded-br-sm whitespace-pre-line'
                             : 'bg-muted text-foreground rounded-bl-sm'
                         }`}>
-                          {text}
+                          {isUser ? text : renderMarkdown(text)}
                         </div>
                       </div>
                     );

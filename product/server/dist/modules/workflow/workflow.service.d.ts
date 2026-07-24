@@ -8,13 +8,18 @@ export declare class WorkflowService {
         id: string;
         createdAt: Date;
         updatedAt: Date;
+        departmentId: string | null;
+        mentorId: string | null;
+        facultyId: string | null;
+        classAdvisorId: string | null;
         startDate: Date | null;
         endDate: Date | null;
         title: string;
-        studentId: string;
+        studentId: string | null;
         reason: string;
         currentStep: string;
         attachments: string;
+        facultyRequesterId: string | null;
     }>;
     /**
      * List requests filtered by user role and context
@@ -26,10 +31,10 @@ export declare class WorkflowService {
             email: string | null;
             firstName: string;
             lastName: string;
+            phone: string | null;
             createdAt: Date;
             updatedAt: Date;
             admissionNo: string;
-            phone: string | null;
             dob: Date;
             dateOfAdmission: Date;
             gender: string;
@@ -69,6 +74,7 @@ export declare class WorkflowService {
             areasOfInterest: string | null;
             academicYearId: string;
             departmentId: string;
+            programDepartmentId: string | null;
             programId: string;
             courseId: string;
             semesterId: string;
@@ -79,11 +85,13 @@ export declare class WorkflowService {
             transportStopId: string | null;
             userId: string | null;
             mentorId: string | null;
+            facultyId: string | null;
+            classAdvisorId: string | null;
             archived: boolean;
             archivedAt: Date | null;
             deleted: boolean;
             deletedAt: Date | null;
-        };
+        } | null;
         history: {
             id: string;
             createdAt: Date;
@@ -100,13 +108,18 @@ export declare class WorkflowService {
         id: string;
         createdAt: Date;
         updatedAt: Date;
+        departmentId: string | null;
+        mentorId: string | null;
+        facultyId: string | null;
+        classAdvisorId: string | null;
         startDate: Date | null;
         endDate: Date | null;
         title: string;
-        studentId: string;
+        studentId: string | null;
         reason: string;
         currentStep: string;
         attachments: string;
+        facultyRequesterId: string | null;
     })[]>;
     /**
      * Action a request (APPROVE, REJECT, FORWARD, CLARIFICATION)
@@ -117,13 +130,40 @@ export declare class WorkflowService {
         id: string;
         createdAt: Date;
         updatedAt: Date;
+        departmentId: string | null;
+        mentorId: string | null;
+        facultyId: string | null;
+        classAdvisorId: string | null;
         startDate: Date | null;
         endDate: Date | null;
         title: string;
-        studentId: string;
+        studentId: string | null;
         reason: string;
         currentStep: string;
         attachments: string;
+        facultyRequesterId: string | null;
+    }>;
+    /**
+     * Cancel pending request by student owner
+     */
+    cancelRequest(requestId: string, userEmail: string): Promise<{
+        type: string;
+        status: string;
+        id: string;
+        createdAt: Date;
+        updatedAt: Date;
+        departmentId: string | null;
+        mentorId: string | null;
+        facultyId: string | null;
+        classAdvisorId: string | null;
+        startDate: Date | null;
+        endDate: Date | null;
+        title: string;
+        studentId: string | null;
+        reason: string;
+        currentStep: string;
+        attachments: string;
+        facultyRequesterId: string | null;
     }>;
     /**
      * Helper to dispatch system notification and log to console

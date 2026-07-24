@@ -47,9 +47,9 @@ export declare class AcademicsService {
             status: string;
             id: string;
             email: string | null;
+            phone: string | null;
             createdAt: Date;
             updatedAt: Date;
-            phone: string | null;
             documents: string;
             academicYearId: string | null;
             archived: boolean;
@@ -114,9 +114,9 @@ export declare class AcademicsService {
         status: string;
         id: string;
         email: string | null;
+        phone: string | null;
         createdAt: Date;
         updatedAt: Date;
-        phone: string | null;
         documents: string;
         academicYearId: string | null;
         archived: boolean;
@@ -141,9 +141,9 @@ export declare class AcademicsService {
         status: string;
         id: string;
         email: string | null;
+        phone: string | null;
         createdAt: Date;
         updatedAt: Date;
-        phone: string | null;
         documents: string;
         academicYearId: string | null;
         archived: boolean;
@@ -168,9 +168,9 @@ export declare class AcademicsService {
         status: string;
         id: string;
         email: string | null;
+        phone: string | null;
         createdAt: Date;
         updatedAt: Date;
-        phone: string | null;
         documents: string;
         academicYearId: string | null;
         archived: boolean;
@@ -197,9 +197,9 @@ export declare class AcademicsService {
                 status: string;
                 id: string;
                 email: string | null;
+                phone: string | null;
                 createdAt: Date;
                 updatedAt: Date;
-                phone: string | null;
                 documents: string;
                 academicYearId: string | null;
                 archived: boolean;
@@ -244,9 +244,9 @@ export declare class AcademicsService {
             status: string;
             id: string;
             email: string | null;
+            phone: string | null;
             createdAt: Date;
             updatedAt: Date;
-            phone: string | null;
             documents: string;
             academicYearId: string | null;
             archived: boolean;
@@ -324,9 +324,9 @@ export declare class AcademicsService {
                 status: string;
                 id: string;
                 email: string | null;
+                phone: string | null;
                 createdAt: Date;
                 updatedAt: Date;
-                phone: string | null;
                 documents: string;
                 academicYearId: string | null;
                 archived: boolean;
@@ -391,9 +391,9 @@ export declare class AcademicsService {
             status: string;
             id: string;
             email: string | null;
+            phone: string | null;
             createdAt: Date;
             updatedAt: Date;
-            phone: string | null;
             documents: string;
             academicYearId: string | null;
             archived: boolean;
@@ -629,10 +629,10 @@ export declare class AcademicsService {
             deleted: boolean;
             deletedAt: Date | null;
             name: string;
-            credits: number;
             startDate: Date;
             endDate: Date;
             isCurrent: boolean;
+            credits: number;
         })[];
         totalCount: number;
     }>;
@@ -702,10 +702,10 @@ export declare class AcademicsService {
         deleted: boolean;
         deletedAt: Date | null;
         name: string;
-        credits: number;
         startDate: Date;
         endDate: Date;
         isCurrent: boolean;
+        credits: number;
     }>;
     createSemester(input: any, userId: string, ip?: string, ua?: string): Promise<{
         number: number;
@@ -721,10 +721,10 @@ export declare class AcademicsService {
         deleted: boolean;
         deletedAt: Date | null;
         name: string;
-        credits: number;
         startDate: Date;
         endDate: Date;
         isCurrent: boolean;
+        credits: number;
     }>;
     updateSemester(id: string, input: any, userId: string, ip?: string, ua?: string): Promise<{
         number: number;
@@ -740,10 +740,10 @@ export declare class AcademicsService {
         deleted: boolean;
         deletedAt: Date | null;
         name: string;
-        credits: number;
         startDate: Date;
         endDate: Date;
         isCurrent: boolean;
+        credits: number;
     }>;
     listSections(params: any, user?: UserPayload): Promise<{
         items: ({
@@ -753,9 +753,9 @@ export declare class AcademicsService {
                 status: string;
                 id: string;
                 email: string | null;
+                phone: string | null;
                 createdAt: Date;
                 updatedAt: Date;
-                phone: string | null;
                 documents: string;
                 academicYearId: string | null;
                 archived: boolean;
@@ -805,10 +805,10 @@ export declare class AcademicsService {
                 deleted: boolean;
                 deletedAt: Date | null;
                 name: string;
-                credits: number;
                 startDate: Date;
                 endDate: Date;
                 isCurrent: boolean;
+                credits: number;
             };
         } & {
             status: string;
@@ -836,9 +836,9 @@ export declare class AcademicsService {
             status: string;
             id: string;
             email: string | null;
+            phone: string | null;
             createdAt: Date;
             updatedAt: Date;
-            phone: string | null;
             documents: string;
             academicYearId: string | null;
             archived: boolean;
@@ -888,10 +888,10 @@ export declare class AcademicsService {
             deleted: boolean;
             deletedAt: Date | null;
             name: string;
-            credits: number;
             startDate: Date;
             endDate: Date;
             isCurrent: boolean;
+            credits: number;
         };
     } & {
         status: string;
@@ -952,9 +952,9 @@ export declare class AcademicsService {
                 status: string;
                 id: string;
                 email: string | null;
+                phone: string | null;
                 createdAt: Date;
                 updatedAt: Date;
-                phone: string | null;
                 documents: string;
                 academicYearId: string | null;
                 archived: boolean;
@@ -1004,10 +1004,10 @@ export declare class AcademicsService {
                 deleted: boolean;
                 deletedAt: Date | null;
                 name: string;
-                credits: number;
                 startDate: Date;
                 endDate: Date;
                 isCurrent: boolean;
+                credits: number;
             };
             section: {
                 status: string;
@@ -1066,9 +1066,9 @@ export declare class AcademicsService {
             status: string;
             id: string;
             email: string | null;
+            phone: string | null;
             createdAt: Date;
             updatedAt: Date;
-            phone: string | null;
             documents: string;
             academicYearId: string | null;
             archived: boolean;
@@ -1118,10 +1118,10 @@ export declare class AcademicsService {
             deleted: boolean;
             deletedAt: Date | null;
             name: string;
-            credits: number;
             startDate: Date;
             endDate: Date;
             isCurrent: boolean;
+            credits: number;
         };
         section: {
             status: string;

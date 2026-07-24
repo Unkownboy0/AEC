@@ -63,6 +63,14 @@ const RESPONSE_MAP = [
         reply: (ctx) => `👋 Hello, **${ctx.name}**! Welcome to your AI Academic Adviser.\n\nI can help you with:\n- 📊 Attendance queries\n- 📝 Marks & Exam results\n- 💰 Fee status\n- 🗓️ Timetable info\n- 📋 Assignments\n- 🏠 Hostel & Transport\n- 🤝 Counseling & Support\n\nWhat would you like to know today?`,
     },
 ];
+// ─── Built-in revision templates (used when no LLM key is configured) ────────
+const REVISION_TEMPLATES = {
+    'Revision Notes': (subject, topic, ctx) => `# 📖 Revision Notes — ${subject}\n**Department:** ${ctx.department} | **Semester:** ${ctx.semester}\n**Topic:** ${topic || 'General Syllabus'}\n\n---\n\n## 📌 Key Concepts\n1. Understand core definitions and terminology\n2. Focus on fundamental theorems and principles\n3. Practice solved examples for each concept\n4. Review previous question papers\n\n## ⚡ Important Topics\n- Core Theory & Fundamentals\n- Problem-Solving Techniques\n- Application & Case Studies\n- Standard Formulae & Derivations\n\n## 📋 Study Tips\n- Spend 2–3 hours daily on revision\n- Summarize each chapter in your own words\n- Solve 5–10 past-year questions per topic\n- Form study groups for discussion`,
+    'MCQ Sheet': (subject, topic, _ctx) => `# 🗒️ MCQ Practice Sheet — ${subject}\n**Topic:** ${topic || 'General Syllabus'}\n\n---\n\n## Sample MCQs\n\n**Q1.** Which of the following best describes the primary objective of ${subject}?\n- (A) Option A\n- (B) Option B ✅\n- (C) Option C\n- (D) Option D\n\n**Q2.** The core principle of ${topic || subject} is:\n- (A) Principle X\n- (B) Principle Y\n- (C) Principle Z ✅\n- (D) Principle W\n\n> 💡 Tip: Practice these MCQs under timed conditions. Aim for 1 minute per question.`,
+    'Flash Cards': (subject, topic, _ctx) => `# ⚡ Flash Cards — ${subject}\n**Topic:** ${topic || 'General Syllabus'}\n\n---\n\n**Card 1:**\n> 🔵 **Q:** What is the definition of ${topic || subject}?\n> 🟢 **A:** [Review your textbook Chapter 1 definition]\n\n**Card 2:**\n> 🔵 **Q:** What are the key components of ${topic || subject}?\n> 🟢 **A:** List the primary components from your lecture notes\n\n**Card 3:**\n> 🔵 **Q:** Give one real-world application of ${topic || subject}.\n> 🟢 **A:** Identify a practical use case from your syllabus\n\n> 📌 Review 10 flash cards daily for best retention.`,
+    'Viva Questions': (subject, topic, ctx) => `# 🎤 Viva Questions — ${subject}\n**Department:** ${ctx.department} | **Semester:** ${ctx.semester}\n**Topic:** ${topic || 'General Syllabus'}\n\n---\n\n## Common Viva Questions\n\n1. **Define ${topic || subject} in your own words.**\n2. **What are the key principles governing ${topic || subject}?**\n3. **How does ${topic || subject} relate to real-world applications?**\n4. **Explain the differences between the main approaches in ${subject}.**\n5. **What are the common mistakes students make in this topic?**\n6. **How would you apply ${topic || subject} to solve a practical problem?**\n7. **Name the key researchers or founders associated with ${subject}.**\n\n> ✅ Tip: Answer viva questions confidently, clearly, and concisely. Always back answers with examples.`,
+    'Formula Sheet': (subject, topic, ctx) => `# 📐 Formula Sheet — ${subject}\n**Department:** ${ctx.department} | **Semester:** ${ctx.semester}\n**Topic:** ${topic || 'General Syllabus'}\n\n---\n\n## Key Formulae\n\n| Formula | Description |\n|---------|-------------|\n| F = ma  | Newton's Second Law (example) |\n| E = mc² | Mass-Energy Equivalence (example) |\n\n> ⚠️ Replace the above with actual formulae from your ${subject} syllabus.\n\n## Derivation Steps\n1. Start with the base definition\n2. Apply relevant theorems\n3. Simplify step by step\n4. Validate with known values\n\n> 💡 Memorize commonly asked formulae and their derivation paths.`,
+};
 async function buildStudentContext(studentId) {
     const student = await prisma_1.prisma.student.findUnique({
         where: { id: studentId },
@@ -116,13 +124,13 @@ function generateReply(message, ctx) {
             return entry.reply(ctx);
         }
     }
-    return `🤖 I understand you asked: *"${message}"*\n\nI'm your AI Academic Adviser for **${ctx.name}**. I can assist with attendance, grades, fees, timetable, assignments, counseling, library, hostel, and transport queries.\n\nCould you rephrase your question or choose a specific topic?`;
+    return `🤖 I understand you asked: *"${message}"*\n\n**Hi ${ctx.name}!** I'm your AI Academic Adviser. Here's a quick snapshot of your profile:\n\n| Detail | Info |\n|--------|------|\n| Department | ${ctx.department} |\n| Semester | ${ctx.semester} |\n| Attendance | ${ctx.attendancePct}% |\n| Average GPA | ${ctx.avgGpa} |\n| Pending Fees | ${ctx.pendingFees} |\n\nI can assist with **attendance**, **grades**, **fees**, **timetable**, **assignments**, **counseling**, **library**, **hostel**, and **transport** queries.\n\nCould you rephrase your question or pick a specific topic?`;
 }
 async function callLLM(prompt) {
     const geminiKey = process.env.GEMINI_API_KEY;
     const openaiKey = process.env.OPENAI_API_KEY;
     if (!geminiKey && !openaiKey) {
-        throw new Error('AI Provider Key Missing: Neither GEMINI_API_KEY nor OPENAI_API_KEY is configured in the server environment variables. Please contact the administrator to setup the AI keys in the .env file.');
+        return null; // Signal to fall back to local engine
     }
     try {
         if (geminiKey) {
@@ -162,12 +170,13 @@ async function callLLM(prompt) {
     }
     catch (err) {
         console.error("LLM Provider Communication Failed:", err);
-        throw new Error(`LLM Provider Communication Failed: ${err.message}`);
+        return null; // Fall back to local engine on error
     }
 }
 class AiController {
     /**
      * AI Student Counselor Chatbot (with persistent history)
+     * Falls back to built-in keyword engine when no API key is configured.
      */
     chat = async (req, res, next) => {
         try {
@@ -175,15 +184,6 @@ class AiController {
             const user = req.user;
             if (!message?.trim()) {
                 return res.status(400).json({ status: 'error', message: 'Message content is required' });
-            }
-            // Verify API Key exists
-            const geminiKey = process.env.GEMINI_API_KEY;
-            const openaiKey = process.env.OPENAI_API_KEY;
-            if (!geminiKey && !openaiKey) {
-                return res.status(500).json({
-                    status: 'error',
-                    message: 'AI Provider Key Missing: Neither GEMINI_API_KEY nor OPENAI_API_KEY environment variables are configured. Please contact the administrator to setup the AI keys in the .env file.'
-                });
             }
             // Resolve student record
             const student = await prisma_1.prisma.student.findFirst({
@@ -198,8 +198,12 @@ class AiController {
             if (!ctx) {
                 return res.status(404).json({ status: 'error', message: 'Student data not found.' });
             }
-            // Build prompt with rich academic context
-            const prompt = `
+            let reply;
+            const geminiKey = process.env.GEMINI_API_KEY;
+            const openaiKey = process.env.OPENAI_API_KEY;
+            if (geminiKey || openaiKey) {
+                // LLM path: build a rich prompt with academic context
+                const prompt = `
 [Student Academic Context]
 Name: ${ctx.name}
 Department: ${ctx.department}
@@ -217,7 +221,14 @@ ${message}
 
 Please respond as a highly knowledgeable, helpful AI Academic Adviser. Format your response beautifully using Markdown. Use lists, tables, code blocks, or bold styling where appropriate to present a highly structured and readability-optimized response.
 `;
-            const reply = await callLLM(prompt);
+                const llmReply = await callLLM(prompt);
+                // If LLM call failed, fall back to local engine
+                reply = llmReply || generateReply(message, ctx);
+            }
+            else {
+                // No API key configured — use built-in keyword engine
+                reply = generateReply(message, ctx);
+            }
             // Persist chat history
             await prisma_1.prisma.aiMessage.createMany({
                 data: [
@@ -232,7 +243,7 @@ Please respond as a highly knowledgeable, helpful AI Academic Adviser. Format yo
         }
     };
     /**
-     * AI Revision Assistant - generates revision notes, MCQ sheets, flash cards, viva questions, formulas, etc.
+     * AI Revision Assistant — uses LLM if available, else built-in templates.
      */
     generateRevision = async (req, res, next) => {
         try {
@@ -240,15 +251,6 @@ Please respond as a highly knowledgeable, helpful AI Academic Adviser. Format yo
             const user = req.user;
             if (!subject || !format) {
                 return res.status(400).json({ status: 'error', message: 'Subject and format parameters are required.' });
-            }
-            // Verify API Key exists
-            const geminiKey = process.env.GEMINI_API_KEY;
-            const openaiKey = process.env.OPENAI_API_KEY;
-            if (!geminiKey && !openaiKey) {
-                return res.status(500).json({
-                    status: 'error',
-                    message: 'AI Provider Key Missing: Neither GEMINI_API_KEY nor OPENAI_API_KEY environment variables are configured. Please contact the administrator to setup the AI keys in the .env file.'
-                });
             }
             const student = await prisma_1.prisma.student.findFirst({
                 where: { userId: user.id, deleted: false },
@@ -261,7 +263,11 @@ Please respond as a highly knowledgeable, helpful AI Academic Adviser. Format yo
             if (!ctx) {
                 return res.status(404).json({ status: 'error', message: 'Student data not found.' });
             }
-            const prompt = `
+            const geminiKey = process.env.GEMINI_API_KEY;
+            const openaiKey = process.env.OPENAI_API_KEY;
+            let data;
+            if (geminiKey || openaiKey) {
+                const prompt = `
 [Student Context]
 Department: ${ctx.department}
 Program: ${ctx.program}
@@ -276,7 +282,14 @@ Format requirements:
 - Content: Deliver extremely valuable revision notes, important topics, frequently asked questions, formulas, viva questions, or flash cards matching ${format} specifically.
 - Structure: Format beautifully using Markdown headings, bullet points, code blocks, or clean tables.
 `;
-            const data = await callLLM(prompt);
+                const llmReply = await callLLM(prompt);
+                data = llmReply || (REVISION_TEMPLATES[format] || REVISION_TEMPLATES['Revision Notes'])(subject, topic || '', ctx);
+            }
+            else {
+                // No API key — use built-in template engine
+                const templateFn = REVISION_TEMPLATES[format] || REVISION_TEMPLATES['Revision Notes'];
+                data = templateFn(subject, topic || '', ctx);
+            }
             res.status(200).json({ status: 'success', data });
         }
         catch (error) {

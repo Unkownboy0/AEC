@@ -10,7 +10,9 @@ import { toast } from '../components/ui/Toast';
 import { Loading } from '../components/ui/Loading';
 import { useAuth } from '../context/AuthContext';
 import api from '../lib/axios';
-import { StudentPortal } from './StudentPortal';
+
+const StudentDashboard = React.lazy(() => import('./student/StudentDashboard'));
+
 import { FacultyPortal } from './FacultyPortal';
 import { HODPortal } from './HODPortal';
 import { PrincipalPortal, VicePrincipalPortal, AcademicDeanPortal, AdmissionDeanPortal, ParentPortal, MentorPortal } from './RolePortals';
@@ -283,7 +285,15 @@ export const Dashboard: React.FC = () => {
   }
 
   if (user?.role === 'Student') {
-    return <StudentPortal user={user} />;
+    return (
+      <React.Suspense fallback={
+        <div className="flex h-[75vh] items-center justify-center">
+          <Loading text="Initializing Student Workspace..." />
+        </div>
+      }>
+        <StudentDashboard />
+      </React.Suspense>
+    );
   }
 
   if (user?.role === 'Faculty') {

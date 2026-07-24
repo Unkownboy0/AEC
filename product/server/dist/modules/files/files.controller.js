@@ -8,6 +8,31 @@ const prisma_1 = require("../../lib/prisma");
 const exceptions_1 = require("../../utils/exceptions");
 const fs_1 = __importDefault(require("fs"));
 const path_1 = __importDefault(require("path"));
+const crypto_1 = __importDefault(require("crypto"));
+// ── File Upload Security Constants ──
+const ALLOWED_MIME_TYPES = new Set([
+    'application/pdf',
+    'image/png',
+    'image/jpeg',
+    'image/jpg',
+    'image/webp',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // xlsx
+    'text/csv',
+    'application/vnd.ms-excel', // xls
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // docx
+    'application/vnd.openxmlformats-officedocument.presentationml.presentation', // pptx
+    'application/zip', // zip
+    'application/x-zip-compressed', // zip
+    'text/plain', // txt
+]);
+const ALLOWED_EXTENSIONS = new Set([
+    '.pdf', '.png', '.jpg', '.jpeg', '.webp', '.xlsx', '.csv', '.xls', '.docx', '.pptx', '.zip', '.txt',
+]);
+const BLOCKED_EXTENSIONS = new Set([
+    '.exe', '.bat', '.cmd', '.sh', '.js', '.ts', '.php', '.py', '.rb',
+    '.jar', '.war', '.dll', '.so', '.msi', '.vbs', '.ps1', '.wsf',
+    '.com', '.scr', '.pif', '.hta', '.cpl', '.inf', '.reg',
+]);
 class FilesController {
     uploadsDir = path_1.default.join(__dirname, '../../../uploads');
     constructor() {
@@ -42,7 +67,7 @@ class FilesController {
         }
     };
     /**
-     * Upload file via base64 JSON payload
+     * Upload file via base64 JSON payload (hardened)
      */
     upload = async (req, res, next) => {
         try {
@@ -50,7 +75,28 @@ class FilesController {
             if (!name || !mimeType || !base64) {
                 throw new exceptions_1.BadRequestException('name, mimeType and base64 fields are required');
             }
-            // Check configurable max size constraint (default 25MB)
+            // ── 1. MIME type validation ──
+            if (!ALLOWED_MIME_TYPES.has(mimeType.toLowerCase())) {
+                throw new exceptions_1.BadRequestException(`File type "${mimeType}" is not allowed. Permitted: PDF, PNG, JPG, JPEG, WEBP, XLSX, CSV`);
+            }
+            // ── 2. Extension validation ──
+            const originalExt = path_1.default.extname(name).toLowerCase();
+            if (!ALLOWED_EXTENSIONS.has(originalExt)) {
+                throw new exceptions_1.BadRequestException(`File extension "${originalExt}" is not allowed. Permitted: ${Array.from(ALLOWED_EXTENSIONS).join(', ')}`);
+            }
+            // ── 3. Block double extensions (e.g. photo.jpg.exe) ──
+            const nameParts = name.split('.');
+            if (nameParts.length > 2) {
+                const secondToLast = '.' + nameParts[nameParts.length - 2].toLowerCase();
+                if (BLOCKED_EXTENSIONS.has(secondToLast) || BLOCKED_EXTENSIONS.has(originalExt)) {
+                    throw new exceptions_1.BadRequestException('Suspicious file name detected — double extensions are not permitted');
+                }
+            }
+            // ── 4. Block null bytes in filename ──
+            if (name.includes('\0') || name.includes('%00')) {
+                throw new exceptions_1.BadRequestException('Invalid file name');
+            }
+            // ── 5. Size validation ──
             const buffer = Buffer.from(base64, 'base64');
             const maxUploadSetting = await prisma_1.prisma.systemSetting.findFirst({
                 where: { key: 'MAX_UPLOAD_SIZE' }
@@ -59,15 +105,19 @@ class FilesController {
             if (buffer.length > maxSize) {
                 throw new exceptions_1.BadRequestException(`File exceeds the allowed size limit of ${(maxSize / (1024 * 1024)).toFixed(0)}MB`);
             }
-            // Ensure specific target subfolder exists
-            const targetSubFolder = path_1.default.join(this.uploadsDir, folder.replace(/\.\./g, '')); // Avoid directory traversal
+            // ── 6. Randomize filename to prevent path guessing ──
+            const randomId = crypto_1.default.randomUUID();
+            const safeFilename = `${randomId}${originalExt}`;
+            // ── 7. Sanitize folder path (prevent directory traversal) ──
+            const sanitizedFolder = folder.replace(/\.\./g, '').replace(/\0/g, '');
+            const targetSubFolder = path_1.default.join(this.uploadsDir, sanitizedFolder);
             if (!fs_1.default.existsSync(targetSubFolder)) {
                 fs_1.default.mkdirSync(targetSubFolder, { recursive: true });
             }
-            const filePath = path_1.default.join(targetSubFolder, name);
+            const filePath = path_1.default.join(targetSubFolder, safeFilename);
             // Write to disk
             fs_1.default.writeFileSync(filePath, buffer);
-            const targetWebPath = `/uploads${folder === '/' ? '/' : folder + '/'}${name}`;
+            const targetWebPath = `/uploads${sanitizedFolder === '/' ? '/' : sanitizedFolder + '/'}${safeFilename}`;
             const mediaFile = await prisma_1.prisma.mediaFile.upsert({
                 where: { path: targetWebPath },
                 update: {
@@ -75,11 +125,11 @@ class FilesController {
                     mimeType,
                 },
                 create: {
-                    name,
+                    name: safeFilename,
                     path: targetWebPath,
                     mimeType,
                     fileSize: buffer.length,
-                    folder,
+                    folder: sanitizedFolder,
                 },
             });
             // Audit Log
@@ -88,7 +138,7 @@ class FilesController {
                     userId: req.user.id,
                     action: 'UPLOAD',
                     module: 'FILE',
-                    description: `Uploaded media file: ${name} to folder ${folder}`,
+                    description: `Uploaded media file: ${name} (stored as ${safeFilename}) to folder ${sanitizedFolder}`,
                     ipAddress: req.ip,
                     userAgent: req.headers['user-agent'],
                 },

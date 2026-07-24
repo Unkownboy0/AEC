@@ -30,9 +30,9 @@ export declare class SecurityHelper {
         email: string;
         firstName: string;
         lastName: string;
+        phone: string;
         createdAt: Date;
         updatedAt: Date;
-        phone: string;
         dob: Date;
         gender: string | null;
         bloodGroup: string | null;
@@ -96,10 +96,10 @@ export declare class SecurityHelper {
         email: string | null;
         firstName: string;
         lastName: string;
+        phone: string | null;
         createdAt: Date;
         updatedAt: Date;
         admissionNo: string;
-        phone: string | null;
         dob: Date;
         dateOfAdmission: Date;
         gender: string;
@@ -139,6 +139,7 @@ export declare class SecurityHelper {
         areasOfInterest: string | null;
         academicYearId: string;
         departmentId: string;
+        programDepartmentId: string | null;
         programId: string;
         courseId: string;
         semesterId: string;
@@ -149,6 +150,8 @@ export declare class SecurityHelper {
         transportStopId: string | null;
         userId: string | null;
         mentorId: string | null;
+        facultyId: string | null;
+        classAdvisorId: string | null;
         archived: boolean;
         archivedAt: Date | null;
         deleted: boolean;

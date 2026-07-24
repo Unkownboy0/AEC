@@ -62,4 +62,16 @@ export declare class RolesController {
     updateTemplate: (req: Request, res: Response, next: NextFunction) => Promise<void>;
     deleteTemplate: (req: Request, res: Response, next: NextFunction) => Promise<void>;
     applyTemplate: (req: Request, res: Response, next: NextFunction) => Promise<void>;
+    /**
+     * Get matrix version timestamp for real-time permission invalidation
+     */
+    getMatrixVersion: (req: Request, res: Response, next: NextFunction) => Promise<void>;
+    /**
+     * Simulate role preview
+     */
+    simulateRole: (req: Request, res: Response, next: NextFunction) => Promise<void>;
+    /**
+     * Bulk role & department operation
+     */
+    bulkOperation: (req: Request, res: Response, next: NextFunction) => Promise<void>;
 }

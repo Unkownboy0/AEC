@@ -8,4 +8,8 @@ export declare class UsersController {
     resetPassword: (req: Request, res: Response, next: NextFunction) => Promise<void>;
     import: (req: Request, res: Response, next: NextFunction) => Promise<void>;
     updateProfile: (req: Request, res: Response, next: NextFunction) => Promise<void>;
+    getDirectoryStats: (req: Request, res: Response, next: NextFunction) => Promise<void>;
+    generateCredentials: (req: Request, res: Response, next: NextFunction) => Promise<void>;
+    assignSubjects: (req: Request, res: Response, next: NextFunction) => Promise<void>;
+    assignMentor: (req: Request, res: Response, next: NextFunction) => Promise<void>;
 }

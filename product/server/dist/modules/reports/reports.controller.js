@@ -1,6 +1,10 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ReportsController = void 0;
+const client_1 = require("@prisma/client");
+const reports_service_1 = require("./reports.service");
+const prisma = new client_1.PrismaClient();
+const reportsService = new reports_service_1.ReportsService();
 class ReportsController {
     getAdmissions = async (req, res, next) => {
         try {
@@ -50,6 +54,66 @@ class ReportsController {
         }
         catch (error) {
             next(error);
+        }
+    };
+    exportReport = async (req, res, next) => {
+        try {
+            const { type, format } = req.query;
+            const user = req.user; // populated by requireAuth middleware
+            if (!type || !format) {
+                res.status(400).json({ status: 'error', message: 'Missing type or format parameters' });
+                return;
+            }
+            if (format !== 'PDF' && format !== 'EXCEL') {
+                res.status(400).json({ status: 'error', message: 'Invalid format requested' });
+                return;
+            }
+            // Fetch basic data for the institution report
+            const [totalStudents, totalFaculties, totalDepartments, departments] = await Promise.all([
+                prisma.student.count({ where: { deleted: false, status: 'ACTIVE' } }),
+                prisma.faculty.count({ where: { deleted: false, status: 'ACTIVE' } }),
+                prisma.department.count({ where: { deleted: false, status: 'ACTIVE' } }),
+                prisma.department.findMany({
+                    where: { deleted: false, status: 'ACTIVE' },
+                    include: {
+                        _count: {
+                            select: { students: true, faculties: true }
+                        }
+                    }
+                })
+            ]);
+            const data = {
+                totalStudents,
+                totalFaculties,
+                totalDepartments,
+                departments
+            };
+            // Add Audit log
+            if (user) {
+                await prisma.userActivityLog.create({
+                    data: {
+                        userId: user.id,
+                        action: 'DOWNLOAD',
+                        module: 'REPORT',
+                        description: `Downloaded ${type} report as ${format}`,
+                        ipAddress: req.ip,
+                        userAgent: req.headers['user-agent']
+                    }
+                });
+            }
+            if (format === 'PDF') {
+                await reportsService.generatePDFReport(type, user, data, res);
+            }
+            else if (format === 'EXCEL') {
+                await reportsService.generateExcelReport(type, user, data, res);
+            }
+        }
+        catch (error) {
+            console.error('Error generating report:', error);
+            // Ensure we haven't already sent headers
+            if (!res.headersSent) {
+                res.status(500).json({ status: 'error', message: 'Unable to generate report. Please try again.' });
+            }
         }
     };
 }

@@ -8,8 +8,9 @@ export declare class AuthService {
     /**
      * Issue new access token using valid refresh token
      */
-    refresh(refreshToken: string): Promise<{
+    refresh(refreshToken: string, ipAddress?: string, userAgent?: string): Promise<{
         accessToken: string;
+        refreshToken: string;
     }>;
     /**
      * Revoke single session
@@ -20,18 +21,21 @@ export declare class AuthService {
      */
     logoutAll(userId: string): Promise<void>;
     /**
-     * Get currently logged-in user profile
+     * Get currently logged-in user profile (full — includes faculty/department for HOD/Faculty roles)
      */
     getMe(userId: string): Promise<{
         id: string;
         email: string;
         firstName: string;
         lastName: string;
-        role: string;
+        phone: any;
         profilePhoto: string | null;
+        status: any;
+        role: string;
         permissions: string[];
         menus: any[];
         forcePasswordChange: boolean;
+        faculty: any;
     }>;
     /**
      * Change password for logged-in user

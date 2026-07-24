@@ -8,7 +8,7 @@ const controller = new files_controller_1.FilesController();
 router.get('/', auth_middleware_1.requireAuth, (0, auth_middleware_1.requirePermission)('files:read'), controller.list);
 router.post('/upload', auth_middleware_1.requireAuth, (req, res, next) => {
     const user = req.user;
-    if (user && user.role === 'Student') {
+    if (user && ['Student', 'HOD', 'Faculty', 'Super Admin', 'College Admin', 'Principal', 'Vice Principal'].includes(user.role)) {
         return next();
     }
     return (0, auth_middleware_1.requirePermission)('files:write')(req, res, next);

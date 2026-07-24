@@ -206,6 +206,7 @@ class RolesService {
                 }))
             });
         }
+        RolesService.bumpPermissionVersion();
         return { success: true };
     }
     /**
@@ -388,6 +389,70 @@ class RolesService {
             });
         }
         return { success: true };
+    }
+    // Global permission versioning timestamp for real-time invalidation & matrix sync
+    static globalPermissionVersion = Date.now();
+    static getPermissionVersion() {
+        return this.globalPermissionVersion;
+    }
+    static bumpPermissionVersion() {
+        this.globalPermissionVersion = Date.now();
+        return this.globalPermissionVersion;
+    }
+    /**
+     * Get current matrix permission version timestamp
+     */
+    async getMatrixVersion() {
+        return { version: RolesService.getPermissionVersion() };
+    }
+    /**
+     * Simulate target role view for Super Admin
+     */
+    async simulateRole(targetRoleName, requestingUser) {
+        if (requestingUser.role !== 'Super Admin' && requestingUser.role !== 'College Admin') {
+            throw new exceptions_1.BadRequestException('Only Super Admin or College Admin can simulate role views');
+        }
+        const targetRole = await prisma_1.prisma.role.findUnique({
+            where: { name: targetRoleName },
+            include: { permissions: { include: { permission: true } } }
+        });
+        if (!targetRole)
+            throw new exceptions_1.NotFoundException(`Role '${targetRoleName}' not found`);
+        const permissions = targetRole.name === 'Super Admin'
+            ? ['*:*']
+            : targetRole.permissions.map(p => p.permission.name);
+        return {
+            simulationMode: true,
+            originalRole: requestingUser.role,
+            simulatedRole: targetRole.name,
+            permissions,
+            simulatedUser: {
+                id: requestingUser.id,
+                email: requestingUser.email,
+                role: targetRole.name,
+                permissions
+            }
+        };
+    }
+    /**
+     * Bulk role assignment & department transfer
+     */
+    async bulkOperation(data) {
+        const { userIds, targetRoleId, departmentId } = data;
+        if (!userIds || userIds.length === 0) {
+            throw new exceptions_1.BadRequestException('userIds list cannot be empty');
+        }
+        const updateData = {};
+        if (targetRoleId)
+            updateData.roleId = targetRoleId;
+        if (departmentId)
+            updateData.departmentId = departmentId;
+        await prisma_1.prisma.user.updateMany({
+            where: { id: { in: userIds } },
+            data: updateData
+        });
+        RolesService.bumpPermissionVersion();
+        return { success: true, count: userIds.length };
     }
 }
 exports.RolesService = RolesService;

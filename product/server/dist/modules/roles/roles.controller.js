@@ -477,6 +477,55 @@ class RolesController {
             next(error);
         }
     };
+    /**
+     * Get matrix version timestamp for real-time permission invalidation
+     */
+    getMatrixVersion = async (req, res, next) => {
+        try {
+            const data = await this.service.getMatrixVersion();
+            res.status(200).json({ status: 'success', data });
+        }
+        catch (error) {
+            next(error);
+        }
+    };
+    /**
+     * Simulate role preview
+     */
+    simulateRole = async (req, res, next) => {
+        try {
+            const { targetRoleName } = req.body;
+            if (!targetRoleName)
+                throw new exceptions_1.BadRequestException('targetRoleName is required');
+            const data = await this.service.simulateRole(targetRoleName, req.user);
+            res.status(200).json({ status: 'success', data });
+        }
+        catch (error) {
+            next(error);
+        }
+    };
+    /**
+     * Bulk role & department operation
+     */
+    bulkOperation = async (req, res, next) => {
+        try {
+            const data = await this.service.bulkOperation(req.body);
+            await prisma_1.prisma.userActivityLog.create({
+                data: {
+                    userId: req.user.id,
+                    action: 'UPDATE',
+                    module: 'ROLE',
+                    description: `Performed bulk role/department assignment for ${data.count} users`,
+                    ipAddress: req.ip,
+                    userAgent: req.headers['user-agent'],
+                },
+            });
+            res.status(200).json({ status: 'success', data });
+        }
+        catch (error) {
+            next(error);
+        }
+    };
 }
 exports.RolesController = RolesController;
 //# sourceMappingURL=roles.controller.js.map

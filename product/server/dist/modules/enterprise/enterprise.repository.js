@@ -40,7 +40,7 @@ class EnterpriseRepository {
                 skip,
                 take: pageSize,
                 orderBy: { createdAt: 'desc' },
-                include: { academicYear: true, department: true, program: true, course: true, semester: true, section: true, user: true },
+                include: { academicYear: true, department: true, programDepartment: true, program: true, course: true, semester: true, section: true, user: true },
             }),
             prisma_1.prisma.student.count({ where }),
         ]);
@@ -49,7 +49,7 @@ class EnterpriseRepository {
     async findStudentById(id) {
         return prisma_1.prisma.student.findFirst({
             where: { id, deleted: false },
-            include: { academicYear: true, department: true, program: true, course: true, semester: true, section: true, hostelBuilding: true, transportRoute: true, user: true },
+            include: { academicYear: true, department: true, programDepartment: true, program: true, course: true, semester: true, section: true, hostelBuilding: true, transportRoute: true, user: true },
         });
     }
     async createStudent(data) {

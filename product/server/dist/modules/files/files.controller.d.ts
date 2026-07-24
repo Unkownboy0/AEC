@@ -7,7 +7,7 @@ export declare class FilesController {
      */
     list: (req: Request, res: Response, next: NextFunction) => Promise<void>;
     /**
-     * Upload file via base64 JSON payload
+     * Upload file via base64 JSON payload (hardened)
      */
     upload: (req: Request, res: Response, next: NextFunction) => Promise<void>;
     /**

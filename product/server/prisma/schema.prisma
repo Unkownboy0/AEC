@@ -33,6 +33,7 @@ model User {
 
   createdCirculars     HodCircular[]            @relation("CircularCreator")
   circularReadTrackers HodCircularReadTracker[] @relation("UserCircularReadTracker")
+  publishedTimetables  MasterTimetable[]        @relation("TimetablePublisher")
 
   @@index([email])
   @@index([roleId])
@@ -198,6 +199,7 @@ model Department {
   sections       Section[]
   subjects       Subject[]
   students       Student[]
+  programStudents Student[] @relation("ProgramDepartment")
   faculties      Faculty[]
   timetableSlots TimetableSlot[]
   assignments    Assignment[]
@@ -551,6 +553,8 @@ model Student {
   academicYear   AcademicYear @relation(fields: [academicYearId], references: [id])
   departmentId   String
   department     Department   @relation(fields: [departmentId], references: [id])
+  programDepartmentId String?
+  programDepartment   Department? @relation("ProgramDepartment", fields: [programDepartmentId], references: [id])
   programId      String
   program        Program      @relation(fields: [programId], references: [id])
   courseId       String
@@ -1485,5 +1489,214 @@ model DepartmentIntake {
 
   @@map("department_intakes")
 }
+
+// ==========================================
+// STUDENT EXPERIENCE PLATFORM ENHANCEMENT MODELS
+// ==========================================
+
+model CertificateRequest {
+  id               String   @id @default(uuid())
+  studentId        String
+  type             String   // BONAFIDE, CONDUCT, COURSE_COMPLETION, INTERNSHIP_LETTER, TRANSFER, MIGRATION, MEDIUM, FEE_RECEIPT
+  purpose          String
+  status           String   @default("PENDING") // PENDING, ADVISOR_APPROVED, HOD_APPROVED, ISSUED, REJECTED
+  remarks          String?
+  issuedUrl        String?
+  verificationHash String?
+  qrCodeUrl        String?
+  appliedAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([studentId, status])
+  @@map("certificate_requests")
+}
+
+model GamificationProfile {
+  id               String   @id @default(uuid())
+  studentId        String   @unique
+  xp               Int      @default(0)
+  level            Int      @default(1)
+  attendanceStreak Int      @default(0)
+  assignmentStreak Int      @default(0)
+  quizStreak       Int      @default(0)
+  badges           String   @default("[]") // JSON string array of badge IDs
+  unlockedRewards  String   @default("[]") // JSON string array
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@map("gamification_profiles")
+}
+
+model RewardStoreItem {
+  id          String   @id @default(uuid())
+  title       String
+  description String
+  xpCost      Int
+  category    String   // ACADEMIC, DISCOUNTS, MERCH, PERKS
+  stock       Int      @default(100)
+  icon        String   @default("Gift")
+  status      String   @default("ACTIVE")
+  createdAt   DateTime @default(now())
+
+  @@map("reward_store_items")
+}
+
+model RewardRedemption {
+  id        String   @id @default(uuid())
+  studentId String
+  itemId    String
+  xpSpent   Int
+  status    String   @default("REDEEMED") // REDEEMED, FULFILLED, CANCELLED
+  code      String
+  createdAt DateTime @default(now())
+
+  @@map("reward_redemptions")
+}
+
+model Quiz {
+  id           String         @id @default(uuid())
+  title        String
+  description  String?
+  subjectId    String?
+  facultyId    String
+  durationMins Int            @default(30)
+  totalMarks   Int            @default(100)
+  passMarks    Int            @default(40)
+  negativeMark Float          @default(0)
+  status       String         @default("PUBLISHED") // DRAFT, PUBLISHED, COMPLETED
+  startTime    DateTime?
+  endTime      DateTime?
+  questions    QuizQuestion[]
+  attempts     QuizAttempt[]
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  @@map("quizzes")
+}
+
+model QuizQuestion {
+  id            String @id @default(uuid())
+  quizId        String
+  quiz          Quiz   @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  type          String // MCQ, MSQ, TRUE_FALSE, PROGRAMMING, ESSAY
+  question      String
+  options       String @default("[]") // JSON array for MCQ/MSQ
+  correctAnswer String // Single string or JSON array string
+  explanation   String?
+  marks         Int    @default(5)
+  orderIndex    Int    @default(0)
+
+  @@map("quiz_questions")
+}
+
+model QuizAttempt {
+  id          String    @id @default(uuid())
+  quizId      String
+  quiz        Quiz      @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  studentId   String
+  score       Float     @default(0)
+  totalMarks  Float     @default(100)
+  passed      Boolean   @default(false)
+  answers     String    @default("{}") // JSON object map { questionId: answer }
+  startedAt   DateTime  @default(now())
+  submittedAt DateTime?
+  status      String    @default("IN_PROGRESS") // IN_PROGRESS, SUBMITTED, TIMED_OUT, EVALUATED
+
+  @@index([studentId, quizId])
+  @@map("quiz_attempts")
+}
+
+model AdvisorSession {
+  id          String   @id @default(uuid())
+  studentId   String
+  facultyId   String
+  scheduledAt DateTime
+  topic       String
+  meetingUrl  String?
+  status      String   @default("SCHEDULED") // SCHEDULED, COMPLETED, CANCELLED
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("advisor_sessions")
+}
+
+// ==========================================
+// CENTRALIZED MASTER TIMETABLE ENGINE (COE & DEAN ACADEMICS CONTROL)
+// ==========================================
+
+model MasterTimetable {
+  id            String               @id @default(uuid())
+  academicYear  String
+  semester      String
+  departmentId  String
+  programId     String
+  section       String               // e.g. "A", "B"
+  status        String               @default("DRAFT") // DRAFT, PUBLISHED, LOCKED, ARCHIVED
+  version       Int                  @default(1)
+  publishedAt   DateTime?
+  publishedById String?
+  publishedBy   User?                @relation("TimetablePublisher", fields: [publishedById], references: [id])
+  slots         MasterTimetableSlot[]
+  versions      TimetableVersion[]
+  auditLogs     TimetableAuditLog[]
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+
+  @@unique([academicYear, semester, departmentId, programId, section, version])
+  @@map("master_timetables")
+}
+
+model MasterTimetableSlot {
+  id                String          @id @default(uuid())
+  masterTimetableId String
+  masterTimetable   MasterTimetable @relation(fields: [masterTimetableId], references: [id], onDelete: Cascade)
+  dayOfWeek         String          // MONDAY, TUESDAY, WEDNESDAY, THURSDAY, FRIDAY, SATURDAY
+  periodNumber      Int             // 1 to 8
+  startTime         String          // e.g. "08:30"
+  endTime           String          // e.g. "09:20"
+  subjectId         String
+  facultyId         String
+  roomNo            String?
+  building          String?
+  isLab             Boolean         @default(false)
+  labName           String?
+
+  @@index([facultyId, dayOfWeek, periodNumber])
+  @@index([roomNo, dayOfWeek, periodNumber])
+  @@map("master_timetable_slots")
+}
+
+model TimetableVersion {
+  id                String          @id @default(uuid())
+  masterTimetableId String
+  masterTimetable   MasterTimetable @relation(fields: [masterTimetableId], references: [id], onDelete: Cascade)
+  versionNumber     Int
+  snapshotData      String          // Full JSON string snapshot of slots & allocations
+  changeReason      String?
+  createdById       String
+  createdAt         DateTime        @default(now())
+
+  @@map("timetable_versions")
+}
+
+model TimetableAuditLog {
+  id                String          @id @default(uuid())
+  masterTimetableId String
+  masterTimetable   MasterTimetable @relation(fields: [masterTimetableId], references: [id], onDelete: Cascade)
+  action            String          // CREATE, UPDATE, CONFLICT_CHECK, PUBLISH, LOCK, RESTORE, DELETE
+  performedById     String
+  performedByRole   String
+  ipAddress         String?
+  userAgent         String?
+  oldValue          String?         // JSON string
+  newValue          String?         // JSON string
+  reason            String?
+  createdAt         DateTime        @default(now())
+
+  @@map("timetable_audit_logs")
+}
+
+
 
 

@@ -23,7 +23,7 @@ class EnterpriseService {
         return student;
     }
     async createStudent(input, userId, ip, ua) {
-        const { admissionNo, firstName, lastName, email, phone, dob, dateOfAdmission, gender, bloodGroup, religion, category, parentName, parentPhone, parentEmail, parentOccupation, currentAddress, permanentAddress, scholarship, academicYearId, departmentId, programId, courseId, semesterId, sectionId, hostelId, roomNo, transportRouteId, transportStopId } = input;
+        const { admissionNo, firstName, lastName, email, phone, dob, dateOfAdmission, gender, bloodGroup, religion, category, parentName, parentPhone, parentEmail, parentOccupation, currentAddress, permanentAddress, scholarship, academicYearId, departmentId, programId, courseId, semesterId, sectionId, hostelId, roomNo, transportRouteId, transportStopId, mentorId, facultyId, classAdvisorId } = input;
         if (!email) {
             throw new exceptions_1.BadRequestException('Official Email ID is required for credentials generation.');
         }
@@ -67,6 +67,51 @@ class EnterpriseService {
                 }
             });
         }
+        // Fetch the semester to check its number
+        const semester = await prisma_1.prisma.semester.findUnique({
+            where: { id: semesterId }
+        });
+        const semNumber = semester ? semester.number : 1;
+        let operationalDeptId = departmentId; // default
+        const programDeptId = departmentId; // permanent selected engineering branch
+        if (semNumber === 1 || semNumber === 2) {
+            // Must be academically managed under Science & Humanities (S&H)
+            let snhDept = await prisma_1.prisma.department.findFirst({
+                where: {
+                    OR: [
+                        { code: 'SNH' },
+                        { code: 'S&H' },
+                        { name: { contains: 'Humanities' } }
+                    ]
+                }
+            });
+            if (!snhDept) {
+                snhDept = await prisma_1.prisma.department.create({
+                    data: {
+                        name: 'Science & Humanities',
+                        code: 'SNH',
+                        shortName: 'S&H',
+                        description: 'Department of Science and Humanities (First Year)',
+                        type: 'Engineering',
+                        color: '#7C3AED',
+                        establishedYear: 2010
+                    }
+                });
+            }
+            operationalDeptId = snhDept.id;
+        }
+        // AUTO ASSIGNMENT: Automatically assign Mentor, Faculty, and Class Advisor mappings
+        let resolvedFacultyId = facultyId || mentorId || null;
+        if (!resolvedFacultyId) {
+            const defaultFaculty = await prisma_1.prisma.faculty.findFirst({
+                where: { departmentId: operationalDeptId, deleted: false }
+            });
+            if (defaultFaculty) {
+                resolvedFacultyId = defaultFaculty.id;
+            }
+        }
+        const resolvedMentorId = resolvedFacultyId; // Sync mentorId with facultyId
+        const resolvedClassAdvisorId = classAdvisorId || resolvedFacultyId;
         const student = await this.repo.createStudent({
             admissionNo,
             firstName,
@@ -87,7 +132,8 @@ class EnterpriseService {
             permanentAddress,
             scholarship,
             academicYearId,
-            departmentId,
+            departmentId: operationalDeptId,
+            programDepartmentId: programDeptId,
             programId,
             courseId,
             semesterId,
@@ -97,13 +143,32 @@ class EnterpriseService {
             transportRouteId: transportRouteId || null,
             transportStopId: transportStopId || null,
             userId: userRecord.id,
+            mentorId: resolvedMentorId,
+            facultyId: resolvedFacultyId,
+            classAdvisorId: resolvedClassAdvisorId,
         });
+        // Create Mentor Assignment log if mentor resolved
+        if (resolvedMentorId) {
+            await prisma_1.prisma.mentorAssignment.create({
+                data: {
+                    mentorId: resolvedMentorId,
+                    studentId: student.id,
+                    departmentId: student.departmentId,
+                    programId: student.programId,
+                    semesterId: student.semesterId,
+                    sectionId: student.sectionId,
+                    academicYearId: student.academicYearId,
+                    assignedBy: userId,
+                    status: 'ACTIVE'
+                }
+            });
+        }
         await this.logActivity(userId, 'CREATE', 'STUDENTS', `Admitted Student: ${firstName} ${lastName} (${admissionNo})`, ip, ua);
         return student;
     }
     async updateStudent(id, input, userId, ip, ua) {
         const student = await this.getStudent(id);
-        const { firstName, lastName, email, phone, dob, dateOfAdmission, gender, bloodGroup, religion, category, parentName, parentPhone, parentEmail, parentOccupation, currentAddress, permanentAddress, scholarship, academicYearId, departmentId, programId, courseId, semesterId, sectionId, hostelId, roomNo, transportRouteId, transportStopId, promoted, status } = input;
+        const { firstName, lastName, email, phone, dob, dateOfAdmission, gender, bloodGroup, religion, category, parentName, parentPhone, parentEmail, parentOccupation, currentAddress, permanentAddress, scholarship, academicYearId, departmentId, programId, courseId, semesterId, sectionId, hostelId, roomNo, transportRouteId, transportStopId, promoted, status, mentorId, facultyId, classAdvisorId } = input;
         const data = {};
         if (firstName)
             data.firstName = firstName;
@@ -141,8 +206,6 @@ class EnterpriseService {
             data.scholarship = scholarship;
         if (academicYearId)
             data.academicYearId = academicYearId;
-        if (departmentId)
-            data.departmentId = departmentId;
         if (programId)
             data.programId = programId;
         if (courseId)
@@ -151,6 +214,58 @@ class EnterpriseService {
             data.semesterId = semesterId;
         if (sectionId)
             data.sectionId = sectionId;
+        // Resolve S&H and Program Department logic dynamically
+        const targetSemesterId = semesterId || student.semesterId;
+        const semRecord = await prisma_1.prisma.semester.findUnique({
+            where: { id: targetSemesterId }
+        });
+        const semNumber = semRecord ? semRecord.number : 1;
+        const programDeptId = departmentId || student.programDepartmentId || student.departmentId;
+        if (semNumber === 1 || semNumber === 2) {
+            let snhDept = await prisma_1.prisma.department.findFirst({
+                where: {
+                    OR: [
+                        { code: 'SNH' },
+                        { code: 'S&H' },
+                        { name: { contains: 'Humanities' } }
+                    ]
+                }
+            });
+            if (!snhDept) {
+                snhDept = await prisma_1.prisma.department.create({
+                    data: {
+                        name: 'Science & Humanities',
+                        code: 'SNH',
+                        shortName: 'S&H',
+                        description: 'Department of Science and Humanities (First Year)',
+                        type: 'Engineering',
+                        color: '#7C3AED',
+                        establishedYear: 2010
+                    }
+                });
+            }
+            data.departmentId = snhDept.id;
+            data.programDepartmentId = programDeptId;
+        }
+        else {
+            data.departmentId = programDeptId;
+            data.programDepartmentId = programDeptId;
+            // Promotion automation: S&H -> Original branch
+            const currentSemester = await prisma_1.prisma.semester.findUnique({
+                where: { id: student.semesterId }
+            });
+            if (currentSemester && (currentSemester.number === 1 || currentSemester.number === 2)) {
+                // Auto assign department mentor
+                const newMentor = await prisma_1.prisma.faculty.findFirst({
+                    where: { departmentId: programDeptId, deleted: false }
+                });
+                if (newMentor) {
+                    data.mentorId = newMentor.id;
+                    data.facultyId = newMentor.id;
+                    data.classAdvisorId = newMentor.id;
+                }
+            }
+        }
         if (hostelId !== undefined)
             data.hostelId = hostelId || null;
         if (roomNo !== undefined)
@@ -163,6 +278,37 @@ class EnterpriseService {
             data.promoted = !!promoted;
         if (status)
             data.status = status;
+        if (classAdvisorId !== undefined) {
+            data.classAdvisorId = classAdvisorId || null;
+        }
+        const resolvedFacultyId = facultyId !== undefined ? facultyId : (mentorId !== undefined ? mentorId : undefined);
+        if (resolvedFacultyId !== undefined) {
+            const actualFacultyId = resolvedFacultyId || null;
+            data.facultyId = actualFacultyId;
+            data.mentorId = actualFacultyId; // Sync mentorId with facultyId
+            if (actualFacultyId !== student.facultyId) {
+                // Mark existing assignments as historic
+                await prisma_1.prisma.mentorAssignment.updateMany({
+                    where: { studentId: id, status: 'ACTIVE' },
+                    data: { status: 'HISTORIC' }
+                });
+                if (actualFacultyId) {
+                    await prisma_1.prisma.mentorAssignment.create({
+                        data: {
+                            mentorId: actualFacultyId,
+                            studentId: id,
+                            departmentId: departmentId || student.departmentId,
+                            programId: programId || student.programId,
+                            semesterId: semesterId || student.semesterId,
+                            sectionId: sectionId || student.sectionId,
+                            academicYearId: academicYearId || student.academicYearId,
+                            assignedBy: userId,
+                            status: 'ACTIVE'
+                        }
+                    });
+                }
+            }
+        }
         const updated = await this.repo.updateStudent(id, data);
         await this.logActivity(userId, 'UPDATE', 'STUDENTS', `Updated Student profile for ${student.admissionNo}`, ip, ua);
         return updated;
@@ -923,6 +1069,24 @@ class EnterpriseService {
         catch (err) {
             console.error('Failed to notify mentor', err);
         }
+    }
+    async bulkAssignDepartment(ids, departmentId, userId, ip, ua) {
+        if (!departmentId)
+            throw new exceptions_1.BadRequestException('Department ID is required');
+        await prisma_1.prisma.student.updateMany({
+            where: { id: { in: ids } },
+            data: { departmentId }
+        });
+        await this.logActivity(userId, 'UPDATE', 'STUDENTS', `Bulk assigned department to ${ids.length} students`, ip, ua);
+    }
+    async bulkAssignSection(ids, sectionId, userId, ip, ua) {
+        if (!sectionId)
+            throw new exceptions_1.BadRequestException('Section ID is required');
+        await prisma_1.prisma.student.updateMany({
+            where: { id: { in: ids } },
+            data: { sectionId }
+        });
+        await this.logActivity(userId, 'UPDATE', 'STUDENTS', `Bulk assigned section to ${ids.length} students`, ip, ua);
     }
     // ==========================================
     // HELPERS

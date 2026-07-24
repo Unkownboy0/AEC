@@ -49,9 +49,20 @@ class UsersRepository {
         });
     }
     /**
-     * Update a user record
+     * Update a user record (standard fields only)
      */
     async update(id, data) {
+        return prisma_1.prisma.user.update({
+            where: { id },
+            data,
+            include: { role: true },
+        });
+    }
+    /**
+     * Update any user field including passwordHash, forcePasswordChange, phone, etc.
+     * Used by admin IAM actions (password reset, phone update, etc.)
+     */
+    async updateFull(id, data) {
         return prisma_1.prisma.user.update({
             where: { id },
             data,

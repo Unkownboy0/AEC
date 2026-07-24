@@ -2,10 +2,11 @@ import { Request, Response, NextFunction } from 'express';
 export declare class AiController {
     /**
      * AI Student Counselor Chatbot (with persistent history)
+     * Falls back to built-in keyword engine when no API key is configured.
      */
     chat: (req: Request, res: Response, next: NextFunction) => Promise<Response<any, Record<string, any>> | undefined>;
     /**
-     * AI Revision Assistant - generates revision notes, MCQ sheets, flash cards, viva questions, formulas, etc.
+     * AI Revision Assistant — uses LLM if available, else built-in templates.
      */
     generateRevision: (req: Request, res: Response, next: NextFunction) => Promise<Response<any, Record<string, any>> | undefined>;
     /**

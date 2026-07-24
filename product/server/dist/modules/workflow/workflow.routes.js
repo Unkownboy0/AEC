@@ -9,5 +9,6 @@ router.use(auth_middleware_1.requireAuth);
 router.post('/requests', controller.createRequest);
 router.get('/requests', controller.listRequests);
 router.post('/requests/:id/action', controller.takeAction);
+router.post('/requests/:id/cancel', controller.cancelRequest);
 exports.default = router;
 //# sourceMappingURL=workflow.routes.js.map

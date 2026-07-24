@@ -1,4 +1,5 @@
 import { PrismaClient } from '@prisma/client';
+// Prisma DB Seeder for Enterprise ERP CampusOS
 import * as bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();

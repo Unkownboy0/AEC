@@ -25,6 +25,7 @@ const timetable_routes_1 = __importDefault(require("./modules/timetable/timetabl
 const ai_routes_1 = __importDefault(require("./modules/ai/ai.routes"));
 const assignments_routes_1 = __importDefault(require("./modules/enterprise/assignments.routes"));
 const chat_routes_1 = __importDefault(require("./modules/chat/chat.routes"));
+const circular_routes_1 = __importDefault(require("./modules/enterprise/circular.routes"));
 const error_middleware_1 = require("./core/middlewares/error.middleware");
 const logger_1 = require("./utils/logger");
 const env_1 = require("./config/env");
@@ -56,8 +57,13 @@ app.use((req, res, next) => {
     next();
 });
 const rateLimit_middleware_1 = require("./core/middlewares/rateLimit.middleware");
+const sanitize_middleware_1 = require("./core/middlewares/sanitize.middleware");
+// Global input sanitization
+app.use(sanitize_middleware_1.sanitizeInput);
+// Global API rate limiting
+app.use('/api', rateLimit_middleware_1.apiRateLimiter);
 // Mount Routes
-app.get('/api/health', rateLimit_middleware_1.apiRateLimiter, (req, res) => {
+app.get('/api/health', (req, res) => {
     res.status(200).json({
         status: 'success',
         timestamp: new Date().toISOString(),
@@ -83,6 +89,7 @@ app.use('/api/timetables', timetable_routes_1.default);
 app.use('/api/ai', ai_routes_1.default);
 app.use('/api/assignments', assignments_routes_1.default);
 app.use('/api/chat', chat_routes_1.default);
+app.use('/api/circulars', circular_routes_1.default);
 // Fallback Route
 app.use('*', (req, res, next) => {
     res.status(404).json({

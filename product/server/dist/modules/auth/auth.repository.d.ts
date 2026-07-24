@@ -37,10 +37,10 @@ export declare class AuthRepository {
             email: string | null;
             firstName: string;
             lastName: string;
+            phone: string | null;
             createdAt: Date;
             updatedAt: Date;
             admissionNo: string;
-            phone: string | null;
             dob: Date;
             dateOfAdmission: Date;
             gender: string;
@@ -80,6 +80,7 @@ export declare class AuthRepository {
             areasOfInterest: string | null;
             academicYearId: string;
             departmentId: string;
+            programDepartmentId: string | null;
             programId: string;
             courseId: string;
             semesterId: string;
@@ -90,6 +91,8 @@ export declare class AuthRepository {
             transportStopId: string | null;
             userId: string | null;
             mentorId: string | null;
+            facultyId: string | null;
+            classAdvisorId: string | null;
             archived: boolean;
             archivedAt: Date | null;
             deleted: boolean;
@@ -102,9 +105,9 @@ export declare class AuthRepository {
             email: string;
             firstName: string;
             lastName: string;
+            phone: string;
             createdAt: Date;
             updatedAt: Date;
-            phone: string;
             dob: Date;
             gender: string | null;
             bloodGroup: string | null;
@@ -166,10 +169,13 @@ export declare class AuthRepository {
         passwordHash: string;
         firstName: string;
         lastName: string;
+        phone: string | null;
         roleId: string;
         lockedUntil: Date | null;
+        failedLoginAttempts: number;
         forcePasswordChange: boolean;
         profilePhoto: string | null;
+        passwordChangedAt: Date | null;
         createdAt: Date;
         updatedAt: Date;
     }) | null>;
@@ -212,13 +218,56 @@ export declare class AuthRepository {
         passwordHash: string;
         firstName: string;
         lastName: string;
+        phone: string | null;
         roleId: string;
         lockedUntil: Date | null;
+        failedLoginAttempts: number;
         forcePasswordChange: boolean;
         profilePhoto: string | null;
+        passwordChangedAt: Date | null;
         createdAt: Date;
         updatedAt: Date;
     }) | null>;
+    /**
+     * Increment failed login attempts and optionally lock the account
+     */
+    incrementFailedAttempts(userId: string, count: number, lockedUntil: Date | null): Promise<{
+        status: string;
+        id: string;
+        email: string;
+        passwordHash: string;
+        firstName: string;
+        lastName: string;
+        phone: string | null;
+        roleId: string;
+        lockedUntil: Date | null;
+        failedLoginAttempts: number;
+        forcePasswordChange: boolean;
+        profilePhoto: string | null;
+        passwordChangedAt: Date | null;
+        createdAt: Date;
+        updatedAt: Date;
+    }>;
+    /**
+     * Reset failed login attempts after successful login
+     */
+    resetFailedAttempts(userId: string): Promise<{
+        status: string;
+        id: string;
+        email: string;
+        passwordHash: string;
+        firstName: string;
+        lastName: string;
+        phone: string | null;
+        roleId: string;
+        lockedUntil: Date | null;
+        failedLoginAttempts: number;
+        forcePasswordChange: boolean;
+        profilePhoto: string | null;
+        passwordChangedAt: Date | null;
+        createdAt: Date;
+        updatedAt: Date;
+    }>;
     /**
      * Update password hash for a user
      */
@@ -229,10 +278,13 @@ export declare class AuthRepository {
         passwordHash: string;
         firstName: string;
         lastName: string;
+        phone: string | null;
         roleId: string;
         lockedUntil: Date | null;
+        failedLoginAttempts: number;
         forcePasswordChange: boolean;
         profilePhoto: string | null;
+        passwordChangedAt: Date | null;
         createdAt: Date;
         updatedAt: Date;
     }>;
@@ -269,10 +321,13 @@ export declare class AuthRepository {
             passwordHash: string;
             firstName: string;
             lastName: string;
+            phone: string | null;
             roleId: string;
             lockedUntil: Date | null;
+            failedLoginAttempts: number;
             forcePasswordChange: boolean;
             profilePhoto: string | null;
+            passwordChangedAt: Date | null;
             createdAt: Date;
             updatedAt: Date;
         };
@@ -327,10 +382,13 @@ export declare class AuthRepository {
             passwordHash: string;
             firstName: string;
             lastName: string;
+            phone: string | null;
             roleId: string;
             lockedUntil: Date | null;
+            failedLoginAttempts: number;
             forcePasswordChange: boolean;
             profilePhoto: string | null;
+            passwordChangedAt: Date | null;
             createdAt: Date;
             updatedAt: Date;
         };

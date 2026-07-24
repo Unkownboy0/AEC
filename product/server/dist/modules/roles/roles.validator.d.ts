@@ -9,7 +9,7 @@ export declare const createRoleSchema: z.ZodObject<{
     status: z.ZodOptional<z.ZodEnum<["ACTIVE", "ARCHIVED", "INACTIVE"]>>;
 }, "strip", z.ZodTypeAny, {
     name: string;
-    status?: "ACTIVE" | "ARCHIVED" | "INACTIVE" | undefined;
+    status?: "ACTIVE" | "INACTIVE" | "ARCHIVED" | undefined;
     description?: string | null | undefined;
     icon?: string | undefined;
     color?: string | undefined;
@@ -17,7 +17,7 @@ export declare const createRoleSchema: z.ZodObject<{
     hierarchy?: number | undefined;
 }, {
     name: string;
-    status?: "ACTIVE" | "ARCHIVED" | "INACTIVE" | undefined;
+    status?: "ACTIVE" | "INACTIVE" | "ARCHIVED" | undefined;
     description?: string | null | undefined;
     icon?: string | undefined;
     color?: string | undefined;
@@ -33,7 +33,7 @@ export declare const updateRoleSchema: z.ZodObject<{
     hierarchy: z.ZodOptional<z.ZodNumber>;
     status: z.ZodOptional<z.ZodEnum<["ACTIVE", "ARCHIVED", "INACTIVE"]>>;
 }, "strip", z.ZodTypeAny, {
-    status?: "ACTIVE" | "ARCHIVED" | "INACTIVE" | undefined;
+    status?: "ACTIVE" | "INACTIVE" | "ARCHIVED" | undefined;
     name?: string | undefined;
     description?: string | null | undefined;
     icon?: string | undefined;
@@ -41,7 +41,7 @@ export declare const updateRoleSchema: z.ZodObject<{
     priority?: number | undefined;
     hierarchy?: number | undefined;
 }, {
-    status?: "ACTIVE" | "ARCHIVED" | "INACTIVE" | undefined;
+    status?: "ACTIVE" | "INACTIVE" | "ARCHIVED" | undefined;
     name?: string | undefined;
     description?: string | null | undefined;
     icon?: string | undefined;

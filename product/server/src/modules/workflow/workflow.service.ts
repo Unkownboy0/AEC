@@ -367,6 +367,7 @@ export class WorkflowService {
           nextStatus = request.facultyRequesterId ? 'HOD_APPROVED' : 'PENDING';
         } else {
           nextStatus = 'APPROVED';
+          nextStep = 'COMPLETED';
         }
       } else if (request.currentStep === 'DEAN') {
         if (action === 'FORWARD') {
@@ -374,9 +375,11 @@ export class WorkflowService {
           nextStatus = 'PENDING';
         } else {
           nextStatus = 'APPROVED';
+          nextStep = 'COMPLETED';
         }
       } else if (request.currentStep === 'PRINCIPAL') {
         nextStatus = 'APPROVED';
+        nextStep = 'COMPLETED';
       }
     }
 

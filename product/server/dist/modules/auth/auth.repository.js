@@ -50,12 +50,33 @@ class AuthRepository {
         });
     }
     /**
+     * Increment failed login attempts and optionally lock the account
+     */
+    async incrementFailedAttempts(userId, count, lockedUntil) {
+        return prisma_1.prisma.user.update({
+            where: { id: userId },
+            data: {
+                failedLoginAttempts: count,
+                ...(lockedUntil ? { lockedUntil } : {}),
+            },
+        });
+    }
+    /**
+     * Reset failed login attempts after successful login
+     */
+    async resetFailedAttempts(userId) {
+        return prisma_1.prisma.user.update({
+            where: { id: userId },
+            data: { failedLoginAttempts: 0, lockedUntil: null },
+        });
+    }
+    /**
      * Update password hash for a user
      */
     async updatePassword(userId, passwordHash) {
         return prisma_1.prisma.user.update({
             where: { id: userId },
-            data: { passwordHash, forcePasswordChange: false },
+            data: { passwordHash, forcePasswordChange: false, passwordChangedAt: new Date() },
         });
     }
     /**

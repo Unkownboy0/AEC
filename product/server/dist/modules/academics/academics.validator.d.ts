@@ -19,9 +19,9 @@ export declare const createDepartmentSchema: z.ZodObject<{
     documents: z.ZodOptional<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
     code: string;
-    type: "Engineering" | "Arts" | "Science" | "Medical" | "Management" | "Commerce";
+    type: "Engineering" | "Management" | "Arts" | "Science" | "Medical" | "Commerce";
     name: string;
-    status?: "ACTIVE" | "ARCHIVED" | "INACTIVE" | undefined;
+    status?: "ACTIVE" | "INACTIVE" | "ARCHIVED" | undefined;
     email?: string | null | undefined;
     phone?: string | null | undefined;
     documents?: string | undefined;
@@ -37,9 +37,9 @@ export declare const createDepartmentSchema: z.ZodObject<{
     hodName?: string | null | undefined;
 }, {
     code: string;
-    type: "Engineering" | "Arts" | "Science" | "Medical" | "Management" | "Commerce";
+    type: "Engineering" | "Management" | "Arts" | "Science" | "Medical" | "Commerce";
     name: string;
-    status?: "ACTIVE" | "ARCHIVED" | "INACTIVE" | undefined;
+    status?: "ACTIVE" | "INACTIVE" | "ARCHIVED" | undefined;
     email?: string | null | undefined;
     phone?: string | null | undefined;
     documents?: string | undefined;
@@ -74,8 +74,8 @@ export declare const updateDepartmentSchema: z.ZodObject<{
     documents: z.ZodOptional<z.ZodOptional<z.ZodString>>;
 }, "strip", z.ZodTypeAny, {
     code?: string | undefined;
-    type?: "Engineering" | "Arts" | "Science" | "Medical" | "Management" | "Commerce" | undefined;
-    status?: "ACTIVE" | "ARCHIVED" | "INACTIVE" | undefined;
+    type?: "Engineering" | "Management" | "Arts" | "Science" | "Medical" | "Commerce" | undefined;
+    status?: "ACTIVE" | "INACTIVE" | "ARCHIVED" | undefined;
     email?: string | null | undefined;
     phone?: string | null | undefined;
     documents?: string | undefined;
@@ -92,8 +92,8 @@ export declare const updateDepartmentSchema: z.ZodObject<{
     hodName?: string | null | undefined;
 }, {
     code?: string | undefined;
-    type?: "Engineering" | "Arts" | "Science" | "Medical" | "Management" | "Commerce" | undefined;
-    status?: "ACTIVE" | "ARCHIVED" | "INACTIVE" | undefined;
+    type?: "Engineering" | "Management" | "Arts" | "Science" | "Medical" | "Commerce" | undefined;
+    status?: "ACTIVE" | "INACTIVE" | "ARCHIVED" | undefined;
     email?: string | null | undefined;
     phone?: string | null | undefined;
     documents?: string | undefined;
@@ -125,7 +125,7 @@ export declare const createProgramSchema: z.ZodObject<{
     duration: number;
     level: "UG" | "PG" | "Diploma" | "PhD";
     credits: number;
-    status?: "ACTIVE" | "ARCHIVED" | "INACTIVE" | undefined;
+    status?: "ACTIVE" | "INACTIVE" | "ARCHIVED" | undefined;
     coordinator?: string | null | undefined;
 }, {
     code: string;
@@ -134,7 +134,7 @@ export declare const createProgramSchema: z.ZodObject<{
     duration: number;
     level: "UG" | "PG" | "Diploma" | "PhD";
     credits: number;
-    status?: "ACTIVE" | "ARCHIVED" | "INACTIVE" | undefined;
+    status?: "ACTIVE" | "INACTIVE" | "ARCHIVED" | undefined;
     coordinator?: string | null | undefined;
 }>;
 export declare const updateProgramSchema: z.ZodObject<{
@@ -148,7 +148,7 @@ export declare const updateProgramSchema: z.ZodObject<{
     departmentId: z.ZodOptional<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
     code?: string | undefined;
-    status?: "ACTIVE" | "ARCHIVED" | "INACTIVE" | undefined;
+    status?: "ACTIVE" | "INACTIVE" | "ARCHIVED" | undefined;
     departmentId?: string | undefined;
     name?: string | undefined;
     duration?: number | undefined;
@@ -157,7 +157,7 @@ export declare const updateProgramSchema: z.ZodObject<{
     coordinator?: string | null | undefined;
 }, {
     code?: string | undefined;
-    status?: "ACTIVE" | "ARCHIVED" | "INACTIVE" | undefined;
+    status?: "ACTIVE" | "INACTIVE" | "ARCHIVED" | undefined;
     departmentId?: string | undefined;
     name?: string | undefined;
     duration?: number | undefined;
@@ -185,7 +185,7 @@ export declare const createCourseSchema: z.ZodObject<{
     duration: number;
     credits: number;
     regulation: string;
-    status?: "ACTIVE" | "ARCHIVED" | "INACTIVE" | undefined;
+    status?: "ACTIVE" | "INACTIVE" | "ARCHIVED" | undefined;
     description?: string | null | undefined;
     coordinator?: string | null | undefined;
     courseOutcomes?: string | undefined;
@@ -197,7 +197,7 @@ export declare const createCourseSchema: z.ZodObject<{
     duration: number;
     credits: number;
     regulation: string;
-    status?: "ACTIVE" | "ARCHIVED" | "INACTIVE" | undefined;
+    status?: "ACTIVE" | "INACTIVE" | "ARCHIVED" | undefined;
     description?: string | null | undefined;
     coordinator?: string | null | undefined;
     courseOutcomes?: string | undefined;
@@ -216,7 +216,7 @@ export declare const updateCourseSchema: z.ZodObject<{
     departmentId: z.ZodOptional<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
     code?: string | undefined;
-    status?: "ACTIVE" | "ARCHIVED" | "INACTIVE" | undefined;
+    status?: "ACTIVE" | "INACTIVE" | "ARCHIVED" | undefined;
     departmentId?: string | undefined;
     programId?: string | undefined;
     name?: string | undefined;
@@ -228,7 +228,7 @@ export declare const updateCourseSchema: z.ZodObject<{
     courseOutcomes?: string | undefined;
 }, {
     code?: string | undefined;
-    status?: "ACTIVE" | "ARCHIVED" | "INACTIVE" | undefined;
+    status?: "ACTIVE" | "INACTIVE" | "ARCHIVED" | undefined;
     departmentId?: string | undefined;
     programId?: string | undefined;
     name?: string | undefined;
@@ -249,13 +249,13 @@ export declare const createAcademicYearSchema: z.ZodObject<{
     name: string;
     startDate: Date;
     endDate: Date;
-    status?: "ACTIVE" | "ARCHIVED" | "INACTIVE" | undefined;
+    status?: "ACTIVE" | "INACTIVE" | "ARCHIVED" | undefined;
     isCurrent?: boolean | undefined;
 }, {
     name: string;
     startDate: string;
     endDate: string;
-    status?: "ACTIVE" | "ARCHIVED" | "INACTIVE" | undefined;
+    status?: "ACTIVE" | "INACTIVE" | "ARCHIVED" | undefined;
     isCurrent?: boolean | undefined;
 }>;
 export declare const updateAcademicYearSchema: z.ZodObject<{
@@ -265,13 +265,13 @@ export declare const updateAcademicYearSchema: z.ZodObject<{
     isCurrent: z.ZodOptional<z.ZodOptional<z.ZodBoolean>>;
     status: z.ZodOptional<z.ZodOptional<z.ZodEnum<["ACTIVE", "INACTIVE", "ARCHIVED"]>>>;
 }, "strip", z.ZodTypeAny, {
-    status?: "ACTIVE" | "ARCHIVED" | "INACTIVE" | undefined;
+    status?: "ACTIVE" | "INACTIVE" | "ARCHIVED" | undefined;
     name?: string | undefined;
     startDate?: Date | undefined;
     endDate?: Date | undefined;
     isCurrent?: boolean | undefined;
 }, {
-    status?: "ACTIVE" | "ARCHIVED" | "INACTIVE" | undefined;
+    status?: "ACTIVE" | "INACTIVE" | "ARCHIVED" | undefined;
     name?: string | undefined;
     startDate?: string | undefined;
     endDate?: string | undefined;
@@ -294,10 +294,10 @@ export declare const createSemesterSchema: z.ZodObject<{
     programId: string;
     courseId: string;
     name: string;
-    credits: number;
     startDate: Date;
     endDate: Date;
-    status?: "ACTIVE" | "ARCHIVED" | "INACTIVE" | undefined;
+    credits: number;
+    status?: "ACTIVE" | "INACTIVE" | "ARCHIVED" | undefined;
     isCurrent?: boolean | undefined;
 }, {
     number: number;
@@ -305,10 +305,10 @@ export declare const createSemesterSchema: z.ZodObject<{
     programId: string;
     courseId: string;
     name: string;
-    credits: number;
     startDate: string;
     endDate: string;
-    status?: "ACTIVE" | "ARCHIVED" | "INACTIVE" | undefined;
+    credits: number;
+    status?: "ACTIVE" | "INACTIVE" | "ARCHIVED" | undefined;
     isCurrent?: boolean | undefined;
 }>;
 export declare const updateSemesterSchema: z.ZodObject<{
@@ -324,26 +324,26 @@ export declare const updateSemesterSchema: z.ZodObject<{
     academicYearId: z.ZodOptional<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
     number?: number | undefined;
-    status?: "ACTIVE" | "ARCHIVED" | "INACTIVE" | undefined;
+    status?: "ACTIVE" | "INACTIVE" | "ARCHIVED" | undefined;
     academicYearId?: string | undefined;
     programId?: string | undefined;
     courseId?: string | undefined;
     name?: string | undefined;
-    credits?: number | undefined;
     startDate?: Date | undefined;
     endDate?: Date | undefined;
     isCurrent?: boolean | undefined;
+    credits?: number | undefined;
 }, {
     number?: number | undefined;
-    status?: "ACTIVE" | "ARCHIVED" | "INACTIVE" | undefined;
+    status?: "ACTIVE" | "INACTIVE" | "ARCHIVED" | undefined;
     academicYearId?: string | undefined;
     programId?: string | undefined;
     courseId?: string | undefined;
     name?: string | undefined;
-    credits?: number | undefined;
     startDate?: string | undefined;
     endDate?: string | undefined;
     isCurrent?: boolean | undefined;
+    credits?: number | undefined;
 }>;
 export declare const createSectionSchema: z.ZodObject<{
     name: z.ZodString;
@@ -360,7 +360,7 @@ export declare const createSectionSchema: z.ZodObject<{
     semesterId: string;
     name: string;
     capacity: number;
-    status?: "ACTIVE" | "ARCHIVED" | "INACTIVE" | undefined;
+    status?: "ACTIVE" | "INACTIVE" | "ARCHIVED" | undefined;
     classAdvisor?: string | null | undefined;
     room?: string | null | undefined;
 }, {
@@ -368,7 +368,7 @@ export declare const createSectionSchema: z.ZodObject<{
     programId: string;
     semesterId: string;
     name: string;
-    status?: "ACTIVE" | "ARCHIVED" | "INACTIVE" | undefined;
+    status?: "ACTIVE" | "INACTIVE" | "ARCHIVED" | undefined;
     capacity?: number | undefined;
     classAdvisor?: string | null | undefined;
     room?: string | null | undefined;
@@ -383,7 +383,7 @@ export declare const updateSectionSchema: z.ZodObject<{
     programId: z.ZodOptional<z.ZodString>;
     departmentId: z.ZodOptional<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
-    status?: "ACTIVE" | "ARCHIVED" | "INACTIVE" | undefined;
+    status?: "ACTIVE" | "INACTIVE" | "ARCHIVED" | undefined;
     departmentId?: string | undefined;
     programId?: string | undefined;
     semesterId?: string | undefined;
@@ -392,7 +392,7 @@ export declare const updateSectionSchema: z.ZodObject<{
     classAdvisor?: string | null | undefined;
     room?: string | null | undefined;
 }, {
-    status?: "ACTIVE" | "ARCHIVED" | "INACTIVE" | undefined;
+    status?: "ACTIVE" | "INACTIVE" | "ARCHIVED" | undefined;
     departmentId?: string | undefined;
     programId?: string | undefined;
     semesterId?: string | undefined;
@@ -443,7 +443,7 @@ export declare const createSubjectSchema: z.ZodObject<{
     isSkillBased: boolean;
     isOpenElective: boolean;
     isProfessionalElective: boolean;
-    status?: "ACTIVE" | "ARCHIVED" | "INACTIVE" | undefined;
+    status?: "ACTIVE" | "INACTIVE" | "ARCHIVED" | undefined;
     sectionId?: string | null | undefined;
     description?: string | null | undefined;
     subjectCoordinator?: string | null | undefined;
@@ -454,7 +454,7 @@ export declare const createSubjectSchema: z.ZodObject<{
     semesterId: string;
     name: string;
     credits: number;
-    status?: "ACTIVE" | "ARCHIVED" | "INACTIVE" | undefined;
+    status?: "ACTIVE" | "INACTIVE" | "ARCHIVED" | undefined;
     sectionId?: string | null | undefined;
     description?: string | null | undefined;
     isLab?: boolean | undefined;
@@ -496,7 +496,7 @@ export declare const updateSubjectSchema: z.ZodObject<{
     sectionId: z.ZodOptional<z.ZodNullable<z.ZodOptional<z.ZodString>>>;
 }, "strip", z.ZodTypeAny, {
     code?: string | undefined;
-    status?: "ACTIVE" | "ARCHIVED" | "INACTIVE" | undefined;
+    status?: "ACTIVE" | "INACTIVE" | "ARCHIVED" | undefined;
     departmentId?: string | undefined;
     programId?: string | undefined;
     semesterId?: string | undefined;
@@ -519,7 +519,7 @@ export declare const updateSubjectSchema: z.ZodObject<{
     subjectCoordinator?: string | null | undefined;
 }, {
     code?: string | undefined;
-    status?: "ACTIVE" | "ARCHIVED" | "INACTIVE" | undefined;
+    status?: "ACTIVE" | "INACTIVE" | "ARCHIVED" | undefined;
     departmentId?: string | undefined;
     programId?: string | undefined;
     semesterId?: string | undefined;

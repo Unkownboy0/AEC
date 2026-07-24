@@ -9,6 +9,9 @@ const controller = new roles_controller_1.RolesController();
 router.get('/permissions', auth_middleware_1.requireAuth, (0, auth_middleware_1.requirePermission)('roles:read'), controller.getPermissions);
 router.get('/matrix', auth_middleware_1.requireAuth, (0, auth_middleware_1.requirePermission)('roles:read'), controller.getMatrix);
 router.post('/matrix', auth_middleware_1.requireAuth, (0, auth_middleware_1.requirePermission)('roles:write'), controller.updateMatrix);
+router.get('/version', auth_middleware_1.requireAuth, controller.getMatrixVersion);
+router.post('/simulate', auth_middleware_1.requireAuth, controller.simulateRole);
+router.post('/bulk-assign', auth_middleware_1.requireAuth, (0, auth_middleware_1.requirePermission)('roles:write'), controller.bulkOperation);
 // Permission Templates routes
 router.get('/templates', auth_middleware_1.requireAuth, (0, auth_middleware_1.requirePermission)('roles:read'), controller.listTemplates);
 router.post('/templates', auth_middleware_1.requireAuth, (0, auth_middleware_1.requirePermission)('roles:write'), controller.createTemplate);

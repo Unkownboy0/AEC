@@ -4,4 +4,5 @@ export declare class WorkflowController {
     createRequest: (req: Request, res: Response, next: NextFunction) => Promise<void>;
     listRequests: (req: Request, res: Response, next: NextFunction) => Promise<void>;
     takeAction: (req: Request, res: Response, next: NextFunction) => Promise<void>;
+    cancelRequest: (req: Request, res: Response, next: NextFunction) => Promise<void>;
 }

@@ -30,7 +30,9 @@ class AuthController {
                 });
                 return;
             }
-            const result = await this.service.refresh(refreshToken);
+            const ipAddress = req.ip || req.socket.remoteAddress;
+            const userAgent = req.headers['user-agent'];
+            const result = await this.service.refresh(refreshToken, ipAddress, userAgent);
             res.status(200).json({
                 status: 'success',
                 data: result,

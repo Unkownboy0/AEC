@@ -9,6 +9,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useDevice } from '../../context/DeviceContext';
 import { toast } from '../ui/Toast';
 import api from '../../lib/axios';
+import BottomNav from './BottomNav';
 
 const MainLayout: React.FC = () => {
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -382,6 +383,8 @@ const MainLayout: React.FC = () => {
           </div>
         </div>
       )}
+      {/* Mobile Bottom Navigation for Student role */}
+      {user?.role === 'Student' && <BottomNav />}
     </div>
   );
 };

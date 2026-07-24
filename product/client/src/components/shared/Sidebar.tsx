@@ -15,6 +15,10 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed }) => {
   const { user, logout } = useAuth();
   const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false);
   const [pendingWfCount, setPendingWfCount] = useState(0);
+  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({
+    '/student/academics': true,
+    '/student/career': true
+  });
 
   // Poll workflows to get pending approvals count if role is Faculty or HOD
   useEffect(() => {
@@ -85,68 +89,168 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed }) => {
 
       {/* Navigation List */}
       <nav className="flex-1 space-y-0.5 p-3 overflow-y-auto">
-        {menus.map((item: any) => {
-          // Dynamic icon retrieval with safety fallback to Layers
-          const Icon = (LucideIcons as any)[item.icon] || LucideIcons.Layers;
-          const isActive = checkIsActive(item.path);
-          return (
-            <NavLink
-              key={item.path}
-              to={item.path}
-              className={cn(
-                'relative flex items-center gap-3 py-2 px-3 text-xs font-semibold transition-all duration-200 ease-in-out',
-                isActive
-                  ? 'bg-primary/10 text-primary font-bold border-l-[3px] border-primary pl-[9px] rounded-r-lg rounded-l-none'
-                  : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground pl-3 rounded-lg'
-              )}
-            >
-              <div className="relative">
-                <Icon className={cn('h-4.5 w-4.5 flex-shrink-0 transition-colors duration-200', isActive ? 'text-primary' : 'text-muted-foreground group-hover:text-foreground')} />
-                {isCollapsed && (item.path === '/?tab=leave_requests' || item.path === '/?tab=workflows') && pendingWfCount > 0 && (
-                  <span className="absolute -top-1.5 -right-1.5 flex h-2.5 w-2.5 rounded-full bg-rose-600 animate-pulse border border-card" />
+        {(() => {
+          if (user?.role === 'Student') {
+            const rootItems = menus.filter((m: any) => !m.parentPath);
+            const renderedList: React.ReactNode[] = [];
+
+            rootItems.forEach((item: any) => {
+              const Icon = (LucideIcons as any)[item.icon] || LucideIcons.Layers;
+              const isActive = checkIsActive(item.path);
+
+              renderedList.push(
+                <NavLink
+                  key={item.path}
+                  to={item.path}
+                  className={cn(
+                    'relative flex items-center gap-3 py-2 px-3 text-xs font-semibold transition-all duration-200 ease-in-out',
+                    isActive
+                      ? 'bg-primary/10 text-primary font-bold border-l-[3px] border-primary pl-[9px] rounded-r-lg rounded-l-none'
+                      : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground pl-3 rounded-lg'
+                  )}
+                >
+                  <div className="relative">
+                    <Icon className={cn('h-4.5 w-4.5 flex-shrink-0 transition-colors duration-200', isActive ? 'text-primary' : 'text-muted-foreground group-hover:text-foreground')} />
+                  </div>
+                  {!isCollapsed && <span className="truncate">{item.name}</span>}
+                </NavLink>
+              );
+
+              if (item.componentKey === 'student_dashboard') {
+                const academicsChildren = menus.filter((m: any) => m.parentPath === '/student/academics');
+                const isAcademicsExpanded = expandedGroups['/student/academics'];
+                const AcademicsIcon = LucideIcons.GraduationCap;
+
+                renderedList.push(
+                  <div key="academics-group" className="space-y-0.5">
+                    <button
+                      onClick={() => setExpandedGroups(prev => ({ ...prev, '/student/academics': !prev['/student/academics'] }))}
+                      className="w-full flex items-center gap-3 py-2 px-3 text-xs font-semibold text-muted-foreground hover:bg-muted/50 hover:text-foreground rounded-lg pl-3"
+                    >
+                      <AcademicsIcon className="h-4.5 w-4.5 flex-shrink-0" />
+                      {!isCollapsed && <span className="truncate">Academics</span>}
+                      {!isCollapsed && (
+                        <span className="ml-auto">
+                          {isAcademicsExpanded ? <LucideIcons.ChevronDown className="h-3.5 w-3.5" /> : <LucideIcons.ChevronRight className="h-3.5 w-3.5" />}
+                        </span>
+                      )}
+                    </button>
+
+                    {!isCollapsed && isAcademicsExpanded && academicsChildren.map((child: any) => {
+                      const ChildIcon = (LucideIcons as any)[child.icon] || LucideIcons.Layers;
+                      const isChildActive = checkIsActive(child.path);
+                      return (
+                        <NavLink
+                          key={child.path}
+                          to={child.path}
+                          className={cn(
+                            'flex items-center gap-3 py-1.5 pl-8 pr-3 text-xs font-semibold transition-all duration-200',
+                            isChildActive
+                              ? 'text-primary font-bold'
+                              : 'text-muted-foreground hover:text-foreground'
+                          )}
+                        >
+                          <ChildIcon className="h-4 w-4 shrink-0" />
+                          <span className="truncate">{child.name}</span>
+                        </NavLink>
+                      );
+                    })}
+                  </div>
+                );
+              }
+
+              if (item.componentKey === 'student_id_card') {
+                const careerChildren = menus.filter((m: any) => m.parentPath === '/student/career');
+                const isCareerExpanded = expandedGroups['/student/career'];
+                const CareerIcon = LucideIcons.Briefcase;
+
+                renderedList.push(
+                  <div key="career-group" className="space-y-0.5">
+                    <button
+                      onClick={() => setExpandedGroups(prev => ({ ...prev, '/student/career': !prev['/student/career'] }))}
+                      className="w-full flex items-center gap-3 py-2 px-3 text-xs font-semibold text-muted-foreground hover:bg-muted/50 hover:text-foreground rounded-lg pl-3"
+                    >
+                      <CareerIcon className="h-4.5 w-4.5 flex-shrink-0" />
+                      {!isCollapsed && <span className="truncate">Career</span>}
+                      {!isCollapsed && (
+                        <span className="ml-auto">
+                          {isCareerExpanded ? <LucideIcons.ChevronDown className="h-3.5 w-3.5" /> : <LucideIcons.ChevronRight className="h-3.5 w-3.5" />}
+                        </span>
+                      )}
+                    </button>
+
+                    {!isCollapsed && isCareerExpanded && careerChildren.map((child: any) => {
+                      const ChildIcon = (LucideIcons as any)[child.icon] || LucideIcons.Layers;
+                      const isChildActive = checkIsActive(child.path);
+                      return (
+                        <NavLink
+                          key={child.path}
+                          to={child.path}
+                          className={cn(
+                            'flex items-center gap-3 py-1.5 pl-8 pr-3 text-xs font-semibold transition-all duration-200',
+                            isChildActive
+                              ? 'text-primary font-bold'
+                              : 'text-muted-foreground hover:text-foreground'
+                          )}
+                        >
+                          <ChildIcon className="h-4 w-4 shrink-0" />
+                          <span className="truncate">{child.name}</span>
+                        </NavLink>
+                      );
+                    })}
+                  </div>
+                );
+              }
+            });
+
+            return renderedList;
+          }
+
+          return menus.map((item: any) => {
+            const Icon = (LucideIcons as any)[item.icon] || LucideIcons.Layers;
+            const isActive = checkIsActive(item.path);
+            return (
+              <NavLink
+                key={item.path}
+                to={item.path}
+                className={cn(
+                  'relative flex items-center gap-3 py-2 px-3 text-xs font-semibold transition-all duration-200 ease-in-out',
+                  isActive
+                    ? 'bg-primary/10 text-primary font-bold border-l-[3px] border-primary pl-[9px] rounded-r-lg rounded-l-none'
+                    : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground pl-3 rounded-lg'
                 )}
-              </div>
-              {!isCollapsed && <span className="truncate">{item.name}</span>}
-              {!isCollapsed && (item.path === '/?tab=leave_requests' || item.path === '/?tab=workflows') && pendingWfCount > 0 && (
-                <span className="ml-auto bg-rose-600 text-white text-[9px] font-black px-1.5 py-0.5 rounded-full shrink-0 shadow-sm animate-pulse">
-                  {pendingWfCount}
-                </span>
-              )}
-            </NavLink>
-          );
-        })}
+              >
+                <div className="relative">
+                  <Icon className={cn('h-4.5 w-4.5 flex-shrink-0 transition-colors duration-200', isActive ? 'text-primary' : 'text-muted-foreground group-hover:text-foreground')} />
+                  {isCollapsed && (item.path === '/?tab=leave_requests' || item.path === '/?tab=workflows') && pendingWfCount > 0 && (
+                    <span className="absolute -top-1.5 -right-1.5 flex h-2.5 w-2.5 rounded-full bg-rose-600 animate-pulse border border-card" />
+                  )}
+                </div>
+                {!isCollapsed && <span className="truncate">{item.name}</span>}
+              </NavLink>
+            );
+          });
+        })()}
       </nav>
 
       {/* Footer Profile & Logout Section */}
       <div className="border-t p-2 space-y-1 bg-muted/10">
-        <NavLink
-          to="/profile"
-          className={cn(
-            'relative flex items-center gap-3 py-2 px-3 text-xs font-semibold transition-all duration-200 ease-in-out',
-            location.pathname === '/profile'
-              ? 'bg-primary/10 text-primary font-bold border-l-[3px] border-primary pl-[9px] rounded-r-lg rounded-l-none'
-              : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground pl-3 rounded-lg'
-          )}
-        >
-          <LucideIcons.User className={cn('h-4.5 w-4.5 flex-shrink-0 transition-colors duration-200', location.pathname === '/profile' ? 'text-primary' : 'text-muted-foreground')} />
-          {!isCollapsed && <span className="truncate">My Profile</span>}
-        </NavLink>
 
-        <NavLink
-          to="/settings"
-          className={cn(
-            'relative flex items-center gap-3 py-2 px-3 text-xs font-semibold transition-all duration-200 ease-in-out',
-            location.pathname === '/settings'
-              ? 'bg-primary/10 text-primary font-bold border-l-[3px] border-primary pl-[9px] rounded-r-lg rounded-l-none'
-              : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground pl-3 rounded-lg'
-          )}
-        >
-          <LucideIcons.Settings className={cn('h-4.5 w-4.5 flex-shrink-0 transition-colors duration-200', location.pathname === '/settings' ? 'text-primary' : 'text-muted-foreground')} />
-          {!isCollapsed && <span className="truncate">Settings</span>}
-        </NavLink>
-
-        <div className="border-t my-1" />
-
+        {(user?.role === 'Super Admin' || user?.role === 'College Admin') && (
+          <NavLink
+            to="/settings"
+            className={cn(
+              'relative flex items-center gap-3 py-2 px-3 text-xs font-semibold transition-all duration-200 ease-in-out',
+              location.pathname === '/settings'
+                ? 'bg-primary/10 text-primary font-bold border-l-[3px] border-primary pl-[9px] rounded-r-lg rounded-l-none'
+                : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground pl-3 rounded-lg'
+            )}
+          >
+            <LucideIcons.Settings className={cn('h-4.5 w-4.5 flex-shrink-0 transition-colors duration-200', location.pathname === '/settings' ? 'text-primary' : 'text-muted-foreground')} />
+            {!isCollapsed && <span className="truncate">Settings</span>}
+          </NavLink>
+        )}
+        
         {/* ALWAYS LAST ITEM: Logout */}
         <button
           onClick={() => setIsLogoutConfirmOpen(true)}

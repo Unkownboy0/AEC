@@ -26,7 +26,7 @@ class NotificationsController {
      */
     create = async (req, res, next) => {
         try {
-            const { title, content, type, scheduledFor } = req.body;
+            const { title, content, type, scheduledFor, imageUrl } = req.body;
             if (!title || !content || !type) {
                 throw new exceptions_1.BadRequestException('title, content and type are required');
             }
@@ -39,10 +39,11 @@ class NotificationsController {
                     type,
                     status,
                     scheduledFor: scheduleDate,
+                    imageUrl,
                 },
             });
             if (status === 'SENT') {
-                console.log(`📣 [NOTIFICATION DISPATCHED] Type: ${type} | Title: ${title} | Content: ${content}`);
+                console.log(`📣 [NOTIFICATION DISPATCHED] Type: ${type} | Title: ${title} | Content: ${content} | Image: ${imageUrl || 'None'}`);
             }
             else {
                 console.log(`⏰ [NOTIFICATION SCHEDULED] Type: ${type} | For: ${scheduleDate}`);
@@ -53,7 +54,7 @@ class NotificationsController {
                     userId: req.user.id,
                     action: 'CREATE',
                     module: 'NOTIFICATION',
-                    description: `Dispatched notification campaign: ${title} (${type})`,
+                    description: `Dispatched notification campaign: ${title} (${type})${imageUrl ? ' with attachment' : ''}`,
                     ipAddress: req.ip,
                     userAgent: req.headers['user-agent'],
                 },

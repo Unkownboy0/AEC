@@ -58,6 +58,12 @@ const Header: React.FC<HeaderProps> = ({ onOpenPalette }) => {
   useEffect(() => {
     fetchNotifications();
     const interval = setInterval(fetchNotifications, 10000); // 10s auto-refresh
+    
+    // Request HTML5 Web Notification permission
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
+    
     return () => clearInterval(interval);
   }, []);
 
@@ -69,11 +75,10 @@ const Header: React.FC<HeaderProps> = ({ onOpenPalette }) => {
         setNotifications(list);
         
         // Count unread system announcements
-        // In this implementation, we compare count since last click or standard unseen
         const unread = list.length; 
         setUnreadCount(unread);
         
-        // Show real-time browser/toast alerts for new circulars
+        // Show real-time browser/toast alerts and native OS notifications
         const newest = list[0];
         if (newest && newest.createdAt) {
           const createdTime = new Date(newest.createdAt).getTime();
@@ -81,8 +86,15 @@ const Header: React.FC<HeaderProps> = ({ onOpenPalette }) => {
           const lastSeen = lastSeenStr ? parseInt(lastSeenStr, 10) : 0;
           if (createdTime > lastSeen) {
             localStorage.setItem('last_seen_notification', String(createdTime));
-            // Trigger popup
+            // Trigger in-app toast
             toast.info(newest.content, newest.title);
+
+            // Trigger OS native notification popup
+            if ('Notification' in window && Notification.permission === 'granted') {
+              new Notification(newest.title, {
+                body: newest.content,
+              });
+            }
           }
         }
       }
@@ -92,13 +104,21 @@ const Header: React.FC<HeaderProps> = ({ onOpenPalette }) => {
   };
 
   const openEditProfile = () => {
-    setProfileForm({
-      firstName: user?.firstName || '',
-      lastName: user?.lastName || '',
-      phone: '',
-    });
     setIsDropdownOpen(false);
-    setIsEditProfileOpen(true);
+    if (user?.role === 'Student') {
+      navigate('/student/profile');
+    } else if (user?.role === 'HOD') {
+      navigate('/hod/profile');
+    } else if (user?.role === 'Faculty') {
+      navigate('/?tab=profile');
+    } else {
+      setProfileForm({
+        firstName: user?.firstName || '',
+        lastName: user?.lastName || '',
+        phone: '',
+      });
+      setIsEditProfileOpen(true);
+    }
   };
 
   const handleSaveProfile = async (e: React.FormEvent) => {

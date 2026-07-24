@@ -5,6 +5,8 @@ export declare class EnterpriseController {
     getStudent: (req: Request, res: Response, next: NextFunction) => Promise<void>;
     downloadIdCardPdf: (req: Request, res: Response, next: NextFunction) => Promise<Response<any, Record<string, any>> | undefined>;
     downloadAttendancePdf: (req: Request, res: Response, next: NextFunction) => Promise<Response<any, Record<string, any>> | undefined>;
+    getMappingValidation: (req: Request, res: Response, next: NextFunction) => Promise<void>;
+    runAutoAssign: (req: Request, res: Response, next: NextFunction) => Promise<void>;
     createStudent: (req: Request, res: Response, next: NextFunction) => Promise<void>;
     updateStudent: (req: Request, res: Response, next: NextFunction) => Promise<void>;
     deleteStudent: (req: Request, res: Response, next: NextFunction) => Promise<void>;
@@ -56,4 +58,16 @@ export declare class EnterpriseController {
     verifyInternshipDocument: (req: Request, res: Response, next: NextFunction) => Promise<Response<any, Record<string, any>> | undefined>;
     assignStudentsToMentor: (req: Request, res: Response, next: NextFunction) => Promise<Response<any, Record<string, any>> | undefined>;
     removeStudentFromMentor: (req: Request, res: Response, next: NextFunction) => Promise<Response<any, Record<string, any>> | undefined>;
+    /**
+     * Get Student ID Card Data & QR Token
+     */
+    getStudentIdCard: (req: Request, res: Response, next: NextFunction) => Promise<Response<any, Record<string, any>> | undefined>;
+    /**
+     * Get Faculty ID Card Data & QR Token
+     */
+    getFacultyIdCard: (req: Request, res: Response, next: NextFunction) => Promise<Response<any, Record<string, any>> | undefined>;
+    /**
+     * Public endpoint to decode token & verify identity from QR Code scan
+     */
+    verifyIdCard: (req: Request, res: Response, next: NextFunction) => Promise<Response<any, Record<string, any>> | undefined>;
 }

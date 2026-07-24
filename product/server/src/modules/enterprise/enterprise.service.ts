@@ -77,11 +77,47 @@ export class EnterpriseService {
       });
     }
 
+    // Fetch the semester to check its number
+    const semester = await prisma.semester.findUnique({
+      where: { id: semesterId }
+    });
+    const semNumber = semester ? semester.number : 1;
+
+    let operationalDeptId = departmentId; // default
+    const programDeptId = departmentId; // permanent selected engineering branch
+
+    if (semNumber === 1 || semNumber === 2) {
+      // Must be academically managed under Science & Humanities (S&H)
+      let snhDept = await prisma.department.findFirst({
+        where: {
+          OR: [
+            { code: 'SNH' },
+            { code: 'S&H' },
+            { name: { contains: 'Humanities' } }
+          ]
+        }
+      });
+      if (!snhDept) {
+        snhDept = await prisma.department.create({
+          data: {
+            name: 'Science & Humanities',
+            code: 'SNH',
+            shortName: 'S&H',
+            description: 'Department of Science and Humanities (First Year)',
+            type: 'Engineering',
+            color: '#7C3AED',
+            establishedYear: 2010
+          }
+        });
+      }
+      operationalDeptId = snhDept.id;
+    }
+
     // AUTO ASSIGNMENT: Automatically assign Mentor, Faculty, and Class Advisor mappings
     let resolvedFacultyId = facultyId || mentorId || null;
     if (!resolvedFacultyId) {
       const defaultFaculty = await prisma.faculty.findFirst({
-        where: { departmentId, deleted: false }
+        where: { departmentId: operationalDeptId, deleted: false }
       });
       if (defaultFaculty) {
         resolvedFacultyId = defaultFaculty.id;
@@ -110,7 +146,8 @@ export class EnterpriseService {
       permanentAddress,
       scholarship,
       academicYearId,
-      departmentId,
+      departmentId: operationalDeptId,
+      programDepartmentId: programDeptId,
       programId,
       courseId,
       semesterId,
@@ -176,11 +213,64 @@ export class EnterpriseService {
     if (scholarship !== undefined) data.scholarship = scholarship;
     
     if (academicYearId) data.academicYearId = academicYearId;
-    if (departmentId) data.departmentId = departmentId;
     if (programId) data.programId = programId;
     if (courseId) data.courseId = courseId;
     if (semesterId) data.semesterId = semesterId;
     if (sectionId) data.sectionId = sectionId;
+
+    // Resolve S&H and Program Department logic dynamically
+    const targetSemesterId = semesterId || student.semesterId;
+    const semRecord = await prisma.semester.findUnique({
+      where: { id: targetSemesterId }
+    });
+    const semNumber = semRecord ? semRecord.number : 1;
+    const programDeptId = departmentId || student.programDepartmentId || student.departmentId;
+
+    if (semNumber === 1 || semNumber === 2) {
+      let snhDept = await prisma.department.findFirst({
+        where: {
+          OR: [
+            { code: 'SNH' },
+            { code: 'S&H' },
+            { name: { contains: 'Humanities' } }
+          ]
+        }
+      });
+      if (!snhDept) {
+        snhDept = await prisma.department.create({
+          data: {
+            name: 'Science & Humanities',
+            code: 'SNH',
+            shortName: 'S&H',
+            description: 'Department of Science and Humanities (First Year)',
+            type: 'Engineering',
+            color: '#7C3AED',
+            establishedYear: 2010
+          }
+        });
+      }
+      data.departmentId = snhDept.id;
+      data.programDepartmentId = programDeptId;
+    } else {
+      data.departmentId = programDeptId;
+      data.programDepartmentId = programDeptId;
+
+      // Promotion automation: S&H -> Original branch
+      const currentSemester = await prisma.semester.findUnique({
+        where: { id: student.semesterId }
+      });
+      if (currentSemester && (currentSemester.number === 1 || currentSemester.number === 2)) {
+        // Auto assign department mentor
+        const newMentor = await prisma.faculty.findFirst({
+          where: { departmentId: programDeptId, deleted: false }
+        });
+        if (newMentor) {
+          data.mentorId = newMentor.id;
+          data.facultyId = newMentor.id;
+          data.classAdvisorId = newMentor.id;
+        }
+      }
+    }
 
     if (hostelId !== undefined) data.hostelId = hostelId || null;
     if (roomNo !== undefined) data.roomNo = roomNo || null;
