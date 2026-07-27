@@ -314,6 +314,8 @@ class SecurityHelper {
                 { name: 'Advisor Chat', path: '/student/advisor-chat', icon: 'MessageSquare', componentKey: 'student_advisor_chat', order: 26 },
                 { name: 'Notifications', path: '/student/notifications', icon: 'Inbox', componentKey: 'student_notifications', order: 27 },
                 { name: 'Calendar', path: '/student/calendar', icon: 'Calendar', componentKey: 'student_calendar', order: 28 },
+                { name: 'Gamification Arena', path: '/student/gamification', icon: 'Sparkles', componentKey: 'student_gamification', order: 29 },
+                { name: 'Certificate Requests', path: '/student/certificates', icon: 'Award', componentKey: 'student_certificates', order: 30 },
             ];
         }
         if (role === 'Faculty') {
