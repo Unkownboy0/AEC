@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 export declare class EnterpriseController {
     private service;
     listStudents: (req: Request, res: Response, next: NextFunction) => Promise<void>;
+    getStudentDashboardSummary: (req: Request, res: Response, next: NextFunction) => Promise<Response<any, Record<string, any>> | undefined>;
     getStudent: (req: Request, res: Response, next: NextFunction) => Promise<void>;
     downloadIdCardPdf: (req: Request, res: Response, next: NextFunction) => Promise<Response<any, Record<string, any>> | undefined>;
     downloadAttendancePdf: (req: Request, res: Response, next: NextFunction) => Promise<Response<any, Record<string, any>> | undefined>;

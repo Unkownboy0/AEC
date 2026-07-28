@@ -1,0 +1,1 @@
+- [Expo installation](package-installation.md) — native dependency installs may be blocked by the workspace package firewall; never bypass it.

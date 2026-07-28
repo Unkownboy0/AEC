@@ -16,6 +16,7 @@ router.post('/bulk-action', controller.bulkAction);
 // Students
 router.get('/students/mapping-validation', controller.getMappingValidation);
 router.post('/students/auto-assign', controller.runAutoAssign);
+router.get('/students/dashboard-summary', controller.getStudentDashboardSummary);
 router.get('/students', controller.listStudents);
 router.get('/students/:id/id-card/pdf', controller.downloadIdCardPdf);
 router.get('/students/:id/attendance/pdf', controller.downloadAttendancePdf);
@@ -140,5 +141,31 @@ router.get('/admission/counselling', admissionController.listCounselling);
 router.post('/admission/counselling', admissionController.createCounselling);
 router.get('/admission/scholarships', admissionController.listScholarships);
 router.get('/admission/payments', admissionController.listPayments);
+// Certificate Request Engine
+const certificate_controller_1 = require("./certificate.controller");
+const certController = new certificate_controller_1.CertificateController();
+router.post('/certificates/apply', certController.apply);
+router.get('/certificates/my-list', certController.listMyCertificates);
+router.get('/certificates/verify/:hash', certController.verify);
+// Gamification Engine
+const gamification_controller_1 = require("./gamification.controller");
+const gamificationController = new gamification_controller_1.GamificationController();
+router.get('/gamification/profile', gamificationController.getProfile);
+router.get('/gamification/leaderboard', gamificationController.getLeaderboard);
+router.get('/gamification/rewards', gamificationController.getStoreItems);
+router.post('/gamification/redeem', gamificationController.redeemReward);
+// Quiz Engine
+const quiz_controller_1 = require("./quiz.controller");
+const quizController = new quiz_controller_1.QuizController();
+router.get('/quizzes', quizController.listQuizzes);
+router.get('/quizzes/:id', quizController.getQuiz);
+router.post('/quizzes/:id/submit', quizController.submitQuiz);
+// Centralized Master Timetable Engine (COE & Dean Academics Control)
+const master_timetable_controller_1 = require("./master-timetable.controller");
+const masterTimetableController = new master_timetable_controller_1.MasterTimetableController();
+router.get('/master-timetable/view', masterTimetableController.getCentralizedTimetable);
+router.post('/master-timetable/conflict-check', masterTimetableController.runConflictCheck);
+router.post('/master-timetable/publish', masterTimetableController.publishTimetable);
+router.get('/master-timetable/audit-logs', masterTimetableController.getAuditLogs);
 exports.default = router;
 //# sourceMappingURL=enterprise.routes.js.map

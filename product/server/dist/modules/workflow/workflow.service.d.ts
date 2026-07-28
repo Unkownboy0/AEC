@@ -16,9 +16,9 @@ export declare class WorkflowService {
         endDate: Date | null;
         title: string;
         studentId: string | null;
+        attachments: string;
         reason: string;
         currentStep: string;
-        attachments: string;
         facultyRequesterId: string | null;
     }>;
     /**
@@ -116,9 +116,9 @@ export declare class WorkflowService {
         endDate: Date | null;
         title: string;
         studentId: string | null;
+        attachments: string;
         reason: string;
         currentStep: string;
-        attachments: string;
         facultyRequesterId: string | null;
     })[]>;
     /**
@@ -138,9 +138,9 @@ export declare class WorkflowService {
         endDate: Date | null;
         title: string;
         studentId: string | null;
+        attachments: string;
         reason: string;
         currentStep: string;
-        attachments: string;
         facultyRequesterId: string | null;
     }>;
     /**
@@ -160,9 +160,9 @@ export declare class WorkflowService {
         endDate: Date | null;
         title: string;
         studentId: string | null;
+        attachments: string;
         reason: string;
         currentStep: string;
-        attachments: string;
         facultyRequesterId: string | null;
     }>;
     /**

@@ -1,0 +1,2105 @@
+# AEC CAMPUSOS
+
+## REACT NATIVE ENTERPRISE MOBILE APPLICATION
+
+
+
+IMPORTANT
+
+
+
+I ALREADY HAVE A FULLY WORKING WEBSITE.
+
+
+
+DO NOT REBUILD THE WEBSITE.
+
+
+
+DO NOT CREATE A NEW DATABASE.
+
+
+
+DO NOT CREATE A NEW BACKEND.
+
+
+
+DO NOT CREATE A NEW ADMIN PANEL.
+
+
+
+DO NOT CREATE DUPLICATE APIS.
+
+
+
+DO NOT CREATE DUPLICATE BUSINESS LOGIC.
+
+
+
+The Website is the primary ERP system.
+
+
+
+The Mobile Application must integrate with the existing Website.
+
+
+
+====================================================
+
+
+
+OBJECTIVE
+
+
+
+====================================================
+
+
+
+Build a brand-new Enterprise React Native Mobile Application using Expo + TypeScript.
+
+
+
+The application must connect directly to my existing production backend.
+
+
+
+Everything must use the existing APIs.
+
+
+
+Everything must use the existing database.
+
+
+
+Everything must follow the existing enterprise architecture.
+
+
+
+====================================================
+
+
+
+SYSTEM ARCHITECTURE
+
+
+
+====================================================
+
+
+
+Existing Website
+
+
+
+↓
+
+
+
+Existing Backend
+
+
+
+↓
+
+
+
+Existing Database
+
+
+
+↓
+
+
+
+Existing Authentication
+
+
+
+↓
+
+
+
+Existing RBAC
+
+
+
+↓
+
+
+
+Existing Socket.IO
+
+
+
+↓
+
+
+
+NEW React Native Mobile Application
+
+
+
+The mobile app is only another client.
+
+
+
+Never duplicate logic.
+
+
+
+====================================================
+
+
+
+AUTHENTICATION
+
+
+
+====================================================
+
+
+
+Reuse the existing login system.
+
+
+
+Support
+
+
+
+JWT
+
+
+
+Refresh Token
+
+
+
+Remember Me
+
+
+
+Secure Token Storage
+
+
+
+Biometric Login
+
+
+
+Fingerprint
+
+
+
+Face Unlock
+
+
+
+OTP
+
+
+
+Forgot Password
+
+
+
+Session Restore
+
+
+
+Auto Login
+
+
+
+Logout from all devices
+
+
+
+====================================================
+
+
+
+SUPER ADMIN
+
+
+
+====================================================
+
+
+
+Reuse the existing Super Admin.
+
+
+
+Do NOT create another Super Admin.
+
+
+
+The existing Super Admin controls
+
+
+
+Website
+
+
+
+↓
+
+
+
+Mobile
+
+
+
+↓
+
+
+
+Database
+
+
+
+↓
+
+
+
+Permissions
+
+
+
+↓
+
+
+
+Notifications
+
+
+
+↓
+
+
+
+Reports
+
+
+
+↓
+
+
+
+Analytics
+
+
+
+↓
+
+
+
+Everything.
+
+
+
+====================================================
+
+
+
+REAL TIME SYNCHRONIZATION
+
+
+
+====================================================
+
+
+
+Everything must synchronize instantly.
+
+
+
+Examples
+
+
+
+Website
+
+
+
+↓
+
+
+
+Principal publishes Circular
+
+
+
+↓
+
+
+
+Students receive push notification
+
+
+
+↓
+
+
+
+Circular appears immediately
+
+
+
+Website
+
+
+
+↓
+
+
+
+Faculty marks attendance
+
+
+
+↓
+
+
+
+Attendance updates instantly in student mobile app
+
+
+
+Website
+
+
+
+↓
+
+
+
+Mentor approves leave
+
+
+
+↓
+
+
+
+Student status updates instantly
+
+
+
+Website
+
+
+
+↓
+
+
+
+Super Admin edits permissions
+
+
+
+↓
+
+
+
+Mobile permissions update immediately
+
+
+
+No refresh.
+
+
+
+No restart.
+
+
+
+No logout.
+
+
+
+Use Socket.IO.
+
+
+
+====================================================
+
+
+
+ROLE BASED ACCESS
+
+
+
+====================================================
+
+
+
+Reuse existing RBAC.
+
+
+
+Do not hardcode menus.
+
+
+
+Do not hardcode tabs.
+
+
+
+Do not hardcode permissions.
+
+
+
+Everything must come from backend.
+
+
+
+Roles include
+
+
+
+Student
+
+
+
+Faculty
+
+
+
+Mentor
+
+
+
+HOD
+
+
+
+Academic Dean
+
+
+
+Admission Dean
+
+
+
+IQAC Dean
+
+
+
+Science & Humanities Dean
+
+
+
+Controller of Examination
+
+
+
+Vice Principal
+
+
+
+Principal
+
+
+
+Placement Officer
+
+
+
+Accounts Officer
+
+
+
+Librarian
+
+
+
+Hostel
+
+
+
+Transport
+
+
+
+Sports
+
+
+
+Parent
+
+
+
+Super Admin
+
+
+
+Users with multiple roles must support Workspace Switching.
+
+
+
+====================================================
+
+
+
+WORKSPACE SWITCHING
+
+
+
+====================================================
+
+
+
+When switching workspace
+
+
+
+Reload
+
+
+
+Permissions
+
+
+
+Menus
+
+
+
+Drawer
+
+
+
+Tabs
+
+
+
+Dashboard
+
+
+
+Notifications
+
+
+
+Profile
+
+
+
+APIs
+
+
+
+Everything automatically.
+
+
+
+No logout.
+
+
+
+====================================================
+
+
+
+MODULES
+
+
+
+====================================================
+
+
+
+The mobile app must support every module already available on the website.
+
+
+
+Student
+
+
+
+Faculty
+
+
+
+Mentor
+
+
+
+HOD
+
+
+
+Principal
+
+
+
+Vice Principal
+
+
+
+Academic Dean
+
+
+
+Admission Dean
+
+
+
+IQAC
+
+
+
+Science & Humanities
+
+
+
+COE
+
+
+
+Placement
+
+
+
+Accounts
+
+
+
+Library
+
+
+
+Transport
+
+
+
+Hostel
+
+
+
+Sports
+
+
+
+Parent
+
+
+
+Each module should automatically load according to permissions.
+
+
+
+====================================================
+
+
+
+DESIGN SYSTEM
+
+
+
+====================================================
+
+
+
+Create a premium modern UI.
+
+
+
+Use
+
+
+
+Minimal Design
+
+
+
+Soft Glass
+
+
+
+Liquid Glass Accents
+
+
+
+Material Design 3
+
+
+
+Smooth Animations
+
+
+
+Responsive Layouts
+
+
+
+Professional Cards
+
+
+
+Rounded Components
+
+
+
+Consistent Colors
+
+
+
+Consistent Typography
+
+
+
+Skeleton Loading
+
+
+
+Empty States
+
+
+
+Error States
+
+
+
+Dark Theme
+
+
+
+Light Theme
+
+
+
+Everything should follow one global design system.
+
+
+
+====================================================
+
+
+
+NATIVE FEATURES
+
+
+
+====================================================
+
+
+
+Support
+
+
+
+Push Notifications
+
+
+
+Camera
+
+
+
+Gallery
+
+
+
+QR Scanner
+
+
+
+Barcode Scanner
+
+
+
+PDF Viewer
+
+
+
+Excel Download
+
+
+
+Document Upload
+
+
+
+Image Upload
+
+
+
+Share
+
+
+
+Print
+
+
+
+Biometric Login
+
+
+
+Deep Linking
+
+
+
+Offline Storage
+
+
+
+Background Sync
+
+
+
+Native Permissions
+
+
+
+====================================================
+
+
+
+PERFORMANCE
+
+
+
+====================================================
+
+
+
+Lazy Loading
+
+
+
+React Query
+
+
+
+API Cache
+
+
+
+Infinite Lists
+
+
+
+Optimized Images
+
+
+
+Memory Optimization
+
+
+
+Hardware Accelerated Animations
+
+
+
+120Hz / 144Hz Smooth Rendering
+
+
+
+Fast Startup
+
+
+
+Low Battery Consumption
+
+
+
+====================================================
+
+
+
+SECURITY
+
+
+
+====================================================
+
+
+
+Use existing backend security.
+
+
+
+JWT
+
+
+
+Refresh Token
+
+
+
+RBAC
+
+
+
+HTTPS
+
+
+
+Secure Storage
+
+
+
+API Authorization
+
+
+
+Role Validation
+
+
+
+Audit Logging
+
+
+
+====================================================
+
+
+
+IMPORT / EXPORT
+
+
+
+====================================================
+
+
+
+Reuse existing Import APIs.
+
+
+
+Reuse existing Export APIs.
+
+
+
+Never duplicate.
+
+
+
+Support
+
+
+
+Excel
+
+
+
+CSV
+
+
+
+PDF
+
+
+
+====================================================
+
+
+
+NOTIFICATIONS
+
+
+
+====================================================
+
+
+
+Receive notifications for
+
+
+
+Leave Approval
+
+
+
+OD Approval
+
+
+
+Attendance
+
+
+
+Marks
+
+
+
+Assignments
+
+
+
+Homework
+
+
+
+Circulars
+
+
+
+Notices
+
+
+
+Placement Drives
+
+
+
+Fee Due
+
+
+
+Library
+
+
+
+Hostel
+
+
+
+Transport
+
+
+
+Timetable
+
+
+
+Exam
+
+
+
+Results
+
+
+
+Everything.
+
+
+
+Notifications should
+
+
+
+Play sound
+
+
+
+Support vibration
+
+
+
+Support notification channels
+
+
+
+Support deep links
+
+
+
+Open the correct screen
+
+
+
+====================================================
+
+
+
+DATA
+
+
+
+====================================================
+
+
+
+Never use
+
+
+
+Dummy Data
+
+
+
+Mock Data
+
+
+
+Hardcoded Arrays
+
+
+
+Placeholder Users
+
+
+
+Everything must come from the database.
+
+
+
+If database has no data
+
+
+
+Show
+
+
+
+No Data Available
+
+
+
+Create
+
+
+
+Import
+
+
+
+Never generate fake records.
+
+
+
+====================================================
+
+
+
+FINAL GOAL
+
+
+
+====================================================
+
+
+
+The React Native Mobile Application should behave as a natural extension of the existing Enterprise Website.
+
+
+
+Both platforms must work as one unified ERP.
+
+
+
+One Backend
+
+
+
+One Database
+
+
+
+One Authentication
+
+
+
+One RBAC
+
+
+
+One Notification Engine
+
+
+
+One Audit System
+
+
+
+One Business Logic
+
+
+
+Everything must stay synchronized in real time.
+
+
+
+No duplicated code.
+
+
+
+No duplicated APIs.
+
+
+
+No duplicated database.
+
+
+
+Deliver a production-ready enterprise mobile application suitable for real institutional deployment.
+
+
+
+====================================================
+
+ENTERPRISE API ARCHITECTURE
+
+====================================================
+
+
+
+The existing backend must follow enterprise API standards.
+
+
+
+Do not create random APIs.
+
+
+
+Create a clean, modular, versioned REST API architecture.
+
+
+
+Preferred Structure
+
+
+
+/api/v1/auth
+
+/api/v1/users
+
+/api/v1/students
+
+/api/v1/faculty
+
+/api/v1/mentor
+
+/api/v1/hod
+
+/api/v1/principal
+
+/api/v1/deans
+
+/api/v1/accounts
+
+/api/v1/library
+
+/api/v1/hostel
+
+/api/v1/transport
+
+/api/v1/placement
+
+/api/v1/examinations
+
+/api/v1/results
+
+/api/v1/attendance
+
+/api/v1/timetable
+
+/api/v1/notifications
+
+/api/v1/circulars
+
+/api/v1/files
+
+/api/v1/rbac
+
+
+
+Each module should have
+
+
+
+GET
+
+
+
+POST
+
+
+
+PUT
+
+
+
+PATCH
+
+
+
+DELETE
+
+
+
+Bulk Import
+
+
+
+Bulk Export
+
+
+
+Search
+
+
+
+Pagination
+
+
+
+Filtering
+
+
+
+Sorting
+
+
+
+====================================================
+
+API RESPONSE FORMAT
+
+====================================================
+
+
+
+Every API response must follow one global response structure.
+
+
+
+Success Response
+
+
+
+{
+
+"success": true,
+
+"message": "Operation completed successfully",
+
+"data": {},
+
+"meta": {
+
+"page":1,
+
+"limit":20,
+
+"total":200
+
+}
+
+}
+
+
+
+Error Response
+
+
+
+{
+
+"success": false,
+
+"message":"Validation Failed",
+
+"errors":[]
+
+}
+
+
+
+No inconsistent JSON responses.
+
+
+
+Use the same format across every endpoint.
+
+
+
+====================================================
+
+SWAGGER / OPENAPI
+
+====================================================
+
+
+
+Generate complete Swagger documentation.
+
+
+
+Every endpoint must include
+
+
+
+Description
+
+
+
+Summary
+
+
+
+Parameters
+
+
+
+Path Variables
+
+
+
+Request Body
+
+
+
+Response Body
+
+
+
+Status Codes
+
+
+
+Authentication
+
+
+
+Permissions Required
+
+
+
+Example Request
+
+
+
+Example Response
+
+
+
+Support
+
+
+
+Swagger UI
+
+
+
+OpenAPI 3.x
+
+
+
+Automatically generated documentation.
+
+
+
+====================================================
+
+SOCKET.IO EVENTS
+
+====================================================
+
+
+
+Implement enterprise real-time communication.
+
+
+
+Examples
+
+
+
+student.created
+
+
+
+student.updated
+
+
+
+student.deleted
+
+
+
+faculty.created
+
+
+
+faculty.updated
+
+
+
+attendance.updated
+
+
+
+marks.updated
+
+
+
+leave.submitted
+
+
+
+leave.approved
+
+
+
+leave.rejected
+
+
+
+od.submitted
+
+
+
+od.approved
+
+
+
+od.rejected
+
+
+
+notification.created
+
+
+
+circular.created
+
+
+
+assignment.created
+
+
+
+assignment.updated
+
+
+
+fees.updated
+
+
+
+placement.created
+
+
+
+exam.created
+
+
+
+result.published
+
+
+
+role.updated
+
+
+
+permission.updated
+
+
+
+workspace.updated
+
+
+
+profile.updated
+
+
+
+file.uploaded
+
+
+
+Every event should immediately synchronize
+
+
+
+Website
+
+
+
+↓
+
+
+
+Backend
+
+
+
+↓
+
+
+
+Socket.IO
+
+
+
+↓
+
+
+
+Mobile
+
+
+
+↓
+
+
+
+Dashboard
+
+
+
+↓
+
+
+
+Notification Center
+
+
+
+↓
+
+
+
+Badge Count
+
+
+
+↓
+
+
+
+Specific Screen
+
+
+
+====================================================
+
+RBAC API
+
+====================================================
+
+
+
+Create a complete Role Based Access Control API.
+
+
+
+Endpoints
+
+
+
+GET /rbac/roles
+
+
+
+GET /rbac/users
+
+
+
+GET /rbac/modules
+
+
+
+GET /rbac/permissions
+
+
+
+GET /rbac/workspaces
+
+
+
+POST /rbac/roles
+
+
+
+PUT /rbac/roles
+
+
+
+DELETE /rbac/roles
+
+
+
+POST /rbac/assign-role
+
+
+
+POST /rbac/remove-role
+
+
+
+POST /rbac/update-permissions
+
+
+
+POST /rbac/module-access
+
+
+
+Every permission should be configurable from the existing Super Admin panel.
+
+
+
+Never hardcode permissions.
+
+
+
+====================================================
+
+SEARCH API
+
+====================================================
+
+
+
+Every major module must support
+
+
+
+Global Search
+
+
+
+Advanced Search
+
+
+
+Pagination
+
+
+
+Sorting
+
+
+
+Filtering
+
+
+
+Date Filters
+
+
+
+Department Filters
+
+
+
+Semester Filters
+
+
+
+Section Filters
+
+
+
+Status Filters
+
+
+
+====================================================
+
+FILE MANAGEMENT
+
+====================================================
+
+
+
+Support secure upload and download for
+
+
+
+Images
+
+
+
+PDF
+
+
+
+Excel
+
+
+
+CSV
+
+
+
+Word
+
+
+
+Certificates
+
+
+
+ID Cards
+
+
+
+Assignments
+
+
+
+Reports
+
+
+
+Maximum file size validation
+
+
+
+Virus scan hook support
+
+
+
+Cloud Storage integration
+
+
+
+====================================================
+
+AUDIT LOG API
+
+====================================================
+
+
+
+Log every action
+
+
+
+Login
+
+
+
+Logout
+
+
+
+Create
+
+
+
+Update
+
+
+
+Delete
+
+
+
+Approve
+
+
+
+Reject
+
+
+
+Import
+
+
+
+Export
+
+
+
+Permission Change
+
+
+
+Role Change
+
+
+
+Profile Update
+
+
+
+Store
+
+
+
+User
+
+
+
+Role
+
+
+
+Timestamp
+
+
+
+IP Address
+
+
+
+Device
+
+
+
+Action
+
+
+
+Module
+
+
+
+====================================================
+
+API SECURITY
+
+====================================================
+
+
+
+Implement enterprise-grade security.
+
+
+
+JWT Authentication
+
+
+
+Refresh Tokens
+
+
+
+Role Authorization
+
+
+
+Permission Validation
+
+
+
+Rate Limiting
+
+
+
+Input Validation
+
+
+
+Request Logging
+
+
+
+HTTPS Only
+
+
+
+Secure Headers
+
+
+
+SQL Injection Protection
+
+
+
+XSS Protection
+
+
+
+CSRF Protection (for web)
+
+
+
+====================================================
+
+PERFORMANCE
+
+====================================================
+
+
+
+Support
+
+
+
+Pagination
+
+
+
+Lazy Loading
+
+
+
+Caching
+
+
+
+Compression
+
+
+
+Database Indexing
+
+
+
+Optimized Queries
+
+
+
+Background Jobs
+
+
+
+Queue Processing
+
+
+
+Response Time Monitoring
+
+
+
+API Versioning
+
+
+
+====================================================
+
+FINAL REQUIREMENT
+
+====================================================
+
+
+
+The backend must be production-ready.
+
+
+
+The Website and Mobile Application must consume the same APIs.
+
+
+
+The Website and Mobile Application must use the same database.
+
+
+
+The Website and Mobile Application must use the same authentication.
+
+
+
+The Website and Mobile Application must use the same RBAC system.
+
+
+
+The Website and Mobile Application must use the same Socket.IO events.
+
+
+
+Everything must be fully synchronized in real time.
+
+
+
+No duplicate APIs.
+
+
+
+No duplicate business logic.
+
+
+
+No duplicate database.

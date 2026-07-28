@@ -1,0 +1,34 @@
+{
+  "expo": {
+    "name": "AEC CampusOS",
+    "slug": "aec-campusos",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "scheme": "aeccampusos",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.aec.campusos",
+      "infoPlist": {
+        "NSFaceIDUsageDescription": "Use Face ID to unlock your CampusOS session."
+      }
+    },
+    "android": {
+      "package": "com.aec.campusos",
+      "adaptiveIcon": {
+        "backgroundColor": "#0B1020"
+      }
+    },
+    "plugins": [
+      "expo-secure-store",
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "Use Face ID to unlock your CampusOS session."
+        }
+      ],
+      "expo-notifications"
+    ]
+  }
+}
