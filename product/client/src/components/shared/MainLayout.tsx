@@ -10,6 +10,7 @@ import { useDevice } from '../../context/DeviceContext';
 import { toast } from '../ui/Toast';
 import api from '../../lib/axios';
 import BottomNav from './BottomNav';
+import { OnboardingTour } from './OnboardingTour';
 
 const MainLayout: React.FC = () => {
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -245,6 +246,24 @@ const MainLayout: React.FC = () => {
           </div>
         </main>
       </div>
+
+      {/* Onboarding Tour for First Login */}
+      {(() => {
+        const hasCompletedTour = localStorage.getItem(`onboarding_completed_${user?.id}`);
+        if (!hasCompletedTour && user) {
+          return (
+            <OnboardingTour
+              userRole={user.role}
+              userName={`${user.firstName || ''} ${user.lastName || ''}`}
+              onComplete={() => {
+                localStorage.setItem(`onboarding_completed_${user.id}`, 'true');
+                window.location.reload();
+              }}
+            />
+          );
+        }
+        return null;
+      })()}
 
       {/* Mobile Bottom Navigation Bar */}
       {isMobile && user && (

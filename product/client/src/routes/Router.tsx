@@ -84,13 +84,26 @@ const StudentCertificates = React.lazy(() => import('../pages/student/StudentCer
 import { useAuth } from '../context/AuthContext';
 import { StudentRouteGuard } from './StudentRouteGuard';
 
+import { CurriculumManagementPortal } from '../pages/admin/CurriculumManagementPortal';
+import { SportsModule } from '../pages/admin/SportsModule';
+
+import { MasterRBACConsole } from '../pages/admin/MasterRBACConsole';
+import { IAMMasterControlConsole } from '../pages/admin/IAMMasterControlConsole';
+
 // React component registry mapping keys to Page Components
 const COMPONENT_MAP: Record<string, React.ComponentType<any>> = {
   dashboard: Dashboard,
+  rbac: IAMMasterControlConsole,
+  iam: IAMMasterControlConsole,
+  sports: SportsModule,
+
+  curriculum_management: CurriculumManagementPortal,
+  curriculum: CurriculumManagementPortal,
   profile: Profile,
   users: Users,
-  roles: Roles,
+  roles: MasterRBACConsole,
   academics: AcademicPortal,
+
   masters: MasterLists,
   students: Students,
   faculty: Faculty,
@@ -180,6 +193,12 @@ export const AppRouter: React.FC = () => {
           {/* Dashboard is always mapped at index */}
           <Route index element={<Dashboard />} />
           <Route path="profile" element={<Profile />} />
+          <Route path="rbac" element={<IAMMasterControlConsole />} />
+          <Route path="admin/rbac" element={<IAMMasterControlConsole />} />
+          <Route path="iam" element={<IAMMasterControlConsole />} />
+          <Route path="admin/iam" element={<IAMMasterControlConsole />} />
+          <Route path="roles" element={<IAMMasterControlConsole />} />
+
 
           {/* Dynamically register other routes if permitted */}
           {user?.menus?.filter((m: any) => m.componentKey !== 'dashboard' && m.componentKey !== 'profile').map((m: any) => {

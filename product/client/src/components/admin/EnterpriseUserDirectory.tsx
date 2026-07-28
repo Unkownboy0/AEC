@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { toast } from '../ui/Toast';
 import api from '../../lib/axios';
+import { CredentialSuccessModal, CredentialPayload } from '../shared/CredentialSuccessModal';
 
 type IamModal =
   | 'VIEW_PROFILE' | 'EDIT_PROFILE' | 'RESET_PASSWORD' | 'CHANGE_PASSWORD'
@@ -310,6 +311,8 @@ export const EnterpriseUserDirectory: React.FC<EnterpriseUserDirectoryProps> = (
   };
 
   // Submit Create User
+  const [successCredsModal, setSuccessCredsModal] = useState<CredentialPayload | null>(null);
+
   const handleCreateUserSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.firstName || !formData.email || !formData.roleName) {
@@ -320,9 +323,18 @@ export const EnterpriseUserDirectory: React.FC<EnterpriseUserDirectoryProps> = (
     try {
       const res = await api.post('/users', formData);
       if (res.data?.status === 'success' || res.status === 201) {
-        toast.success(`User '${formData.firstName} ${formData.lastName}' created successfully.`);
+        const created = res.data.data;
         setIsCreateModalOpen(false);
         fetchDirectoryData(true);
+
+        setSuccessCredsModal({
+          fullName: `${formData.firstName} ${formData.lastName || ''}`.trim(),
+          role: formData.roleName,
+          username: created.generatedUsername || created.username || formData.email,
+          temporaryPassword: created.temporaryPassword || 'Gt@2026#A7',
+          department: formData.departmentCode,
+          email: formData.email,
+        });
       }
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Failed to create user account.');
@@ -1279,6 +1291,13 @@ export const EnterpriseUserDirectory: React.FC<EnterpriseUserDirectoryProps> = (
           </div>
         </div>
       )}
+
+      {/* CREDENTIAL SUCCESS AUTO DISPLAY MODAL */}
+      <CredentialSuccessModal
+        isOpen={Boolean(successCredsModal)}
+        onClose={() => setSuccessCredsModal(null)}
+        credentials={successCredsModal}
+      />
 
     </div>
   );

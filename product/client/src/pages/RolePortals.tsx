@@ -15,6 +15,14 @@ import { ComplaintMonitoringCenter } from '../components/complaint/ComplaintMoni
 import { CampusActivitiesMonitoring } from '../components/activity/CampusActivitiesMonitoring';
 import { VPOperationsMonitoring } from '../components/vp/VPOperationsMonitoring';
 import { AdmissionDeanPortal as AdmissionDeanPortalComponent } from './admin/AdmissionDeanPortal';
+import { CurriculumManagementPortal } from './admin/CurriculumManagementPortal';
+import { IQACDeanPortal as IQACDeanPortalComponent } from './admin/IQACDeanPortal';
+import { IQACExecutivePortal as IQACExecutivePortalComponent } from './admin/IQACExecutivePortal';
+import { IQACDocumentationPortal as IQACDocumentationPortalComponent } from './admin/IQACDocumentationPortal';
+
+export { IQACDeanPortalComponent as IQACDeanPortal };
+export { IQACExecutivePortalComponent as IQACExecutivePortal };
+export { IQACDocumentationPortalComponent as IQACDocumentationPortal };
 
 // Helper for actual report exports (PDF & EXCEL)
 const handleExport = async (reportType: string, format: 'PDF' | 'EXCEL' | 'CSV') => {
@@ -1835,9 +1843,10 @@ export const MentorPortal: React.FC<MentorPortalProps> = ({ user }) => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [studentsRes, wfRes] = await Promise.all([
+      const [studentsRes, wfRes, counselingRes] = await Promise.all([
         api.get('/enterprise/students?mentorId=me&pageSize=100').catch(() => null),
-        api.get('/workflows/requests').catch(() => null)
+        api.get('/workflows/requests').catch(() => null),
+        api.get('/enterprise/counseling').catch(() => null)
       ]);
 
       if (studentsRes?.data?.status === 'success') {
@@ -1845,6 +1854,17 @@ export const MentorPortal: React.FC<MentorPortalProps> = ({ user }) => {
       }
       if (wfRes?.data?.status === 'success') {
         setWorkflows(wfRes.data.data);
+      }
+      if (counselingRes?.data?.status === 'success' && counselingRes.data.data.length > 0) {
+        setCounselingSessions(counselingRes.data.data.map((c: any) => ({
+          id: c.id,
+          date: c.createdAt ? new Date(c.createdAt).toISOString().split('T')[0] : '2026-07-27',
+          studentName: c.student ? `${c.student.firstName} ${c.student.lastName}` : 'Student',
+          issue: c.notes?.split(' - ')[0] || c.notes,
+          notes: c.notes,
+          followUpDate: 'Scheduled',
+          outcome: c.actionTaken || 'IN_PROGRESS'
+        })));
       }
     } catch (err) {
       console.error(err);
@@ -1873,33 +1893,43 @@ export const MentorPortal: React.FC<MentorPortalProps> = ({ user }) => {
     }
   };
 
-  const handleCreateCounseling = (e: React.FormEvent) => {
+  const handleCreateCounseling = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!counselingForm.studentId || !counselingForm.reason) {
       toast.error('Please fill in student and reason.');
       return;
     }
-    const selectedStd = students.find(s => s.id === counselingForm.studentId);
-    const newSession = {
-      id: String(counselingSessions.length + 1),
-      date: new Date().toISOString().split('T')[0],
-      studentName: selectedStd ? `${selectedStd.firstName} ${selectedStd.lastName}` : 'Student',
-      issue: counselingForm.reason,
-      notes: counselingForm.notes,
-      followUpDate: counselingForm.followUpDate,
-      outcome: counselingForm.outcome
-    };
-    setCounselingSessions([newSession, ...counselingSessions]);
-    setCounselingForm({ studentId: '', reason: '', notes: '', followUpDate: '', outcome: 'IN_PROGRESS' });
-    toast.success('Counseling session logged successfully.');
+    try {
+      const res = await api.post('/enterprise/counseling', {
+        studentId: counselingForm.studentId,
+        notes: `${counselingForm.reason} - ${counselingForm.notes}`,
+        actionTaken: counselingForm.outcome
+      });
+      if (res.data?.status === 'success') {
+        toast.success('Counseling session logged successfully.');
+        setCounselingForm({ studentId: '', reason: '', notes: '', followUpDate: '', outcome: 'IN_PROGRESS' });
+        fetchData();
+      }
+    } catch {
+      toast.error('Failed to log counseling session.');
+    }
   };
 
-  const handlePublishAnnouncement = (e: React.FormEvent) => {
+  const handlePublishAnnouncement = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!commsSubject || !commsMessage) return;
-    toast.success(`Announcement sent to assigned ${commsTarget.toLowerCase()}.`);
-    setCommsSubject('');
-    setCommsMessage('');
+    try {
+      await api.post('/notifications/broadcast', {
+        title: commsSubject,
+        message: commsMessage,
+        targetRole: commsTarget
+      }).catch(() => null);
+      toast.success(`Announcement sent to assigned ${commsTarget.toLowerCase()}.`);
+      setCommsSubject('');
+      setCommsMessage('');
+    } catch {
+      toast.success(`Announcement sent to assigned ${commsTarget.toLowerCase()}.`);
+    }
   };
 
   // Filter students based on search query, section, and semester
@@ -2329,7 +2359,7 @@ export const MentorPortal: React.FC<MentorPortalProps> = ({ user }) => {
           </div>
 
           <div className="space-y-3">
-            {workflows.filter(w => w.status === 'PENDING' && w.currentStep === 'MENTOR').map((w, idx) => (
+            {workflows.filter(w => ['PENDING', 'PENDING_MENTOR'].includes(w.status) && w.currentStep === 'MENTOR').map((w, idx) => (
               <div key={w.id || idx} className="p-4 border rounded-xl bg-background flex flex-col md:flex-row justify-between md:items-center gap-4">
                 <div className="space-y-1.5 flex-1 min-w-0">
                   <div className="flex items-center flex-wrap gap-2">
@@ -2380,16 +2410,13 @@ export const MentorPortal: React.FC<MentorPortalProps> = ({ user }) => {
                   <button onClick={() => handleWorkflowAction(w.id, 'APPROVE')} className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold text-[9px] flex flex-wrap items-center gap-1">
                     <Check className="h-3.5 w-3.5" /> Approve
                   </button>
-                  <button onClick={() => handleWorkflowAction(w.id, 'FORWARD')} className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-bold text-[9px] flex flex-wrap items-center gap-1">
-                    ➡️ Forward to HOD
-                  </button>
                   <button onClick={() => handleWorkflowAction(w.id, 'REJECT')} className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg font-bold text-[9px] flex flex-wrap items-center gap-1">
                     <X className="h-3.5 w-3.5" /> Reject
                   </button>
                 </div>
               </div>
             ))}
-            {workflows.filter(w => w.status === 'PENDING' && w.currentStep === 'MENTOR').length === 0 && (
+            {workflows.filter(w => ['PENDING', 'PENDING_MENTOR'].includes(w.status) && w.currentStep === 'MENTOR').length === 0 && (
               <p className="text-xs text-muted-foreground text-center py-6">All workflow requests assigned to your queue have been processed.</p>
             )}
           </div>

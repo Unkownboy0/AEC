@@ -20,15 +20,15 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed }) => {
     '/student/career': true
   });
 
-  // Poll workflows to get pending approvals count if role is Faculty or HOD
+  // Poll workflows to get pending approvals count if role is Faculty, Mentor, or HOD
   useEffect(() => {
-    if (user?.role === 'Faculty' || user?.role === 'HOD') {
+    if (user?.role === 'Faculty' || user?.role === 'Mentor' || user?.role === 'HOD') {
       const fetchPendingCount = async () => {
         try {
           const res = await api.get('/workflows/requests');
           if (res.data?.status === 'success') {
             let pending = 0;
-            if (user.role === 'Faculty') {
+            if (user.role === 'Faculty' || user.role === 'Mentor') {
               pending = res.data.data.filter((r: any) => r.currentStep === 'MENTOR' && ['PENDING', 'PENDING_MENTOR'].includes(r.status)).length;
             } else if (user.role === 'HOD') {
               pending = res.data.data.filter((r: any) => r.currentStep === 'HOD' && r.status === 'MENTOR_APPROVED').length;
@@ -235,6 +235,21 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed }) => {
 
       {/* Footer Profile & Logout Section */}
       <div className="border-t p-2 space-y-1 bg-muted/10">
+
+        {(user?.role === 'Super Admin' || user?.role === 'College Admin' || user?.role === 'Principal') && (
+          <NavLink
+            to="/iam"
+            className={cn(
+              'relative flex items-center gap-3 py-2 px-3 text-xs font-semibold transition-all duration-200 ease-in-out',
+              location.pathname === '/iam' || location.pathname === '/admin/iam'
+                ? 'bg-primary/10 text-primary font-bold border-l-[3px] border-primary pl-[9px] rounded-r-lg rounded-l-none'
+                : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground pl-3 rounded-lg'
+            )}
+          >
+            <LucideIcons.Shield className={cn('h-4.5 w-4.5 flex-shrink-0 transition-colors duration-200', location.pathname.includes('/iam') ? 'text-primary' : 'text-muted-foreground')} />
+            {!isCollapsed && <span className="truncate">Enterprise IAM</span>}
+          </NavLink>
+        )}
 
         {(user?.role === 'Super Admin' || user?.role === 'College Admin') && (
           <NavLink

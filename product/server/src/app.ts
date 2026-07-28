@@ -21,6 +21,9 @@ import aiRoutes from './modules/ai/ai.routes';
 import assignmentsRoutes from './modules/enterprise/assignments.routes';
 import chatRoutes from './modules/chat/chat.routes';
 import circularRoutes from './modules/enterprise/circular.routes';
+import curriculumRoutes from './modules/curriculum/curriculum.routes';
+import sportsRoutes from './modules/sports/sports.routes';
+
 
 import { errorHandler } from './core/middlewares/error.middleware';
 import { logger } from './utils/logger';
@@ -31,8 +34,16 @@ const app = express();
 // Security HTTP headers
 app.use(helmet());
 
-// Serve uploaded files statically
-app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+// Serve uploaded files statically with security headers
+app.use(
+  '/uploads',
+  express.static(path.join(__dirname, '../uploads'), {
+    setHeaders: (res) => {
+      res.setHeader('X-Content-Type-Options', 'nosniff');
+      res.setHeader('Content-Security-Policy', "default-src 'none'");
+    },
+  })
+);
 
 // Enable CORS
 const allowedOrigins = env.ALLOWED_ORIGINS.split(',');
@@ -79,10 +90,15 @@ app.get('/api/health', (req, res) => {
   });
 });
 
+import rbacRoutes from './modules/enterprise/rbac.routes';
+import iamRoutes from './modules/enterprise/iam.routes';
+
 app.use('/api/auth', authRateLimiter, authRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/users', usersRoutes);
 app.use('/api/roles', rolesRoutes);
+app.use('/api/rbac', rbacRoutes);
+app.use('/api/iam', iamRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/academics', academicsRoutes);
 app.use('/api/masters', mastersRoutes);
@@ -98,6 +114,10 @@ app.use('/api/ai', aiRoutes);
 app.use('/api/assignments', assignmentsRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/circulars', circularRoutes);
+app.use('/api/curriculum', curriculumRoutes);
+app.use('/api/sports', sportsRoutes);
+
+
 
 // Fallback Route
 app.use('*', (req, res, next) => {

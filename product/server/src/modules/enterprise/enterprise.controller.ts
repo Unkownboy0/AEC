@@ -1487,4 +1487,36 @@ export class EnterpriseController {
       next(error);
     }
   };
+
+  listCounselingRecords = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const user = (req as any).user;
+      const data = await this.service.listCounselingRecords(user);
+      res.status(200).json({ status: 'success', data });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  createCounselingRecord = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const user = (req as any).user;
+      const data = await this.service.createCounselingRecord(user, req.body);
+      res.status(201).json({ status: 'success', data });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  globalSearch = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const user = (req as any).user as UserPayload;
+      const query = (req.query.q as string) || '';
+      const data = await this.service.globalSearch(query, user);
+      res.status(200).json({ status: 'success', data });
+    } catch (error) {
+      next(error);
+    }
+  };
 }
+

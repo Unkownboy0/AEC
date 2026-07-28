@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { prisma } from '../../lib/prisma';
 import { BadRequestException } from '../../utils/exceptions';
+import { logger } from '../../utils/logger';
 
 export class NotificationsController {
   /**
@@ -45,9 +46,9 @@ export class NotificationsController {
       });
 
       if (status === 'SENT') {
-        console.log(`📣 [NOTIFICATION DISPATCHED] Type: ${type} | Title: ${title} | Content: ${content} | Image: ${imageUrl || 'None'}`);
+        logger.info(`[NOTIFICATION DISPATCHED] Type: ${type} | Title: ${title} | Content: ${content} | Image: ${imageUrl || 'None'}`);
       } else {
-        console.log(`⏰ [NOTIFICATION SCHEDULED] Type: ${type} | For: ${scheduleDate}`);
+        logger.info(`[NOTIFICATION SCHEDULED] Type: ${type} | For: ${scheduleDate}`);
       }
 
       // Audit Log

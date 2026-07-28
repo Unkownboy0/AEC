@@ -143,6 +143,13 @@ export class AuthService {
 
     const menus = await SecurityHelper.getPermittedMenus(permissions, user.role.name);
 
+    const workspaces = [user.role.name];
+    const faculty = await prisma.faculty.findFirst({ where: { userId: user.id } });
+    if (faculty || ['Faculty', 'HOD', 'Academic Dean', 'Vice Principal', 'Principal'].includes(user.role.name)) {
+      if (!workspaces.includes('Faculty')) workspaces.push('Faculty');
+      if (!workspaces.includes('Mentor')) workspaces.push('Mentor');
+    }
+
     return {
       accessToken,
       refreshToken,
@@ -156,6 +163,7 @@ export class AuthService {
         permissions,
         menus,
         forcePasswordChange: user.forcePasswordChange,
+        workspaces,
       },
     };
   }
@@ -260,14 +268,34 @@ export class AuthService {
   /**
    * Get currently logged-in user profile (full — includes faculty/department for HOD/Faculty roles)
    */
-  async getMe(userId: string) {
+  async getMe(userId: string, activeRole?: string) {
     const user = await this.repo.findById(userId);
     if (!user || user.status !== 'ACTIVE') {
       throw new NotFoundException('User profile not found');
     }
 
-    const permissions = user.role.permissions.map((rp) => rp.permission.name);
-    const menus = await SecurityHelper.getPermittedMenus(permissions, user.role.name);
+    let roleName = user.role.name;
+    let permissions = user.role.permissions.map((rp) => rp.permission.name);
+
+    if (activeRole && activeRole !== user.role.name) {
+      const allowedRoles = [user.role.name];
+      if (['Faculty', 'HOD', 'Academic Dean', 'Vice Principal', 'Principal'].includes(user.role.name)) {
+        allowedRoles.push('Faculty', 'Mentor');
+      }
+
+      if (allowedRoles.includes(activeRole)) {
+        const roleData = await prisma.role.findFirst({
+          where: { name: activeRole },
+          include: { permissions: { include: { permission: true } } }
+        });
+        if (roleData) {
+          roleName = roleData.name;
+          permissions = roleData.permissions.map(p => p.permission.name);
+        }
+      }
+    }
+
+    const menus = await SecurityHelper.getPermittedMenus(permissions, roleName);
 
     // Fetch faculty record with department (non-blocking — profile loads even if this fails)
     let faculty: any = null;
@@ -280,6 +308,13 @@ export class AuthService {
       // Silently ignore — faculty data is supplementary
     }
 
+    // Resolve workspaces
+    const workspaces = [user.role.name];
+    if (faculty || ['Faculty', 'HOD', 'Academic Dean', 'Vice Principal', 'Principal'].includes(user.role.name)) {
+      if (!workspaces.includes('Faculty')) workspaces.push('Faculty');
+      if (!workspaces.includes('Mentor')) workspaces.push('Mentor');
+    }
+
     return {
       id: user.id,
       email: user.email,
@@ -288,11 +323,12 @@ export class AuthService {
       phone: (user as any).phone,
       profilePhoto: user.profilePhoto,
       status: (user as any).status,
-      role: user.role.name,
+      role: roleName,
       permissions,
       menus,
       forcePasswordChange: user.forcePasswordChange,
       faculty,
+      workspaces,
     };
   }
 

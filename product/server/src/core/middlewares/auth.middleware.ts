@@ -3,6 +3,8 @@ import jwt from 'jsonwebtoken';
 import { env } from '../../config/env';
 import { UnauthorizedException, ForbiddenException } from '../../utils/exceptions';
 
+import { prisma } from '../../lib/prisma';
+
 export interface UserPayload {
   id: string;
   email: string;
@@ -18,21 +20,42 @@ declare global {
   }
 }
 
-export const requireAuth = (req: Request, res: Response, next: NextFunction) => {
+export const requireAuth = async (req: Request, res: Response, next: NextFunction) => {
   const authHeader = req.headers.authorization;
 
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    throw new UnauthorizedException('Access token missing or invalid');
+    return next(new UnauthorizedException('Access token missing or invalid'));
   }
 
   const token = authHeader.split(' ')[1];
 
   try {
     const decoded = jwt.verify(token, env.JWT_SECRET) as UserPayload;
-    req.user = decoded;
+    const userPayload: UserPayload = { ...decoded };
+
+    const activeRole = req.headers['x-active-role'] as string;
+    if (activeRole && activeRole !== decoded.role) {
+      const allowedRoles = [decoded.role];
+      if (['Faculty', 'HOD', 'Academic Dean', 'Vice Principal', 'Principal'].includes(decoded.role)) {
+        allowedRoles.push('Faculty', 'Mentor');
+      }
+
+      if (allowedRoles.includes(activeRole)) {
+        const roleData = await prisma.role.findFirst({
+          where: { name: activeRole },
+          include: { permissions: { include: { permission: true } } }
+        });
+        if (roleData) {
+          userPayload.role = activeRole;
+          userPayload.permissions = roleData.permissions.map(p => p.permission.name);
+        }
+      }
+    }
+
+    req.user = userPayload;
     next();
   } catch (error) {
-    throw new UnauthorizedException('Access token expired or corrupted');
+    next(new UnauthorizedException('Access token expired or corrupted'));
   }
 };
 

@@ -23,6 +23,7 @@ export class UsersRepository {
         { firstName: { contains: search } },
         { lastName: { contains: search } },
         { email: { contains: search } },
+        { username: { contains: search } },
       ];
     }
 
@@ -57,10 +58,13 @@ export class UsersRepository {
    */
   async create(data: {
     email: string;
+    username?: string;
     passwordHash: string;
     firstName: string;
     lastName: string;
+    departmentId?: string;
     status: string;
+    forcePasswordChange?: boolean;
     roleId: string;
   }) {
     return prisma.user.create({

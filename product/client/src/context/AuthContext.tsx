@@ -11,19 +11,21 @@ export interface User {
   menus: any[];
   profilePhoto?: string;
   forcePasswordChange?: boolean;
+  workspaces?: string[];
 }
 
 interface AuthContextProps {
   user: User | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  login: (accessToken: string, refreshToken: string, user: User) => void;
+  login: (accessToken: string, refreshToken: string, user: User) => Promise<void>;
   logout: () => Promise<void>;
   logoutAll: () => Promise<void>;
   hasPermission: (permission: string) => boolean;
   hasRole: (roles: string | string[]) => boolean;
   refreshUser: () => Promise<void>;
   updateUser: (updatedUserPartial: Partial<User>) => void;
+  switchWorkspace: (roleName: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextProps | undefined>(undefined);
@@ -93,11 +95,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     fetchProfile();
   }, [fetchProfile]);
 
-  const handleLogin = (accessToken: string, refreshToken: string, userData: User) => {
+  const handleLogin = async (accessToken: string, refreshToken: string, userData: User) => {
     localStorage.setItem('geetorus_access_token', accessToken);
     localStorage.setItem('geetorus_refresh_token', refreshToken);
-    setUser(formatUserWithCacheBust(userData));
-    setIsLoading(false);
+    
+    const savedActiveRole = localStorage.getItem('geetorus_active_role');
+    if (savedActiveRole && savedActiveRole !== userData.role) {
+      setIsLoading(true);
+      try {
+        await fetchProfile();
+      } catch (err) {
+        setUser(formatUserWithCacheBust(userData));
+        setIsLoading(false);
+      }
+    } else {
+      setUser(formatUserWithCacheBust(userData));
+      setIsLoading(false);
+    }
   };
 
   const handleLogout = async () => {
@@ -130,6 +144,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setIsLoading(false);
     }
   };
+
+  const switchWorkspace = useCallback(async (roleName: string) => {
+    localStorage.setItem('geetorus_active_role', roleName);
+    try {
+      await fetchProfile();
+    } catch (err) {
+      console.error('Failed to switch workspace:', err);
+    }
+  }, [fetchProfile]);
 
   const hasPermission = useCallback(
     (permission: string) => {
@@ -181,6 +204,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     hasRole,
     refreshUser: fetchProfile,
     updateUser,
+    switchWorkspace,
   };
 
   return <AuthContext.Provider value={contextValue}>{children}</AuthContext.Provider>;

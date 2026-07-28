@@ -37,14 +37,16 @@ const ForgotPassword: React.FC = () => {
       if (response.data?.status === 'success') {
         const token = response.data.data?.resetToken;
         
-        if (token && token !== 'mock-token-dispatched') {
+        if (import.meta.env.DEV && token && token !== 'mock-token-dispatched') {
           // Expose the mock reset link in development UI for easy sandbox testing
           const localLink = `/reset-password?token=${token}`;
           setResetLink(localLink);
         }
         
         toast.success(
-          'Password reset link generated. Check the development server console logs.',
+          import.meta.env.DEV 
+            ? 'Password reset link generated. Check the development server console logs.'
+            : 'Password reset instructions have been sent to your email address.',
           'Reset Link Sent'
         );
       }

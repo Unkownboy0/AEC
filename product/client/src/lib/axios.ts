@@ -29,6 +29,10 @@ api.interceptors.request.use(
     if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+    const activeRole = localStorage.getItem('geetorus_active_role');
+    if (activeRole && config.headers) {
+      config.headers['X-Active-Role'] = activeRole;
+    }
     return config;
   },
   (error) => {
@@ -121,4 +125,6 @@ api.interceptors.response.use(
   }
 );
 
+export { api };
 export default api;
+

@@ -14,9 +14,38 @@ model User {
   firstName           String
   lastName            String
   phone               String?
-  status              String               @default("ACTIVE") // ACTIVE, BLOCKED, INACTIVE
+  designation         String?
+  departmentId        String?
+  reportingManagerId  String?
+  workspaces          String?              // JSON array of accessible workspaces
+  activeWorkspace     String?              // Active workspace identifier
+  approvalAuthority   Boolean              @default(false)
+  dashboardConfig     String?              // JSON user-level dashboard override
+  notificationPreferences String?           // JSON preferences
+  status              String               @default("ACTIVE") // ACTIVE, BLOCKED, INACTIVE, SUSPENDED
+  gender              String?
+  dob                 DateTime?
+  bloodGroup          String?
+  digitalSignature    String?
+  qrCode              String?
+  aadhaarNumber       String?
+  emergencyContact    String?
+  qualification       String?
+  experience          String?
+  skills              String?
+  certificates        String?
+  profileCompletion   Int                  @default(0)
+  joiningDate         DateTime?
+  accountStatus       String               @default("ACTIVE") // ACTIVE, SUSPENDED, DEACTIVATED
+  loginStatus         String               @default("OFFLINE") // ONLINE, OFFLINE
+  activityTimeline    String?              // JSON timeline events
+  designationId       String?
+  parentRoleId        String?
+
   roleId              String
   role                Role                 @relation(fields: [roleId], references: [id])
+  assignedRoles       UserRole[]
+  committees          UserCommittee[]
   sessions            UserSession[]
   resetTokens         PasswordResetToken[]
   histories           LoginHistory[]
@@ -31,37 +60,155 @@ model User {
   createdAt           DateTime             @default(now())
   updatedAt           DateTime             @updatedAt
 
+  username            String?              @unique
   createdCirculars     HodCircular[]            @relation("CircularCreator")
   circularReadTrackers HodCircularReadTracker[] @relation("UserCircularReadTracker")
   publishedTimetables  MasterTimetable[]        @relation("TimetablePublisher")
 
   @@index([email])
+  @@index([username])
   @@index([roleId])
   @@map("users")
 }
 
+model UsernameCounter {
+  id        String   @id @default(uuid())
+  rolePrefix String
+  year      Int
+  counter   Int      @default(0)
+  updatedAt DateTime @updatedAt
+
+  @@unique([rolePrefix, year])
+  @@map("username_counters")
+}
+
 model Role {
-  id          String           @id @default(uuid())
-  name        String           @unique
-  description String?
-  color       String           @default("#6366f1")
-  icon        String           @default("Shield")
-  priority    Int              @default(0)
-  hierarchy   Int              @default(99)
-  isSystem    Boolean          @default(false)
-  status      String           @default("ACTIVE") // ACTIVE, ARCHIVED, INACTIVE
-  createdBy   String?
-  users       User[]
-  permissions RolePermission[]
-  createdAt   DateTime         @default(now())
-  updatedAt   DateTime         @updatedAt
+  id                   String           @id @default(uuid())
+  name                 String           @unique
+  roleCode             String?          @unique
+  description          String?
+  color                String           @default("#6366f1")
+  icon                 String           @default("Shield")
+  priority             Int              @default(0)
+  hierarchy            Int              @default(99)
+  isSystem             Boolean          @default(false)
+  status               String           @default("ACTIVE") // ACTIVE, ARCHIVED, INACTIVE
+  departmentId         String?
+  dashboardConfig      String?          // JSON widget config
+  sidebarConfig        String?          // JSON sidebar visibility
+  moduleAccess         String?          // JSON module permissions matrix
+  approvalLevels       String?          // JSON approval rules
+  reportAccess         String?          // JSON report permissions
+  workspaceAccess      String?          // JSON workspaces list
+  notificationSettings String?          // JSON notification toggles
+  searchScope          String?          @default("EVERYONE") // EVERYONE, OWN_DEPARTMENT, ASSIGNED_STUDENTS, OWN_PROFILE, OWN_CHILD
+  createdBy            String?
+  users                User[]
+  userRoles            UserRole[]
+  permissions          RolePermission[]
+  createdAt            DateTime         @default(now())
+  updatedAt            DateTime         @updatedAt
 
   @@map("roles")
+}
+
+model UserRole {
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  roleId     String
+  role       Role     @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  isPrimary  Boolean  @default(false)
+  assignedAt DateTime @default(now())
+
+  @@id([userId, roleId])
+  @@map("user_roles")
+}
+
+model Designation {
+  id           String   @id @default(uuid())
+  title        String   @unique
+  code         String   @unique
+  description  String?
+  hierarchy    Int      @default(99)
+  departmentId String?
+  status       String   @default("ACTIVE")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("designations")
+}
+
+model Committee {
+  id                    String          @id @default(uuid())
+  name                  String          @unique
+  code                  String          @unique
+  type                  String          @default("ACADEMIC") // IQAC, NAAC, NBA, NIRF, PLACEMENT, ANTI_RAGGING, DISCIPLINARY, SPORTS, RESEARCH, INNOVATION
+  description           String?
+  status                String          @default("ACTIVE")
+  additionalPermissions String?         // JSON string matrix
+  members               UserCommittee[]
+  createdAt             DateTime        @default(now())
+  updatedAt             DateTime        @updatedAt
+
+  @@map("committees")
+}
+
+model UserCommittee {
+  userId          String
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  committeeId     String
+  committee       Committee @relation(fields: [committeeId], references: [id], onDelete: Cascade)
+  roleInCommittee String    @default("MEMBER") // CHAIRPERSON, CONVENOR, MEMBER, SECRETARY
+  joinedAt        DateTime  @default(now())
+
+  @@id([userId, committeeId])
+  @@map("user_committees")
+}
+
+model PermissionDelegation {
+  id                String   @id @default(uuid())
+  delegatorId       String
+  delegateeId       String
+  roleId            String?
+  customPermissions String?  // JSON matrix override
+  reason            String
+  startDate         DateTime
+  endDate           DateTime
+  status            String   @default("ACTIVE") // ACTIVE, EXPIRED, REVOKED
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([delegatorId])
+  @@index([delegateeId])
+  @@map("permission_delegations")
+}
+
+model RbacAuditLog {
+  id            String   @id @default(uuid())
+  entityType    String   // USER, ROLE, PERMISSION, DELEGATION, COMMITTEE, WORKFLOW
+  entityId      String
+  action        String   // CREATE, UPDATE, DELETE, GRANT, REVOKE, DELEGATE
+  oldValue      String?  // JSON
+  newValue      String?  // JSON
+  changedBy     String
+  reason        String?
+  ipAddress     String?
+  userAgent     String?
+  device        String?
+  browser       String?
+  affectedUsers String?  // JSON array of user IDs
+  createdAt     DateTime @default(now())
+
+  @@index([entityType, entityId])
+  @@index([changedBy])
+  @@map("rbac_audit_logs")
 }
 
 model Permission {
   id          String                      @id @default(uuid())
   name        String                      @unique
+  module      String                      @default("GENERAL")
+  action      String                      @default("VIEW")
   description String?
   roles       RolePermission[]
   templates   PermissionTemplateMapping[]
@@ -377,6 +524,15 @@ model Subject {
   isOpenElective         Boolean @default(false)
   isProfessionalElective Boolean @default(false)
   subjectCoordinator     String?
+  regulationId           String?
+  regulation             Regulation? @relation(fields: [regulationId], references: [id], onDelete: SetNull)
+  approvalStatus         String  @default("DRAFT") // DRAFT, SUBMITTED_TO_HOD, HOD_APPROVED, DEAN_APPROVED, PUBLISHED
+  assignedFacultyId      String?
+  assignedFaculty        Faculty? @relation(fields: [assignedFacultyId], references: [id], onDelete: SetNull)
+  assignedHodId          String?
+  assignedDeanId         String?
+  assignedCoordinatorId  String?
+
   description            String?
   status                 String  @default("ACTIVE") // ACTIVE, INACTIVE, ARCHIVED
 
@@ -395,6 +551,12 @@ model Subject {
   subjectAssignments SubjectAssignment[]
   assignments        Assignment[]
 
+  courseOutcomes     CourseOutcome[]
+  curriculumUnits    CurriculumUnit[]
+  materials          CurriculumMaterial[]
+  questionBankItems  QuestionBankItem[]
+  labExperiments     LabExperiment[]
+
   archived   Boolean   @default(false)
   archivedAt DateTime?
   deleted    Boolean   @default(false)
@@ -407,7 +569,175 @@ model Subject {
   @@index([departmentId])
   @@index([programId])
   @@index([sectionId])
+  @@index([regulationId])
   @@map("subjects")
+}
+
+model Regulation {
+  id            String    @id @default(uuid())
+  code          String    @unique // e.g. "R2021", "R2023", "R2026"
+  title         String    // e.g. "Regulations 2026 Choice Based Credit System"
+  effectiveYear String    // e.g. "2026-27"
+  status        String    @default("DRAFT") // DRAFT, PUBLISHED, ARCHIVED
+  version       Int       @default(1)
+  isCurrent     Boolean   @default(false)
+  description   String?
+  subjects      Subject[]
+  deleted       Boolean   @default(false)
+  deletedAt     DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@map("regulations")
+}
+
+model ProgramOutcome {
+  id          String   @id @default(uuid())
+  code        String   @unique // e.g. "PO1", "PO2"
+  title       String   // e.g. "Engineering Knowledge"
+  description String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("program_outcomes")
+}
+
+model ProgramSpecificOutcome {
+  id           String   @id @default(uuid())
+  code         String   // e.g. "PSO1"
+  departmentId String
+  title        String   
+  description  String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("program_specific_outcomes")
+}
+
+model CourseOutcome {
+  id          String         @id @default(uuid())
+  subjectId   String
+  subject     Subject        @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  code        String         // e.g. "CO1", "CO2"
+  description String
+  bloomLevel  String         // Remember, Understand, Apply, Analyze, Evaluate, Create
+  mappings    CoPoMapping[]
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  @@map("course_outcomes")
+}
+
+model CoPoMapping {
+  id               String        @id @default(uuid())
+  coId             String
+  co               CourseOutcome @relation(fields: [coId], references: [id], onDelete: Cascade)
+  targetCode       String        // e.g. "PO1", "PSO1"
+  targetType       String        // PO, PSO
+  correlationLevel Int           @default(3) // 1 = Low, 2 = Medium, 3 = High
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  @@map("co_po_mappings")
+}
+
+model CurriculumUnit {
+  id          String            @id @default(uuid())
+  subjectId   String
+  subject     Subject           @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  unitNumber  String            // e.g. "Unit I", "Unit II"
+  name        String            // e.g. "Algorithm Analysis & Growth of Functions"
+  description String?
+  totalHours  Int               @default(9)
+  topics      CurriculumTopic[]
+  materials   CurriculumMaterial[]
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  @@map("curriculum_units")
+}
+
+model CurriculumTopic {
+  id              String            @id @default(uuid())
+  unitId          String
+  unit            CurriculumUnit    @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  topicNumber     String?           // e.g. "1.1"
+  title           String            
+  subTopics       String?           // JSON array or text
+  learningOutcomes String?
+  materials       CurriculumMaterial[]
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  @@map("curriculum_topics")
+}
+
+model CurriculumMaterial {
+  id          String           @id @default(uuid())
+  subjectId   String
+  subject     Subject          @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  unitId      String?
+  unit        CurriculumUnit?  @relation(fields: [unitId], references: [id], onDelete: SetNull)
+  topicId     String?
+  topic       CurriculumTopic? @relation(fields: [topicId], references: [id], onDelete: SetNull)
+  title       String
+  type        String           // NOTES, PDF, PPT, WORD, EXCEL, VIDEO, IMAGE, ZIP, SOURCE_CODE, REFERENCE_BOOK, LAB_MANUAL, TUTORIAL, YOUTUBE
+  url         String
+  fileSize    Int?
+  authorName  String?
+  status      String           @default("PUBLISHED")
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  @@map("curriculum_materials")
+}
+
+model QuestionBankItem {
+  id          String   @id @default(uuid())
+  subjectId   String
+  subject     Subject  @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  unitId      String?
+  category    String   // MARKS_2, MARKS_5, MARKS_10, MARKS_13, MARKS_15, MARKS_16, MCQ, PROGRAMMING, NUMERICAL, LAB_VIVA, PREVIOUS_YEAR, IMPORTANT
+  question    String
+  options     String?  // JSON string for MCQ options if applicable
+  answer      String?
+  bloomLevel  String?  // Remember, Understand, Apply, etc.
+  difficulty  String   @default("MEDIUM") // EASY, MEDIUM, HARD
+  year        String?  // e.g. "2024"
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("question_bank_items")
+}
+
+model LabExperiment {
+  id            String   @id @default(uuid())
+  subjectId     String
+  subject       Subject  @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  expNumber     Int
+  title         String
+  objective     String?
+  equipment     String?
+  procedure     String?
+  vivaQuestions String?  // JSON text of questions & answers
+  manualUrl     String?
+  simulationUrl String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@map("lab_experiments")
+}
+
+model CurriculumVersionLog {
+  id            String   @id @default(uuid())
+  regulationId  String
+  versionNumber Int
+  changeSummary String
+  snapshotData  String   // JSON string of full regulation curriculum structure
+  createdById   String
+  createdAt     DateTime @default(now())
+
+  @@map("curriculum_version_logs")
 }
 
 model MasterRecord {
@@ -687,6 +1017,7 @@ model Faculty {
   timetableSlots     TimetableSlot[]
   subjectAssignments SubjectAssignment[]
   assignments        Assignment[]
+  assignedSubjects   Subject[]
   mentoredStudents   Student[]           @relation("StudentMentor")
   mentorAssignments  MentorAssignment[]  @relation("MentorAssignmentMentor")
   chatMessages      ChatMessage[]
@@ -1696,6 +2027,138 @@ model TimetableAuditLog {
 
   @@map("timetable_audit_logs")
 }
+
+// ==========================================
+// SPORTS MANAGEMENT MODULE MODELS
+// ==========================================
+
+model SportsProfile {
+  id               String   @id @default(uuid())
+  userId           String   @unique
+  role             String   // SPORTS_DIRECTOR, PHYSICAL_DIRECTOR, SPORTS_COACH, STUDENT_ATHLETE
+  specialization   String?  // e.g. Football, Basketball, Athletics
+  qualifications   String?  // e.g. M.P.Ed, NIS Certified
+  experienceYears  Int      @default(0)
+  achievements     String   @default("[]") // JSON string array
+  status           String   @default("ACTIVE")
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@map("sports_profiles")
+}
+
+model SportsTeam {
+  id          String   @id @default(uuid())
+  name        String   // e.g. Campus Football XI
+  sport       String   // e.g. Football, Cricket, Badminton
+  category    String   @default("MEN") // MEN, WOMEN, MIXED
+  coachId     String?
+  captainId   String?
+  members     String   @default("[]") // JSON array of student IDs
+  status      String   @default("ACTIVE")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("sports_teams")
+}
+
+model SportsTournament {
+  id          String   @id @default(uuid())
+  title       String
+  sport       String
+  type        String   @default("INTRA_COLLEGE") // INTRA_COLLEGE, INTER_COLLEGE, STATE, NATIONAL
+  venue       String
+  startDate   DateTime
+  endDate     DateTime
+  organizer   String?
+  status      String   @default("UPCOMING") // UPCOMING, ONGOING, COMPLETED, CANCELLED
+  teamsCount  Int      @default(0)
+  winnerTeam  String?
+  runnerTeam  String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("sports_tournaments")
+}
+
+model SportsEquipment {
+  id            String   @id @default(uuid())
+  name          String
+  sport         String
+  totalQuantity Int      @default(0)
+  available     Int      @default(0)
+  condition     String   @default("GOOD") // GOOD, NEEDS_REPAIR, REPLACED
+  location      String   @default("Main Sports Complex")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@map("sports_equipments")
+}
+
+model SportsBooking {
+  id           String   @id @default(uuid())
+  facilityName String   // Football Ground, Tennis Court, Indoor Stadium
+  bookedBy     String   // User or Team ID
+  bookerName   String
+  bookerRole   String
+  date         DateTime
+  startTime    String   // "06:00"
+  endTime      String   // "08:00"
+  purpose      String   // Practice, Match, Tournament
+  status       String   @default("APPROVED") // PENDING, APPROVED, REJECTED, CANCELLED
+  createdAt    DateTime @default(now())
+
+  @@map("sports_bookings")
+}
+
+model SportsAchievement {
+  id             String   @id @default(uuid())
+  studentId      String
+  studentName    String
+  tournamentName String
+  sport          String
+  medal          String   // GOLD, SILVER, BRONZE, PARTICIPATION
+  position       String?  // 1st, 2nd, 3rd, Finalist
+  certificateUrl String?
+  date           DateTime @default(now())
+  createdAt      DateTime @default(now())
+
+  @@map("sports_achievements")
+}
+
+// ==========================================
+// CENTRALIZED RBAC & APPROVAL MATRIX MODELS
+// ==========================================
+
+model ApprovalMatrixRule {
+  id           String   @id @default(uuid())
+  workflowType String   // STUDENT_LEAVE, FACULTY_LEAVE, DEAN_LEAVE, BUDGET_APPROVAL, MARKS_APPROVAL
+  stepOrder    Int
+  approverRole String   // Role name required for this step
+  approverId   String?  // Specific user ID if explicit approval required
+  conditions   String?  // JSON string of conditions (e.g. maxDays, deptOnly)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("approval_matrix_rules")
+}
+
+
+
+
+model SportsAttendance {
+  id        String   @id @default(uuid())
+  studentId String
+  teamId    String?
+  sport     String
+  date      DateTime @default(now())
+  status    String   @default("PRESENT") // PRESENT, ABSENT, EXCUSED
+  notes     String?
+  createdAt DateTime @default(now())
+
+  @@map("sports_attendances")
+}
+
 
 
 

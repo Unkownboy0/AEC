@@ -100,7 +100,7 @@ export class CertificateController {
         data: {
           certificate,
           studentName: student ? `${student.firstName} ${student.lastName}` : 'Enrolled Student',
-          rollNo: student?.rollNumber,
+          rollNo: (student as any)?.rollNo || (student as any)?.admissionNo,
           department: student?.department?.name || 'Engineering',
           verifiedAt: new Date().toISOString()
         }

@@ -357,7 +357,7 @@ export const PlacementEngine: React.FC = () => {
                           {app.student.department?.name || 'N/A'}
                         </td>
                         <td className="py-3.5 px-2 font-mono">
-                          9.23 {/* Mock GPA fallback if schema lacks CGPA field */}
+                          {(app.student as any).cgpa != null ? (app.student as any).cgpa.toFixed(2) : 'N/A'}
                         </td>
                         <td className="py-3.5 px-2 text-center">
                           <span className={`px-2 py-0.5 rounded-full text-[9px] font-black border ${statusColors[app.status]}`}>

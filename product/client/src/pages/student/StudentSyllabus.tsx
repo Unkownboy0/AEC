@@ -1,330 +1,333 @@
 import React, { useState, useEffect } from 'react';
-import { BookOpen, Search, Download, Star, Info, FileText, BarChart2, Layers, Cpu, Code2, Database, Network } from 'lucide-react';
+import { BookOpen, Search, Download, Star, Info, FileText, BarChart2, Layers, Cpu, Code2, Database, Network, ExternalLink, HelpCircle, CheckCircle, FileCheck, Layers3 } from 'lucide-react';
 import { toast } from '../../components/ui/Toast';
 import { Loading } from '../../components/ui/Loading';
 import api from '../../lib/axios';
 
-interface SyllabusUnit {
-  unitNumber: string;
-  title: string;
-  topics: string;
-  hours: number;
-}
-
-interface EngineeringSubject {
-  code: string;
-  name: string;
-  type: 'CORE' | 'ELECTIVE' | 'LAB';
-  category: string;
-  credits: number;
-  ltp: string;
-  prerequisite: string;
-  description: string;
-  outcomes: string[];
-  units: SyllabusUnit[];
-  textbooks: string[];
-}
-
-const DETAILED_ENGINEERING_SYLLABUS: EngineeringSubject[] = [
-  {
-    code: 'CS6101',
-    name: 'Design and Analysis of Algorithms',
-    type: 'CORE',
-    category: 'Computer Science & Engineering',
-    credits: 4,
-    ltp: '3-1-0',
-    prerequisite: 'Data Structures (CS5101)',
-    description: 'Advanced design paradigms, asymptotic complexity, divide and conquer, greedy strategies, dynamic programming, graph algorithms, NP-completeness, and approximation algorithms.',
-    outcomes: [
-      'Analyze worst-case and average-case asymptotic time/space complexities.',
-      'Formulate dynamic programming state recurrence equations for optimization problems.',
-      'Apply graph algorithms (Dijkstra, Bellman-Ford, Kruskal) to network design.',
-      'Prove NP-completeness using polynomial-time reductions.'
-    ],
-    units: [
-      { unitNumber: 'Unit I', title: 'Algorithm Analysis & Growth of Functions', topics: 'Asymptotic notation (O, Ω, Θ), Recurrence relations, Master Theorem, Substitution Method, Substitution proofs.', hours: 9 },
-      { unitNumber: 'Unit II', title: 'Divide & Conquer and Greedy Methods', topics: 'Merge Sort, Quick Sort, Strassen Matrix Multiplication, Fractional Knapsack, Huffman Coding, Minimum Spanning Trees (Kruskal, Prim).', hours: 10 },
-      { unitNumber: 'Unit III', title: 'Dynamic Programming', topics: '0/1 Knapsack, Matrix Chain Multiplication, Longest Common Subsequence (LCS), All-Pairs Shortest Path (Floyd-Warshall), Bellman-Ford.', hours: 10 },
-      { unitNumber: 'Unit IV', title: 'Graph Algorithms & Backtracking', topics: 'BFS, DFS, Topological Sort, Strongly Connected Components, N-Queens problem, Subset Sum, Graph Coloring.', hours: 9 },
-      { unitNumber: 'Unit V', title: 'NP-Completeness & Approximation', topics: 'P vs NP, NP-Hard and NP-Complete classes, 3-SAT reduction, Traveling Salesperson Problem (TSP) approximation.', hours: 7 }
-    ],
-    textbooks: [
-      'Cormen, Leiserson, Rivest, Stein, "Introduction to Algorithms", 4th Edition, MIT Press.',
-      'Ellis Horowitz, Sartaj Sahni, "Fundamentals of Computer Algorithms", Galgotia Publications.'
-    ]
-  },
-  {
-    code: 'CS6102',
-    name: 'Database Management Systems',
-    type: 'CORE',
-    category: 'Computer Science & Engineering',
-    credits: 4,
-    ltp: '3-0-2',
-    prerequisite: 'Discrete Mathematics (MA5102)',
-    description: 'Data models, ER modeling, Relational Algebra, SQL query optimization, Functional Dependencies, Normalization (1NF to BCNF), Transaction Processing, ACID, and NoSQL.',
-    outcomes: [
-      'Design conceptual ER models and map them to normalized relational schemas.',
-      'Construct complex SQL queries using JOINs, aggregations, subqueries, and window functions.',
-      'Evaluate transaction concurrency control using Two-Phase Locking (2PL) and Timestamp Ordering.',
-      'Implement indexing structures (B+ Trees, Hashing) for fast query processing.'
-    ],
-    units: [
-      { unitNumber: 'Unit I', title: 'Relational Model & ER Architecture', topics: 'DBMS Architecture, Data Independence, ER Diagrams, Weak Entities, Relational Algebra (Select, Project, Join, Set Ops).', hours: 8 },
-      { unitNumber: 'Unit II', title: 'SQL & Advanced Query Processing', topics: 'DDL, DML, DCL commands, Nested Subqueries, Correlated Subqueries, Views, Triggers, Stored Procedures, Indexing.', hours: 10 },
-      { unitNumber: 'Unit III', title: 'Relational Database Design & Normalization', topics: 'Functional Dependencies, Closure sets, 1NF, 2NF, 3NF, BCNF, Lossless Join Decomposition, Dependency Preservation.', hours: 10 },
-      { unitNumber: 'Unit IV', title: 'Transaction Management & Concurrency', topics: 'ACID properties, Schedule Serializability, Conflict Serializability, Two-Phase Locking (2PL), Deadlock Handling.', hours: 9 },
-      { unitNumber: 'Unit V', title: 'Modern Storage Systems & NoSQL', topics: 'B+ Tree Indexing, RAID levels, Document Databases (MongoDB), Key-Value Stores (Redis), CAP Theorem.', hours: 8 }
-    ],
-    textbooks: [
-      'Silberschatz, Korth, Sudarshan, "Database System Concepts", 7th Edition, McGraw-Hill.',
-      'Ramez Elmasri, Shamkant B. Navathe, "Fundamentals of Database Systems", 7th Edition, Pearson.'
-    ]
-  },
-  {
-    code: 'CS6103',
-    name: 'Operating Systems & System Programming',
-    type: 'CORE',
-    category: 'Computer Science & Engineering',
-    credits: 4,
-    ltp: '3-1-0',
-    prerequisite: 'Computer Organization & Architecture (CS5103)',
-    description: 'Process management, multithreading, CPU scheduling, synchronization semaphores, deadlock handling, virtual memory paging, file systems, and Linux kernel fundamentals.',
-    outcomes: [
-      'Analyze CPU scheduling algorithms (FCFS, SJF, Round Robin, Multi-level Feedback Queue).',
-      'Solve race conditions using Semaphores, Mutexes, and Monitors.',
-      'Evaluate page replacement algorithms (FIFO, LRU, Optimal) for virtual memory management.',
-      'Understand file system allocation techniques (Contiguous, Linked, Indexed) and inode structures.'
-    ],
-    units: [
-      { unitNumber: 'Unit I', title: 'OS Overview & Process Management', topics: 'System Calls, Kernel Modes, Process State Transitions, Process Control Block (PCB), Context Switching, POSIX threads.', hours: 9 },
-      { unitNumber: 'Unit II', title: 'CPU Scheduling & Synchronization', topics: 'Preemptive vs Non-preemptive scheduling, Multi-processor scheduling, Critical Section Problem, Peterson Solution, Semaphores.', hours: 10 },
-      { unitNumber: 'Unit III', title: 'Deadlocks', topics: 'System Resource Allocation Graph, Deadlock Prevention, Avoidance (Banker Algorithm), Detection and Recovery.', hours: 8 },
-      { unitNumber: 'Unit IV', title: 'Memory Management & Virtual Memory', topics: 'Paging, Segmentation, Translation Lookaside Buffer (TLB), Page Faults, FIFO, LRU, Optimal Page Replacement.', hours: 10 },
-      { unitNumber: 'Unit V', title: 'Storage & File Systems', topics: 'Disk Scheduling (SSTF, SCAN, C-SCAN), Inode Structure, Directory Implementations, Virtual File System (VFS).', hours: 8 }
-    ],
-    textbooks: [
-      'Abraham Silberschatz, Peter B. Galvin, Greg Gagne, "Operating System Concepts", 10th Edition, Wiley.',
-      'William Stallings, "Operating Systems: Internals and Design Principles", 9th Edition, Pearson.'
-    ]
-  },
-  {
-    code: 'AI6104',
-    name: 'Machine Learning & Deep Learning Foundations',
-    type: 'ELECTIVE',
-    category: 'Artificial Intelligence & Data Science',
-    credits: 3,
-    ltp: '3-0-0',
-    prerequisite: 'Linear Algebra & Probability (MA5104)',
-    description: 'Supervised and unsupervised learning algorithms, Linear/Logistic Regression, Decision Trees, Random Forests, SVMs, Neural Networks, Backpropagation, CNNs, and Transformers.',
-    outcomes: [
-      'Formulate regression and classification models using gradient descent optimization.',
-      'Build Convolutional Neural Networks (CNNs) for image feature extraction.',
-      'Apply regularization techniques (L1/L2, Dropout) to combat overfitting.',
-      'Evaluate models using Confusion Matrix, ROC-AUC, F1-Score, and Precision-Recall metrics.'
-    ],
-    units: [
-      { unitNumber: 'Unit I', title: 'Supervised Learning Algorithms', topics: 'Linear Regression, Gradient Descent, Logistic Regression, Decision Trees, Information Gain, Gini Impurity, Random Forests.', hours: 9 },
-      { unitNumber: 'Unit II', title: 'SVM & Unsupervised Learning', topics: 'Support Vector Machines (Kernel Trick), K-Means Clustering, Hierarchical Clustering, Principal Component Analysis (PCA).', hours: 9 },
-      { unitNumber: 'Unit III', title: 'Neural Networks & Backpropagation', topics: 'Perceptrons, Multilayer Perceptrons (MLP), Activation Functions (ReLu, Sigmoid, Softmax), Cross-Entropy Loss, Backpropagation.', hours: 9 },
-      { unitNumber: 'Unit IV', title: 'Deep Learning & CNNs', topics: 'Convolutional Layers, Pooling Layers, ResNet Architecture, Transfer Learning, Batch Normalization, Dropout.', hours: 9 },
-      { unitNumber: 'Unit V', title: 'Sequential Models & Transformers', topics: 'Recurrent Neural Networks (RNN), LSTM, Attention Mechanism, Self-Attention, Transformer Encoder-Decoder.', hours: 9 }
-    ],
-    textbooks: [
-      'Tom M. Mitchell, "Machine Learning", McGraw-Hill.',
-      'Ian Goodfellow, Yoshua Bengio, Aaron Courville, "Deep Learning", MIT Press.'
-    ]
-  }
-];
-
 export const StudentSyllabus: React.FC = () => {
-  const [subjects, setSubjects] = useState<EngineeringSubject[]>(DETAILED_ENGINEERING_SYLLABUS);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [typeFilter, setTypeFilter] = useState('ALL');
-  const [expandedSubject, setExpandedSubject] = useState<string | null>('CS6101');
-  const [favorites, setFavorites] = useState<string[]>(() => {
-    try {
-      return JSON.parse(localStorage.getItem('student_syllabus_bookmarks') || '[]');
-    } catch {
-      return [];
-    }
-  });
+  const [loading, setLoading] = useState(true);
+  const [curriculumData, setCurriculumData] = useState<any>(null);
+  const [selectedSubject, setSelectedSubject] = useState<any>(null);
+  const [activeTab, setActiveTab] = useState<'UNITS' | 'OUTCOMES' | 'MATERIALS' | 'QUESTIONS' | 'LABS'>('UNITS');
+  const [searchQuery, setSearchQuery] = useState('');
 
-  const toggleFavorite = (code: string) => {
-    let updated;
-    if (favorites.includes(code)) {
-      updated = favorites.filter(c => c !== code);
-      toast.success('Subject unbookmarked.');
-    } else {
-      updated = [...favorites, code];
-      toast.success('Subject added to bookmarks.');
+  useEffect(() => {
+    fetchStudentCurriculum();
+  }, []);
+
+  const fetchStudentCurriculum = async () => {
+    setLoading(true);
+    try {
+      const res = await api.get('/curriculum/student-view');
+      if (res.data?.success && res.data.data) {
+        setCurriculumData(res.data.data);
+        if (res.data.data.subjects && res.data.data.subjects.length > 0) {
+          setSelectedSubject(res.data.data.subjects[0]);
+        }
+      }
+    } catch (err: any) {
+      console.error('Failed to load curriculum from database:', err);
+      toast.error('Unable to fetch curriculum data');
+    } finally {
+      setLoading(false);
     }
-    setFavorites(updated);
-    localStorage.setItem('student_syllabus_bookmarks', JSON.stringify(updated));
   };
 
-  const filteredSubjects = subjects.filter(sub => {
-    const matchesSearch = sub.code.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                          sub.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          sub.category.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesType = typeFilter === 'ALL' || sub.type === typeFilter;
-    return matchesSearch && matchesType;
-  });
+  if (loading) return <Loading />;
+
+  const subjects = curriculumData?.subjects || [];
+  const filteredSubjects = subjects.filter((s: any) =>
+    s.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    s.code.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   return (
-    <div className="space-y-6 text-left pb-16 animate-in fade-in duration-200">
-      
-      {/* Top Banner */}
-      <div className="flex flex-col sm:flex-row justify-between items-start gap-4 bg-card border p-6 rounded-2xl shadow-sm">
-        <div>
-          <h1 className="text-xl font-black text-slate-800 dark:text-white flex items-center gap-2">
-            <BookOpen className="h-6 w-6 text-indigo-600" /> Engineering Curriculum & Unit-Wise Syllabus Catalog
-          </h1>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Full Tier-1 University regulation syllabus breakdown, course outcomes (COs), L-T-P credits, and reference textbooks
+    <div className="space-y-6">
+      {/* Header Banner */}
+      <div className="bg-gradient-to-r from-blue-900 via-indigo-900 to-slate-900 text-white rounded-2xl p-6 shadow-xl border border-blue-800/40">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+          <div>
+            <div className="flex items-center gap-2 text-blue-300 text-xs font-semibold uppercase tracking-wider mb-1">
+              <BookOpen className="w-4 h-4" /> Academic Curriculum & Dynamic Syllabus
+            </div>
+            <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight">
+              {curriculumData?.department?.name || 'Academic Syllabus'}
+            </h1>
+            <p className="text-slate-300 text-sm mt-1">
+              {curriculumData?.program?.code ? `${curriculumData.program.code} - ` : ''}
+              {curriculumData?.semester?.name ? `${curriculumData.semester.name} ` : 'Enrolled Semester'}
+              (Database Synchronized)
+            </p>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <div className="bg-white/10 backdrop-blur-md px-4 py-2 rounded-xl text-xs font-medium border border-white/10">
+              Total Enrolled Subjects: <span className="font-bold text-blue-300">{subjects.length}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Main Grid: Subjects List + Detailed Content Viewer */}
+      {subjects.length === 0 ? (
+        <div className="bg-white rounded-2xl p-12 text-center border border-slate-200 shadow-sm">
+          <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
+            <BookOpen className="w-8 h-8" />
+          </div>
+          <h3 className="text-lg font-bold text-slate-800">No Curriculum Available</h3>
+          <p className="text-sm text-slate-500 max-w-md mx-auto mt-2">
+            No active curriculum or published syllabus has been assigned to your department & semester yet by the Super Admin.
           </p>
         </div>
-        <button
-          onClick={() => toast.success('Full Engineering Regulation PDF downloaded successfully')}
-          className="px-4 py-2 bg-indigo-600 text-white font-extrabold text-xs rounded-xl hover:bg-indigo-700 shadow transition-all flex items-center gap-1.5 shrink-0"
-        >
-          <Download className="h-4 w-4" /> Download Complete Regulation PDF
-        </button>
-      </div>
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          {/* Left Column: Subjects List */}
+          <div className="lg:col-span-4 space-y-3">
+            <div className="relative">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+              <input
+                type="text"
+                placeholder="Search subject code or name..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-9 pr-4 py-2.5 bg-white text-slate-800 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none shadow-sm"
+              />
+            </div>
 
-      {/* Top Summary Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {[
-          { label: 'Academic Regulation', value: 'REG-2026 (Tier-1 Autonomous)' },
-          { label: 'Engineering Discipline', value: 'Computer Science & Engg.' },
-          { label: 'Current Semester', value: 'Semester VI (3rd Year)' },
-          { label: 'Total Mapped Credits', value: '24 Credits' }
-        ].map((card, idx) => (
-          <div key={idx} className="border bg-card p-4 rounded-2xl shadow-sm">
-            <p className="text-[10px] uppercase font-black tracking-wider text-slate-400">{card.label}</p>
-            <p className="text-xs font-black text-slate-800 dark:text-white mt-1">{card.value}</p>
-          </div>
-        ))}
-      </div>
-
-      {/* Search & Filter */}
-      <div className="flex flex-col md:flex-row gap-3 items-center justify-between border bg-card p-4 rounded-2xl shadow-sm">
-        <div className="flex flex-1 w-full md:w-auto items-center gap-2 border px-3 py-2 rounded-xl bg-background">
-          <Search className="h-4 w-4 text-slate-400" />
-          <input
-            type="text"
-            placeholder="Search by subject code, course title, or unit topics..."
-            value={searchTerm}
-            onChange={e => setSearchTerm(e.target.value)}
-            className="bg-transparent text-xs outline-none w-full font-semibold"
-          />
-        </div>
-
-        <div className="flex gap-2 w-full md:w-auto">
-          <select
-            value={typeFilter}
-            onChange={e => setTypeFilter(e.target.value)}
-            className="text-xs font-semibold px-3 py-2 border rounded-xl bg-card outline-none font-bold text-foreground"
-          >
-            <option value="ALL">All Categories</option>
-            <option value="CORE">Core Subjects</option>
-            <option value="ELECTIVE">Electives</option>
-            <option value="LAB">Laboratories</option>
-          </select>
-        </div>
-      </div>
-
-      {/* Syllabus Accordion / Cards List */}
-      <div className="space-y-4">
-        {filteredSubjects.map((sub) => {
-          const isExpanded = expandedSubject === sub.code;
-          return (
-            <div key={sub.code} className="border bg-card rounded-2xl shadow-sm overflow-hidden transition-all">
-              <div
-                onClick={() => setExpandedSubject(isExpanded ? null : sub.code)}
-                className="p-5 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 cursor-pointer hover:bg-muted/10 transition-colors"
-              >
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <span className="font-mono text-xs font-black text-indigo-600 bg-indigo-50 dark:bg-indigo-900/40 px-2 py-0.5 rounded">
-                      {sub.code}
-                    </span>
-                    <span className={`text-[8.5px] font-black uppercase px-2 py-0.5 rounded border ${
-                      sub.type === 'CORE' ? 'bg-indigo-50 text-indigo-700 border-indigo-200' : 'bg-purple-50 text-purple-700 border-purple-200'
-                    }`}>
-                      {sub.type}
-                    </span>
-                    <span className="text-[10px] text-slate-400 font-bold">{sub.category}</span>
-                  </div>
-                  <h3 className="text-base font-extrabold text-slate-800 dark:text-white">{sub.name}</h3>
-                </div>
-
-                <div className="flex items-center gap-4 text-xs font-extrabold text-slate-600 dark:text-slate-300">
-                  <div className="text-right hidden sm:block">
-                    <p className="text-[10px] text-slate-400 uppercase font-black">L-T-P</p>
-                    <p className="font-mono">{sub.ltp}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-[10px] text-slate-400 uppercase font-black">Credits</p>
-                    <p className="text-indigo-600 font-black">{sub.credits} Credits</p>
-                  </div>
+            <div className="space-y-2 max-h-[600px] overflow-y-auto pr-1">
+              {filteredSubjects.map((sub: any) => {
+                const isSelected = selectedSubject?.id === sub.id;
+                return (
                   <button
-                    onClick={(e) => { e.stopPropagation(); toggleFavorite(sub.code); }}
-                    className={`p-2 rounded-xl border hover:bg-slate-50 transition-colors ${
-                      favorites.includes(sub.code) ? 'text-amber-500 bg-amber-50 border-amber-200' : 'text-slate-400'
+                    key={sub.id}
+                    onClick={() => setSelectedSubject(sub)}
+                    className={`w-full text-left p-4 rounded-xl border transition-all duration-200 ${
+                      isSelected
+                        ? 'bg-blue-600 text-white border-blue-600 shadow-md ring-2 ring-blue-600/30'
+                        : 'bg-white text-slate-800 border-slate-200 hover:border-blue-300 hover:bg-blue-50/50 shadow-sm'
                     }`}
                   >
-                    <Star className="h-4 w-4 fill-current" />
+                    <div className="flex justify-between items-start gap-2">
+                      <span className={`px-2 py-0.5 text-[10px] font-bold rounded ${isSelected ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-700'}`}>
+                        {sub.code}
+                      </span>
+                      <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${
+                        sub.isLab ? 'bg-amber-100 text-amber-800' : 'bg-blue-100 text-blue-800'
+                      }`}>
+                        {sub.credits} Credits
+                      </span>
+                    </div>
+                    <h4 className="font-bold text-sm mt-2 line-clamp-1">{sub.name}</h4>
+                    <div className="flex items-center gap-3 mt-2 text-[11px] opacity-80">
+                      <span>L-T-P: {sub.theoryHours}-{sub.tutorialHours}-{sub.practicalHours}</span>
+                      <span>•</span>
+                      <span>CIA: {sub.internalMarks} / ESE: {sub.externalMarks}</span>
+                    </div>
                   </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Right Column: Detailed Subject Details */}
+          {selectedSubject && (
+            <div className="lg:col-span-8 bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
+              {/* Header */}
+              <div className="p-6 border-b border-slate-100 bg-slate-50/50">
+                <div className="flex flex-wrap justify-between items-start gap-4">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="bg-blue-100 text-blue-800 text-xs font-bold px-2.5 py-1 rounded-md">
+                        {selectedSubject.code}
+                      </span>
+                      <span className="bg-slate-200 text-slate-700 text-xs font-semibold px-2.5 py-1 rounded-md">
+                        {selectedSubject.regulation?.code || 'Current Regulation'}
+                      </span>
+                    </div>
+                    <h2 className="text-xl font-bold text-slate-900 mt-2">{selectedSubject.name}</h2>
+                    <p className="text-slate-500 text-sm mt-1">{selectedSubject.description || 'Comprehensive syllabus modules, course outcomes, learning materials and question banks.'}</p>
+                  </div>
+                </div>
+
+                {/* Subject Tabs */}
+                <div className="flex items-center gap-2 mt-6 overflow-x-auto border-b border-slate-200 pb-px">
+                  {[
+                    { id: 'UNITS', label: `Units & Topics (${selectedSubject.curriculumUnits?.length || 0})`, icon: Layers },
+                    { id: 'OUTCOMES', label: `Course Outcomes (${selectedSubject.courseOutcomes?.length || 0})`, icon: FileCheck },
+                    { id: 'MATERIALS', label: `Study Materials (${selectedSubject.materials?.length || 0})`, icon: FileText },
+                    { id: 'QUESTIONS', label: `Question Bank (${selectedSubject.questionBankItems?.length || 0})`, icon: HelpCircle },
+                    { id: 'LABS', label: `Lab Experiments (${selectedSubject.labExperiments?.length || 0})`, icon: Cpu }
+                  ].map((tab) => {
+                    const Icon = tab.icon;
+                    const isActive = activeTab === tab.id;
+                    return (
+                      <button
+                        key={tab.id}
+                        onClick={() => setActiveTab(tab.id as any)}
+                        className={`flex items-center gap-2 px-4 py-2.5 text-xs font-semibold whitespace-nowrap border-b-2 transition-colors ${
+                          isActive
+                            ? 'border-blue-600 text-blue-600 bg-blue-50/50 rounded-t-lg'
+                            : 'border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300'
+                        }`}
+                      >
+                        <Icon className="w-4 h-4" />
+                        {tab.label}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
-              {/* Expanded Syllabus Breakdown */}
-              {isExpanded && (
-                <div className="p-6 border-t bg-muted/10 space-y-6 text-xs font-semibold">
-                  <div>
-                    <h4 className="text-[10px] uppercase font-black text-slate-400 tracking-wider mb-1">Course Description</h4>
-                    <p className="text-slate-700 dark:text-slate-300 leading-relaxed font-medium">{sub.description}</p>
-                    <p className="text-[10px] text-indigo-600 font-bold mt-1">Prerequisite: {sub.prerequisite}</p>
-                  </div>
-
-                  <div>
-                    <h4 className="text-[10px] uppercase font-black text-slate-400 tracking-wider mb-2">Course Outcomes (COs)</h4>
-                    <ul className="space-y-1 list-disc pl-4 text-slate-600 dark:text-slate-300">
-                      {sub.outcomes.map((co, idx) => (
-                        <li key={idx}><span className="font-bold text-slate-800 dark:text-white">CO{idx + 1}:</span> {co}</li>
-                      ))}
-                    </ul>
-                  </div>
-
-                  <div>
-                    <h4 className="text-[10px] uppercase font-black text-slate-400 tracking-wider mb-3">Unit-Wise Syllabus Breakdown</h4>
-                    <div className="space-y-3">
-                      {sub.units.map((unit) => (
-                        <div key={unit.unitNumber} className="p-4 border bg-card rounded-xl space-y-1">
-                          <div className="flex justify-between items-center">
-                            <span className="font-black text-indigo-600 text-xs">{unit.unitNumber}: {unit.title}</span>
-                            <span className="text-[9px] font-bold text-slate-400">{unit.hours} Hours</span>
+              {/* Body Content */}
+              <div className="p-6 space-y-4 flex-1">
+                {activeTab === 'UNITS' && (
+                  <div className="space-y-4">
+                    {(!selectedSubject.curriculumUnits || selectedSubject.curriculumUnits.length === 0) ? (
+                      <p className="text-sm text-slate-400 italic text-center py-8">No Units Found for this subject.</p>
+                    ) : (
+                      selectedSubject.curriculumUnits.map((unit: any, idx: number) => (
+                        <div key={unit.id || idx} className="p-4 rounded-xl bg-slate-50 border border-slate-200">
+                          <div className="flex justify-between items-start gap-2 mb-2">
+                            <span className="text-xs font-bold uppercase tracking-wider text-blue-600 bg-blue-50 px-2 py-0.5 rounded border border-blue-100">
+                              {unit.unitNumber}
+                            </span>
+                            <span className="text-xs font-medium text-slate-500">{unit.totalHours} Hours</span>
                           </div>
-                          <p className="text-[11px] text-slate-600 dark:text-slate-300 font-medium leading-relaxed">{unit.topics}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
+                          <h4 className="font-bold text-slate-800 text-base">{unit.name}</h4>
+                          {unit.description && <p className="text-xs text-slate-600 mt-1">{unit.description}</p>}
 
-                  <div>
-                    <h4 className="text-[10px] uppercase font-black text-slate-400 tracking-wider mb-2">Prescribed Textbooks & References</h4>
-                    <ol className="list-decimal pl-4 space-y-1 text-slate-600 dark:text-slate-300 font-medium">
-                      {sub.textbooks.map((book, idx) => (
-                        <li key={idx}>{book}</li>
-                      ))}
-                    </ol>
+                          {unit.topics && unit.topics.length > 0 && (
+                            <div className="mt-3 pt-3 border-t border-slate-200/60">
+                              <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-2">Syllabus Topics</span>
+                              <div className="space-y-1.5">
+                                {unit.topics.map((t: any, i: number) => (
+                                  <div key={t.id || i} className="text-xs text-slate-700 flex items-start gap-2">
+                                    <span className="text-blue-500 font-bold">•</span>
+                                    <div>
+                                      <span className="font-semibold text-slate-800">{t.title}</span>
+                                      {t.subTopics && <p className="text-[11px] text-slate-500 mt-0.5">{t.subTopics}</p>}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      ))
+                    )}
                   </div>
-                </div>
-              )}
+                )}
+
+                {activeTab === 'OUTCOMES' && (
+                  <div className="space-y-3">
+                    {(!selectedSubject.courseOutcomes || selectedSubject.courseOutcomes.length === 0) ? (
+                      <p className="text-sm text-slate-400 italic text-center py-8">No Course Outcomes Defined.</p>
+                    ) : (
+                      selectedSubject.courseOutcomes.map((co: any, idx: number) => (
+                        <div key={co.id || idx} className="p-4 rounded-xl border border-slate-200 bg-white flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-bold bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded border border-indigo-100">
+                                {co.code}
+                              </span>
+                              <span className="text-[10px] font-semibold bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded">
+                                Bloom: {co.bloomLevel}
+                              </span>
+                            </div>
+                            <p className="text-sm font-medium text-slate-800 mt-1">{co.description}</p>
+                          </div>
+
+                          {co.mappings && co.mappings.length > 0 && (
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              {co.mappings.map((m: any, i: number) => (
+                                <span key={i} className="text-[10px] bg-slate-100 text-slate-700 font-bold px-2 py-1 rounded">
+                                  {m.targetCode}: Level {m.correlationLevel}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      ))
+                    )}
+                  </div>
+                )}
+
+                {activeTab === 'MATERIALS' && (
+                  <div className="space-y-3">
+                    {(!selectedSubject.materials || selectedSubject.materials.length === 0) ? (
+                      <p className="text-sm text-slate-400 italic text-center py-8">No Study Materials</p>
+                    ) : (
+                      selectedSubject.materials.map((mat: any, idx: number) => (
+                        <div key={mat.id || idx} className="p-4 rounded-xl border border-slate-200 bg-white flex items-center justify-between gap-4">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-xs">
+                              {mat.type.substring(0, 3)}
+                            </div>
+                            <div>
+                              <h5 className="font-bold text-slate-800 text-sm">{mat.title}</h5>
+                              <span className="text-xs text-slate-400">{mat.type} • Published by {mat.authorName || 'Faculty'}</span>
+                            </div>
+                          </div>
+
+                          <a
+                            href={mat.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="px-3 py-1.5 text-xs font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg flex items-center gap-1 transition-colors"
+                          >
+                            <Download className="w-3.5 h-3.5" /> Download
+                          </a>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                )}
+
+                {activeTab === 'QUESTIONS' && (
+                  <div className="space-y-3">
+                    {(!selectedSubject.questionBankItems || selectedSubject.questionBankItems.length === 0) ? (
+                      <p className="text-sm text-slate-400 italic text-center py-8">No Question Bank Available.</p>
+                    ) : (
+                      selectedSubject.questionBankItems.map((q: any, idx: number) => (
+                        <div key={q.id || idx} className="p-4 rounded-xl border border-slate-200 bg-white space-y-2">
+                          <div className="flex justify-between items-center gap-2">
+                            <span className="text-[10px] font-bold bg-amber-50 text-amber-700 px-2 py-0.5 rounded border border-amber-100">
+                              {q.category}
+                            </span>
+                            <span className="text-[10px] font-medium text-slate-400">Difficulty: {q.difficulty}</span>
+                          </div>
+                          <p className="text-sm font-semibold text-slate-800">{q.question}</p>
+                          {q.answer && <p className="text-xs text-slate-600 bg-slate-50 p-2.5 rounded-lg border border-slate-100"><strong>Ans:</strong> {q.answer}</p>}
+                        </div>
+                      ))
+                    )}
+                  </div>
+                )}
+
+                {activeTab === 'LABS' && (
+                  <div className="space-y-3">
+                    {(!selectedSubject.labExperiments || selectedSubject.labExperiments.length === 0) ? (
+                      <p className="text-sm text-slate-400 italic text-center py-8">No Lab Experiments Documented.</p>
+                    ) : (
+                      selectedSubject.labExperiments.map((exp: any, idx: number) => (
+                        <div key={exp.id || idx} className="p-4 rounded-xl border border-slate-200 bg-white space-y-2">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-bold bg-purple-50 text-purple-700 px-2 py-0.5 rounded">
+                              Exp #{exp.expNumber}
+                            </span>
+                            <h5 className="font-bold text-slate-800 text-sm">{exp.title}</h5>
+                          </div>
+                          {exp.objective && <p className="text-xs text-slate-600"><strong>Objective:</strong> {exp.objective}</p>}
+                        </div>
+                      ))
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
-          );
-        })}
-      </div>
+          )}
+        </div>
+      )}
     </div>
   );
 };

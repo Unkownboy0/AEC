@@ -79,7 +79,7 @@ export class GamificationController {
         return {
           rank: index + 1,
           studentName: s ? `${s.firstName} ${s.lastName}` : `Student #${index + 1}`,
-          rollNo: s?.rollNumber,
+          rollNo: (s as any)?.rollNo || (s as any)?.admissionNo,
           department: s?.department?.name || 'Computer Science',
           xp: p.xp,
           level: p.level,

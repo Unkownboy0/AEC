@@ -23,6 +23,7 @@ export interface LoginResult {
     permissions: string[];
     menus: any[];
     forcePasswordChange?: boolean;
+    workspaces?: string[];
   };
 }
 

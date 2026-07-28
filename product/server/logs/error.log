@@ -9,3 +9,28 @@
     at Function.process_params (D:\company work\crm\product\server\node_modules\express\lib\router\index.js:346:12)
     at next (D:\company work\crm\product\server\node_modules\express\lib\router\index.js:280:10)
     at cors (D:\company work\crm\product\server\node_modules\cors\lib\index.js:188:7)
+[2026-07-28 13:48:40] [ERROR]: PrismaClientValidationError: 
+Invalid `prisma.regulation.create()` invocation in
+D:\company work\crm\product\server\src\modules\enterprise\enterprise.service.ts:1265:37
+
+  1262 if (r.code) {
+  1263   const existing = await prisma.regulation.findUnique({ where: { code: r.code } });
+  1264   if (!existing) {
+→ 1265     await prisma.regulation.create({
+             data: {
+               code: "R2026",
+               title: "Regulation 2026 (Outcome Based)",
+               effectiveYear: 2026,
+                              ~~~~
+               description: ""
+             }
+           })
+
+Argument `effectiveYear`: Invalid value provided. Expected String, provided Int.
+    at wn (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:29:1363)
+    at $n.handleRequestError (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6958)
+    at $n.handleAndLogRequestError (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6623)
+    at $n.request (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6307)
+    at l (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:130:9633)
+    at EnterpriseService.saveSetupStep (D:\company work\crm\product\server\src\modules\enterprise\enterprise.service.ts:1265:13)
+    at saveSetupStep (D:\company work\crm\product\server\src\modules\enterprise\enterprise.controller.ts:1526:20)

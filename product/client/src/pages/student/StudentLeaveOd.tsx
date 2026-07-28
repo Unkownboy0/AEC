@@ -22,6 +22,12 @@ export const StudentLeaveOd: React.FC = () => {
     attachments: ""
   });
 
+  // Timetable & Period State
+  const [timetableSlots, setTimetableSlots] = useState<any[]>([]);
+  const [selectedPeriods, setSelectedPeriods] = useState<number[]>([]);
+  const [availableFaculties, setAvailableFaculties] = useState<any[]>([]);
+  const [selectedFacultyId, setSelectedFacultyId] = useState<string>("ALL");
+
   const fetchRequests = async () => {
     try {
       const res = await api.get('/workflows/requests');
@@ -37,7 +43,39 @@ export const StudentLeaveOd: React.FC = () => {
 
   useEffect(() => {
     fetchRequests();
+    const fetchTimetable = async () => {
+      try {
+        const res = await api.get('/timetable/slots?studentId=me');
+        if (res.data?.status === 'success') {
+          const slots = res.data.data || [];
+          setTimetableSlots(slots);
+          
+          const facMap = new Map();
+          slots.forEach((s: any) => {
+            if (s.faculty && !facMap.has(s.faculty.id)) {
+              facMap.set(s.faculty.id, {
+                id: s.faculty.id,
+                name: `${s.faculty.firstName} ${s.faculty.lastName}`,
+                subject: s.subject?.name || 'Subject'
+              });
+            }
+          });
+          setAvailableFaculties(Array.from(facMap.values()));
+        }
+      } catch (err) {
+        console.error('Failed to load timetable slots:', err);
+      }
+    };
+    fetchTimetable();
   }, []);
+
+  const togglePeriod = (periodNum: number) => {
+    setSelectedPeriods(prev => 
+      prev.includes(periodNum) 
+        ? prev.filter(p => p !== periodNum)
+        : [...prev, periodNum].sort((a, b) => a - b)
+    );
+  };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -56,9 +94,32 @@ export const StudentLeaveOd: React.FC = () => {
 
     setIsSubmitting(true);
     try {
-      const res = await api.post('/workflows/requests', formData);
+      const affectedFacultyIdsSet = new Set<string>();
+      if (selectedFacultyId !== 'ALL' && selectedFacultyId !== '') {
+        affectedFacultyIdsSet.add(selectedFacultyId);
+      }
+
+      if (selectedPeriods.length > 0 && timetableSlots.length > 0) {
+        timetableSlots.forEach((slot: any) => {
+          if (selectedPeriods.includes(slot.slotIndex) && slot.facultyId) {
+            affectedFacultyIdsSet.add(slot.facultyId);
+          }
+        });
+      }
+
+      const attachmentsPayload = JSON.stringify({
+        url: formData.attachments,
+        periods: selectedPeriods,
+        affectedFacultyIds: Array.from(affectedFacultyIdsSet)
+      });
+
+      const res = await api.post('/workflows/requests', {
+        ...formData,
+        attachments: attachmentsPayload
+      });
+
       if (res.data?.status === 'success') {
-        toast.success("Leave/OD request submitted successfully!");
+        toast.success("Leave/OD request submitted to Mentor!");
         setFormData({
           type: "LEAVE",
           title: "",
@@ -67,6 +128,8 @@ export const StudentLeaveOd: React.FC = () => {
           endDate: "",
           attachments: ""
         });
+        setSelectedPeriods([]);
+        setSelectedFacultyId("ALL");
         fetchRequests();
       }
     } catch (err: any) {
@@ -208,7 +271,7 @@ export const StudentLeaveOd: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* Step 2: Mentor / Advisor Approval */}
+                  {/* Step 2: Mentor Approval */}
                   <div className="relative">
                     {selectedRequest.status === 'PENDING_MENTOR' || selectedRequest.status === 'PENDING' ? (
                       <span className="absolute -left-[21px] top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-amber-500 text-white border-2 border-card animate-pulse">
@@ -224,7 +287,7 @@ export const StudentLeaveOd: React.FC = () => {
                       </span>
                     )}
                     <div className="text-xs">
-                      <h5 className="font-extrabold text-slate-800">Faculty Advisor Review</h5>
+                      <h5 className="font-extrabold text-slate-800">Mentor Review & Decision</h5>
                       {selectedRequest.history?.find((h: any) => h.stage === 'MENTOR' || h.stage === 'FACULTY') ? (
                         <p className="text-[10px] text-slate-500 mt-0.5">
                           Action by {selectedRequest.history.find((h: any) => h.stage === 'MENTOR' || h.stage === 'FACULTY').actionByName}
@@ -235,39 +298,7 @@ export const StudentLeaveOd: React.FC = () => {
                           )}
                         </p>
                       ) : (
-                        <p className="text-[10px] text-slate-400 mt-0.5">Awaiting faculty review and endorsement</p>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Step 3: HOD Approval */}
-                  <div className="relative">
-                    {selectedRequest.status === 'APPROVED' || selectedRequest.status === 'COMPLETED' ? (
-                      <span className="absolute -left-[21px] top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-emerald-500 text-white border-2 border-card">
-                        <CheckCircle className="h-2.5 w-2.5" />
-                      </span>
-                    ) : selectedRequest.status === 'REJECTED_BY_HOD' ? (
-                      <span className="absolute -left-[21px] top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-rose-500 text-white border-2 border-card">
-                        <XCircle className="h-2.5 w-2.5" />
-                      </span>
-                    ) : (
-                      <span className="absolute -left-[21px] top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-slate-200 text-slate-400 border-2 border-card">
-                        <Clock className="h-2.5 w-2.5" />
-                      </span>
-                    )}
-                    <div className="text-xs">
-                      <h5 className="font-extrabold text-slate-800">HOD Final Approval</h5>
-                      {selectedRequest.history?.find((h: any) => h.stage === 'HOD') ? (
-                        <p className="text-[10px] text-slate-500 mt-0.5">
-                          Action by {selectedRequest.history.find((h: any) => h.stage === 'HOD').actionByName}
-                          {selectedRequest.history.find((h: any) => h.stage === 'HOD').comment && (
-                            <span className="block italic text-[9px] text-rose-500 mt-0.5 font-bold">
-                              Remarks/Reason: "{selectedRequest.history.find((h: any) => h.stage === 'HOD').comment}"
-                            </span>
-                          )}
-                        </p>
-                      ) : (
-                        <p className="text-[10px] text-slate-400 mt-0.5">Pending HOD authorization</p>
+                        <p className="text-[10px] text-slate-400 mt-0.5">Awaiting Mentor review and authorization</p>
                       )}
                     </div>
                   </div>
@@ -336,6 +367,66 @@ export const StudentLeaveOd: React.FC = () => {
                     />
                   </div>
                 </div>
+
+                {/* Period Selection (Optional) */}
+                <div>
+                  <div className="flex justify-between items-center mb-1">
+                    <label className="block text-[10px] font-black text-slate-400 uppercase">Period Selection (Optional)</label>
+                    <span className="text-[9px] text-indigo-600 font-bold">
+                      {selectedPeriods.length === 0 ? "Full-Day Leave" : `${selectedPeriods.length} Period(s) Selected`}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-4 gap-1.5 p-2 bg-slate-50 dark:bg-muted/10 rounded-xl border border-slate-100">
+                    {[1, 2, 3, 4, 5, 6, 7, 8].map((periodNum) => {
+                      const isChecked = selectedPeriods.includes(periodNum);
+                      const slot = timetableSlots.find((s: any) => s.slotIndex === periodNum);
+                      return (
+                        <button
+                          type="button"
+                          key={periodNum}
+                          onClick={() => togglePeriod(periodNum)}
+                          className={`py-1.5 px-2 rounded-lg border text-[10px] font-bold text-center transition-all flex flex-col items-center justify-center ${
+                            isChecked
+                              ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
+                              : 'bg-background text-slate-700 hover:border-indigo-200'
+                          }`}
+                        >
+                          <span>P{periodNum}</span>
+                          {slot?.subject?.code && (
+                            <span className={`text-[8px] truncate max-w-full ${isChecked ? 'text-indigo-100' : 'text-slate-400'}`}>
+                              {slot.subject.code}
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <p className="text-[9px] text-slate-400 mt-1 italic">
+                    If no periods are checked, request will be treated as full-day leave.
+                  </p>
+                </div>
+
+                {/* Affected Faculty (Optional Dropdown populated from Timetable) */}
+                {availableFaculties.length > 0 && (
+                  <div>
+                    <label className="block text-[10px] font-black text-slate-400 uppercase mb-1">Affected Faculty (Optional)</label>
+                    <select
+                      value={selectedFacultyId}
+                      onChange={(e) => setSelectedFacultyId(e.target.value)}
+                      className="w-full px-3 py-2 border rounded-lg bg-background font-medium focus:ring-2 focus:ring-indigo-600/20 focus:border-indigo-600 transition-all outline-none"
+                    >
+                      <option value="ALL">Auto-notify from Timetable</option>
+                      {availableFaculties.map((fac) => (
+                        <option key={fac.id} value={fac.id}>
+                          {fac.subject} - {fac.name}
+                        </option>
+                      ))}
+                    </select>
+                    <p className="text-[9px] text-slate-400 mt-1">
+                      Faculties receive informational notification only (No approval required).
+                    </p>
+                  </div>
+                )}
 
                 {/* Reason Textarea */}
                 <div>

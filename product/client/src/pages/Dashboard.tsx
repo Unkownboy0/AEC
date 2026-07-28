@@ -15,7 +15,7 @@ const StudentDashboard = React.lazy(() => import('./student/StudentDashboard'));
 
 import { FacultyPortal } from './FacultyPortal';
 import { HODPortal } from './HODPortal';
-import { PrincipalPortal, VicePrincipalPortal, AcademicDeanPortal, AdmissionDeanPortal, ParentPortal, MentorPortal } from './RolePortals';
+import { PrincipalPortal, VicePrincipalPortal, AcademicDeanPortal, AdmissionDeanPortal, ParentPortal, MentorPortal, IQACDeanPortal, IQACExecutivePortal, IQACDocumentationPortal } from './RolePortals';
 
 // Reusable KPI Card Component
 interface KPICardProps {
@@ -222,13 +222,13 @@ export const Dashboard: React.FC = () => {
     }
   };
 
-  // Student Payment gateway simulation
-  const handleMockPay = async (billId: string) => {
+  // Student Payment gateway processing
+  const handleProcessPayment = async (billId: string) => {
     setPaymentLoading(billId);
     try {
       const res = await api.post(`/enterprise/fees/bills/${billId}/pay`);
       if (res.data?.status === 'success') {
-        toast.success('Mock payment captured. Invoice Ledger updated.', 'Transaction Success');
+        toast.success('Payment captured successfully. Invoice Ledger updated.', 'Transaction Success');
         fetchCoreDashboard();
       }
     } catch (err) {
@@ -284,48 +284,85 @@ export const Dashboard: React.FC = () => {
     );
   }
 
-  if (user?.role === 'Student') {
+  const getWorkspaceContent = () => {
+    if (user?.role === 'Student') {
+      return (
+        <React.Suspense fallback={
+          <div className="flex h-[75vh] items-center justify-center">
+            <Loading text="Initializing Student Workspace..." />
+          </div>
+        }>
+          <StudentDashboard />
+        </React.Suspense>
+      );
+    }
+
+    if (user?.role === 'Faculty') {
+      return <FacultyPortal user={user} />;
+    }
+
+    if (user?.role === 'HOD') {
+      return <HODPortal user={user} />;
+    }
+
+    if (user?.role === 'Principal') {
+      return <PrincipalPortal user={user} />;
+    }
+
+    if (user?.role === 'Vice Principal') {
+      return <VicePrincipalPortal user={user} />;
+    }
+
+    if (user?.role === 'Academic Dean') {
+      return <AcademicDeanPortal user={user} />;
+    }
+
+    if (user?.role === 'Admission Dean') {
+      if (localStorage.getItem('admission_dean_workspace') === 'FACULTY') {
+        return <FacultyPortal user={user} />;
+      }
+      return <AdmissionDeanPortal user={user} />;
+    }
+
+    if (user?.role === 'IQAC Dean') {
+      if (localStorage.getItem('iqac_dean_workspace') === 'FACULTY') {
+        return <FacultyPortal user={user} />;
+      }
+      return <IQACDeanPortal user={user} />;
+    }
+
+    if (user?.role === 'IQAC Executive Officer' || user?.role === 'IQAC Executive') {
+      if (localStorage.getItem('iqac_exec_workspace') === 'FACULTY') {
+        return <FacultyPortal user={user} />;
+      }
+      return <IQACExecutivePortal user={user} />;
+    }
+
+    if (user?.role === 'IQAC Documentation Officer' || user?.role === 'IQAC Documentation') {
+      if (localStorage.getItem('iqac_doc_workspace') === 'FACULTY') {
+        return <FacultyPortal user={user} />;
+      }
+      return <IQACDocumentationPortal user={user} />;
+    }
+
+    if (user?.role === 'Parent') {
+      return <ParentPortal user={user} />;
+    }
+
+    if (user?.role === 'Mentor') {
+      return <MentorPortal user={user} />;
+    }
+
+    return null;
+  };
+
+  const workspaceContent = getWorkspaceContent();
+  if (workspaceContent) {
     return (
-      <React.Suspense fallback={
-        <div className="flex h-[75vh] items-center justify-center">
-          <Loading text="Initializing Student Workspace..." />
-        </div>
-      }>
-        <StudentDashboard />
-      </React.Suspense>
+      <div key={user?.role} className="animate-in fade-in slide-in-from-top-2 duration-300">
+        {workspaceContent}
+      </div>
     );
-  }
-
-  if (user?.role === 'Faculty') {
-    return <FacultyPortal user={user} />;
-  }
-
-  if (user?.role === 'HOD') {
-    return <HODPortal user={user} />;
-  }
-
-  if (user?.role === 'Principal') {
-    return <PrincipalPortal user={user} />;
-  }
-
-  if (user?.role === 'Vice Principal') {
-    return <VicePrincipalPortal user={user} />;
-  }
-
-  if (user?.role === 'Academic Dean') {
-    return <AcademicDeanPortal user={user} />;
-  }
-
-  if (user?.role === 'Admission Dean') {
-    return <AdmissionDeanPortal user={user} />;
-  }
-
-  if (user?.role === 'Parent') {
-    return <ParentPortal user={user} />;
-  }
-
-  if (user?.role === 'Mentor') {
-    return <MentorPortal user={user} />;
   }
 
   // Greeting based on time
@@ -393,16 +430,16 @@ export const Dashboard: React.FC = () => {
           <div className="space-y-3">
             <h3 className="text-xs uppercase font-extrabold tracking-wider text-muted-foreground">College Operational Metrics</h3>
             <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-              {hasPermission('students:read') && <KPICard title="Total Students" value={stats.totalStudents || 1450} icon={GraduationCap} colorClass="text-blue-500 bg-blue-50" />}
-              {hasPermission('faculty:read') && <KPICard title="Total Faculty" value={stats.totalFaculty || 124} icon={UserCheck} colorClass="text-indigo-500 bg-indigo-50" />}
-              {hasPermission('faculty:read') && <KPICard title="Total Mentors" value={18} icon={Users} colorClass="text-purple-500 bg-purple-50" />}
-              {hasPermission('departments:read') && <KPICard title="Departments" value={stats.totalDepartments || 5} icon={Building} colorClass="text-amber-500 bg-amber-50" />}
-              {hasPermission('subjects:read') && <KPICard title="Total Subjects" value={stats.totalSubjects || 24} icon={BookOpen} colorClass="text-cyan-500 bg-cyan-50" />}
-              {hasPermission('attendance:read') && <KPICard title="Today's Attendance" value="94.2%" icon={CalendarDays} colorClass="text-emerald-500 bg-emerald-50" />}
-              {hasPermission('fees:read') && <KPICard title="Fees Collected" value={`$${(stats.feeCollectionThisMonth || 125400).toLocaleString()}`} icon={Landmark} colorClass="text-green-600 bg-green-50" />}
-              {hasPermission('placements:read') && <KPICard title="Placements Count" value={142} icon={Briefcase} colorClass="text-blue-600 bg-blue-50" />}
-              {hasPermission('workflows:read') && <KPICard title="Pending Leaves" value={workflowRequests.length || 8} icon={FileText} colorClass="text-orange-500 bg-orange-50" />}
-              {hasPermission('support:read') && <KPICard title="Pending Complaints" value={4} icon={AlertTriangle} colorClass="text-rose-500 bg-rose-50" />}
+              {hasPermission('students:read') && <KPICard title="Total Students" value={stats.totalStudents ?? 0} icon={GraduationCap} colorClass="text-blue-500 bg-blue-50" />}
+              {hasPermission('faculty:read') && <KPICard title="Total Faculty" value={stats.totalFaculty ?? 0} icon={UserCheck} colorClass="text-indigo-500 bg-indigo-50" />}
+              {hasPermission('faculty:read') && <KPICard title="Total Mentors" value={stats.totalMentors ?? 0} icon={Users} colorClass="text-purple-500 bg-purple-50" />}
+              {hasPermission('departments:read') && <KPICard title="Departments" value={stats.totalDepartments ?? 0} icon={Building} colorClass="text-amber-500 bg-amber-50" />}
+              {hasPermission('subjects:read') && <KPICard title="Total Subjects" value={stats.totalSubjects ?? 0} icon={BookOpen} colorClass="text-cyan-500 bg-cyan-50" />}
+              {hasPermission('attendance:read') && <KPICard title="Today's Attendance" value={stats.todayAttendance ?? "0.0%"} icon={CalendarDays} colorClass="text-emerald-500 bg-emerald-50" />}
+              {hasPermission('fees:read') && <KPICard title="Fees Collected" value={`$${(stats.feeCollectionThisMonth ?? 0).toLocaleString()}`} icon={Landmark} colorClass="text-green-600 bg-green-50" />}
+              {hasPermission('placements:read') && <KPICard title="Placements Count" value={stats.placementsCount ?? 0} icon={Briefcase} colorClass="text-blue-600 bg-blue-50" />}
+              {hasPermission('workflows:read') && <KPICard title="Pending Leaves" value={workflowRequests.length} icon={FileText} colorClass="text-orange-500 bg-orange-50" />}
+              {hasPermission('support:read') && <KPICard title="Pending Complaints" value={stats.pendingComplaints ?? 0} icon={AlertTriangle} colorClass="text-rose-500 bg-rose-50" />}
             </div>
           </div>
 
@@ -490,24 +527,24 @@ export const Dashboard: React.FC = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {[
-                      { name: 'Computer Science & Engineering (CSE)', students: 480, faculty: 38, attendance: '95.4%', pass: '96.2%', placement: '91.0%' },
-                      { name: 'Electronics & Communication (ECE)', students: 340, faculty: 28, attendance: '93.8%', pass: '94.0%', placement: '86.5%' },
-                      { name: 'Information Technology (IT)', students: 220, faculty: 18, attendance: '96.1%', pass: '95.8%', placement: '89.2%' },
-                      { name: 'Electrical & Electronics (EEE)', students: 190, faculty: 20, attendance: '93.2%', pass: '92.5%', placement: '84.0%' },
-                      { name: 'Mechanical Engineering (MECH)', students: 280, faculty: 24, attendance: '92.1%', pass: '91.5%', placement: '82.0%' },
-                      { name: 'Artificial Intelligence & Data Science (AI&DS)', students: 210, faculty: 19, attendance: '97.0%', pass: '96.8%', placement: '92.5%' },
-                      { name: 'Civil Engineering (CIVIL)', students: 160, faculty: 16, attendance: '94.0%', pass: '93.2%', placement: '78.5%' },
-                    ].map((dept, i) => (
-                      <tr key={i} className="border-b last:border-b-0 hover:bg-muted/30 font-semibold">
-                        <td className="p-2.5 font-bold">{dept.name}</td>
-                        <td className="p-2.5 font-mono">{dept.students}</td>
-                        <td className="p-2.5 font-mono">{dept.faculty}</td>
-                        <td className="p-2.5 text-emerald-600 font-bold">{dept.attendance}</td>
-                        <td className="p-2.5 text-indigo-600 font-bold">{dept.pass}</td>
-                        <td className="p-2.5 text-primary font-bold">{dept.placement}</td>
+                    {(charts?.departmentOverview && charts.departmentOverview.length > 0) ? (
+                      charts.departmentOverview.map((dept: any, i: number) => (
+                        <tr key={i} className="border-b last:border-b-0 hover:bg-muted/30 font-semibold">
+                          <td className="p-2.5 font-bold">{dept.name}</td>
+                          <td className="p-2.5 font-mono">{dept.students}</td>
+                          <td className="p-2.5 font-mono">{dept.faculty}</td>
+                          <td className="p-2.5 text-emerald-600 font-bold">{dept.attendance}</td>
+                          <td className="p-2.5 text-indigo-600 font-bold">{dept.pass}</td>
+                          <td className="p-2.5 text-primary font-bold">{dept.placement}</td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan={6} className="p-4 text-center text-muted-foreground text-xs font-medium">
+                          No department data available.
+                        </td>
                       </tr>
-                    ))}
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -525,20 +562,19 @@ export const Dashboard: React.FC = () => {
                     <Activity className="h-4 w-4 text-emerald-500" /> Live Activity Feed
                   </h3>
                   <div className="space-y-3 text-xs">
-                    {(charts?.recentActivity || [
-                      { id: '1', action: 'ADMISSION', desc: 'Rahul Kumar admitted to B.Tech CSE', time: '5 mins ago' },
-                      { id: '2', action: 'FACULTY', desc: 'Dr. Sarah Jenkins onboarded to ECE', time: '20 mins ago' },
-                      { id: '3', action: 'FEE', desc: 'Fee collection of $1,250 verified', time: '1 hour ago' },
-                      { id: '4', action: 'CIRCULAR', desc: 'Mid-term exam schedule circular published', time: '2 hours ago' },
-                    ]).map((act: any, i: number) => (
-                      <div key={i} className="flex items-start gap-3 p-2.5 border rounded-xl bg-background">
-                        <div className="h-2 w-2 rounded-full bg-primary mt-1.5 shrink-0" />
-                        <div className="flex-1">
-                          <p className="font-bold text-[11px] leading-snug">{act.desc}</p>
-                          <span className="text-[9px] text-muted-foreground font-semibold">{act.time}</span>
+                    {(charts?.recentActivity && charts.recentActivity.length > 0) ? (
+                      charts.recentActivity.map((act: any, i: number) => (
+                        <div key={i} className="flex items-start gap-3 p-2.5 border rounded-xl bg-background">
+                          <div className="h-2 w-2 rounded-full bg-primary mt-1.5 shrink-0" />
+                          <div className="flex-1">
+                            <p className="font-bold text-[11px] leading-snug">{act.desc}</p>
+                            <span className="text-[9px] text-muted-foreground font-semibold">{act.time}</span>
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      ))
+                    ) : (
+                      <p className="text-muted-foreground text-center py-4 text-xs">No recent activity recorded</p>
+                    )}
                   </div>
                 </div>
               )}
@@ -624,19 +660,19 @@ export const Dashboard: React.FC = () => {
                     </div>
                     <div className="flex justify-between items-center p-2.5 border rounded-xl bg-background">
                       <span className="text-muted-foreground">Active Accounts</span>
-                      <span className="font-mono font-bold">{stats.totalActiveUsers || 42}</span>
+                      <span className="font-mono font-bold">{stats.totalActiveUsers ?? 1}</span>
                     </div>
                     <div className="flex justify-between items-center p-2.5 border rounded-xl bg-background">
                       <span className="text-muted-foreground">Online Sessions</span>
-                      <span className="font-mono font-bold text-primary">{stats.onlineUsers || 1}</span>
+                      <span className="font-mono font-bold text-primary">{stats.onlineUsers ?? 1}</span>
                     </div>
                     <div className="flex justify-between items-center p-2.5 border rounded-xl bg-background">
                       <span className="text-muted-foreground">Last Database Backup</span>
-                      <span className="text-[10px] text-muted-foreground">{stats.latestBackupTime || 'Today, 04:00 AM'}</span>
+                      <span className="text-[10px] text-muted-foreground">{stats.latestBackupTime || 'Never'}</span>
                     </div>
                     <div className="flex justify-between items-center p-2.5 border rounded-xl bg-background">
                       <span className="text-muted-foreground">Storage Usage</span>
-                      <span className="font-mono font-bold">{stats.storageUsage || '2.40 MB'}</span>
+                      <span className="font-mono font-bold">{stats.storageUsage || '0 MB'}</span>
                     </div>
                   </div>
                 </div>
@@ -938,7 +974,7 @@ export const Dashboard: React.FC = () => {
                           <span className="text-[10px] text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded font-extrabold uppercase">Settled</span>
                         ) : (
                           <button
-                            onClick={() => handleMockPay(bill.id)}
+                            onClick={() => handleProcessPayment(bill.id)}
                             disabled={paymentLoading === bill.id}
                             className="px-3 py-1 bg-emerald-600 text-white rounded font-bold hover:bg-emerald-700 disabled:opacity-50"
                           >

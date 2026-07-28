@@ -17,6 +17,8 @@ router.post('/', requireAuth, requirePermission('users:write'), controller.creat
 router.put('/:id', requireAuth, requirePermission('users:write'), controller.update);
 router.delete('/:id', requireAuth, requirePermission('users:write'), controller.delete);
 router.post('/:id/reset-password', requireAuth, requirePermission('users:write'), controller.resetPassword);
+router.post('/:id/regenerate-credentials', requireAuth, requirePermission('users:write'), controller.regenerateUserCredentials);
+router.post('/:id/unlock', requireAuth, requirePermission('users:write'), controller.unlockUserAccount);
 router.post('/import', requireAuth, requirePermission('users:write'), controller.import);
 
 export default router;

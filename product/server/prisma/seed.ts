@@ -76,6 +76,9 @@ async function main() {
     { name: 'Vice Principal', description: 'Operations & Academic Monitoring', color: '#eab308', icon: 'Award', priority: 4, hierarchy: 4, isSystem: true },
     { name: 'Academic Dean', description: 'Responsible for Academics & Curriculum', color: '#10b981', icon: 'GraduationCap', priority: 5, hierarchy: 5, isSystem: true },
     { name: 'Admission Dean', description: 'Responsible for Admissions & Onboarding', color: '#6366f1', icon: 'UserPlus', priority: 6, hierarchy: 6, isSystem: true },
+    { name: 'IQAC Dean', description: 'Head of Quality Assurance & Accreditations', color: '#059669', icon: 'ShieldCheck', priority: 6.1, hierarchy: 6, isSystem: true },
+    { name: 'IQAC Executive Officer', description: 'Internal Audits & Compliance Inspector', color: '#0d9488', icon: 'ClipboardList', priority: 6.2, hierarchy: 6, isSystem: true },
+    { name: 'IQAC Documentation Officer', description: 'Evidence Repository & QR Verification Officer', color: '#7c3aed', icon: 'FileCheck', priority: 6.3, hierarchy: 6, isSystem: true },
     { name: 'Accounts Officer', description: 'Responsible for Fee Collection & Finance', color: '#06b6d4', icon: 'Landmark', priority: 7, hierarchy: 7, isSystem: true },
     { name: 'HOD', description: 'Department-Level Authority & Management', color: '#8b5cf6', icon: 'Users', priority: 8, hierarchy: 8, isSystem: true },
     { name: 'Mentor', description: 'Assigned Students Management & Level 1 Approvals', color: '#a855f7', icon: 'UserCheck', priority: 9, hierarchy: 9, isSystem: true },
@@ -205,14 +208,14 @@ async function main() {
 
   // 5. Seed College & System Settings
   const settingsData = [
-    { key: 'COLLEGE_NAME', value: 'Geetorus Institute of Technology' },
-    { key: 'COLLEGE_EMAIL', value: 'info@geetorus.com' },
-    { key: 'COLLEGE_PHONE', value: '+91 98765 43210' },
-    { key: 'COLLEGE_WEBSITE', value: 'https://geetorus.com' },
-    { key: 'COLLEGE_GST', value: '33AABCC1234D1Z2' },
-    { key: 'COLLEGE_ADDRESS', value: '123 Education Boulevard, Campus City, 600001' },
-    { key: 'COLLEGE_UNIVERSITY', value: 'National Technical University' },
-    { key: 'COLLEGE_AFFILIATION', value: 'AICTE Approved, Grade A+' },
+    { key: 'COLLEGE_NAME', value: 'Al-Ameen Engineering College' },
+    { key: 'COLLEGE_EMAIL', value: 'info@alameen.ac.in' },
+    { key: 'COLLEGE_PHONE', value: '+91 424 2358877' },
+    { key: 'COLLEGE_WEBSITE', value: 'https://alameen.ac.in' },
+    { key: 'COLLEGE_GST', value: '33AABCA1234D1Z2' },
+    { key: 'COLLEGE_ADDRESS', value: 'Karundevampalayam, Nanjai Uttukuli Post, Erode - 638104, Tamil Nadu' },
+    { key: 'COLLEGE_UNIVERSITY', value: 'Affiliated to Anna University, Chennai' },
+    { key: 'COLLEGE_AFFILIATION', value: 'Autonomous Institution' },
     { key: 'SMTP_HOST', value: 'smtp.mailtrap.io' },
     { key: 'SMTP_PORT', value: '2525' },
     { key: 'SMTP_USER', value: 'geetorus-smtp-sandbox' },
@@ -254,21 +257,54 @@ async function main() {
   });
   console.log(`📅 Seeded Academic Year: ${academicYear.name}`);
 
-  // 7. Seed Departments, Programs, Courses, Semesters & Sections
+  // 7. Seed Departments for Al-Ameen Engineering College (Erode)
+  const deptSNH = await prisma.department.upsert({
+    where: { code: 'SNH' },
+    update: {
+      name: 'Science & Humanities',
+      shortName: 'S&H',
+      description: 'Science & Humanities Department (First Year Common)',
+      type: 'Science & Humanities',
+      status: 'ACTIVE',
+      color: '#7C3AED',
+      email: 'snh@alameen.ac.in',
+      phone: '+91 424 2358801',
+      officeLocation: 'Science Block, Room 101',
+      establishedYear: 2003,
+      hodName: 'Dr. M. Senthilkumar',
+      academicYearId: academicYear.id,
+    },
+    create: {
+      name: 'Science & Humanities',
+      code: 'SNH',
+      shortName: 'S&H',
+      description: 'Science & Humanities Department (First Year Common)',
+      type: 'Science & Humanities',
+      status: 'ACTIVE',
+      color: '#7C3AED',
+      email: 'snh@alameen.ac.in',
+      phone: '+91 424 2358801',
+      officeLocation: 'Science Block, Room 101',
+      establishedYear: 2003,
+      hodName: 'Dr. M. Senthilkumar',
+      academicYearId: academicYear.id,
+    },
+  });
+
   const deptCSE = await prisma.department.upsert({
     where: { code: 'CSE' },
     update: {
+      name: 'Computer Science & Engineering',
       shortName: 'CSE Dept',
       description: 'Department of Computer Science & Engineering',
       type: 'Engineering',
       status: 'ACTIVE',
       color: '#4f46e5',
-      email: 'cse.head@geetorus.com',
-      phone: '+91 99999 11111',
-      website: 'https://cse.geetorus.com',
+      email: 'cse@alameen.ac.in',
+      phone: '+91 424 2358802',
       officeLocation: 'Block C, Room 301',
-      establishedYear: 2010,
-      hodName: 'Dr. John Doe',
+      establishedYear: 2003,
+      hodName: 'Dr. K. Rajasekar',
       academicYearId: academicYear.id,
     },
     create: {
@@ -279,12 +315,77 @@ async function main() {
       type: 'Engineering',
       status: 'ACTIVE',
       color: '#4f46e5',
-      email: 'cse.head@geetorus.com',
-      phone: '+91 99999 11111',
-      website: 'https://cse.geetorus.com',
+      email: 'cse@alameen.ac.in',
+      phone: '+91 424 2358802',
       officeLocation: 'Block C, Room 301',
-      establishedYear: 2010,
-      hodName: 'Dr. John Doe',
+      establishedYear: 2003,
+      hodName: 'Dr. K. Rajasekar',
+      academicYearId: academicYear.id,
+    },
+  });
+
+  const deptIT = await prisma.department.upsert({
+    where: { code: 'IT' },
+    update: {
+      name: 'Information Technology',
+      shortName: 'IT Dept',
+      description: 'Department of Information Technology',
+      type: 'Engineering',
+      status: 'ACTIVE',
+      color: '#3b82f6',
+      email: 'it@alameen.ac.in',
+      phone: '+91 424 2358803',
+      officeLocation: 'Block A, Room 101',
+      establishedYear: 2004,
+      hodName: 'Dr. P. Karthikeyan',
+      academicYearId: academicYear.id,
+    },
+    create: {
+      name: 'Information Technology',
+      code: 'IT',
+      shortName: 'IT Dept',
+      description: 'Department of Information Technology',
+      type: 'Engineering',
+      status: 'ACTIVE',
+      color: '#3b82f6',
+      email: 'it@alameen.ac.in',
+      phone: '+91 424 2358803',
+      officeLocation: 'Block A, Room 101',
+      establishedYear: 2004,
+      hodName: 'Dr. P. Karthikeyan',
+      academicYearId: academicYear.id,
+    },
+  });
+
+  const deptAIDS = await prisma.department.upsert({
+    where: { code: 'AI&DS' },
+    update: {
+      name: 'Artificial Intelligence & Data Science',
+      shortName: 'AI&DS Dept',
+      description: 'Department of Artificial Intelligence & Data Science',
+      type: 'Engineering',
+      status: 'ACTIVE',
+      color: '#8b5cf6',
+      email: 'aids@alameen.ac.in',
+      phone: '+91 424 2358804',
+      officeLocation: 'Innovation Hub, Room 404',
+      establishedYear: 2021,
+      hodName: 'Dr. N. Saravanan',
+      academicYearId: academicYear.id,
+    },
+    create: {
+      name: 'Artificial Intelligence & Data Science',
+      code: 'AI&DS',
+      shortName: 'AI&DS Dept',
+      description: 'Department of Artificial Intelligence & Data Science',
+      type: 'Engineering',
+      status: 'ACTIVE',
+      color: '#8b5cf6',
+      email: 'aids@alameen.ac.in',
+      phone: '+91 424 2358804',
+      officeLocation: 'Innovation Hub, Room 404',
+      establishedYear: 2021,
+      hodName: 'Dr. N. Saravanan',
       academicYearId: academicYear.id,
     },
   });
@@ -292,17 +393,17 @@ async function main() {
   const deptECE = await prisma.department.upsert({
     where: { code: 'ECE' },
     update: {
+      name: 'Electronics & Communication Engineering',
       shortName: 'ECE Dept',
       description: 'Department of Electronics & Communication Engineering',
       type: 'Engineering',
       status: 'ACTIVE',
       color: '#10b981',
-      email: 'ece.head@geetorus.com',
-      phone: '+91 99999 22222',
-      website: 'https://ece.geetorus.com',
+      email: 'ece@alameen.ac.in',
+      phone: '+91 424 2358805',
       officeLocation: 'Block B, Room 201',
-      establishedYear: 2012,
-      hodName: 'Dr. Sarah Smith',
+      establishedYear: 2003,
+      hodName: 'Dr. V. Gokulakrishnan',
       academicYearId: academicYear.id,
     },
     create: {
@@ -313,39 +414,31 @@ async function main() {
       type: 'Engineering',
       status: 'ACTIVE',
       color: '#10b981',
-      email: 'ece.head@geetorus.com',
-      phone: '+91 99999 22222',
-      website: 'https://ece.geetorus.com',
+      email: 'ece@alameen.ac.in',
+      phone: '+91 424 2358805',
       officeLocation: 'Block B, Room 201',
-      establishedYear: 2012,
-      hodName: 'Dr. Sarah Smith',
-      academicYearId: academicYear.id,
-    },
-  });
-
-  const deptIT = await prisma.department.upsert({
-    where: { code: 'IT' },
-    update: { academicYearId: academicYear.id },
-    create: {
-      name: 'Information Technology',
-      code: 'IT',
-      shortName: 'IT Dept',
-      description: 'Department of Information Technology',
-      type: 'Engineering',
-      status: 'ACTIVE',
-      color: '#3b82f6',
-      email: 'it.head@geetorus.com',
-      phone: '+91 99999 33333',
-      officeLocation: 'Block A, Room 101',
-      establishedYear: 2014,
-      hodName: 'Dr. Robert Vance',
+      establishedYear: 2003,
+      hodName: 'Dr. V. Gokulakrishnan',
       academicYearId: academicYear.id,
     },
   });
 
   const deptEEE = await prisma.department.upsert({
     where: { code: 'EEE' },
-    update: { academicYearId: academicYear.id },
+    update: {
+      name: 'Electrical & Electronics Engineering',
+      shortName: 'EEE Dept',
+      description: 'Department of Electrical & Electronics Engineering',
+      type: 'Engineering',
+      status: 'ACTIVE',
+      color: '#f59e0b',
+      email: 'eee@alameen.ac.in',
+      phone: '+91 424 2358806',
+      officeLocation: 'Block D, Room 102',
+      establishedYear: 2003,
+      hodName: 'Dr. R. Palanisamy',
+      academicYearId: academicYear.id,
+    },
     create: {
       name: 'Electrical & Electronics Engineering',
       code: 'EEE',
@@ -354,18 +447,31 @@ async function main() {
       type: 'Engineering',
       status: 'ACTIVE',
       color: '#f59e0b',
-      email: 'eee.head@geetorus.com',
-      phone: '+91 99999 44444',
+      email: 'eee@alameen.ac.in',
+      phone: '+91 424 2358806',
       officeLocation: 'Block D, Room 102',
-      establishedYear: 2011,
-      hodName: 'Dr. Alan Turing',
+      establishedYear: 2003,
+      hodName: 'Dr. R. Palanisamy',
       academicYearId: academicYear.id,
     },
   });
 
   const deptMECH = await prisma.department.upsert({
     where: { code: 'MECH' },
-    update: { academicYearId: academicYear.id },
+    update: {
+      name: 'Mechanical Engineering',
+      shortName: 'MECH Dept',
+      description: 'Department of Mechanical Engineering',
+      type: 'Engineering',
+      status: 'ACTIVE',
+      color: '#ef4444',
+      email: 'mech@alameen.ac.in',
+      phone: '+91 424 2358807',
+      officeLocation: 'Workshop Block, Room 01',
+      establishedYear: 2005,
+      hodName: 'Dr. T. Ramesh',
+      academicYearId: academicYear.id,
+    },
     create: {
       name: 'Mechanical Engineering',
       code: 'MECH',
@@ -374,38 +480,31 @@ async function main() {
       type: 'Engineering',
       status: 'ACTIVE',
       color: '#ef4444',
-      email: 'mech.head@geetorus.com',
-      phone: '+91 99999 55555',
+      email: 'mech@alameen.ac.in',
+      phone: '+91 424 2358807',
       officeLocation: 'Workshop Block, Room 01',
-      establishedYear: 2008,
-      hodName: 'Dr. Henry Ford',
-      academicYearId: academicYear.id,
-    },
-  });
-
-  const deptAIDS = await prisma.department.upsert({
-    where: { code: 'AI&DS' },
-    update: { academicYearId: academicYear.id },
-    create: {
-      name: 'Artificial Intelligence & Data Science',
-      code: 'AI&DS',
-      shortName: 'AI&DS Dept',
-      description: 'Department of Artificial Intelligence & Data Science',
-      type: 'Engineering',
-      status: 'ACTIVE',
-      color: '#8b5cf6',
-      email: 'aids.head@geetorus.com',
-      phone: '+91 99999 66666',
-      officeLocation: 'Innovation Hub, Room 404',
-      establishedYear: 2021,
-      hodName: 'Dr. Geoffrey Hinton',
+      establishedYear: 2005,
+      hodName: 'Dr. T. Ramesh',
       academicYearId: academicYear.id,
     },
   });
 
   const deptCIVIL = await prisma.department.upsert({
     where: { code: 'CIVIL' },
-    update: { academicYearId: academicYear.id },
+    update: {
+      name: 'Civil Engineering',
+      shortName: 'CIVIL Dept',
+      description: 'Department of Civil Engineering',
+      type: 'Engineering',
+      status: 'ACTIVE',
+      color: '#64748b',
+      email: 'civil@alameen.ac.in',
+      phone: '+91 424 2358808',
+      officeLocation: 'Structures Block, Room 10',
+      establishedYear: 2009,
+      hodName: 'Dr. M. Mohan',
+      academicYearId: academicYear.id,
+    },
     create: {
       name: 'Civil Engineering',
       code: 'CIVIL',
@@ -414,11 +513,110 @@ async function main() {
       type: 'Engineering',
       status: 'ACTIVE',
       color: '#64748b',
-      email: 'civil.head@geetorus.com',
-      phone: '+91 99999 77777',
+      email: 'civil@alameen.ac.in',
+      phone: '+91 424 2358808',
       officeLocation: 'Structures Block, Room 10',
       establishedYear: 2009,
-      hodName: 'Dr. Gustave Eiffel',
+      hodName: 'Dr. M. Mohan',
+      academicYearId: academicYear.id,
+    },
+  });
+
+  const deptCSEPG = await prisma.department.upsert({
+    where: { code: 'CSE-PG' },
+    update: {
+      name: 'Computer Science & Engineering (PG)',
+      shortName: 'CSE-PG Dept',
+      description: 'PG Department of Computer Science & Engineering',
+      type: 'Engineering',
+      status: 'ACTIVE',
+      color: '#4338ca',
+      email: 'csepg@alameen.ac.in',
+      phone: '+91 424 2358809',
+      officeLocation: 'PG Block, Room 201',
+      establishedYear: 2011,
+      hodName: 'Dr. S. Prabha',
+      academicYearId: academicYear.id,
+    },
+    create: {
+      name: 'Computer Science & Engineering (PG)',
+      code: 'CSE-PG',
+      shortName: 'CSE-PG Dept',
+      description: 'PG Department of Computer Science & Engineering',
+      type: 'Engineering',
+      status: 'ACTIVE',
+      color: '#4338ca',
+      email: 'csepg@alameen.ac.in',
+      phone: '+91 424 2358809',
+      officeLocation: 'PG Block, Room 201',
+      establishedYear: 2011,
+      hodName: 'Dr. S. Prabha',
+      academicYearId: academicYear.id,
+    },
+  });
+
+  const deptISE = await prisma.department.upsert({
+    where: { code: 'ISE' },
+    update: {
+      name: 'Industrial Safety Engineering (PG)',
+      shortName: 'ISE Dept',
+      description: 'PG Department of Industrial Safety Engineering',
+      type: 'Engineering',
+      status: 'ACTIVE',
+      color: '#b45309',
+      email: 'ise@alameen.ac.in',
+      phone: '+91 424 2358810',
+      officeLocation: 'Safety Lab Block, Room 102',
+      establishedYear: 2014,
+      hodName: 'Dr. G. Arunkumar',
+      academicYearId: academicYear.id,
+    },
+    create: {
+      name: 'Industrial Safety Engineering (PG)',
+      code: 'ISE',
+      shortName: 'ISE Dept',
+      description: 'PG Department of Industrial Safety Engineering',
+      type: 'Engineering',
+      status: 'ACTIVE',
+      color: '#b45309',
+      email: 'ise@alameen.ac.in',
+      phone: '+91 424 2358810',
+      officeLocation: 'Safety Lab Block, Room 102',
+      establishedYear: 2014,
+      hodName: 'Dr. G. Arunkumar',
+      academicYearId: academicYear.id,
+    },
+  });
+
+  const deptMBA = await prisma.department.upsert({
+    where: { code: 'MBA' },
+    update: {
+      name: 'Master of Business Administration (MBA)',
+      shortName: 'MBA Dept',
+      description: 'Department of Business Administration',
+      type: 'Management',
+      status: 'ACTIVE',
+      color: '#0d9488',
+      email: 'mba@alameen.ac.in',
+      phone: '+91 424 2358811',
+      officeLocation: 'MBA Block, Room 301',
+      establishedYear: 2008,
+      hodName: 'Dr. K. Priya',
+      academicYearId: academicYear.id,
+    },
+    create: {
+      name: 'Master of Business Administration (MBA)',
+      code: 'MBA',
+      shortName: 'MBA Dept',
+      description: 'Department of Business Administration',
+      type: 'Management',
+      status: 'ACTIVE',
+      color: '#0d9488',
+      email: 'mba@alameen.ac.in',
+      phone: '+91 424 2358811',
+      officeLocation: 'MBA Block, Room 301',
+      establishedYear: 2008,
+      hodName: 'Dr. K. Priya',
       academicYearId: academicYear.id,
     },
   });
@@ -723,7 +921,7 @@ async function main() {
     },
   });
 
-  // ── Admission Dean (mapped to Admission Officer role) ─────────────────────
+  // ── Admission Dean ─────────────────────────────────────────────────────────
   await prisma.user.upsert({
     where: { email: 'admission.dean@geetorus.com' },
     update: { phone: '9800000004' },
@@ -738,7 +936,112 @@ async function main() {
     },
   });
 
-  console.log('👤 Seeded College Admin, VP, Academic Dean, Admission Dean accounts.');
+  // ── IQAC Dean ─────────────────────────────────────────────────────────────
+  const iqacDeanUser = await prisma.user.upsert({
+    where: { email: 'iqac.dean@geetorus.com' },
+    update: { phone: '9800000005' },
+    create: {
+      email:        'iqac.dean@geetorus.com',
+      passwordHash: await bcrypt.hash('IqacDean@123', 10),
+      firstName:    'IQAC',
+      lastName:     'Dean',
+      phone:        '9800000005',
+      status:       'ACTIVE',
+      roleId:       rolesMap['IQAC Dean'].id,
+    },
+  });
+
+  await prisma.faculty.upsert({
+    where: { employeeId: 'IQAC001' },
+    update: { userId: iqacDeanUser.id },
+    create: {
+      employeeId: 'IQAC001',
+      firstName: 'IQAC',
+      lastName: 'Dean',
+      email: 'iqac.dean@geetorus.com',
+      phone: '9800000005',
+      dob: new Date('1982-03-15'),
+      dateOfJoining: new Date('2016-06-01'),
+      designation: 'IQAC Dean & Director of Quality Assurance',
+      qualification: 'PhD in Quality Engineering',
+      experience: 18,
+      status: 'ACTIVE',
+      departmentId: deptCSE.id,
+      userId: iqacDeanUser.id,
+    },
+  });
+
+  // ── IQAC Executive Officer ────────────────────────────────────────────────
+  const iqacExecUser = await prisma.user.upsert({
+    where: { email: 'iqac.exec@geetorus.com' },
+    update: { phone: '9800000006' },
+    create: {
+      email:        'iqac.exec@geetorus.com',
+      passwordHash: await bcrypt.hash('IqacExec@123', 10),
+      firstName:    'IQAC Executive',
+      lastName:     'Officer',
+      phone:        '9800000006',
+      status:       'ACTIVE',
+      roleId:       rolesMap['IQAC Executive Officer'].id,
+    },
+  });
+
+  await prisma.faculty.upsert({
+    where: { employeeId: 'IQAC002' },
+    update: { userId: iqacExecUser.id },
+    create: {
+      employeeId: 'IQAC002',
+      firstName: 'IQAC Executive',
+      lastName: 'Officer',
+      email: 'iqac.exec@geetorus.com',
+      phone: '9800000006',
+      dob: new Date('1988-08-20'),
+      dateOfJoining: new Date('2019-06-01'),
+      designation: 'IQAC Executive Inspector',
+      qualification: 'M.Tech in Engineering Audit',
+      experience: 10,
+      status: 'ACTIVE',
+      departmentId: deptCSE.id,
+      userId: iqacExecUser.id,
+    },
+  });
+
+  // ── IQAC Documentation Officer ───────────────────────────────────────────
+  const iqacDocUser = await prisma.user.upsert({
+    where: { email: 'iqac.doc@geetorus.com' },
+    update: { phone: '9800000007' },
+    create: {
+      email:        'iqac.doc@geetorus.com',
+      passwordHash: await bcrypt.hash('IqacDoc@123', 10),
+      firstName:    'IQAC Documentation',
+      lastName:     'Officer',
+      phone:        '9800000007',
+      status:       'ACTIVE',
+      roleId:       rolesMap['IQAC Documentation Officer'].id,
+    },
+  });
+
+  await prisma.faculty.upsert({
+    where: { employeeId: 'IQAC003' },
+    update: { userId: iqacDocUser.id },
+    create: {
+      employeeId: 'IQAC003',
+      firstName: 'IQAC Documentation',
+      lastName: 'Officer',
+      email: 'iqac.doc@geetorus.com',
+      phone: '9800000007',
+      dob: new Date('1991-11-10'),
+      dateOfJoining: new Date('2021-06-01'),
+      designation: 'Evidence Repository Lead',
+      qualification: 'M.Sc Information Systems',
+      experience: 7,
+      status: 'ACTIVE',
+      departmentId: deptCSE.id,
+      userId: iqacDocUser.id,
+    },
+  });
+
+  console.log('👤 Seeded College Admin, VP, Academic Dean, Admission Dean, IQAC Office accounts.');
 
 
   // Principal User

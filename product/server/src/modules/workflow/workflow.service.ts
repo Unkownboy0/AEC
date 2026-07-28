@@ -36,7 +36,7 @@ export class WorkflowService {
           ],
           deleted: false
         },
-        include: { user: true }
+        include: { user: { include: { role: true } } }
       });
     }
 
@@ -48,6 +48,10 @@ export class WorkflowService {
       const startDate = startDateStr ? new Date(startDateStr) : null;
       const endDate = endDateStr ? new Date(endDateStr) : null;
 
+      // Determine initial step and target based on role
+      const isDeanOrVP = ['Vice Principal', 'Academic Dean', 'Admission Dean', 'IQAC Dean'].includes(faculty.user?.role?.name || '');
+      const initialStep = isDeanOrVP ? 'PRINCIPAL' : 'HOD';
+
       const request = await prisma.workflowRequest.create({
         data: {
           facultyRequesterId: faculty.id,
@@ -57,7 +61,7 @@ export class WorkflowService {
           startDate,
           endDate,
           status: 'PENDING',
-          currentStep: 'HOD',
+          currentStep: initialStep,
           attachments: attachments || '[]',
           departmentId: faculty.departmentId,
         },
@@ -75,22 +79,51 @@ export class WorkflowService {
         },
       });
 
-      // Notify HOD
-      const hodRole = await prisma.role.findFirst({ where: { name: 'HOD' } });
-      const departmentHod = hodRole ? await prisma.faculty.findFirst({
-        where: {
-          departmentId: faculty.departmentId,
-          user: { roleId: hodRole.id }
+      // Send notifications
+      if (initialStep === 'HOD') {
+        const hodRole = await prisma.role.findFirst({ where: { name: 'HOD' } });
+        const departmentHod = hodRole ? await prisma.faculty.findFirst({
+          where: {
+            departmentId: faculty.departmentId,
+            user: { roleId: hodRole.id }
+          }
+        }) : null;
+        
+        if (departmentHod) {
+          await this.sendNotification(
+            `New Faculty ${type} Request`,
+            `Faculty member ${faculty.firstName} ${faculty.lastName} submitted request: "${title}". Forwarded for your HOD approval.`,
+            'EMAIL',
+            departmentHod.userId || undefined
+          );
         }
-      }) : null;
-      
-      if (departmentHod) {
-        await this.sendNotification(
-          `New Faculty ${type} Request`,
-          `Faculty member ${faculty.firstName} ${faculty.lastName} has submitted a new request: "${title}". Please review and action in your Leave & OD Approvals module.`,
-          'EMAIL',
-          departmentHod.userId || undefined
-        );
+      } else if (initialStep === 'PRINCIPAL') {
+        // Check if Principal is Offline
+        const offlineSetting = await prisma.systemSetting.findUnique({ where: { key: 'PRINCIPAL_OFFLINE_MODE' } });
+        const isPrincipalOffline = offlineSetting?.value === 'true';
+
+        const principalRole = await prisma.role.findFirst({ where: { name: 'Principal' } });
+        const principalUser = principalRole ? await prisma.user.findFirst({ where: { roleId: principalRole.id } }) : null;
+
+        if (isPrincipalOffline) {
+          const vpRole = await prisma.role.findFirst({ where: { name: 'Vice Principal' } });
+          const vpUser = vpRole ? await prisma.user.findFirst({ where: { roleId: vpRole.id } }) : null;
+          if (vpUser) {
+            await this.sendNotification(
+              `Acting Principal: Executive Leave Request (${faculty.firstName} ${faculty.lastName})`,
+              `Principal is Offline. Acting Principal mode activated: Request "${title}" from ${faculty.firstName} ${faculty.lastName} requires your authorization.`,
+              'EMAIL',
+              vpUser.id
+            );
+          }
+        } else if (principalUser) {
+          await this.sendNotification(
+            `Executive Leave Request: ${faculty.firstName} ${faculty.lastName}`,
+            `Request "${title}" from ${faculty.firstName} ${faculty.lastName} requires your approval.`,
+            'EMAIL',
+            principalUser.id
+          );
+        }
       }
 
       return request;
@@ -150,18 +183,45 @@ export class WorkflowService {
       },
     });
 
-    // Notify assigned Faculty Advisor and Class Advisor instantly
-    const notifyIds = Array.from(new Set([resolvedFacultyId, resolvedClassAdvisorId].filter(Boolean) as string[]));
-    for (const targetId of notifyIds) {
-      const faculty = await prisma.faculty.findUnique({ where: { id: targetId } });
-      if (faculty) {
+    // Notify assigned Mentor
+    if (resolvedMentorId) {
+      const mentor = await prisma.faculty.findUnique({ where: { id: resolvedMentorId } });
+      if (mentor) {
         await this.sendNotification(
-          `New ${type} Request Received`,
-          `Student ${student.firstName} ${student.lastName} (${student.admissionNo}) has submitted a new ${type} request: "${title}". Please review and action in your Student Leave / OD Requests module.`,
+          `New Student ${type} Request: ${student.firstName} ${student.lastName}`,
+          `Student ${student.firstName} ${student.lastName} (${student.admissionNo}) has submitted a new ${type} request: "${title}". Please review and action in your Mentor Portal.`,
           'EMAIL',
-          faculty.userId || undefined
+          mentor.userId || undefined
         );
       }
+    }
+
+    // Send informational notification ONLY to affected class faculties (No approval required)
+    try {
+      let parsedMeta: any = {};
+      if (attachments && typeof attachments === 'string' && attachments.startsWith('{')) {
+        parsedMeta = JSON.parse(attachments);
+      }
+      const affectedIds: string[] = parsedMeta.affectedFacultyIds || [];
+      const periodsList: (string | number)[] = parsedMeta.periods || [];
+
+      if (affectedIds.length > 0) {
+        const periodStr = periodsList.length > 0 ? `Period ${periodsList.join(', ')}` : 'full-day';
+        for (const facId of affectedIds) {
+          if (facId === resolvedMentorId) continue; // Avoid duplicate alert if mentor teaches affected period
+          const fac = await prisma.faculty.findUnique({ where: { id: facId } });
+          if (fac) {
+            await this.sendNotification(
+              `Student Absence Notice (${student.firstName} ${student.lastName})`,
+              `Informational Notice: Student ${student.firstName} ${student.lastName} (${student.admissionNo}) will be absent for ${periodStr} today due to ${type} ("${title}"). No approval action is required from you.`,
+              'EMAIL',
+              fac.userId || undefined
+            );
+          }
+        }
+      }
+    } catch (_) {
+      // Silently ignore payload format errors
     }
 
     return request;
@@ -177,13 +237,21 @@ export class WorkflowService {
       filters.status = status;
     }
 
+    const studentInclude = {
+      include: {
+        department: true,
+        semester: true,
+        section: true
+      }
+    };
+
     if (userRole === 'Student') {
       const student = await prisma.student.findFirst({ where: { email: userEmail } });
       if (!student) return [];
       filters.studentId = student.id;
       return prisma.workflowRequest.findMany({
         where: filters,
-        include: { student: true, history: true },
+        include: { student: studentInclude, history: true },
         orderBy: { createdAt: 'desc' }
       });
     }
@@ -194,7 +262,7 @@ export class WorkflowService {
       filters.studentId = { in: studentIds };
       return prisma.workflowRequest.findMany({
         where: filters,
-        include: { student: true, history: true },
+        include: { student: studentInclude, history: true },
         orderBy: { createdAt: 'desc' }
       });
     }
@@ -215,7 +283,7 @@ export class WorkflowService {
           ...(status ? { status } : {})
         },
         include: { 
-          student: { include: { department: true } }, 
+          student: studentInclude, 
           facultyRequester: { include: { department: true } },
           history: true 
         },
@@ -238,7 +306,7 @@ export class WorkflowService {
           ...(status ? { status } : {})
         },
         include: { 
-          student: { include: { department: true } }, 
+          student: studentInclude, 
           facultyRequester: { include: { department: true } },
           history: true 
         },
@@ -260,7 +328,7 @@ export class WorkflowService {
       return prisma.workflowRequest.findMany({
         where: filters,
         include: { 
-          student: true, 
+          student: studentInclude, 
           facultyRequester: { include: { department: true } },
           history: true 
         },
@@ -298,15 +366,23 @@ export class WorkflowService {
       if (request.currentStep === 'HOD' && userRole !== 'HOD' && userRole !== 'Super Admin') {
         throw new UnauthorizedException('Only the Department HOD can action this request');
       }
-      if (request.currentStep === 'DEAN' && userRole !== 'Admission Dean' && userRole !== 'Super Admin') {
-        throw new UnauthorizedException('Only the Admission Dean can action this request');
+      if (request.currentStep === 'PRINCIPAL') {
+        const offlineSetting = await prisma.systemSetting.findUnique({ where: { key: 'PRINCIPAL_OFFLINE_MODE' } });
+        const isOffline = offlineSetting?.value === 'true';
+        if (isOffline) {
+          if (userRole !== 'Vice Principal' && userRole !== 'Principal' && userRole !== 'Super Admin') {
+            throw new UnauthorizedException('Principal is offline. Acting Principal (Vice Principal) authorization required.');
+          }
+        } else if (userRole !== 'Principal' && userRole !== 'Super Admin') {
+          throw new UnauthorizedException('Only the Principal can action this faculty leave request');
+        }
       }
     } else {
-      if (request.currentStep === 'MENTOR' && userRole !== 'Faculty' && userRole !== 'Super Admin') {
+      if (request.currentStep === 'MENTOR' && userRole !== 'Faculty' && userRole !== 'Mentor' && userRole !== 'Super Admin') {
         throw new UnauthorizedException('Only the assigned Mentor/Faculty can action this request');
       }
 
-      if (request.currentStep === 'MENTOR' && userRole === 'Faculty') {
+      if (request.currentStep === 'MENTOR' && (userRole === 'Faculty' || userRole === 'Mentor')) {
         const faculty = await prisma.faculty.findFirst({ where: { email: userEmail } });
         if (!faculty) {
           throw new UnauthorizedException('Faculty profile not found');
@@ -323,7 +399,7 @@ export class WorkflowService {
           ));
 
         if (!isAssigned) {
-          throw new UnauthorizedException('You are not the assigned Faculty, Class Advisor, or Mentor for this student');
+          throw new UnauthorizedException('You are not the assigned Faculty/Mentor for this student');
         }
       }
 
@@ -345,8 +421,8 @@ export class WorkflowService {
         nextStatus = 'REJECTED_BY_MENTOR';
       } else if (request.currentStep === 'HOD') {
         nextStatus = 'REJECTED_BY_HOD';
-      } else if (request.currentStep === 'DEAN') {
-        nextStatus = 'REJECTED_BY_DEAN';
+      } else if (request.currentStep === 'PRINCIPAL') {
+        nextStatus = 'REJECTED_BY_PRINCIPAL';
       } else {
         nextStatus = 'REJECTED';
       }
@@ -354,26 +430,16 @@ export class WorkflowService {
       nextStatus = 'CLARIFICATION_REQUESTED';
     } else if (action === 'FORWARD' || action === 'APPROVE') {
       if (request.currentStep === 'MENTOR') {
-        if (action === 'FORWARD') {
-          nextStep = 'HOD';
-          nextStatus = 'MENTOR_APPROVED';
-        } else {
-          nextStatus = 'APPROVED';
-          nextStep = 'MENTOR';
-        }
+        // Student workflow: Mentor Approved -> Forward to HOD for final approval
+        nextStep = 'HOD';
+        nextStatus = 'MENTOR_APPROVED';
       } else if (request.currentStep === 'HOD') {
-        if (action === 'FORWARD' || (action === 'APPROVE' && request.facultyRequesterId)) {
-          nextStep = 'DEAN';
-          nextStatus = request.facultyRequesterId ? 'HOD_APPROVED' : 'PENDING';
-        } else {
-          nextStatus = 'APPROVED';
-          nextStep = 'COMPLETED';
-        }
-      } else if (request.currentStep === 'DEAN') {
-        if (action === 'FORWARD') {
+        if (request.facultyRequesterId) {
+          // Faculty workflow: HOD Approved -> Forward to Principal
           nextStep = 'PRINCIPAL';
-          nextStatus = 'PENDING';
+          nextStatus = 'HOD_APPROVED';
         } else {
+          // Student workflow: HOD Final Approval
           nextStatus = 'APPROVED';
           nextStep = 'COMPLETED';
         }

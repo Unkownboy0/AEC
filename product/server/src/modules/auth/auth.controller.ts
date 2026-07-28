@@ -93,7 +93,7 @@ export class AuthController {
         return;
       }
 
-      const result = await this.service.getMe(req.user.id);
+      const result = await this.service.getMe(req.user.id, req.user.role);
 
       res.status(200).json({
         status: 'success',

@@ -465,9 +465,24 @@ export const AdmissionDeanPortal: React.FC<AdmissionDeanPortalProps> = ({ user }
             <h2 className="text-2xl md:text-3xl font-extrabold">Welcome back, Dean {user.firstName}</h2>
             <p className="text-sm opacity-90 font-medium">Verify credentials · Run merit algorithms · Manage seat distributions</p>
           </div>
-          <button onClick={fetchData} className="p-2 bg-white/10 hover:bg-white/20 border border-white/20 rounded-lg">
-            <RefreshCw className="h-4 w-4" />
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => {
+                const current = localStorage.getItem('admission_dean_workspace') || 'ADMINISTRATION';
+                const next = current === 'ADMINISTRATION' ? 'FACULTY' : 'ADMINISTRATION';
+                localStorage.setItem('admission_dean_workspace', next);
+                toast.success(`Switched to ${next === 'FACULTY' ? 'Faculty Academic' : 'Administration & Admission'} Workspace`);
+                window.location.reload();
+              }}
+              className="px-3.5 py-2 bg-white text-indigo-700 hover:bg-white/90 font-black rounded-lg text-xs flex items-center gap-1.5 shadow-md transition-all active:scale-95"
+            >
+              <BookOpen className="h-4 w-4" />
+              <span>Switch to {localStorage.getItem('admission_dean_workspace') === 'FACULTY' ? 'Dean Workspace' : 'Faculty Workspace'}</span>
+            </button>
+            <button onClick={fetchData} className="p-2 bg-white/10 hover:bg-white/20 border border-white/20 rounded-lg">
+              <RefreshCw className="h-4 w-4" />
+            </button>
+          </div>
         </div>
       </div>
 

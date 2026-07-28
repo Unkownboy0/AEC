@@ -16,6 +16,8 @@ router.get('/id-card/student/:id', controller.getStudentIdCard);
 router.get('/id-card/faculty/:id', controller.getFacultyIdCard);
 
 router.post('/bulk-action', controller.bulkAction);
+router.get('/search', controller.globalSearch);
+
 
 // Students
 router.get('/students/mapping-validation', controller.getMappingValidation);
@@ -94,9 +96,11 @@ router.post('/internships/:id/documents', controller.uploadInternshipDocument);
 router.get('/internships/documents', controller.listAllInternshipDocuments);
 router.post('/internships/documents/:id/verify', controller.verifyInternshipDocument);
 
-// Mentor Assignments
+// Mentor Assignments & Counseling
 router.post('/mentors/assign', controller.assignStudentsToMentor);
 router.post('/mentors/remove', controller.removeStudentFromMentor);
+router.get('/counseling', controller.listCounselingRecords);
+router.post('/counseling', controller.createCounselingRecord);
 
 // Placements Dashboard (Read-Only & Audit)
 import { PlacementController } from './placement.controller';
