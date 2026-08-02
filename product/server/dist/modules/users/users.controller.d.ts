@@ -12,4 +12,6 @@ export declare class UsersController {
     generateCredentials: (req: Request, res: Response, next: NextFunction) => Promise<void>;
     assignSubjects: (req: Request, res: Response, next: NextFunction) => Promise<void>;
     assignMentor: (req: Request, res: Response, next: NextFunction) => Promise<void>;
+    regenerateUserCredentials: (req: Request, res: Response, next: NextFunction) => Promise<void>;
+    unlockUserAccount: (req: Request, res: Response, next: NextFunction) => Promise<void>;
 }

@@ -8,6 +8,7 @@ const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const users_repository_1 = require("./users.repository");
 const prisma_1 = require("../../lib/prisma");
 const exceptions_1 = require("../../utils/exceptions");
+const credential_service_1 = require("./credential.service");
 const fs_1 = __importDefault(require("fs"));
 const path_1 = __importDefault(require("path"));
 class UsersService {
@@ -29,10 +30,10 @@ class UsersService {
         });
     }
     /**
-     * Create a new user
+     * Create a new user with automatic Username & Password generation
      */
     async createUser(input, triggeredByUserId, ip, ua) {
-        const { email, password, phone, firstName, lastName, roleName, status = 'ACTIVE' } = input;
+        const { email, password, username, phone, firstName, lastName, roleName, departmentId, status = 'ACTIVE' } = input;
         // Check if email already in use
         const existing = await prisma_1.prisma.user.findUnique({ where: { email } });
         if (existing) {
@@ -43,16 +44,20 @@ class UsersService {
         if (!role) {
             throw new exceptions_1.NotFoundException(`Role '${roleName}' does not exist`);
         }
-        // Rule: Username = Email, Password = Phone Number (temp).
-        // If no explicit password provided, fall back to phone number, then default.
-        const rawPassword = password || phone || 'GtCampus@2026';
-        const passwordHash = await bcryptjs_1.default.hash(rawPassword, 10);
+        // Generate unique role-based username if not manually provided
+        const autoUsername = username || (await credential_service_1.credentialService.generateUsername(roleName));
+        // Generate secure temporary password if not manually provided
+        const tempPassword = password || credential_service_1.credentialService.generateTemporaryPassword();
+        const passwordHash = await credential_service_1.credentialService.hashPassword(tempPassword);
         const user = await this.repo.create({
             email,
+            username: autoUsername,
             passwordHash,
             firstName,
             lastName,
+            departmentId,
             status,
+            forcePasswordChange: true,
             roleId: role.id,
         });
         // Write audit log
@@ -61,12 +66,93 @@ class UsersService {
                 userId: triggeredByUserId,
                 action: 'CREATE',
                 module: 'USER',
-                description: `Created new user ${email} as ${roleName}. Default credential: Username=${email}, Password=phone number.`,
+                description: `Created user ${email} (${autoUsername}) as ${roleName}. Username Generated=${autoUsername}. Password Generated.`,
                 ipAddress: ip,
                 userAgent: ua,
             },
         });
-        return user;
+        return {
+            ...user,
+            generatedUsername: autoUsername,
+            temporaryPassword: tempPassword,
+        };
+    }
+    /**
+     * Regenerate user temporary credentials (Admin functionality)
+     */
+    async regenerateCredentials(id, triggeredByUserId, ip, ua) {
+        const user = await this.repo.findById(id);
+        if (!user) {
+            throw new exceptions_1.NotFoundException('User profile not found');
+        }
+        const tempPassword = credential_service_1.credentialService.generateTemporaryPassword();
+        const passwordHash = await credential_service_1.credentialService.hashPassword(tempPassword);
+        // Keep existing username or generate if missing
+        let username = user.username;
+        if (!username) {
+            username = await credential_service_1.credentialService.generateUsername(user.role?.name || 'User');
+        }
+        const updatedUser = await prisma_1.prisma.user.update({
+            where: { id },
+            data: {
+                username,
+                passwordHash,
+                forcePasswordChange: true,
+                failedLoginAttempts: 0,
+                lockedUntil: null,
+            },
+            include: {
+                role: true,
+            },
+        });
+        await prisma_1.prisma.userActivityLog.create({
+            data: {
+                userId: triggeredByUserId,
+                action: 'UPDATE',
+                module: 'USER',
+                description: `Regenerated credentials for ${updatedUser.email} (${username}). Account unlocked, password reset forced.`,
+                ipAddress: ip,
+                userAgent: ua,
+            },
+        });
+        return {
+            id: updatedUser.id,
+            email: updatedUser.email,
+            firstName: updatedUser.firstName,
+            lastName: updatedUser.lastName,
+            username: updatedUser.username,
+            role: updatedUser.role?.name,
+            departmentId: updatedUser.departmentId,
+            temporaryPassword: tempPassword,
+            forcePasswordChange: true,
+        };
+    }
+    /**
+     * Unlock user account (Admin functionality)
+     */
+    async unlockUserAccount(id, triggeredByUserId, ip, ua) {
+        const user = await this.repo.findById(id);
+        if (!user) {
+            throw new exceptions_1.NotFoundException('User profile not found');
+        }
+        await prisma_1.prisma.user.update({
+            where: { id },
+            data: {
+                failedLoginAttempts: 0,
+                lockedUntil: null,
+            },
+        });
+        await prisma_1.prisma.userActivityLog.create({
+            data: {
+                userId: triggeredByUserId,
+                action: 'UPDATE',
+                module: 'USER',
+                description: `Unlocked user account for ${user.email} (${user.username || 'No Username'}).`,
+                ipAddress: ip,
+                userAgent: ua,
+            },
+        });
+        return { status: 'success', message: 'User account unlocked successfully.' };
     }
     /**
      * Update user details

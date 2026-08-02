@@ -71,4 +71,9 @@ export declare class EnterpriseController {
      * Public endpoint to decode token & verify identity from QR Code scan
      */
     verifyIdCard: (req: Request, res: Response, next: NextFunction) => Promise<Response<any, Record<string, any>> | undefined>;
+    listCounselingRecords: (req: Request, res: Response, next: NextFunction) => Promise<void>;
+    createCounselingRecord: (req: Request, res: Response, next: NextFunction) => Promise<void>;
+    globalSearch: (req: Request, res: Response, next: NextFunction) => Promise<void>;
+    getStudentFullProfile: (req: Request, res: Response, next: NextFunction) => Promise<Response<any, Record<string, any>> | undefined>;
+    getFacultyFullProfile: (req: Request, res: Response, next: NextFunction) => Promise<Response<any, Record<string, any>> | undefined>;
 }

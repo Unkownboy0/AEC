@@ -145,6 +145,34 @@ export class RbacService {
   }
 
   /**
+   * Get all enterprise permission groups with permission counts
+   */
+  async getPermissionGroups() {
+    return prisma.permissionGroup.findMany({
+      orderBy: { sortOrder: 'asc' },
+      include: {
+        permissions: {
+          select: { id: true, name: true, action: true, description: true },
+        },
+      },
+    });
+  }
+
+  /**
+   * Get Permission Audit Logs (denied & modified events)
+   */
+  async getPermissionAuditLogs(params: { limit?: number; userId?: string; action?: string }) {
+    return prisma.permissionAudit.findMany({
+      where: {
+        ...(params.userId ? { userId: params.userId } : {}),
+        ...(params.action ? { action: params.action } : {}),
+      },
+      orderBy: { createdAt: 'desc' },
+      take: params.limit || 100,
+    });
+  }
+
+  /**
    * Log RBAC Audit Event
    */
   async logAudit(entityType: string, entityId: string, action: string, oldValue: any, newValue: any, changedBy: string, reason?: string) {

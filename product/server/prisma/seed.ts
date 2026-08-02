@@ -1594,8 +1594,530 @@ async function main() {
     console.log('📝 Seeded Admission Applications.');
   }
 
-  console.log('✅ All complete enterprise academic modules seeded successfully!');
+  // 28. Seed Enterprise Core Demo Accounts & Department Clusters
+  await seedEnterpriseDemoAccountsAndData(rolesMap);
+
+  console.log('✅ All complete enterprise academic modules & demo accounts seeded successfully!');
 }
+
+async function seedEnterpriseDemoAccountsAndData(rolesMap: Record<string, any>) {
+  console.log('🚀 Seeding Enterprise Core Accounts & 4 Department Clusters (CSE, IT, ECE, EEE)...');
+
+  const defaultPassword = process.env.DEMO_DEPARTMENT_PASSWORD || 'Campus@123';
+  const hashedDefaultPassword = await bcrypt.hash(defaultPassword, 10);
+
+  // Core Executive Accounts
+  const coreAccounts = [
+    { email: 'admin@geetorus.com', password: 'Admin@123', firstName: 'Super', lastName: 'Admin', roleName: 'Super Admin' },
+    { email: 'college.admin@geetorus.com', password: 'ColAdmin@123', firstName: 'College', lastName: 'Admin', roleName: 'College Admin' },
+    { email: 'principal@geetorus.com', password: 'Campus@123', firstName: 'Dr. Subramanian', lastName: 'Ramasamy', roleName: 'Principal' },
+    { email: 'vp@geetorus.com', password: 'VP@123456', firstName: 'Dr. Meenakshi', lastName: 'Sundaram', roleName: 'Vice Principal' },
+    { email: 'academic.dean@geetorus.com', password: 'AcaDean@123', firstName: 'Dr. Rajesh', lastName: 'Kannan', roleName: 'Academic Dean' },
+    { email: 'admission.dean@geetorus.com', password: 'AdmDean@123', firstName: 'Dr. Anand', lastName: 'Venkatesh', roleName: 'Admission Dean' },
+    { email: 'iqac.dean@geetorus.com', password: 'IQAC@123', firstName: 'Dr. Swaminathan', lastName: 'Iyer', roleName: 'IQAC Dean' },
+  ];
+
+  const executiveUserMap: Record<string, any> = {};
+
+  for (const acc of coreAccounts) {
+    const role = rolesMap[acc.roleName] || rolesMap['Super Admin'];
+    const pHash = await bcrypt.hash(acc.password, 10);
+    const user = await prisma.user.upsert({
+      where: { email: acc.email },
+      update: {
+        firstName: acc.firstName,
+        lastName: acc.lastName,
+        roleId: role.id,
+      },
+      create: {
+        email: acc.email,
+        passwordHash: pHash,
+        firstName: acc.firstName,
+        lastName: acc.lastName,
+        roleId: role.id,
+        status: 'ACTIVE',
+      },
+    });
+    executiveUserMap[acc.roleName] = user;
+
+    // Ensure UserRole record
+    await prisma.userRole.upsert({
+      where: { userId_roleId: { userId: user.id, roleId: role.id } },
+      update: {},
+      create: { userId: user.id, roleId: role.id, isPrimary: true },
+    });
+  }
+
+  const deptCodes = ['CSE', 'IT', 'ECE', 'EEE'];
+  const academicYear = await prisma.academicYear.findFirst({ where: { isCurrent: true } });
+  const facultyRole = rolesMap['Faculty'];
+  const hodRole = rolesMap['HOD'];
+  const mentorRole = rolesMap['Mentor'];
+  const studentRole = rolesMap['Student'];
+  const parentRole = rolesMap['Parent'];
+
+  for (const deptCode of deptCodes) {
+    const dept = await prisma.department.findUnique({ where: { code: deptCode } });
+    if (!dept) continue;
+
+    let program = await prisma.program.findFirst({ where: { departmentId: dept.id } });
+    if (!program) {
+      program = await prisma.program.create({
+        data: {
+          name: `B.Tech ${deptCode}`,
+          code: `B.TECH-${deptCode}`,
+          departmentId: dept.id,
+        },
+      });
+    }
+
+    let course = await prisma.course.findFirst({ where: { departmentId: dept.id } });
+    if (!course) {
+      course = await prisma.course.create({
+        data: {
+          name: `${dept.name} Engineering`,
+          code: `${deptCode}-ENG`,
+          duration: 4,
+          programId: program.id,
+          departmentId: dept.id,
+        },
+      });
+    }
+
+    let semester = await prisma.semester.findFirst({ where: { courseId: course.id } });
+    if (!semester && academicYear) {
+      semester = await prisma.semester.create({
+        data: {
+          number: 1,
+          name: 'Semester 1',
+          startDate: new Date('2026-06-01'),
+          endDate: new Date('2026-11-30'),
+          courseId: course.id,
+          programId: program.id,
+          academicYearId: academicYear.id,
+        },
+      });
+    }
+
+    let section = semester ? await prisma.section.findFirst({ where: { semesterId: semester.id } }) : null;
+    if (!section && semester) {
+      section = await prisma.section.create({
+        data: {
+          name: 'Section A',
+          semesterId: semester.id,
+          programId: program.id,
+          departmentId: dept.id,
+        },
+      });
+    }
+
+    // 1. HOD User & Faculty Profile
+    const hodEmail = `hod.${deptCode.toLowerCase()}@geetorus.com`;
+    const hodUser = await prisma.user.upsert({
+      where: { email: hodEmail },
+      update: { roleId: hodRole.id, departmentId: dept.id },
+      create: {
+        email: hodEmail,
+        passwordHash: hashedDefaultPassword,
+        firstName: `${deptCode} Head`,
+        lastName: 'of Department',
+        designation: 'HOD & Professor',
+        departmentId: dept.id,
+        roleId: hodRole.id,
+        status: 'ACTIVE',
+      },
+    });
+
+    await prisma.department.update({
+      where: { id: dept.id },
+      data: { hodId: hodUser.id, hodName: `${hodUser.firstName} ${hodUser.lastName}` },
+    });
+
+    await prisma.departmentMembership.upsert({
+      where: { userId_departmentId_role: { userId: hodUser.id, departmentId: dept.id, role: 'HOD' } },
+      update: {},
+      create: { userId: hodUser.id, departmentId: dept.id, role: 'HOD', isPrimary: true },
+    });
+
+    const hodFaculty = await prisma.faculty.upsert({
+      where: { email: hodEmail },
+      update: { departmentId: dept.id },
+      create: {
+        employeeId: `EMP-${deptCode}-HOD`,
+        firstName: hodUser.firstName,
+        lastName: hodUser.lastName,
+        email: hodEmail,
+        phone: '+91 98765 00000',
+        dob: new Date('1978-05-15'),
+        dateOfJoining: new Date('2010-06-01'),
+        designation: 'HOD & Professor',
+        qualification: 'Ph.D in Computer Science',
+        experience: 18,
+        departmentId: dept.id,
+        userId: hodUser.id,
+      },
+    });
+
+    // 2. 5 Faculty Users & Profiles
+    const facultyUsers = [];
+    const facultyProfiles = [];
+    for (let f = 1; f <= 5; f++) {
+      const fEmail = `faculty${f}.${deptCode.toLowerCase()}@geetorus.com`;
+      const fUser = await prisma.user.upsert({
+        where: { email: fEmail },
+        update: { roleId: facultyRole.id, departmentId: dept.id },
+        create: {
+          email: fEmail,
+          passwordHash: hashedDefaultPassword,
+          firstName: `${deptCode} Faculty`,
+          lastName: `Member ${f}`,
+          designation: f % 2 === 0 ? 'Associate Professor' : 'Assistant Professor',
+          departmentId: dept.id,
+          roleId: facultyRole.id,
+          status: 'ACTIVE',
+        },
+      });
+
+      await prisma.departmentMembership.upsert({
+        where: { userId_departmentId_role: { userId: fUser.id, departmentId: dept.id, role: 'FACULTY' } },
+        update: {},
+        create: { userId: fUser.id, departmentId: dept.id, role: 'FACULTY', isPrimary: true },
+      });
+
+      const fProfile = await prisma.faculty.upsert({
+        where: { email: fEmail },
+        update: { departmentId: dept.id },
+        create: {
+          employeeId: `EMP-${deptCode}-FAC0${f}`,
+          firstName: fUser.firstName,
+          lastName: fUser.lastName,
+          email: fEmail,
+          phone: `+91 98765 1000${f}`,
+          dob: new Date('1985-08-20'),
+          dateOfJoining: new Date('2015-07-15'),
+          designation: fUser.designation || 'Assistant Professor',
+          qualification: 'M.E / M.Tech',
+          experience: 8 + f,
+          departmentId: dept.id,
+          userId: fUser.id,
+        },
+      });
+      facultyUsers.push(fUser);
+      facultyProfiles.push(fProfile);
+    }
+
+    // 3. 2 Mentors Users & Profiles (Dual Role: Faculty + Mentor)
+    const mentorProfiles = [];
+    for (let m = 1; m <= 2; m++) {
+      const mEmail = `mentor${m}.${deptCode.toLowerCase()}@geetorus.com`;
+      const mUser = await prisma.user.upsert({
+        where: { email: mEmail },
+        update: { roleId: mentorRole.id, departmentId: dept.id },
+        create: {
+          email: mEmail,
+          passwordHash: hashedDefaultPassword,
+          firstName: `${deptCode} Academic Mentor`,
+          lastName: `${m}`,
+          designation: 'Assistant Professor & Student Mentor',
+          departmentId: dept.id,
+          roleId: mentorRole.id,
+          status: 'ACTIVE',
+        },
+      });
+
+      // Dual roles mapping: Primary Mentor, Secondary Faculty
+      await prisma.userRole.upsert({
+        where: { userId_roleId: { userId: mUser.id, roleId: mentorRole.id } },
+        update: {},
+        create: { userId: mUser.id, roleId: mentorRole.id, isPrimary: true },
+      });
+
+      await prisma.userRole.upsert({
+        where: { userId_roleId: { userId: mUser.id, roleId: facultyRole.id } },
+        update: {},
+        create: { userId: mUser.id, roleId: facultyRole.id, isPrimary: false },
+      });
+
+      await prisma.departmentMembership.upsert({
+        where: { userId_departmentId_role: { userId: mUser.id, departmentId: dept.id, role: 'MENTOR' } },
+        update: {},
+        create: { userId: mUser.id, departmentId: dept.id, role: 'MENTOR', isPrimary: true },
+      });
+
+      const mProfile = await prisma.faculty.upsert({
+        where: { email: mEmail },
+        update: { departmentId: dept.id },
+        create: {
+          employeeId: `EMP-${deptCode}-MTR0${m}`,
+          firstName: mUser.firstName,
+          lastName: mUser.lastName,
+          email: mEmail,
+          phone: `+91 98765 2000${m}`,
+          dob: new Date('1988-03-12'),
+          dateOfJoining: new Date('2018-06-01'),
+          designation: 'Assistant Professor & Mentor',
+          qualification: 'Ph.D Pursuing',
+          experience: 6 + m,
+          departmentId: dept.id,
+          userId: mUser.id,
+        },
+      });
+      mentorProfiles.push(mProfile);
+    }
+
+    // 4. 40 Students & 40 Parents
+    const studentProfiles = [];
+    for (let s = 1; s <= 40; s++) {
+      const sNum = String(s).padStart(3, '0');
+      const sEmail = `student${sNum}.${deptCode.toLowerCase()}@geetorus.com`;
+      const sUser = await prisma.user.upsert({
+        where: { email: sEmail },
+        update: { roleId: studentRole.id, departmentId: dept.id },
+        create: {
+          email: sEmail,
+          passwordHash: hashedDefaultPassword,
+          firstName: `${deptCode} Student`,
+          lastName: `${sNum}`,
+          departmentId: dept.id,
+          roleId: studentRole.id,
+          status: 'ACTIVE',
+        },
+      });
+
+      const chosenMentorProfile = s <= 20 ? mentorProfiles[0] : mentorProfiles[1];
+
+      const sProfile = await prisma.student.upsert({
+        where: { admissionNo: `ADM-${deptCode}-2026-${sNum}` },
+        update: {
+          departmentId: dept.id,
+          mentorId: chosenMentorProfile.id,
+        },
+        create: {
+          admissionNo: `ADM-${deptCode}-2026-${sNum}`,
+          firstName: sUser.firstName,
+          lastName: sUser.lastName,
+          email: sEmail,
+          phone: `+91 99940 ${deptCode.length}${sNum}`,
+          dob: new Date('2004-04-10'),
+          dateOfAdmission: new Date('2026-07-01'),
+          gender: s % 2 === 0 ? 'Female' : 'Male',
+          status: 'ACTIVE',
+          parentName: `Parent of ${sUser.firstName}`,
+          parentPhone: `+91 98420 ${deptCode.length}${sNum}`,
+          parentEmail: `parent${sNum}.${deptCode.toLowerCase()}@geetorus.com`,
+          currentAddress: 'Campus Hostel Block A',
+          permanentAddress: 'Erode, Tamil Nadu',
+          academicYearId: academicYear?.id || '',
+          departmentId: dept.id,
+          programId: program?.id || '',
+          courseId: course?.id || '',
+          semesterId: semester?.id || '',
+          sectionId: section?.id || '',
+          userId: sUser.id,
+          mentorId: chosenMentorProfile.id,
+        },
+      });
+      studentProfiles.push(sProfile);
+
+      // Mentor Assignment Record
+      if (academicYear && program && semester && section) {
+        await prisma.mentorAssignment.upsert({
+          where: { id: `MTR-${deptCode}-${chosenMentorProfile.id}-${sProfile.id}` },
+          update: { status: 'ACTIVE' },
+          create: {
+            id: `MTR-${deptCode}-${chosenMentorProfile.id}-${sProfile.id}`,
+            mentorId: chosenMentorProfile.id,
+            studentId: sProfile.id,
+            departmentId: dept.id,
+            programId: program.id,
+            semesterId: semester.id,
+            sectionId: section.id,
+            academicYearId: academicYear.id,
+            assignedBy: hodUser.id,
+            status: 'ACTIVE',
+          },
+        });
+      }
+
+      // Parent User & ParentProfile
+      const pEmail = `parent${sNum}.${deptCode.toLowerCase()}@geetorus.com`;
+      const pUser = await prisma.user.upsert({
+        where: { email: pEmail },
+        update: { roleId: parentRole.id },
+        create: {
+          email: pEmail,
+          passwordHash: hashedDefaultPassword,
+          firstName: `Parent of`,
+          lastName: `${deptCode} ${sNum}`,
+          roleId: parentRole.id,
+          status: 'ACTIVE',
+        },
+      });
+
+      const parentProf = await prisma.parentProfile.upsert({
+        where: { userId: pUser.id },
+        update: {},
+        create: {
+          userId: pUser.id,
+          occupation: 'Business / Professional',
+          alternatePhone: `+91 98420 ${deptCode.length}${sNum}`,
+          address: 'Tamil Nadu, India',
+        },
+      });
+
+      await prisma.parentStudentRelation.upsert({
+        where: { parentId_studentId: { parentId: parentProf.id, studentId: sProfile.id } },
+        update: {},
+        create: {
+          parentId: parentProf.id,
+          studentId: sProfile.id,
+          relationType: 'FATHER',
+          isPrimary: true,
+        },
+      });
+    }
+
+    // 5. Seed Department Tasks (Academic Dean -> HOD -> Faculty & Mentors)
+    const academicDeanUser = executiveUserMap['Academic Dean'];
+    if (academicDeanUser) {
+      const task1Number = `TSK-${deptCode}-2026-001`;
+      const task1 = await prisma.task.upsert({
+        where: { taskNumber: task1Number },
+        update: { status: 'IN_PROGRESS', completionPercent: 65 },
+        create: {
+          taskNumber: task1Number,
+          title: `Submit ${deptCode} Annual IQAC Self-Audit & Course Outcome Matrix`,
+          description: `Comprehensive review of curriculum outcomes, PO-CO mappings, and laboratory equipment compliance for ${deptCode} department.`,
+          priority: 'HIGH',
+          dueDate: new Date(Date.now() + 7 * 24 * 3600 * 1000),
+          departmentId: dept.id,
+          createdById: academicDeanUser.id,
+          status: 'IN_PROGRESS',
+          completionPercent: 65,
+          visibility: 'DEPARTMENT',
+        },
+      });
+
+      await prisma.taskAssignee.upsert({
+        where: { taskId_assigneeId: { taskId: task1.id, assigneeId: hodUser.id } },
+        update: { status: 'ACCEPTED', completionPercent: 65 },
+        create: {
+          taskId: task1.id,
+          assigneeId: hodUser.id,
+          status: 'ACCEPTED',
+          completionPercent: 65,
+          seenAt: new Date(Date.now() - 24 * 3600 * 1000),
+          acceptedAt: new Date(Date.now() - 20 * 3600 * 1000),
+        },
+      });
+
+      // Task Discussion Comment
+      const comment1 = await prisma.taskComment.create({
+        data: {
+          taskId: task1.id,
+          authorId: hodUser.id,
+          content: `Initial CO-PO mapping data collected from all 5 faculty members. Final report synthesis in progress.`,
+        },
+      });
+
+      // Notification to HOD
+      await prisma.notification.create({
+        data: {
+          recipientId: hodUser.id,
+          eventType: 'TASK_ASSIGNED',
+          title: `New Department Task Assigned by Academic Dean`,
+          message: task1.title,
+          relatedEntityType: 'TASK',
+          relatedEntityId: task1.id,
+          deepLinkRoute: `/tasks/${task1.id}`,
+        },
+      });
+    }
+
+    // 6. Department Chat Conversation
+    const deptChat = await prisma.conversation.create({
+      data: {
+        type: 'DEPARTMENT',
+        title: `${deptCode} Official Faculty & Mentor Forum`,
+        departmentId: dept.id,
+      },
+    });
+
+    await prisma.conversationParticipant.create({
+      data: { conversationId: deptChat.id, userId: hodUser.id, role: 'ADMIN' },
+    });
+
+    for (const fUser of facultyUsers) {
+      await prisma.conversationParticipant.create({
+        data: { conversationId: deptChat.id, userId: fUser.id, role: 'MEMBER' },
+      });
+    }
+
+    await prisma.message.create({
+      data: {
+        conversationId: deptChat.id,
+        senderId: hodUser.id,
+        content: `Welcome team to the official ${deptCode} channel. Please submit your internal marks by this Friday.`,
+      },
+    });
+  }
+
+  // Seed WMCS Reusable Task Templates
+  console.log('📋 Seeding central Task Template Library...');
+  const templates = [
+    { name: 'NAAC Criteria 4 Data Preparation', category: 'NAAC_DOCUMENTATION', suggestedTimelineDays: 14, slaHours: 72, defaultPriority: 'HIGH' },
+    { name: 'NBA SAR Self Assessment Verification', category: 'NBA_DOCUMENTATION', suggestedTimelineDays: 10, slaHours: 48, defaultPriority: 'HIGH' },
+    { name: 'NIRF Data & Placement Collection', category: 'IQAC_WORK', suggestedTimelineDays: 7, slaHours: 48, defaultPriority: 'MEDIUM' },
+    { name: 'Semester Laboratory Outcome Audit', category: 'DEPARTMENT_AUDIT', suggestedTimelineDays: 5, slaHours: 24, defaultPriority: 'MEDIUM' },
+    { name: 'Faculty Subject Outcome Mapping Review', category: 'TIMETABLE_REVIEW', suggestedTimelineDays: 3, slaHours: 24, defaultPriority: 'MEDIUM' },
+  ];
+
+  for (const tpl of templates) {
+    const existing = await prisma.taskTemplate.findFirst({ where: { name: tpl.name } });
+    if (!existing) {
+      await prisma.taskTemplate.create({
+        data: {
+          name: tpl.name,
+          category: tpl.category,
+          description: `Standardized compliance template for ${tpl.name}.`,
+          defaultChecklist: JSON.stringify([
+            { id: 'chk-1', title: 'Collect raw documentation', isCompleted: false },
+            { id: 'chk-2', title: 'Verify departmental HOD approval', isCompleted: false },
+            { id: 'chk-3', title: 'Submit for Dean & IQAC Review', isCompleted: false },
+          ]),
+          suggestedTimelineDays: tpl.suggestedTimelineDays,
+          slaHours: tpl.slaHours,
+          defaultPriority: tpl.defaultPriority,
+        },
+      });
+    }
+  }
+
+  // Seed SOP & Governance Knowledge Base Items
+  console.log('📚 Seeding Governance SOP & Policy Library...');
+  const sops = [
+    { title: 'GEETORUS Academic & Exam Evaluation Regulation 2026', category: 'POLICY', content: 'Standard operating procedure for internal mark verification, revaluation policies, and COE question paper encryption.' },
+    { title: 'NAAC & NBA Audit Readiness Guidelines', category: 'NAAC', content: 'Comprehensive checklist for department lab maintenance, student outcome attainment metrics, and publication verifications.' },
+    { title: 'Campus Safety & Emergency Escalation Protocol', category: 'SAFETY', content: 'Emergency response guidelines for hostel, laboratory, transport, and administrative emergency handling.' },
+  ];
+
+  for (const sop of sops) {
+    const existing = await prisma.sopLibraryItem.findFirst({ where: { title: sop.title } });
+    if (!existing) {
+      await prisma.sopLibraryItem.create({
+        data: {
+          title: sop.title,
+          category: sop.category,
+          content: sop.content,
+          status: 'PUBLISHED',
+        },
+      });
+    }
+  }
+
+  console.log('✅ Enterprise core accounts, WMCS task templates, SOP library, tasks & chats seeded successfully!');
+}
+
 
 main()
   .catch((e) => {

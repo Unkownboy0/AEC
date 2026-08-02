@@ -170,6 +170,30 @@ class UsersController {
             next(error);
         }
     };
+    regenerateUserCredentials = async (req, res, next) => {
+        try {
+            const currentUserId = req.user.id;
+            const ip = req.ip || req.socket.remoteAddress;
+            const ua = req.headers['user-agent'];
+            const result = await this.service.regenerateCredentials(req.params.id, currentUserId, ip, ua);
+            res.status(200).json({ status: 'success', data: result });
+        }
+        catch (error) {
+            next(error);
+        }
+    };
+    unlockUserAccount = async (req, res, next) => {
+        try {
+            const currentUserId = req.user.id;
+            const ip = req.ip || req.socket.remoteAddress;
+            const ua = req.headers['user-agent'];
+            const result = await this.service.unlockUserAccount(req.params.id, currentUserId, ip, ua);
+            res.status(200).json({ status: 'success', data: result });
+        }
+        catch (error) {
+            next(error);
+        }
+    };
 }
 exports.UsersController = UsersController;
 //# sourceMappingURL=users.controller.js.map

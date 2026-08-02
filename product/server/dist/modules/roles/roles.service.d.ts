@@ -9,15 +9,25 @@ export declare class RolesService {
     } & {
         status: string;
         id: string;
+        departmentId: string | null;
+        dashboardConfig: string | null;
         createdAt: Date;
         updatedAt: Date;
         name: string;
         description: string | null;
         icon: string;
+        roleCode: string | null;
         color: string;
         priority: number;
         hierarchy: number;
         isSystem: boolean;
+        sidebarConfig: string | null;
+        moduleAccess: string | null;
+        approvalLevels: string | null;
+        reportAccess: string | null;
+        workspaceAccess: string | null;
+        notificationSettings: string | null;
+        searchScope: string | null;
         createdBy: string | null;
     })[]>;
     /**
@@ -33,6 +43,8 @@ export declare class RolesService {
                 createdAt: Date;
                 updatedAt: Date;
                 name: string;
+                action: string;
+                module: string;
                 description: string | null;
             };
         } & {
@@ -43,15 +55,25 @@ export declare class RolesService {
     } & {
         status: string;
         id: string;
+        departmentId: string | null;
+        dashboardConfig: string | null;
         createdAt: Date;
         updatedAt: Date;
         name: string;
         description: string | null;
         icon: string;
+        roleCode: string | null;
         color: string;
         priority: number;
         hierarchy: number;
         isSystem: boolean;
+        sidebarConfig: string | null;
+        moduleAccess: string | null;
+        approvalLevels: string | null;
+        reportAccess: string | null;
+        workspaceAccess: string | null;
+        notificationSettings: string | null;
+        searchScope: string | null;
         createdBy: string | null;
     }>;
     /**
@@ -60,15 +82,25 @@ export declare class RolesService {
     createRole(data: any, createdBy: string): Promise<{
         status: string;
         id: string;
+        departmentId: string | null;
+        dashboardConfig: string | null;
         createdAt: Date;
         updatedAt: Date;
         name: string;
         description: string | null;
         icon: string;
+        roleCode: string | null;
         color: string;
         priority: number;
         hierarchy: number;
         isSystem: boolean;
+        sidebarConfig: string | null;
+        moduleAccess: string | null;
+        approvalLevels: string | null;
+        reportAccess: string | null;
+        workspaceAccess: string | null;
+        notificationSettings: string | null;
+        searchScope: string | null;
         createdBy: string | null;
     }>;
     /**
@@ -77,15 +109,25 @@ export declare class RolesService {
     updateRole(id: string, data: any, updatedBy: string): Promise<{
         status: string;
         id: string;
+        departmentId: string | null;
+        dashboardConfig: string | null;
         createdAt: Date;
         updatedAt: Date;
         name: string;
         description: string | null;
         icon: string;
+        roleCode: string | null;
         color: string;
         priority: number;
         hierarchy: number;
         isSystem: boolean;
+        sidebarConfig: string | null;
+        moduleAccess: string | null;
+        approvalLevels: string | null;
+        reportAccess: string | null;
+        workspaceAccess: string | null;
+        notificationSettings: string | null;
+        searchScope: string | null;
         createdBy: string | null;
     }>;
     /**
@@ -103,15 +145,25 @@ export declare class RolesService {
     }, createdBy: string): Promise<{
         status: string;
         id: string;
+        departmentId: string | null;
+        dashboardConfig: string | null;
         createdAt: Date;
         updatedAt: Date;
         name: string;
         description: string | null;
         icon: string;
+        roleCode: string | null;
         color: string;
         priority: number;
         hierarchy: number;
         isSystem: boolean;
+        sidebarConfig: string | null;
+        moduleAccess: string | null;
+        approvalLevels: string | null;
+        reportAccess: string | null;
+        workspaceAccess: string | null;
+        notificationSettings: string | null;
+        searchScope: string | null;
         createdBy: string | null;
     }>;
     /**
@@ -122,6 +174,8 @@ export declare class RolesService {
         createdAt: Date;
         updatedAt: Date;
         name: string;
+        action: string;
+        module: string;
         description: string | null;
     }[]>;
     /**
@@ -136,12 +190,38 @@ export declare class RolesService {
     getRoleUsers(roleId: string, params: any): Promise<{
         users: {
             status: string;
+            designation: string | null;
+            digitalSignature: string | null;
             id: string;
             email: string;
             passwordHash: string;
             firstName: string;
             lastName: string;
             phone: string | null;
+            departmentId: string | null;
+            reportingManagerId: string | null;
+            workspaces: string | null;
+            activeWorkspace: string | null;
+            approvalAuthority: boolean;
+            dashboardConfig: string | null;
+            notificationPreferences: string | null;
+            gender: string | null;
+            dob: Date | null;
+            bloodGroup: string | null;
+            qrCode: string | null;
+            aadhaarNumber: string | null;
+            emergencyContact: string | null;
+            qualification: string | null;
+            experience: string | null;
+            skills: string | null;
+            certificates: string | null;
+            profileCompletion: number;
+            joiningDate: Date | null;
+            accountStatus: string;
+            loginStatus: string;
+            activityTimeline: string | null;
+            designationId: string | null;
+            parentRoleId: string | null;
             roleId: string;
             lockedUntil: Date | null;
             failedLoginAttempts: number;
@@ -150,6 +230,7 @@ export declare class RolesService {
             passwordChangedAt: Date | null;
             createdAt: Date;
             updatedAt: Date;
+            username: string | null;
         }[];
         totalCount: number;
         page: number;
@@ -188,6 +269,8 @@ export declare class RolesService {
                 createdAt: Date;
                 updatedAt: Date;
                 name: string;
+                action: string;
+                module: string;
                 description: string | null;
             };
         } & {
@@ -208,6 +291,8 @@ export declare class RolesService {
                 createdAt: Date;
                 updatedAt: Date;
                 name: string;
+                action: string;
+                module: string;
                 description: string | null;
             };
         } & {
@@ -228,6 +313,8 @@ export declare class RolesService {
                 createdAt: Date;
                 updatedAt: Date;
                 name: string;
+                action: string;
+                module: string;
                 description: string | null;
             };
         } & {

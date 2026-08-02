@@ -25,23 +25,27 @@ export declare class SecurityHelper {
      */
     static getFacultyRecord(userId: string): Promise<{
         status: string;
+        designation: string;
         program: string | null;
         id: string;
         email: string;
         firstName: string;
         lastName: string;
         phone: string;
+        departmentId: string;
+        gender: string | null;
+        dob: Date;
+        bloodGroup: string | null;
+        qualification: string;
+        experience: number;
         createdAt: Date;
         updatedAt: Date;
-        dob: Date;
-        gender: string | null;
-        bloodGroup: string | null;
+        notificationPrefs: string | null;
         documents: string;
         city: string | null;
         district: string | null;
         state: string | null;
         country: string | null;
-        departmentId: string;
         userId: string | null;
         archived: boolean;
         archivedAt: Date | null;
@@ -49,9 +53,6 @@ export declare class SecurityHelper {
         deletedAt: Date | null;
         employeeId: string;
         dateOfJoining: Date;
-        designation: string;
-        qualification: string;
-        experience: number;
         subjectMappings: string;
         maritalStatus: string | null;
         nationality: string | null;
@@ -85,7 +86,6 @@ export declare class SecurityHelper {
         googleScholar: string | null;
         orcidId: string | null;
         portfolioWebsite: string | null;
-        notificationPrefs: string | null;
     } | null>;
     /**
      * Resolve student record matching userId
@@ -97,13 +97,14 @@ export declare class SecurityHelper {
         firstName: string;
         lastName: string;
         phone: string | null;
+        departmentId: string;
+        gender: string;
+        dob: Date;
+        bloodGroup: string | null;
         createdAt: Date;
         updatedAt: Date;
         admissionNo: string;
-        dob: Date;
         dateOfAdmission: Date;
-        gender: string;
-        bloodGroup: string | null;
         religion: string | null;
         category: string | null;
         medicalDetails: string | null;
@@ -138,7 +139,6 @@ export declare class SecurityHelper {
         careerObjective: string | null;
         areasOfInterest: string | null;
         academicYearId: string;
-        departmentId: string;
         programDepartmentId: string | null;
         programId: string;
         courseId: string;

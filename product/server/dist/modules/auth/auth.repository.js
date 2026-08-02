@@ -7,12 +7,16 @@ class AuthRepository {
      * Find a user by email, eager loading role and permissions via explicit RolePermission join
      */
     async findByEmail(email) {
+        const clean = (email || '').trim();
+        const lower = clean.toLowerCase();
         return prisma_1.prisma.user.findFirst({
             where: {
                 OR: [
-                    { email },
-                    { student: { admissionNo: email, deleted: false } },
-                    { faculty: { employeeId: email, deleted: false } },
+                    { email: { equals: clean } },
+                    { email: { equals: lower } },
+                    { username: { equals: clean } },
+                    { student: { admissionNo: clean, deleted: false } },
+                    { faculty: { employeeId: clean, deleted: false } },
                 ],
             },
             include: {

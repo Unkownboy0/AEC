@@ -29,7 +29,8 @@ export class WorkflowController {
     try {
       const user = (req as any).user;
       const { status } = req.query;
-      const data = await this.service.listRequests(user.email, user.role, status as string);
+      const roleName = typeof user.role === 'object' && user.role !== null ? user.role.name : user.role;
+      const data = await this.service.listRequests(user.email, roleName, status as string);
       res.status(200).json({ status: 'success', data });
     } catch (error) {
       next(error);
@@ -41,7 +42,8 @@ export class WorkflowController {
       const user = (req as any).user;
       const { id } = req.params;
       const { action, comment } = req.body;
-      const data = await this.service.takeAction(id, user.email, user.role, action, comment);
+      const roleName = typeof user.role === 'object' && user.role !== null ? user.role.name : user.role;
+      const data = await this.service.takeAction(id, user.email, roleName, action, comment);
       await auditRequest(req, action.toUpperCase(), 'WORKFLOW', `${action} workflow request: ${comment || 'No comment'}`, id, 'WorkflowRequest');
       res.status(200).json({ status: 'success', data });
     } catch (error) {

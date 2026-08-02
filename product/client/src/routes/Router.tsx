@@ -47,7 +47,19 @@ import { PlacementEngine } from '../pages/admin/PlacementEngine';
 import { MasterTimetableManagement } from '../pages/admin/MasterTimetableManagement';
 import { IdCardVerify } from '../pages/IdCardVerify';
 
+import HodLeaveOdApprovalDesk from '../pages/hod/HodLeaveOdApprovalDesk';
+import HodDashboardWorkspace from '../pages/hod/HodDashboardWorkspace';
+import HodStudentWorkspace from '../pages/hod/HodStudentWorkspace';
+import HodFacultyWorkspace from '../pages/hod/HodFacultyWorkspace';
+import HodAttendanceWorkspace from '../pages/hod/HodAttendanceWorkspace';
+import HodTaskWorkspace from '../pages/hod/HodTaskWorkspace';
+import HodReportsWorkspace from '../pages/hod/HodReportsWorkspace';
+
+import { WorkManagementWorkspace } from '../pages/enterprise/WorkManagementWorkspace';
+import { GovernanceSuite } from '../pages/enterprise/GovernanceSuite';
+
 import Profile from '../pages/Profile';
+import UniversalProfilePage from '../pages/profile/UniversalProfilePage';
 
 // Student Pages Imports (Lazy Loaded)
 const StudentDashboard = React.lazy(() => import('../pages/student/StudentDashboard'));
@@ -90,9 +102,18 @@ import { SportsModule } from '../pages/admin/SportsModule';
 import { MasterRBACConsole } from '../pages/admin/MasterRBACConsole';
 import { IAMMasterControlConsole } from '../pages/admin/IAMMasterControlConsole';
 
+import { PrincipalApprovalCenter } from '../pages/principal/PrincipalApprovalCenter';
+
+import { AcademicDeanPortal } from '../pages/admin/AcademicDeanPortal';
+import { AdmissionDeanPortal } from '../pages/admin/AdmissionDeanPortal';
+
 // React component registry mapping keys to Page Components
 const COMPONENT_MAP: Record<string, React.ComponentType<any>> = {
   dashboard: Dashboard,
+  academic_dean_portal: AcademicDeanPortal,
+  admission_dean_portal: AdmissionDeanPortal,
+  approval_center: PrincipalApprovalCenter,
+  principal_approvals: PrincipalApprovalCenter,
   rbac: IAMMasterControlConsole,
   iam: IAMMasterControlConsole,
   sports: SportsModule,
@@ -135,6 +156,22 @@ const COMPONENT_MAP: Record<string, React.ComponentType<any>> = {
   timetable_engine: TimetableEngine,
   placement_engine: PlacementEngine,
   master_timetable: MasterTimetableManagement,
+
+  hod_dashboard: HodDashboardWorkspace,
+  hod_leave_approvals: HodLeaveOdApprovalDesk,
+  hod_leave_od: HodLeaveOdApprovalDesk,
+  hod_students: HodStudentWorkspace,
+  hod_faculty: HodFacultyWorkspace,
+  hod_mentors: HodStudentWorkspace,
+  hod_attendance: HodAttendanceWorkspace,
+  hod_tasks: HodTaskWorkspace,
+  hod_reports: HodReportsWorkspace,
+
+  // Enterprise WMCS & Governance Suite
+  work_management: WorkManagementWorkspace,
+  tasks: WorkManagementWorkspace,
+  governance_suite: GovernanceSuite,
+  governance: GovernanceSuite,
 
   // Student Registrations
   student_dashboard: StudentDashboard,
@@ -193,11 +230,30 @@ export const AppRouter: React.FC = () => {
           {/* Dashboard is always mapped at index */}
           <Route index element={<Dashboard />} />
           <Route path="profile" element={<Profile />} />
+          <Route path="profile/:userId" element={<UniversalProfilePage />} />
           <Route path="rbac" element={<IAMMasterControlConsole />} />
           <Route path="admin/rbac" element={<IAMMasterControlConsole />} />
           <Route path="iam" element={<IAMMasterControlConsole />} />
           <Route path="admin/iam" element={<IAMMasterControlConsole />} />
           <Route path="roles" element={<IAMMasterControlConsole />} />
+
+          {/* Enterprise Work Management & Governance Suite Direct Paths */}
+          <Route path="work-management" element={<WorkManagementWorkspace />} />
+          <Route path="tasks" element={<WorkManagementWorkspace />} />
+          <Route path="governance-suite" element={<GovernanceSuite />} />
+          <Route path="governance" element={<GovernanceSuite />} />
+          <Route path="approval-center" element={<PrincipalApprovalCenter />} />
+
+          {/* HOD Portal Direct Routes */}
+          <Route path="hod/dashboard" element={<HodDashboardWorkspace />} />
+          <Route path="hod/leave-approvals" element={<HodLeaveOdApprovalDesk />} />
+          <Route path="hod/leave-od" element={<HodLeaveOdApprovalDesk />} />
+          <Route path="hod/students" element={<HodStudentWorkspace />} />
+          <Route path="hod/faculty" element={<HodFacultyWorkspace />} />
+          <Route path="hod/mentors" element={<HodStudentWorkspace />} />
+          <Route path="hod/attendance" element={<HodAttendanceWorkspace />} />
+          <Route path="hod/tasks" element={<HodTaskWorkspace />} />
+          <Route path="hod/reports" element={<HodReportsWorkspace />} />
 
 
           {/* Dynamically register other routes if permitted */}

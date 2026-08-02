@@ -179,24 +179,24 @@ export declare const createCourseSchema: z.ZodObject<{
     departmentId: z.ZodString;
 }, "strip", z.ZodTypeAny, {
     code: string;
+    regulation: string;
     departmentId: string;
     programId: string;
     name: string;
     duration: number;
     credits: number;
-    regulation: string;
     status?: "ACTIVE" | "INACTIVE" | "ARCHIVED" | undefined;
     description?: string | null | undefined;
     coordinator?: string | null | undefined;
     courseOutcomes?: string | undefined;
 }, {
     code: string;
+    regulation: string;
     departmentId: string;
     programId: string;
     name: string;
     duration: number;
     credits: number;
-    regulation: string;
     status?: "ACTIVE" | "INACTIVE" | "ARCHIVED" | undefined;
     description?: string | null | undefined;
     coordinator?: string | null | undefined;
@@ -217,6 +217,7 @@ export declare const updateCourseSchema: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     code?: string | undefined;
     status?: "ACTIVE" | "INACTIVE" | "ARCHIVED" | undefined;
+    regulation?: string | undefined;
     departmentId?: string | undefined;
     programId?: string | undefined;
     name?: string | undefined;
@@ -224,11 +225,11 @@ export declare const updateCourseSchema: z.ZodObject<{
     duration?: number | undefined;
     credits?: number | undefined;
     coordinator?: string | null | undefined;
-    regulation?: string | undefined;
     courseOutcomes?: string | undefined;
 }, {
     code?: string | undefined;
     status?: "ACTIVE" | "INACTIVE" | "ARCHIVED" | undefined;
+    regulation?: string | undefined;
     departmentId?: string | undefined;
     programId?: string | undefined;
     name?: string | undefined;
@@ -236,7 +237,6 @@ export declare const updateCourseSchema: z.ZodObject<{
     duration?: number | undefined;
     credits?: number | undefined;
     coordinator?: string | null | undefined;
-    regulation?: string | undefined;
     courseOutcomes?: string | undefined;
 }>;
 export declare const createAcademicYearSchema: z.ZodObject<{

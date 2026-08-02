@@ -297,7 +297,7 @@ export const Dashboard: React.FC = () => {
       );
     }
 
-    if (user?.role === 'Faculty') {
+    if (user?.role === 'Mentor' || user?.role === 'Faculty') {
       return <FacultyPortal user={user} />;
     }
 

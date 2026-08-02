@@ -8,9 +8,9 @@ export declare class AcademicsService {
                 code: string;
                 status: string;
                 id: string;
+                departmentId: string;
                 createdAt: Date;
                 updatedAt: Date;
-                departmentId: string;
                 archived: boolean;
                 archivedAt: Date | null;
                 deleted: boolean;
@@ -24,10 +24,11 @@ export declare class AcademicsService {
             courses: {
                 code: string;
                 status: string;
+                regulation: string;
                 id: string;
+                departmentId: string;
                 createdAt: Date;
                 updatedAt: Date;
-                departmentId: string;
                 programId: string;
                 archived: boolean;
                 archivedAt: Date | null;
@@ -38,7 +39,6 @@ export declare class AcademicsService {
                 duration: number;
                 credits: number;
                 coordinator: string | null;
-                regulation: string;
                 courseOutcomes: string;
             }[];
         } & {
@@ -75,9 +75,9 @@ export declare class AcademicsService {
             code: string;
             status: string;
             id: string;
+            departmentId: string;
             createdAt: Date;
             updatedAt: Date;
-            departmentId: string;
             archived: boolean;
             archivedAt: Date | null;
             deleted: boolean;
@@ -91,10 +91,11 @@ export declare class AcademicsService {
         courses: {
             code: string;
             status: string;
+            regulation: string;
             id: string;
+            departmentId: string;
             createdAt: Date;
             updatedAt: Date;
-            departmentId: string;
             programId: string;
             archived: boolean;
             archivedAt: Date | null;
@@ -105,7 +106,6 @@ export declare class AcademicsService {
             duration: number;
             credits: number;
             coordinator: string | null;
-            regulation: string;
             courseOutcomes: string;
         }[];
     } & {
@@ -222,9 +222,9 @@ export declare class AcademicsService {
             code: string;
             status: string;
             id: string;
+            departmentId: string;
             createdAt: Date;
             updatedAt: Date;
-            departmentId: string;
             archived: boolean;
             archivedAt: Date | null;
             deleted: boolean;
@@ -269,9 +269,9 @@ export declare class AcademicsService {
         code: string;
         status: string;
         id: string;
+        departmentId: string;
         createdAt: Date;
         updatedAt: Date;
-        departmentId: string;
         archived: boolean;
         archivedAt: Date | null;
         deleted: boolean;
@@ -286,9 +286,9 @@ export declare class AcademicsService {
         code: string;
         status: string;
         id: string;
+        departmentId: string;
         createdAt: Date;
         updatedAt: Date;
-        departmentId: string;
         archived: boolean;
         archivedAt: Date | null;
         deleted: boolean;
@@ -303,9 +303,9 @@ export declare class AcademicsService {
         code: string;
         status: string;
         id: string;
+        departmentId: string;
         createdAt: Date;
         updatedAt: Date;
-        departmentId: string;
         archived: boolean;
         archivedAt: Date | null;
         deleted: boolean;
@@ -349,9 +349,9 @@ export declare class AcademicsService {
                 code: string;
                 status: string;
                 id: string;
+                departmentId: string;
                 createdAt: Date;
                 updatedAt: Date;
-                departmentId: string;
                 archived: boolean;
                 archivedAt: Date | null;
                 deleted: boolean;
@@ -365,10 +365,11 @@ export declare class AcademicsService {
         } & {
             code: string;
             status: string;
+            regulation: string;
             id: string;
+            departmentId: string;
             createdAt: Date;
             updatedAt: Date;
-            departmentId: string;
             programId: string;
             archived: boolean;
             archivedAt: Date | null;
@@ -379,7 +380,6 @@ export declare class AcademicsService {
             duration: number;
             credits: number;
             coordinator: string | null;
-            regulation: string;
             courseOutcomes: string;
         })[];
         totalCount: number;
@@ -416,9 +416,9 @@ export declare class AcademicsService {
             code: string;
             status: string;
             id: string;
+            departmentId: string;
             createdAt: Date;
             updatedAt: Date;
-            departmentId: string;
             archived: boolean;
             archivedAt: Date | null;
             deleted: boolean;
@@ -432,10 +432,11 @@ export declare class AcademicsService {
     } & {
         code: string;
         status: string;
+        regulation: string;
         id: string;
+        departmentId: string;
         createdAt: Date;
         updatedAt: Date;
-        departmentId: string;
         programId: string;
         archived: boolean;
         archivedAt: Date | null;
@@ -446,16 +447,16 @@ export declare class AcademicsService {
         duration: number;
         credits: number;
         coordinator: string | null;
-        regulation: string;
         courseOutcomes: string;
     }>;
     createCourse(input: any, userId: string, ip?: string, ua?: string): Promise<{
         code: string;
         status: string;
+        regulation: string;
         id: string;
+        departmentId: string;
         createdAt: Date;
         updatedAt: Date;
-        departmentId: string;
         programId: string;
         archived: boolean;
         archivedAt: Date | null;
@@ -466,16 +467,16 @@ export declare class AcademicsService {
         duration: number;
         credits: number;
         coordinator: string | null;
-        regulation: string;
         courseOutcomes: string;
     }>;
     updateCourse(id: string, input: any, userId: string, ip?: string, ua?: string): Promise<{
         code: string;
         status: string;
+        regulation: string;
         id: string;
+        departmentId: string;
         createdAt: Date;
         updatedAt: Date;
-        departmentId: string;
         programId: string;
         archived: boolean;
         archivedAt: Date | null;
@@ -486,7 +487,6 @@ export declare class AcademicsService {
         duration: number;
         credits: number;
         coordinator: string | null;
-        regulation: string;
         courseOutcomes: string;
     }>;
     listYears(params: any): Promise<{
@@ -582,9 +582,9 @@ export declare class AcademicsService {
                 code: string;
                 status: string;
                 id: string;
+                departmentId: string;
                 createdAt: Date;
                 updatedAt: Date;
-                departmentId: string;
                 archived: boolean;
                 archivedAt: Date | null;
                 deleted: boolean;
@@ -598,10 +598,11 @@ export declare class AcademicsService {
             course: {
                 code: string;
                 status: string;
+                regulation: string;
                 id: string;
+                departmentId: string;
                 createdAt: Date;
                 updatedAt: Date;
-                departmentId: string;
                 programId: string;
                 archived: boolean;
                 archivedAt: Date | null;
@@ -612,7 +613,6 @@ export declare class AcademicsService {
                 duration: number;
                 credits: number;
                 coordinator: string | null;
-                regulation: string;
                 courseOutcomes: string;
             };
         } & {
@@ -655,9 +655,9 @@ export declare class AcademicsService {
             code: string;
             status: string;
             id: string;
+            departmentId: string;
             createdAt: Date;
             updatedAt: Date;
-            departmentId: string;
             archived: boolean;
             archivedAt: Date | null;
             deleted: boolean;
@@ -671,10 +671,11 @@ export declare class AcademicsService {
         course: {
             code: string;
             status: string;
+            regulation: string;
             id: string;
+            departmentId: string;
             createdAt: Date;
             updatedAt: Date;
-            departmentId: string;
             programId: string;
             archived: boolean;
             archivedAt: Date | null;
@@ -685,7 +686,6 @@ export declare class AcademicsService {
             duration: number;
             credits: number;
             coordinator: string | null;
-            regulation: string;
             courseOutcomes: string;
         };
     } & {
@@ -778,9 +778,9 @@ export declare class AcademicsService {
                 code: string;
                 status: string;
                 id: string;
+                departmentId: string;
                 createdAt: Date;
                 updatedAt: Date;
-                departmentId: string;
                 archived: boolean;
                 archivedAt: Date | null;
                 deleted: boolean;
@@ -813,9 +813,9 @@ export declare class AcademicsService {
         } & {
             status: string;
             id: string;
+            departmentId: string;
             createdAt: Date;
             updatedAt: Date;
-            departmentId: string;
             programId: string;
             semesterId: string;
             archived: boolean;
@@ -861,9 +861,9 @@ export declare class AcademicsService {
             code: string;
             status: string;
             id: string;
+            departmentId: string;
             createdAt: Date;
             updatedAt: Date;
-            departmentId: string;
             archived: boolean;
             archivedAt: Date | null;
             deleted: boolean;
@@ -896,9 +896,9 @@ export declare class AcademicsService {
     } & {
         status: string;
         id: string;
+        departmentId: string;
         createdAt: Date;
         updatedAt: Date;
-        departmentId: string;
         programId: string;
         semesterId: string;
         archived: boolean;
@@ -913,9 +913,9 @@ export declare class AcademicsService {
     createSection(input: any, userId: string, ip?: string, ua?: string): Promise<{
         status: string;
         id: string;
+        departmentId: string;
         createdAt: Date;
         updatedAt: Date;
-        departmentId: string;
         programId: string;
         semesterId: string;
         archived: boolean;
@@ -930,9 +930,9 @@ export declare class AcademicsService {
     updateSection(id: string, input: any, userId: string, ip?: string, ua?: string): Promise<{
         status: string;
         id: string;
+        departmentId: string;
         createdAt: Date;
         updatedAt: Date;
-        departmentId: string;
         programId: string;
         semesterId: string;
         archived: boolean;
@@ -977,9 +977,9 @@ export declare class AcademicsService {
                 code: string;
                 status: string;
                 id: string;
+                departmentId: string;
                 createdAt: Date;
                 updatedAt: Date;
-                departmentId: string;
                 archived: boolean;
                 archivedAt: Date | null;
                 deleted: boolean;
@@ -1012,9 +1012,9 @@ export declare class AcademicsService {
             section: {
                 status: string;
                 id: string;
+                departmentId: string;
                 createdAt: Date;
                 updatedAt: Date;
-                departmentId: string;
                 programId: string;
                 semesterId: string;
                 archived: boolean;
@@ -1030,9 +1030,9 @@ export declare class AcademicsService {
             code: string;
             status: string;
             id: string;
+            departmentId: string;
             createdAt: Date;
             updatedAt: Date;
-            departmentId: string;
             programId: string;
             semesterId: string;
             sectionId: string | null;
@@ -1056,6 +1056,12 @@ export declare class AcademicsService {
             isOpenElective: boolean;
             isProfessionalElective: boolean;
             subjectCoordinator: string | null;
+            regulationId: string | null;
+            approvalStatus: string;
+            assignedFacultyId: string | null;
+            assignedHodId: string | null;
+            assignedDeanId: string | null;
+            assignedCoordinatorId: string | null;
         })[];
         totalCount: number;
     }>;
@@ -1091,9 +1097,9 @@ export declare class AcademicsService {
             code: string;
             status: string;
             id: string;
+            departmentId: string;
             createdAt: Date;
             updatedAt: Date;
-            departmentId: string;
             archived: boolean;
             archivedAt: Date | null;
             deleted: boolean;
@@ -1126,9 +1132,9 @@ export declare class AcademicsService {
         section: {
             status: string;
             id: string;
+            departmentId: string;
             createdAt: Date;
             updatedAt: Date;
-            departmentId: string;
             programId: string;
             semesterId: string;
             archived: boolean;
@@ -1144,9 +1150,9 @@ export declare class AcademicsService {
         code: string;
         status: string;
         id: string;
+        departmentId: string;
         createdAt: Date;
         updatedAt: Date;
-        departmentId: string;
         programId: string;
         semesterId: string;
         sectionId: string | null;
@@ -1170,14 +1176,20 @@ export declare class AcademicsService {
         isOpenElective: boolean;
         isProfessionalElective: boolean;
         subjectCoordinator: string | null;
+        regulationId: string | null;
+        approvalStatus: string;
+        assignedFacultyId: string | null;
+        assignedHodId: string | null;
+        assignedDeanId: string | null;
+        assignedCoordinatorId: string | null;
     }>;
     createSubject(input: any, userId: string, ip?: string, ua?: string): Promise<{
         code: string;
         status: string;
         id: string;
+        departmentId: string;
         createdAt: Date;
         updatedAt: Date;
-        departmentId: string;
         programId: string;
         semesterId: string;
         sectionId: string | null;
@@ -1201,14 +1213,20 @@ export declare class AcademicsService {
         isOpenElective: boolean;
         isProfessionalElective: boolean;
         subjectCoordinator: string | null;
+        regulationId: string | null;
+        approvalStatus: string;
+        assignedFacultyId: string | null;
+        assignedHodId: string | null;
+        assignedDeanId: string | null;
+        assignedCoordinatorId: string | null;
     }>;
     updateSubject(id: string, input: any, userId: string, ip?: string, ua?: string): Promise<{
         code: string;
         status: string;
         id: string;
+        departmentId: string;
         createdAt: Date;
         updatedAt: Date;
-        departmentId: string;
         programId: string;
         semesterId: string;
         sectionId: string | null;
@@ -1232,6 +1250,12 @@ export declare class AcademicsService {
         isOpenElective: boolean;
         isProfessionalElective: boolean;
         subjectCoordinator: string | null;
+        regulationId: string | null;
+        approvalStatus: string;
+        assignedFacultyId: string | null;
+        assignedHodId: string | null;
+        assignedDeanId: string | null;
+        assignedCoordinatorId: string | null;
     }>;
     bulkDelete(moduleKey: string, ids: string[], userId: string, ip?: string, ua?: string): Promise<void>;
     bulkArchive(moduleKey: string, ids: string[], userId: string, ip?: string, ua?: string): Promise<void>;

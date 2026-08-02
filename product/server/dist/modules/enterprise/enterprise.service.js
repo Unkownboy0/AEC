@@ -1124,6 +1124,147 @@ class EnterpriseService {
             console.error('Failed to write activity log:', err);
         }
     }
+    async listCounselingRecords(user) {
+        const faculty = await prisma_1.prisma.faculty.findFirst({ where: { userId: user.id } });
+        if (!faculty) {
+            return prisma_1.prisma.counselingRecord.findMany({
+                include: { student: true, mentor: true },
+                orderBy: { createdAt: 'desc' }
+            });
+        }
+        return prisma_1.prisma.counselingRecord.findMany({
+            where: { mentorId: faculty.id },
+            include: { student: true, mentor: true },
+            orderBy: { createdAt: 'desc' }
+        });
+    }
+    async createCounselingRecord(user, body) {
+        const faculty = await prisma_1.prisma.faculty.findFirst({ where: { userId: user.id } });
+        const { studentId, notes, actionTaken } = body;
+        if (!studentId || !notes) {
+            throw new exceptions_1.BadRequestException('Student and counseling notes are required');
+        }
+        return prisma_1.prisma.counselingRecord.create({
+            data: {
+                studentId,
+                mentorId: faculty ? faculty.id : (body.mentorId || 'SYSTEM'),
+                notes,
+                actionTaken: actionTaken || 'In Progress',
+            },
+            include: { student: true, mentor: true }
+        });
+    }
+    // ==========================================
+    // ENTERPRISE GLOBAL SEARCH WITH RBAC
+    // ==========================================
+    async globalSearch(query, user) {
+        if (!query || query.trim().length < 2)
+            return [];
+        const q = query.trim();
+        const results = [];
+        const role = user.role;
+        // 1. Check Search Permissions
+        const canSearchEveryone = [
+            'Super Admin', 'College Admin', 'Principal', 'Vice Principal',
+            'Academic Dean', 'Admission Dean', 'IQAC Dean'
+        ].includes(role);
+        // 2. Fetch User / Student / Faculty boundaries
+        if (canSearchEveryone) {
+            const [students, faculty, depts, circulars, sports] = await Promise.all([
+                prisma_1.prisma.student.findMany({
+                    where: {
+                        OR: [
+                            { firstName: { contains: q } },
+                            { lastName: { contains: q } },
+                            { admissionNo: { contains: q } },
+                            { email: { contains: q } },
+                            { phone: { contains: q } }
+                        ]
+                    },
+                    take: 10
+                }),
+                prisma_1.prisma.faculty.findMany({
+                    where: {
+                        OR: [
+                            { firstName: { contains: q } },
+                            { lastName: { contains: q } },
+                            { employeeId: { contains: q } },
+                            { email: { contains: q } }
+                        ]
+                    },
+                    take: 10
+                }),
+                prisma_1.prisma.department.findMany({
+                    where: {
+                        OR: [{ name: { contains: q } }, { code: { contains: q } }]
+                    },
+                    take: 5
+                }),
+                prisma_1.prisma.hodCircular.findMany({
+                    where: { title: { contains: q } },
+                    take: 5
+                }),
+                prisma_1.prisma.sportsTournament.findMany({
+                    where: { title: { contains: q } },
+                    take: 5
+                })
+            ]);
+            students.forEach(s => results.push({ id: s.id, type: 'STUDENT', title: `${s.firstName} ${s.lastName}`, subtitle: `Student (${s.admissionNo})`, link: `/students?id=${s.id}` }));
+            faculty.forEach(f => results.push({ id: f.id, type: 'FACULTY', title: `${f.firstName} ${f.lastName}`, subtitle: `Faculty (${f.employeeId || 'EMP'})`, link: `/faculty?id=${f.id}` }));
+            depts.forEach(d => results.push({ id: d.id, type: 'DEPARTMENT', title: d.name, subtitle: `Dept Code: ${d.code}`, link: `/academics?dept=${d.id}` }));
+            circulars.forEach(c => results.push({ id: c.id, type: 'CIRCULAR', title: c.title, subtitle: 'Circular', link: `/circulars` }));
+            sports.forEach((sp) => results.push({ id: sp.id, type: 'SPORTS', title: sp.title, subtitle: 'Sports Event', link: `/sports` }));
+        }
+        else if (role === 'HOD') {
+            const facultyUser = await prisma_1.prisma.faculty.findFirst({ where: { userId: user.id } });
+            const deptId = facultyUser?.departmentId;
+            if (deptId) {
+                const [students, faculty] = await Promise.all([
+                    prisma_1.prisma.student.findMany({
+                        where: {
+                            departmentId: deptId,
+                            OR: [{ firstName: { contains: q } }, { lastName: { contains: q } }, { admissionNo: { contains: q } }]
+                        },
+                        take: 10
+                    }),
+                    prisma_1.prisma.faculty.findMany({
+                        where: {
+                            departmentId: deptId,
+                            OR: [{ firstName: { contains: q } }, { lastName: { contains: q } }, { employeeId: { contains: q } }]
+                        },
+                        take: 10
+                    })
+                ]);
+                students.forEach(s => results.push({ id: s.id, type: 'STUDENT', title: `${s.firstName} ${s.lastName}`, subtitle: `Dept Student (${s.admissionNo})`, link: `/students?id=${s.id}` }));
+                faculty.forEach(f => results.push({ id: f.id, type: 'FACULTY', title: `${f.firstName} ${f.lastName}`, subtitle: `Dept Faculty (${f.employeeId || 'EMP'})`, link: `/faculty?id=${f.id}` }));
+            }
+        }
+        else if (role === 'Faculty' || role === 'Mentor') {
+            const facultyUser = await prisma_1.prisma.faculty.findFirst({ where: { userId: user.id } });
+            if (facultyUser) {
+                const mentees = await prisma_1.prisma.student.findMany({
+                    where: {
+                        OR: [{ mentorId: facultyUser.id }, { facultyId: facultyUser.id }],
+                        AND: [{ OR: [{ firstName: { contains: q } }, { lastName: { contains: q } }, { admissionNo: { contains: q } }] }]
+                    },
+                    take: 10
+                });
+                mentees.forEach(s => results.push({ id: s.id, type: 'STUDENT', title: `${s.firstName} ${s.lastName}`, subtitle: `Assigned Mentee (${s.admissionNo})`, link: `/students?id=${s.id}` }));
+            }
+        }
+        else if (role === 'Student') {
+            const student = await prisma_1.prisma.student.findFirst({ where: { userId: user.id } });
+            if (student && (`${student.firstName} ${student.lastName}`.toLowerCase().includes(q.toLowerCase()) || student.admissionNo.toLowerCase().includes(q.toLowerCase()))) {
+                results.push({ id: student.id, type: 'STUDENT', title: `${student.firstName} ${student.lastName}`, subtitle: `My Profile (${student.admissionNo})`, link: `/profile` });
+            }
+        }
+        else if (role === 'Parent') {
+            const children = await prisma_1.prisma.student.findMany({ where: { parentEmail: user.email } });
+            children.filter(c => `${c.firstName} ${c.lastName}`.toLowerCase().includes(q.toLowerCase()) || c.admissionNo.toLowerCase().includes(q.toLowerCase()))
+                .forEach(c => results.push({ id: c.id, type: 'STUDENT', title: `${c.firstName} ${c.lastName}`, subtitle: `Child Profile (${c.admissionNo})`, link: `/student-portal` }));
+        }
+        return results;
+    }
 }
 exports.EnterpriseService = EnterpriseService;
 //# sourceMappingURL=enterprise.service.js.map

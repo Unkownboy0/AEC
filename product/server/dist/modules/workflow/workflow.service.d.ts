@@ -6,9 +6,9 @@ export declare class WorkflowService {
         type: string;
         status: string;
         id: string;
+        departmentId: string | null;
         createdAt: Date;
         updatedAt: Date;
-        departmentId: string | null;
         mentorId: string | null;
         facultyId: string | null;
         classAdvisorId: string | null;
@@ -25,20 +25,85 @@ export declare class WorkflowService {
      * List requests filtered by user role and context
      */
     listRequests(userEmail: string, userRole: string, status?: string): Promise<({
-        student: {
+        student: ({
+            department: {
+                code: string;
+                type: string;
+                status: string;
+                id: string;
+                email: string | null;
+                phone: string | null;
+                createdAt: Date;
+                updatedAt: Date;
+                documents: string;
+                academicYearId: string | null;
+                archived: boolean;
+                archivedAt: Date | null;
+                deleted: boolean;
+                deletedAt: Date | null;
+                name: string;
+                description: string | null;
+                color: string;
+                shortName: string | null;
+                logo: string | null;
+                banner: string | null;
+                website: string | null;
+                officeLocation: string | null;
+                establishedYear: number | null;
+                hodId: string | null;
+                hodName: string | null;
+            };
+            semester: {
+                number: number;
+                status: string;
+                id: string;
+                createdAt: Date;
+                updatedAt: Date;
+                academicYearId: string;
+                programId: string;
+                courseId: string;
+                archived: boolean;
+                archivedAt: Date | null;
+                deleted: boolean;
+                deletedAt: Date | null;
+                name: string;
+                startDate: Date;
+                endDate: Date;
+                isCurrent: boolean;
+                credits: number;
+            };
+            section: {
+                status: string;
+                id: string;
+                departmentId: string;
+                createdAt: Date;
+                updatedAt: Date;
+                programId: string;
+                semesterId: string;
+                archived: boolean;
+                archivedAt: Date | null;
+                deleted: boolean;
+                deletedAt: Date | null;
+                name: string;
+                capacity: number;
+                classAdvisor: string | null;
+                room: string | null;
+            };
+        } & {
             status: string;
             id: string;
             email: string | null;
             firstName: string;
             lastName: string;
             phone: string | null;
+            departmentId: string;
+            gender: string;
+            dob: Date;
+            bloodGroup: string | null;
             createdAt: Date;
             updatedAt: Date;
             admissionNo: string;
-            dob: Date;
             dateOfAdmission: Date;
-            gender: string;
-            bloodGroup: string | null;
             religion: string | null;
             category: string | null;
             medicalDetails: string | null;
@@ -73,7 +138,6 @@ export declare class WorkflowService {
             careerObjective: string | null;
             areasOfInterest: string | null;
             academicYearId: string;
-            departmentId: string;
             programDepartmentId: string | null;
             programId: string;
             courseId: string;
@@ -91,24 +155,24 @@ export declare class WorkflowService {
             archivedAt: Date | null;
             deleted: boolean;
             deletedAt: Date | null;
-        } | null;
+        }) | null;
         history: {
             id: string;
             createdAt: Date;
             action: string;
-            stage: string;
+            requestId: string;
             comment: string | null;
+            stage: string;
             actionById: string;
             actionByName: string;
-            requestId: string;
         }[];
     } & {
         type: string;
         status: string;
         id: string;
+        departmentId: string | null;
         createdAt: Date;
         updatedAt: Date;
-        departmentId: string | null;
         mentorId: string | null;
         facultyId: string | null;
         classAdvisorId: string | null;
@@ -128,9 +192,9 @@ export declare class WorkflowService {
         type: string;
         status: string;
         id: string;
+        departmentId: string | null;
         createdAt: Date;
         updatedAt: Date;
-        departmentId: string | null;
         mentorId: string | null;
         facultyId: string | null;
         classAdvisorId: string | null;
@@ -150,9 +214,9 @@ export declare class WorkflowService {
         type: string;
         status: string;
         id: string;
+        departmentId: string | null;
         createdAt: Date;
         updatedAt: Date;
-        departmentId: string | null;
         mentorId: string | null;
         facultyId: string | null;
         classAdvisorId: string | null;

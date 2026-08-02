@@ -149,7 +149,7 @@ class SecurityHelper {
         if (['Super Admin', 'Principal', 'Vice Principal'].includes(user.role))
             return;
         let faculty = null;
-        if (['HOD', 'Faculty', 'Academic Dean'].includes(user.role)) {
+        if (['HOD', 'Faculty', 'Mentor', 'Academic Dean'].includes(user.role)) {
             faculty = await this.getFacultyRecord(user.id);
         }
         let student = null;
@@ -173,7 +173,7 @@ class SecurityHelper {
                 else if (user.role === 'Academic Dean') {
                     where.departmentId = faculty?.departmentId ?? 'non-existent';
                 }
-                else if (user.role === 'Faculty') {
+                else if (user.role === 'Faculty' || user.role === 'Mentor') {
                     if (where.mentorId) {
                         where.mentorId = faculty?.id ?? 'non-existent';
                         delete where.sectionId;
@@ -349,35 +349,27 @@ class SecurityHelper {
                 if (permissions.some(p => p.startsWith('students:') || p.startsWith('faculty:'))) {
                     menuList.push({ name: 'Class Students', path: '/?tab=students_list', icon: 'Users', componentKey: 'dashboard', order: 8 });
                 }
-                // 9. Mentor Workspace
-                if (permissions.some(p => p.startsWith('mentor:') || p.startsWith('leaves:') || p.startsWith('attendance:'))) {
-                    menuList.push({ name: 'Mentor Workspace', path: '/?tab=mentor_workspace', icon: 'Shield', componentKey: 'dashboard', order: 9 });
-                }
-                // 10. Student Leave / OD Requests
-                menuList.push({ name: 'Student Leave / OD Requests', path: '/?tab=leave_requests', icon: 'FileText', componentKey: 'dashboard', order: 10 });
-                // 11. Advisor Messaging
-                menuList.push({ name: 'Advisor Messaging', path: '/?tab=messages', icon: 'MessageSquare', componentKey: 'dashboard', order: 11 });
-                // 12. Placement & Internship Requests
+                // 9. Placement & Internship Requests
                 if (permissions.some(p => p.startsWith('placements:') || p.startsWith('students:'))) {
-                    menuList.push({ name: 'Placement & Internship Requests', path: '/?tab=internships', icon: 'Briefcase', componentKey: 'dashboard', order: 12 });
+                    menuList.push({ name: 'Placement & Internship Requests', path: '/?tab=internships', icon: 'Briefcase', componentKey: 'dashboard', order: 9 });
                 }
-                // 13. Announcements & Circulars
+                // 10. Announcements & Circulars
                 if (permissions.some(p => p.startsWith('notifications:'))) {
-                    menuList.push({ name: 'Announcements', path: '/?tab=announcements', icon: 'Megaphone', componentKey: 'dashboard', order: 13 });
-                    menuList.push({ name: 'Circulars', path: '/faculty/circulars', icon: 'Bell', componentKey: 'faculty_circulars', order: 14 });
+                    menuList.push({ name: 'Announcements', path: '/?tab=announcements', icon: 'Megaphone', componentKey: 'dashboard', order: 10 });
+                    menuList.push({ name: 'Circulars', path: '/faculty/circulars', icon: 'Bell', componentKey: 'faculty_circulars', order: 11 });
                 }
-                // 14. Documents
+                // 11. Documents
                 if (permissions.some(p => p.startsWith('files:'))) {
-                    menuList.push({ name: 'Documents', path: '/?tab=research', icon: 'FolderOpen', componentKey: 'dashboard', order: 15 });
+                    menuList.push({ name: 'Documents', path: '/?tab=research', icon: 'FolderOpen', componentKey: 'dashboard', order: 12 });
                 }
-                // 15. Reports
+                // 12. Reports
                 if (permissions.some(p => p.startsWith('reports:'))) {
-                    menuList.push({ name: 'Reports', path: '/?tab=reports', icon: 'FileBarChart', componentKey: 'dashboard', order: 16 });
+                    menuList.push({ name: 'Reports', path: '/?tab=reports', icon: 'FileBarChart', componentKey: 'dashboard', order: 13 });
                 }
-                // 16. My Leave / OD Requests (Faculty's own leave applications)
-                menuList.push({ name: 'My Leave / OD Requests', path: '/?tab=leaves', icon: 'CalendarOff', componentKey: 'dashboard', order: 17 });
-                // 17. AI Teaching Assistant
-                menuList.push({ name: 'AI Teaching Assistant', path: '/?tab=ai_assistant', icon: 'Cpu', componentKey: 'dashboard', order: 18 });
+                // 13. My Leave / OD Requests (Faculty's own leave applications)
+                menuList.push({ name: 'My Leave / OD Requests', path: '/?tab=leaves', icon: 'CalendarOff', componentKey: 'dashboard', order: 14 });
+                // 14. AI Teaching Assistant
+                menuList.push({ name: 'AI Teaching Assistant', path: '/?tab=ai_assistant', icon: 'Cpu', componentKey: 'dashboard', order: 15 });
                 return menuList;
             }
             catch (e) {
@@ -391,12 +383,40 @@ class SecurityHelper {
                     { name: 'Homework & Assignments', path: '/?tab=assignments', icon: 'FileText', componentKey: 'dashboard', order: 6 },
                     { name: 'Grading', path: '/?tab=marks', icon: 'FileSpreadsheet', componentKey: 'dashboard', order: 7 },
                     { name: 'Class Students', path: '/?tab=students_list', icon: 'Users', componentKey: 'dashboard', order: 8 },
-                    { name: 'Mentor Workspace', path: '/?tab=mentor_workspace', icon: 'Shield', componentKey: 'dashboard', order: 9 },
-                    { name: 'Student Leave / OD Requests', path: '/?tab=leave_requests', icon: 'FileText', componentKey: 'dashboard', order: 10 },
-                    { name: 'Advisor Messaging', path: '/?tab=messages', icon: 'MessageSquare', componentKey: 'dashboard', order: 11 },
-                    { name: 'My Leave / OD Requests', path: '/?tab=leaves', icon: 'CalendarOff', componentKey: 'dashboard', order: 12 },
-                    { name: 'Circulars', path: '/faculty/circulars', icon: 'Bell', componentKey: 'faculty_circulars', order: 13 },
-                    { name: 'Reports', path: '/?tab=reports', icon: 'FileBarChart', componentKey: 'dashboard', order: 14 },
+                    { name: 'My Leave / OD Requests', path: '/?tab=leaves', icon: 'CalendarOff', componentKey: 'dashboard', order: 9 },
+                    { name: 'Circulars', path: '/faculty/circulars', icon: 'Bell', componentKey: 'faculty_circulars', order: 10 },
+                    { name: 'Reports', path: '/?tab=reports', icon: 'FileBarChart', componentKey: 'dashboard', order: 11 },
+                ];
+            }
+        }
+        if (role === 'Mentor') {
+            try {
+                const menuList = [];
+                // 1. Dashboard
+                menuList.push({ name: 'Dashboard', path: '/?tab=overview', icon: 'LayoutDashboard', componentKey: 'dashboard', order: 1 });
+                // 2. My Profile
+                menuList.push({ name: 'My Profile', path: '/?tab=profile', icon: 'User', componentKey: 'dashboard', order: 2 });
+                // 3. Assigned Students
+                menuList.push({ name: 'Assigned Students', path: '/?tab=mentor_workspace', icon: 'Shield', componentKey: 'dashboard', order: 3 });
+                // 4. Student Leave / OD Requests
+                menuList.push({ name: 'Student Leave / OD Requests', path: '/?tab=leave_requests', icon: 'FileText', componentKey: 'dashboard', order: 4 });
+                // 5. Advisor Messaging
+                menuList.push({ name: 'Advisor Messaging', path: '/?tab=messages', icon: 'MessageSquare', componentKey: 'dashboard', order: 5 });
+                // 6. Reports (Mentor Reports)
+                if (permissions.some(p => p.startsWith('reports:'))) {
+                    menuList.push({ name: 'Reports', path: '/?tab=reports', icon: 'FileBarChart', componentKey: 'dashboard', order: 6 });
+                }
+                // 7. AI Teaching Assistant
+                menuList.push({ name: 'AI Teaching Assistant', path: '/?tab=ai_assistant', icon: 'Cpu', componentKey: 'dashboard', order: 7 });
+                return menuList;
+            }
+            catch (e) {
+                return [
+                    { name: 'Dashboard', path: '/?tab=overview', icon: 'LayoutDashboard', componentKey: 'dashboard', order: 1 },
+                    { name: 'My Profile', path: '/?tab=profile', icon: 'User', componentKey: 'dashboard', order: 2 },
+                    { name: 'Assigned Students', path: '/?tab=mentor_workspace', icon: 'Shield', componentKey: 'dashboard', order: 3 },
+                    { name: 'Student Leave / OD Requests', path: '/?tab=leave_requests', icon: 'FileText', componentKey: 'dashboard', order: 4 },
+                    { name: 'Advisor Messaging', path: '/?tab=messages', icon: 'MessageSquare', componentKey: 'dashboard', order: 5 },
                 ];
             }
         }

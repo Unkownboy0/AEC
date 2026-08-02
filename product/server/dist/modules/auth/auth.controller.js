@@ -79,7 +79,7 @@ class AuthController {
                 res.status(401).json({ status: 'error', message: 'Unauthorized' });
                 return;
             }
-            const result = await this.service.getMe(req.user.id);
+            const result = await this.service.getMe(req.user.id, req.user.role);
             res.status(200).json({
                 status: 'success',
                 data: { user: result },

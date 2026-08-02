@@ -302,6 +302,48 @@ export const StudentLeaveOd: React.FC = () => {
                       )}
                     </div>
                   </div>
+
+                  {/* Step 3: HOD Approval / Final Decision */}
+                  <div className="relative">
+                    {selectedRequest.status === 'APPROVED_HOD' || selectedRequest.status === 'APPROVED' || selectedRequest.status === 'COMPLETED' ? (
+                      <span className="absolute -left-[21px] top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-emerald-500 text-white border-2 border-card">
+                        <CheckCircle className="h-2.5 w-2.5" />
+                      </span>
+                    ) : selectedRequest.status === 'REJECTED_HOD' || selectedRequest.status === 'REJECTED_BY_HOD' ? (
+                      <span className="absolute -left-[21px] top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-rose-500 text-white border-2 border-card">
+                        <XCircle className="h-2.5 w-2.5" />
+                      </span>
+                    ) : selectedRequest.status === 'APPROVED_MENTOR' || selectedRequest.status === 'MENTOR_APPROVED' ? (
+                      <span className="absolute -left-[21px] top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-amber-500 text-white border-2 border-card animate-pulse">
+                        <Clock className="h-2.5 w-2.5" />
+                      </span>
+                    ) : (
+                      <span className="absolute -left-[21px] top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-slate-300 text-white border-2 border-card">
+                        <Clock className="h-2.5 w-2.5" />
+                      </span>
+                    )}
+                    <div className="text-xs">
+                      <h5 className="font-extrabold text-slate-800">HOD Review & Final Decision</h5>
+                      {selectedRequest.history?.find((h: any) => h.stage === 'HOD') ? (
+                        <p className="text-[10px] text-slate-500 mt-0.5">
+                          Action by {selectedRequest.history.find((h: any) => h.stage === 'HOD').actionByName}
+                          {selectedRequest.history.find((h: any) => h.stage === 'HOD').comment && (
+                            <span className="block italic text-[9px] text-slate-400 mt-0.5">
+                              Remarks: "{selectedRequest.history.find((h: any) => h.stage === 'HOD').comment}"
+                            </span>
+                          )}
+                        </p>
+                      ) : selectedRequest.status === 'APPROVED_HOD' || selectedRequest.status === 'APPROVED' || selectedRequest.status === 'COMPLETED' ? (
+                        <p className="text-[10px] text-emerald-600 font-bold mt-0.5">Final Approval Granted by HOD</p>
+                      ) : selectedRequest.status === 'REJECTED_HOD' || selectedRequest.status === 'REJECTED_BY_HOD' ? (
+                        <p className="text-[10px] text-rose-600 font-bold mt-0.5">Request Rejected by HOD</p>
+                      ) : selectedRequest.status === 'APPROVED_MENTOR' || selectedRequest.status === 'MENTOR_APPROVED' ? (
+                        <p className="text-[10px] text-amber-600 font-semibold mt-0.5">Awaiting HOD final authorization & sign-off</p>
+                      ) : (
+                        <p className="text-[10px] text-slate-400 mt-0.5">Pending Mentor endorsement prior to HOD review</p>
+                      )}
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>

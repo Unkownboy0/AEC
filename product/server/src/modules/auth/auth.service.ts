@@ -145,7 +145,7 @@ export class AuthService {
 
     const workspaces = [user.role.name];
     const faculty = await prisma.faculty.findFirst({ where: { userId: user.id } });
-    if (faculty || ['Faculty', 'HOD', 'Academic Dean', 'Vice Principal', 'Principal'].includes(user.role.name)) {
+    if (user.role.name === 'Faculty' || user.role.name === 'Mentor') {
       if (!workspaces.includes('Faculty')) workspaces.push('Faculty');
       if (!workspaces.includes('Mentor')) workspaces.push('Mentor');
     }
@@ -266,6 +266,85 @@ export class AuthService {
   }
 
   /**
+   * Dynamic Multi-Workspace Context Switcher
+   * Swaps active role context without re-authentication
+   */
+  async switchWorkspace(userId: string, targetRole: string) {
+    const user = await this.repo.findById(userId);
+    if (!user || user.status !== 'ACTIVE') {
+      throw new NotFoundException('User account not found');
+    }
+
+    // Determine allowed workspaces for this user
+    const allowedRoles = [user.role.name];
+    if (user.role.name === 'Faculty' || user.role.name === 'Mentor') {
+      if (!allowedRoles.includes('Faculty')) allowedRoles.push('Faculty');
+      if (!allowedRoles.includes('Mentor')) allowedRoles.push('Mentor');
+    }
+
+    // Also check assigned secondary roles in UserRole
+    const userRoles = await prisma.userRole.findMany({
+      where: { userId },
+      include: { role: true },
+    });
+    userRoles.forEach(ur => {
+      if (ur.role && !allowedRoles.includes(ur.role.name)) {
+        allowedRoles.push(ur.role.name);
+      }
+    });
+
+    if (!allowedRoles.includes(targetRole)) {
+      throw new BadRequestException(`Workspace '${targetRole}' is not authorized for your account`);
+    }
+
+    // Fetch target role definition and permissions
+    const roleData = await prisma.role.findFirst({
+      where: { name: targetRole },
+      include: { permissions: { include: { permission: true } } }
+    });
+
+    const roleName = roleData ? roleData.name : targetRole;
+    const permissions = roleData ? roleData.permissions.map(p => p.permission.name) : user.role.permissions.map(rp => rp.permission.name);
+
+    // Update activeWorkspace in database
+    await prisma.user.update({
+      where: { id: userId },
+      data: { activeWorkspace: roleName },
+    });
+
+    // Issue updated Access Token with activeRole context
+    const accessPayload: JwtAccessPayload = {
+      id: user.id,
+      email: user.email,
+      role: roleName,
+      permissions,
+    };
+
+    const accessToken = jwt.sign(accessPayload, env.JWT_SECRET, {
+      expiresIn: '15m',
+    });
+
+    const menus = await SecurityHelper.getPermittedMenus(permissions, roleName);
+
+    return {
+      accessToken,
+      activeWorkspace: roleName,
+      user: {
+        id: user.id,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        role: roleName,
+        profilePhoto: user.profilePhoto,
+        permissions,
+        menus,
+        workspaces: allowedRoles,
+        activeWorkspace: roleName,
+      },
+    };
+  }
+
+  /**
    * Get currently logged-in user profile (full — includes faculty/department for HOD/Faculty roles)
    */
   async getMe(userId: string, activeRole?: string) {
@@ -310,7 +389,7 @@ export class AuthService {
 
     // Resolve workspaces
     const workspaces = [user.role.name];
-    if (faculty || ['Faculty', 'HOD', 'Academic Dean', 'Vice Principal', 'Principal'].includes(user.role.name)) {
+    if (user.role.name === 'Faculty' || user.role.name === 'Mentor') {
       if (!workspaces.includes('Faculty')) workspaces.push('Faculty');
       if (!workspaces.includes('Mentor')) workspaces.push('Mentor');
     }

@@ -1,6 +1,10 @@
 import { Router } from 'express';
 import { EnterpriseController } from './enterprise.controller';
+import { HODController } from './hod.controller';
+import { DeanController } from './dean.controller';
+import { SearchController } from './search.controller';
 import { requireAuth } from '../../core/middlewares/auth.middleware';
+import { enforceDepartmentScope } from '../../core/middlewares/departmentScope';
 
 const router = Router();
 const controller = new EnterpriseController();
@@ -17,13 +21,16 @@ router.get('/id-card/faculty/:id', controller.getFacultyIdCard);
 
 router.post('/bulk-action', controller.bulkAction);
 router.get('/search', controller.globalSearch);
+router.get('/search/global', SearchController.globalSearch);
 
 
 // Students
 router.get('/students/mapping-validation', controller.getMappingValidation);
 router.post('/students/auto-assign', controller.runAutoAssign);
 router.get('/students/dashboard-summary', controller.getStudentDashboardSummary);
+router.get('/students/hierarchy', enforceDepartmentScope as any, HODController.getYearClassHierarchy);
 router.get('/students', controller.listStudents);
+router.get('/students/:id/full-profile', controller.getStudentFullProfile);
 router.get('/students/:id/id-card/pdf', controller.downloadIdCardPdf);
 router.get('/students/:id/attendance/pdf', controller.downloadAttendancePdf);
 router.get('/students/:id', controller.getStudent);
@@ -33,6 +40,7 @@ router.delete('/students/:id', controller.deleteStudent);
 
 // Faculty
 router.get('/faculty', controller.listFaculties);
+router.get('/faculty/:id/full-profile', controller.getFacultyFullProfile);
 router.get('/faculty/:id', controller.getFaculty);
 router.post('/faculty', controller.createFaculty);
 router.put('/faculty/:id', controller.updateFaculty);
@@ -196,6 +204,44 @@ router.get('/master-timetable/view', masterTimetableController.getCentralizedTim
 router.post('/master-timetable/conflict-check', masterTimetableController.runConflictCheck);
 router.post('/master-timetable/publish', masterTimetableController.publishTimetable);
 router.get('/master-timetable/audit-logs', masterTimetableController.getAuditLogs);
+
+// Enterprise HOD & Dean Workspaces
+router.get('/hod/dashboard', enforceDepartmentScope as any, HODController.getDashboard);
+router.get('/hod/faculty', enforceDepartmentScope as any, HODController.getFacultyDirectory);
+router.get('/hod/students', enforceDepartmentScope as any, HODController.getStudentDirectory);
+router.get('/hod/profile', enforceDepartmentScope as any, HODController.getHODProfile);
+router.get('/dean/dashboard', DeanController.getDashboard);
+
+// Enterprise Work Management & Collaboration System (WMCS) Engine
+import { TaskController } from './task.controller';
+router.get('/tasks/kanban', TaskController.getKanbanBoard);
+router.get('/tasks/workload-analytics', TaskController.getWorkloadAnalytics);
+router.get('/tasks/templates', TaskController.getTemplates);
+router.post('/tasks/templates', TaskController.createTemplate);
+router.post('/tasks', TaskController.createTask);
+router.get('/tasks', TaskController.getTasks);
+router.get('/tasks/:taskId', TaskController.getTaskById);
+router.patch('/tasks/:taskId/status', TaskController.updateTaskStatus);
+router.patch('/tasks/:taskId/checklist', TaskController.updateChecklist);
+router.post('/tasks/:taskId/comments', TaskController.addComment);
+
+// Enterprise Governance & Digital Document Management Suite
+import { GovernanceController } from './governance.controller';
+router.get('/governance/verify/:qrToken', GovernanceController.verifySignature);
+router.post('/governance/documents', GovernanceController.createDocument);
+router.patch('/governance/documents/:id/state', GovernanceController.updateState);
+router.post('/governance/documents/:id/sign', GovernanceController.signDocument);
+router.get('/governance/sop-library', GovernanceController.getSopLibrary);
+router.post('/governance/sop-library', GovernanceController.createSopItem);
+
+// Enterprise Executive Portal Architecture Endpoints
+import { ExecutiveController } from './executive.controller';
+const executiveController = new ExecutiveController();
+router.get('/executive/health-scores', executiveController.getDepartmentHealthScores);
+router.get('/executive/ai-insights', executiveController.getAIExecutiveInsights);
+router.get('/executive/inbox', executiveController.getExecutiveInbox);
+router.post('/executive/presence', executiveController.updatePresenceStatus);
+router.post('/executive/command-action', executiveController.executeCommandAction);
 
 export default router;
 

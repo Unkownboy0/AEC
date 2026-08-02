@@ -27,7 +27,9 @@ interface AdmissionDeanPortalProps {
   user: any;
 }
 
-const VALID_TABS = ['overview','applications','faculty_leaves','seats','scholarships','enquiries','counselling','payments'] as const;
+import { AdmissionCoordinationWorkspace } from '../../components/admin/AdmissionCoordinationWorkspace';
+
+const VALID_TABS = ['overview','coordination','applications','faculty_leaves','seats','scholarships','enquiries','counselling','payments'] as const;
 type AdmissionTab = typeof VALID_TABS[number];
 
 export const AdmissionDeanPortal: React.FC<AdmissionDeanPortalProps> = ({ user }) => {
@@ -490,6 +492,7 @@ export const AdmissionDeanPortal: React.FC<AdmissionDeanPortalProps> = ({ user }
       <div className="flex flex-wrap gap-2 border-b pb-px no-print">
         {[
           { key: 'overview', label: 'Admission Overview', icon: LayoutDashboard },
+          { key: 'coordination', label: 'Admission Coordination', icon: Send },
           { key: 'applications', label: 'Candidate Screening', icon: Users },
           { key: 'faculty_leaves', label: 'Faculty Leave & OD Approvals', icon: FileText },
           { key: 'seats', label: 'Seat Allocations', icon: Layers },
@@ -515,6 +518,11 @@ export const AdmissionDeanPortal: React.FC<AdmissionDeanPortalProps> = ({ user }
           );
         })}
       </div>
+
+      {/* Tab Contents: Coordination */}
+      {activeTab === 'coordination' && (
+        <AdmissionCoordinationWorkspace user={user} />
+      )}
 
       {/* Tab Contents: Overview */}
       {activeTab === 'overview' && analytics && (

@@ -1325,10 +1325,20 @@ export class EnterpriseController {
       const token = jwt.sign(qrPayload, env.JWT_SECRET, { expiresIn: '365d' });
 
       // Upsert DigitalIdCard record
+      const expiry = new Date();
+      expiry.setFullYear(expiry.getFullYear() + 4);
+
       await prisma.digitalIdCard.upsert({
-        where: { id: student.id }, // Use student ID as primary identifier
-        update: { qrCode: token, isActive: true },
-        create: { id: student.id, type: 'STUDENT', entityId: student.id, qrCode: token, isActive: true }
+        where: { verificationToken: token },
+        update: { status: 'ACTIVE' },
+        create: {
+          ownerType: 'STUDENT',
+          ownerId: student.id,
+          userId: student.userId || student.id,
+          verificationToken: token,
+          status: 'ACTIVE',
+          expiryDate: expiry
+        }
       });
 
       res.status(200).json({
@@ -1381,11 +1391,21 @@ export class EnterpriseController {
       };
       const token = jwt.sign(qrPayload, env.JWT_SECRET, { expiresIn: '365d' });
 
+      const expiry = new Date();
+      expiry.setFullYear(expiry.getFullYear() + 5);
+
       // Upsert DigitalIdCard record
       await prisma.digitalIdCard.upsert({
-        where: { id: faculty.id },
-        update: { qrCode: token, isActive: true },
-        create: { id: faculty.id, type: 'FACULTY', entityId: faculty.id, qrCode: token, isActive: true }
+        where: { verificationToken: token },
+        update: { status: 'ACTIVE' },
+        create: {
+          ownerType: 'FACULTY',
+          ownerId: faculty.id,
+          userId: faculty.userId || faculty.id,
+          verificationToken: token,
+          status: 'ACTIVE',
+          expiryDate: expiry
+        }
       });
 
       res.status(200).json({
@@ -1426,7 +1446,7 @@ export class EnterpriseController {
 
       // Check if identity card is active in database
       const idCardRecord = await prisma.digitalIdCard.findFirst({
-        where: { entityId: decoded.id, isActive: true }
+        where: { ownerId: decoded.id, status: 'ACTIVE' }
       });
 
       if (!idCardRecord) {
@@ -1514,6 +1534,73 @@ export class EnterpriseController {
       const query = (req.query.q as string) || '';
       const data = await this.service.globalSearch(query, user);
       res.status(200).json({ status: 'success', data });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  getStudentFullProfile = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const studentId = req.params.id;
+      const student = await prisma.student.findUnique({
+        where: { id: studentId },
+        include: {
+          user: { select: { id: true, email: true, status: true, profilePhoto: true } },
+          department: true,
+          program: true,
+          course: true,
+          semester: true,
+          section: true,
+          academicYear: true,
+          mentor: { select: { id: true, firstName: true, lastName: true, email: true, phone: true } },
+          parentRelations: {
+            include: { parent: { include: { user: { select: { email: true, firstName: true, lastName: true, phone: true } } } } }
+          },
+          attendanceRecords: { take: 50, orderBy: { date: 'desc' } },
+          marks: { include: { subject: { select: { name: true, code: true } } } },
+          submissions: { include: { assignment: { select: { title: true, maxMarks: true } } } },
+          workflowRequests: { include: { history: true }, orderBy: { createdAt: 'desc' } },
+          counselingRecords: { include: { mentor: { select: { firstName: true, lastName: true } } } },
+          feeBills: true,
+          internships: { include: { documents: true } },
+          placementApplications: { include: { drive: true } },
+          transportRoute: true,
+          hostelBuilding: true,
+        }
+      });
+
+      if (!student) {
+        return res.status(404).json({ status: 'error', message: 'Student profile not found.' });
+      }
+
+      res.status(200).json({ status: 'success', data: student });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  getFacultyFullProfile = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const facultyId = req.params.id;
+      const faculty = await prisma.faculty.findUnique({
+        where: { id: facultyId },
+        include: {
+          user: { select: { id: true, email: true, status: true, profilePhoto: true, role: true } },
+          department: true,
+          assignedSubjects: true,
+          subjectAssignments: { include: { subject: true, section: true } },
+          timetableSlots: { include: { subject: true, section: true } },
+          mentoredStudents: { select: { id: true, admissionNo: true, firstName: true, lastName: true, email: true } },
+          workflowRequestsAsRequester: { include: { history: true }, orderBy: { createdAt: 'desc' } },
+          counselingGiven: { include: { student: { select: { firstName: true, lastName: true } } } },
+        }
+      });
+
+      if (!faculty) {
+        return res.status(404).json({ status: 'error', message: 'Faculty profile not found.' });
+      }
+
+      res.status(200).json({ status: 'success', data: faculty });
     } catch (error) {
       next(error);
     }

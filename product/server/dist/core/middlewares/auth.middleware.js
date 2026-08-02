@@ -7,19 +7,38 @@ exports.requireRole = exports.requirePermission = exports.checkPermission = expo
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const env_1 = require("../../config/env");
 const exceptions_1 = require("../../utils/exceptions");
-const requireAuth = (req, res, next) => {
+const prisma_1 = require("../../lib/prisma");
+const requireAuth = async (req, res, next) => {
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-        throw new exceptions_1.UnauthorizedException('Access token missing or invalid');
+        return next(new exceptions_1.UnauthorizedException('Access token missing or invalid'));
     }
     const token = authHeader.split(' ')[1];
     try {
         const decoded = jsonwebtoken_1.default.verify(token, env_1.env.JWT_SECRET);
-        req.user = decoded;
+        const userPayload = { ...decoded };
+        const activeRole = req.headers['x-active-role'];
+        if (activeRole && activeRole !== decoded.role) {
+            const allowedRoles = [decoded.role];
+            if (['Faculty', 'HOD', 'Academic Dean', 'Vice Principal', 'Principal'].includes(decoded.role)) {
+                allowedRoles.push('Faculty', 'Mentor');
+            }
+            if (allowedRoles.includes(activeRole)) {
+                const roleData = await prisma_1.prisma.role.findFirst({
+                    where: { name: activeRole },
+                    include: { permissions: { include: { permission: true } } }
+                });
+                if (roleData) {
+                    userPayload.role = activeRole;
+                    userPayload.permissions = roleData.permissions.map(p => p.permission.name);
+                }
+            }
+        }
+        req.user = userPayload;
         next();
     }
     catch (error) {
-        throw new exceptions_1.UnauthorizedException('Access token expired or corrupted');
+        next(new exceptions_1.UnauthorizedException('Access token expired or corrupted'));
     }
 };
 exports.requireAuth = requireAuth;

@@ -2,7 +2,11 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
 const enterprise_controller_1 = require("./enterprise.controller");
+const hod_controller_1 = require("./hod.controller");
+const dean_controller_1 = require("./dean.controller");
+const search_controller_1 = require("./search.controller");
 const auth_middleware_1 = require("../../core/middlewares/auth.middleware");
+const departmentScope_1 = require("../../core/middlewares/departmentScope");
 const router = (0, express_1.Router)();
 const controller = new enterprise_controller_1.EnterpriseController();
 // Public QR Code verification endpoint (does not require login)
@@ -13,11 +17,15 @@ router.use(auth_middleware_1.requireAuth);
 router.get('/id-card/student/:id', controller.getStudentIdCard);
 router.get('/id-card/faculty/:id', controller.getFacultyIdCard);
 router.post('/bulk-action', controller.bulkAction);
+router.get('/search', controller.globalSearch);
+router.get('/search/global', search_controller_1.SearchController.globalSearch);
 // Students
 router.get('/students/mapping-validation', controller.getMappingValidation);
 router.post('/students/auto-assign', controller.runAutoAssign);
 router.get('/students/dashboard-summary', controller.getStudentDashboardSummary);
+router.get('/students/hierarchy', departmentScope_1.enforceDepartmentScope, hod_controller_1.HODController.getYearClassHierarchy);
 router.get('/students', controller.listStudents);
+router.get('/students/:id/full-profile', controller.getStudentFullProfile);
 router.get('/students/:id/id-card/pdf', controller.downloadIdCardPdf);
 router.get('/students/:id/attendance/pdf', controller.downloadAttendancePdf);
 router.get('/students/:id', controller.getStudent);
@@ -26,6 +34,7 @@ router.put('/students/:id', controller.updateStudent);
 router.delete('/students/:id', controller.deleteStudent);
 // Faculty
 router.get('/faculty', controller.listFaculties);
+router.get('/faculty/:id/full-profile', controller.getFacultyFullProfile);
 router.get('/faculty/:id', controller.getFaculty);
 router.post('/faculty', controller.createFaculty);
 router.put('/faculty/:id', controller.updateFaculty);
@@ -79,9 +88,11 @@ router.post('/internships', controller.createInternship);
 router.post('/internships/:id/documents', controller.uploadInternshipDocument);
 router.get('/internships/documents', controller.listAllInternshipDocuments);
 router.post('/internships/documents/:id/verify', controller.verifyInternshipDocument);
-// Mentor Assignments
+// Mentor Assignments & Counseling
 router.post('/mentors/assign', controller.assignStudentsToMentor);
 router.post('/mentors/remove', controller.removeStudentFromMentor);
+router.get('/counseling', controller.listCounselingRecords);
+router.post('/counseling', controller.createCounselingRecord);
 // Placements Dashboard (Read-Only & Audit)
 const placement_controller_1 = require("./placement.controller");
 const placementController = new placement_controller_1.PlacementController();
@@ -167,5 +178,39 @@ router.get('/master-timetable/view', masterTimetableController.getCentralizedTim
 router.post('/master-timetable/conflict-check', masterTimetableController.runConflictCheck);
 router.post('/master-timetable/publish', masterTimetableController.publishTimetable);
 router.get('/master-timetable/audit-logs', masterTimetableController.getAuditLogs);
+// Enterprise HOD & Dean Workspaces
+router.get('/hod/dashboard', departmentScope_1.enforceDepartmentScope, hod_controller_1.HODController.getDashboard);
+router.get('/hod/faculty', departmentScope_1.enforceDepartmentScope, hod_controller_1.HODController.getFacultyDirectory);
+router.get('/hod/students', departmentScope_1.enforceDepartmentScope, hod_controller_1.HODController.getStudentDirectory);
+router.get('/hod/profile', departmentScope_1.enforceDepartmentScope, hod_controller_1.HODController.getHODProfile);
+router.get('/dean/dashboard', dean_controller_1.DeanController.getDashboard);
+// Enterprise Work Management & Collaboration System (WMCS) Engine
+const task_controller_1 = require("./task.controller");
+router.get('/tasks/kanban', task_controller_1.TaskController.getKanbanBoard);
+router.get('/tasks/workload-analytics', task_controller_1.TaskController.getWorkloadAnalytics);
+router.get('/tasks/templates', task_controller_1.TaskController.getTemplates);
+router.post('/tasks/templates', task_controller_1.TaskController.createTemplate);
+router.post('/tasks', task_controller_1.TaskController.createTask);
+router.get('/tasks', task_controller_1.TaskController.getTasks);
+router.get('/tasks/:taskId', task_controller_1.TaskController.getTaskById);
+router.patch('/tasks/:taskId/status', task_controller_1.TaskController.updateTaskStatus);
+router.patch('/tasks/:taskId/checklist', task_controller_1.TaskController.updateChecklist);
+router.post('/tasks/:taskId/comments', task_controller_1.TaskController.addComment);
+// Enterprise Governance & Digital Document Management Suite
+const governance_controller_1 = require("./governance.controller");
+router.get('/governance/verify/:qrToken', governance_controller_1.GovernanceController.verifySignature);
+router.post('/governance/documents', governance_controller_1.GovernanceController.createDocument);
+router.patch('/governance/documents/:id/state', governance_controller_1.GovernanceController.updateState);
+router.post('/governance/documents/:id/sign', governance_controller_1.GovernanceController.signDocument);
+router.get('/governance/sop-library', governance_controller_1.GovernanceController.getSopLibrary);
+router.post('/governance/sop-library', governance_controller_1.GovernanceController.createSopItem);
+// Enterprise Executive Portal Architecture Endpoints
+const executive_controller_1 = require("./executive.controller");
+const executiveController = new executive_controller_1.ExecutiveController();
+router.get('/executive/health-scores', executiveController.getDepartmentHealthScores);
+router.get('/executive/ai-insights', executiveController.getAIExecutiveInsights);
+router.get('/executive/inbox', executiveController.getExecutiveInbox);
+router.post('/executive/presence', executiveController.updatePresenceStatus);
+router.post('/executive/command-action', executiveController.executeCommandAction);
 exports.default = router;
 //# sourceMappingURL=enterprise.routes.js.map

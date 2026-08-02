@@ -10,6 +10,8 @@ export declare class AuthRepository {
                     createdAt: Date;
                     updatedAt: Date;
                     name: string;
+                    action: string;
+                    module: string;
                     description: string | null;
                 };
             } & {
@@ -20,15 +22,25 @@ export declare class AuthRepository {
         } & {
             status: string;
             id: string;
+            departmentId: string | null;
+            dashboardConfig: string | null;
             createdAt: Date;
             updatedAt: Date;
             name: string;
             description: string | null;
             icon: string;
+            roleCode: string | null;
             color: string;
             priority: number;
             hierarchy: number;
             isSystem: boolean;
+            sidebarConfig: string | null;
+            moduleAccess: string | null;
+            approvalLevels: string | null;
+            reportAccess: string | null;
+            workspaceAccess: string | null;
+            notificationSettings: string | null;
+            searchScope: string | null;
             createdBy: string | null;
         };
         student: {
@@ -38,13 +50,14 @@ export declare class AuthRepository {
             firstName: string;
             lastName: string;
             phone: string | null;
+            departmentId: string;
+            gender: string;
+            dob: Date;
+            bloodGroup: string | null;
             createdAt: Date;
             updatedAt: Date;
             admissionNo: string;
-            dob: Date;
             dateOfAdmission: Date;
-            gender: string;
-            bloodGroup: string | null;
             religion: string | null;
             category: string | null;
             medicalDetails: string | null;
@@ -79,7 +92,6 @@ export declare class AuthRepository {
             careerObjective: string | null;
             areasOfInterest: string | null;
             academicYearId: string;
-            departmentId: string;
             programDepartmentId: string | null;
             programId: string;
             courseId: string;
@@ -100,23 +112,27 @@ export declare class AuthRepository {
         } | null;
         faculty: {
             status: string;
+            designation: string;
             program: string | null;
             id: string;
             email: string;
             firstName: string;
             lastName: string;
             phone: string;
+            departmentId: string;
+            gender: string | null;
+            dob: Date;
+            bloodGroup: string | null;
+            qualification: string;
+            experience: number;
             createdAt: Date;
             updatedAt: Date;
-            dob: Date;
-            gender: string | null;
-            bloodGroup: string | null;
+            notificationPrefs: string | null;
             documents: string;
             city: string | null;
             district: string | null;
             state: string | null;
             country: string | null;
-            departmentId: string;
             userId: string | null;
             archived: boolean;
             archivedAt: Date | null;
@@ -124,9 +140,6 @@ export declare class AuthRepository {
             deletedAt: Date | null;
             employeeId: string;
             dateOfJoining: Date;
-            designation: string;
-            qualification: string;
-            experience: number;
             subjectMappings: string;
             maritalStatus: string | null;
             nationality: string | null;
@@ -160,16 +173,41 @@ export declare class AuthRepository {
             googleScholar: string | null;
             orcidId: string | null;
             portfolioWebsite: string | null;
-            notificationPrefs: string | null;
         } | null;
     } & {
         status: string;
+        designation: string | null;
+        digitalSignature: string | null;
         id: string;
         email: string;
         passwordHash: string;
         firstName: string;
         lastName: string;
         phone: string | null;
+        departmentId: string | null;
+        reportingManagerId: string | null;
+        workspaces: string | null;
+        activeWorkspace: string | null;
+        approvalAuthority: boolean;
+        dashboardConfig: string | null;
+        notificationPreferences: string | null;
+        gender: string | null;
+        dob: Date | null;
+        bloodGroup: string | null;
+        qrCode: string | null;
+        aadhaarNumber: string | null;
+        emergencyContact: string | null;
+        qualification: string | null;
+        experience: string | null;
+        skills: string | null;
+        certificates: string | null;
+        profileCompletion: number;
+        joiningDate: Date | null;
+        accountStatus: string;
+        loginStatus: string;
+        activityTimeline: string | null;
+        designationId: string | null;
+        parentRoleId: string | null;
         roleId: string;
         lockedUntil: Date | null;
         failedLoginAttempts: number;
@@ -178,6 +216,7 @@ export declare class AuthRepository {
         passwordChangedAt: Date | null;
         createdAt: Date;
         updatedAt: Date;
+        username: string | null;
     }) | null>;
     /**
      * Find a user by ID, eager loading role and permissions via explicit RolePermission join
@@ -190,6 +229,8 @@ export declare class AuthRepository {
                     createdAt: Date;
                     updatedAt: Date;
                     name: string;
+                    action: string;
+                    module: string;
                     description: string | null;
                 };
             } & {
@@ -200,25 +241,61 @@ export declare class AuthRepository {
         } & {
             status: string;
             id: string;
+            departmentId: string | null;
+            dashboardConfig: string | null;
             createdAt: Date;
             updatedAt: Date;
             name: string;
             description: string | null;
             icon: string;
+            roleCode: string | null;
             color: string;
             priority: number;
             hierarchy: number;
             isSystem: boolean;
+            sidebarConfig: string | null;
+            moduleAccess: string | null;
+            approvalLevels: string | null;
+            reportAccess: string | null;
+            workspaceAccess: string | null;
+            notificationSettings: string | null;
+            searchScope: string | null;
             createdBy: string | null;
         };
     } & {
         status: string;
+        designation: string | null;
+        digitalSignature: string | null;
         id: string;
         email: string;
         passwordHash: string;
         firstName: string;
         lastName: string;
         phone: string | null;
+        departmentId: string | null;
+        reportingManagerId: string | null;
+        workspaces: string | null;
+        activeWorkspace: string | null;
+        approvalAuthority: boolean;
+        dashboardConfig: string | null;
+        notificationPreferences: string | null;
+        gender: string | null;
+        dob: Date | null;
+        bloodGroup: string | null;
+        qrCode: string | null;
+        aadhaarNumber: string | null;
+        emergencyContact: string | null;
+        qualification: string | null;
+        experience: string | null;
+        skills: string | null;
+        certificates: string | null;
+        profileCompletion: number;
+        joiningDate: Date | null;
+        accountStatus: string;
+        loginStatus: string;
+        activityTimeline: string | null;
+        designationId: string | null;
+        parentRoleId: string | null;
         roleId: string;
         lockedUntil: Date | null;
         failedLoginAttempts: number;
@@ -227,18 +304,45 @@ export declare class AuthRepository {
         passwordChangedAt: Date | null;
         createdAt: Date;
         updatedAt: Date;
+        username: string | null;
     }) | null>;
     /**
      * Increment failed login attempts and optionally lock the account
      */
     incrementFailedAttempts(userId: string, count: number, lockedUntil: Date | null): Promise<{
         status: string;
+        designation: string | null;
+        digitalSignature: string | null;
         id: string;
         email: string;
         passwordHash: string;
         firstName: string;
         lastName: string;
         phone: string | null;
+        departmentId: string | null;
+        reportingManagerId: string | null;
+        workspaces: string | null;
+        activeWorkspace: string | null;
+        approvalAuthority: boolean;
+        dashboardConfig: string | null;
+        notificationPreferences: string | null;
+        gender: string | null;
+        dob: Date | null;
+        bloodGroup: string | null;
+        qrCode: string | null;
+        aadhaarNumber: string | null;
+        emergencyContact: string | null;
+        qualification: string | null;
+        experience: string | null;
+        skills: string | null;
+        certificates: string | null;
+        profileCompletion: number;
+        joiningDate: Date | null;
+        accountStatus: string;
+        loginStatus: string;
+        activityTimeline: string | null;
+        designationId: string | null;
+        parentRoleId: string | null;
         roleId: string;
         lockedUntil: Date | null;
         failedLoginAttempts: number;
@@ -247,18 +351,45 @@ export declare class AuthRepository {
         passwordChangedAt: Date | null;
         createdAt: Date;
         updatedAt: Date;
+        username: string | null;
     }>;
     /**
      * Reset failed login attempts after successful login
      */
     resetFailedAttempts(userId: string): Promise<{
         status: string;
+        designation: string | null;
+        digitalSignature: string | null;
         id: string;
         email: string;
         passwordHash: string;
         firstName: string;
         lastName: string;
         phone: string | null;
+        departmentId: string | null;
+        reportingManagerId: string | null;
+        workspaces: string | null;
+        activeWorkspace: string | null;
+        approvalAuthority: boolean;
+        dashboardConfig: string | null;
+        notificationPreferences: string | null;
+        gender: string | null;
+        dob: Date | null;
+        bloodGroup: string | null;
+        qrCode: string | null;
+        aadhaarNumber: string | null;
+        emergencyContact: string | null;
+        qualification: string | null;
+        experience: string | null;
+        skills: string | null;
+        certificates: string | null;
+        profileCompletion: number;
+        joiningDate: Date | null;
+        accountStatus: string;
+        loginStatus: string;
+        activityTimeline: string | null;
+        designationId: string | null;
+        parentRoleId: string | null;
         roleId: string;
         lockedUntil: Date | null;
         failedLoginAttempts: number;
@@ -267,18 +398,45 @@ export declare class AuthRepository {
         passwordChangedAt: Date | null;
         createdAt: Date;
         updatedAt: Date;
+        username: string | null;
     }>;
     /**
      * Update password hash for a user
      */
     updatePassword(userId: string, passwordHash: string): Promise<{
         status: string;
+        designation: string | null;
+        digitalSignature: string | null;
         id: string;
         email: string;
         passwordHash: string;
         firstName: string;
         lastName: string;
         phone: string | null;
+        departmentId: string | null;
+        reportingManagerId: string | null;
+        workspaces: string | null;
+        activeWorkspace: string | null;
+        approvalAuthority: boolean;
+        dashboardConfig: string | null;
+        notificationPreferences: string | null;
+        gender: string | null;
+        dob: Date | null;
+        bloodGroup: string | null;
+        qrCode: string | null;
+        aadhaarNumber: string | null;
+        emergencyContact: string | null;
+        qualification: string | null;
+        experience: string | null;
+        skills: string | null;
+        certificates: string | null;
+        profileCompletion: number;
+        joiningDate: Date | null;
+        accountStatus: string;
+        loginStatus: string;
+        activityTimeline: string | null;
+        designationId: string | null;
+        parentRoleId: string | null;
         roleId: string;
         lockedUntil: Date | null;
         failedLoginAttempts: number;
@@ -287,6 +445,7 @@ export declare class AuthRepository {
         passwordChangedAt: Date | null;
         createdAt: Date;
         updatedAt: Date;
+        username: string | null;
     }>;
     /**
      * Create a new user session
@@ -316,12 +475,38 @@ export declare class AuthRepository {
     findSession(refreshToken: string): Promise<({
         user: {
             status: string;
+            designation: string | null;
+            digitalSignature: string | null;
             id: string;
             email: string;
             passwordHash: string;
             firstName: string;
             lastName: string;
             phone: string | null;
+            departmentId: string | null;
+            reportingManagerId: string | null;
+            workspaces: string | null;
+            activeWorkspace: string | null;
+            approvalAuthority: boolean;
+            dashboardConfig: string | null;
+            notificationPreferences: string | null;
+            gender: string | null;
+            dob: Date | null;
+            bloodGroup: string | null;
+            qrCode: string | null;
+            aadhaarNumber: string | null;
+            emergencyContact: string | null;
+            qualification: string | null;
+            experience: string | null;
+            skills: string | null;
+            certificates: string | null;
+            profileCompletion: number;
+            joiningDate: Date | null;
+            accountStatus: string;
+            loginStatus: string;
+            activityTimeline: string | null;
+            designationId: string | null;
+            parentRoleId: string | null;
             roleId: string;
             lockedUntil: Date | null;
             failedLoginAttempts: number;
@@ -330,6 +515,7 @@ export declare class AuthRepository {
             passwordChangedAt: Date | null;
             createdAt: Date;
             updatedAt: Date;
+            username: string | null;
         };
     } & {
         id: string;
@@ -377,12 +563,38 @@ export declare class AuthRepository {
     findResetToken(token: string): Promise<({
         user: {
             status: string;
+            designation: string | null;
+            digitalSignature: string | null;
             id: string;
             email: string;
             passwordHash: string;
             firstName: string;
             lastName: string;
             phone: string | null;
+            departmentId: string | null;
+            reportingManagerId: string | null;
+            workspaces: string | null;
+            activeWorkspace: string | null;
+            approvalAuthority: boolean;
+            dashboardConfig: string | null;
+            notificationPreferences: string | null;
+            gender: string | null;
+            dob: Date | null;
+            bloodGroup: string | null;
+            qrCode: string | null;
+            aadhaarNumber: string | null;
+            emergencyContact: string | null;
+            qualification: string | null;
+            experience: string | null;
+            skills: string | null;
+            certificates: string | null;
+            profileCompletion: number;
+            joiningDate: Date | null;
+            accountStatus: string;
+            loginStatus: string;
+            activityTimeline: string | null;
+            designationId: string | null;
+            parentRoleId: string | null;
             roleId: string;
             lockedUntil: Date | null;
             failedLoginAttempts: number;
@@ -391,6 +603,7 @@ export declare class AuthRepository {
             passwordChangedAt: Date | null;
             createdAt: Date;
             updatedAt: Date;
+            username: string | null;
         };
     } & {
         id: string;

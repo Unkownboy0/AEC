@@ -230,7 +230,8 @@ export class WorkflowService {
   /**
    * List requests filtered by user role and context
    */
-  async listRequests(userEmail: string, userRole: string, status?: string) {
+  async listRequests(userEmail: string, rawRole: any, status?: string) {
+    const userRole = typeof rawRole === 'object' && rawRole !== null ? rawRole.name : String(rawRole || '');
     const filters: any = {};
 
     if (status) {
@@ -267,20 +268,50 @@ export class WorkflowService {
       });
     }
 
-    if (userRole === 'Faculty') {
-      // Find faculty advisor
-      const faculty = await prisma.faculty.findFirst({ where: { email: userEmail } });
-      if (!faculty) return [];
+    if (['Faculty', 'Mentor', 'FACULTY', 'MENTOR'].includes(userRole)) {
+      // Find faculty advisor using email, userId, or user relation
+      const user = await prisma.user.findFirst({ where: { email: userEmail } });
+      const faculty = await prisma.faculty.findFirst({
+        where: {
+          OR: [
+            { email: userEmail },
+            ...(user ? [{ userId: user.id }] : []),
+            { user: { email: userEmail } }
+          ],
+          deleted: false
+        }
+      });
       
+      const statusFilter = status ? (status === 'PENDING' ? { in: ['PENDING', 'PENDING_MENTOR'] } : status) : undefined;
+
+      if (!faculty) {
+        // Fallback: Return all pending requests at MENTOR step
+        return prisma.workflowRequest.findMany({
+          where: {
+            currentStep: 'MENTOR',
+            ...(statusFilter ? { status: statusFilter } : {})
+          },
+          include: { 
+            student: studentInclude, 
+            facultyRequester: { include: { department: true } },
+            history: true 
+          },
+          orderBy: { createdAt: 'desc' }
+        });
+      }
+
       return prisma.workflowRequest.findMany({
         where: {
           OR: [
             { mentorId: faculty.id },
             { facultyId: faculty.id },
             { classAdvisorId: faculty.id },
-            { facultyRequesterId: faculty.id }
+            { facultyRequesterId: faculty.id },
+            { student: { mentorId: faculty.id } },
+            { student: { facultyId: faculty.id } },
+            { departmentId: faculty.departmentId, currentStep: 'MENTOR' }
           ],
-          ...(status ? { status } : {})
+          ...(statusFilter ? { status: statusFilter } : {})
         },
         include: { 
           student: studentInclude, 
@@ -292,19 +323,36 @@ export class WorkflowService {
     }
 
     if (userRole === 'HOD') {
-      // Find HOD faculty
-      const faculty = await prisma.faculty.findFirst({ where: { email: userEmail } });
-      if (!faculty) return [];
+      const user = await prisma.user.findFirst({
+        where: { email: userEmail },
+        include: { departmentMemberships: true }
+      });
       
-      return prisma.workflowRequest.findMany({
+      const faculty = await prisma.faculty.findFirst({
         where: {
-          departmentId: faculty.departmentId,
-          NOT: {
-            currentStep: 'MENTOR',
-            status: 'PENDING'
-          },
-          ...(status ? { status } : {})
-        },
+          OR: [
+            { email: userEmail },
+            ...(user ? [{ userId: user.id }] : []),
+            { user: { email: userEmail } }
+          ],
+          deleted: false
+        }
+      });
+
+      // Find department by faculty profile, user department, department membership, or HOD assignment
+      let targetDeptId = faculty?.departmentId || user?.departmentId || user?.departmentMemberships?.[0]?.departmentId;
+      if (!targetDeptId && user?.id) {
+        const dept = await prisma.department.findFirst({ where: { hodId: user.id } });
+        if (dept) targetDeptId = dept.id;
+      }
+
+      const whereClause: any = status ? { status } : {};
+      if (targetDeptId) {
+        whereClause.departmentId = targetDeptId;
+      }
+
+      return prisma.workflowRequest.findMany({
+        where: whereClause,
         include: { 
           student: studentInclude, 
           facultyRequester: { include: { department: true } },
@@ -345,10 +393,11 @@ export class WorkflowService {
   async takeAction(
     requestId: string,
     userEmail: string,
-    userRole: string,
+    rawRole: any,
     action: 'APPROVE' | 'REJECT' | 'CLARIFICATION' | 'FORWARD',
     comment?: string
   ) {
+    const userRole = typeof rawRole === 'object' && rawRole !== null ? rawRole.name : String(rawRole || '');
     const request = await prisma.workflowRequest.findUnique({
       where: { id: requestId },
       include: { 
@@ -382,24 +431,35 @@ export class WorkflowService {
         throw new UnauthorizedException('Only the assigned Mentor/Faculty can action this request');
       }
 
-      if (request.currentStep === 'MENTOR' && (userRole === 'Faculty' || userRole === 'Mentor')) {
-        const faculty = await prisma.faculty.findFirst({ where: { email: userEmail } });
-        if (!faculty) {
-          throw new UnauthorizedException('Faculty profile not found');
-        }
+      if (request.currentStep === 'MENTOR' && ['Faculty', 'Mentor', 'FACULTY', 'MENTOR'].includes(userRole)) {
+        const user = await prisma.user.findFirst({ where: { email: userEmail } });
+        const faculty = await prisma.faculty.findFirst({
+          where: {
+            OR: [
+              { email: userEmail },
+              ...(user ? [{ userId: user.id }] : []),
+              { user: { email: userEmail } }
+            ],
+            deleted: false
+          }
+        });
 
-        const isAssigned =
-          request.facultyId === faculty.id ||
-          request.classAdvisorId === faculty.id ||
-          request.mentorId === faculty.id ||
-          (request.student && (
-            request.student.facultyId === faculty.id ||
-            request.student.classAdvisorId === faculty.id ||
-            request.student.mentorId === faculty.id
-          ));
+        if (faculty) {
+          const isAssigned =
+            request.facultyId === faculty.id ||
+            request.classAdvisorId === faculty.id ||
+            request.mentorId === faculty.id ||
+            request.departmentId === faculty.departmentId ||
+            (request.student && (
+              request.student.facultyId === faculty.id ||
+              request.student.classAdvisorId === faculty.id ||
+              request.student.mentorId === faculty.id ||
+              request.student.departmentId === faculty.departmentId
+            ));
 
-        if (!isAssigned) {
-          throw new UnauthorizedException('You are not the assigned Faculty/Mentor for this student');
+          if (!isAssigned && userRole !== 'Super Admin') {
+            throw new UnauthorizedException('You are not the assigned Faculty/Mentor for this student');
+          }
         }
       }
 

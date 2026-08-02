@@ -33,6 +33,10 @@ router.post('/approval-rules', requireAuth, controller.setApprovalRule.bind(cont
 
 // Audit Logs
 router.get('/audit-logs', requireAuth, controller.getAuditLogs.bind(controller));
+router.get('/permission-audits', requireAuth, controller.getPermissionAudits.bind(controller));
+
+// Permission Groups (Phase 1)
+router.get('/groups', requireAuth, controller.getPermissionGroups.bind(controller));
 
 export default router;
 

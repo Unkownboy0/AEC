@@ -166,11 +166,35 @@ export class RbacController {
   }
 
   // Audit Logs
-  async getAuditLogs(req: Request, res: Response, next: NextFunction) {
+  async getAuditLogs(req: Request, res: Response, NextFunction: NextFunction) {
     try {
       const logs = await rbacService.getAuditLogs({
         entityType: req.query.entityType as string,
         limit: req.query.limit ? parseInt(req.query.limit as string) : 100
+      });
+      res.status(200).json({ status: 'success', data: logs });
+    } catch (err) {
+      NextFunction(err);
+    }
+  }
+
+  // Permission Groups (Phase 1)
+  async getPermissionGroups(req: Request, res: Response, next: NextFunction) {
+    try {
+      const groups = await rbacService.getPermissionGroups();
+      res.status(200).json({ status: 'success', data: groups });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  // Permission Audits (Phase 1 Denied Request & Permission Changes)
+  async getPermissionAudits(req: Request, res: Response, next: NextFunction) {
+    try {
+      const logs = await rbacService.getPermissionAuditLogs({
+        limit: req.query.limit ? parseInt(req.query.limit as string) : 100,
+        userId: req.query.userId as string,
+        action: req.query.action as string,
       });
       res.status(200).json({ status: 'success', data: logs });
     } catch (err) {

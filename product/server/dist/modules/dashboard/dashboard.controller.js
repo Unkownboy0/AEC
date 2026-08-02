@@ -10,17 +10,22 @@ const path_1 = __importDefault(require("path"));
 class DashboardController {
     getStats = async (req, res, next) => {
         try {
-            // 1. Query dynamic database values
+            const now = new Date();
+            const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+            const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+            // 1. Database actuals
             const totalUsers = await prisma_1.prisma.user.count();
             const totalActiveUsers = await prisma_1.prisma.user.count({ where: { status: 'ACTIVE' } });
-            const totalDepts = await prisma_1.prisma.department.count();
-            const totalCourses = await prisma_1.prisma.course.count();
-            const totalSubjects = await prisma_1.prisma.subject.count();
+            const totalDepts = await prisma_1.prisma.department.count({ where: { deleted: false } });
+            const totalCourses = await prisma_1.prisma.course.count({ where: { deleted: false } });
+            const totalSubjects = await prisma_1.prisma.subject.count({ where: { deleted: false } });
             const onlineSessions = await prisma_1.prisma.userSession.count();
-            const studentRole = await prisma_1.prisma.role.findFirst({ where: { name: 'Student' } });
-            const studentCount = studentRole ? await prisma_1.prisma.user.count({ where: { roleId: studentRole.id } }) : 0;
-            const facultyRole = await prisma_1.prisma.role.findFirst({ where: { name: 'Faculty' } });
-            const facultyCount = facultyRole ? await prisma_1.prisma.user.count({ where: { roleId: facultyRole.id } }) : 0;
+            const studentCount = await prisma_1.prisma.student.count({ where: { deleted: false } });
+            const facultyCount = await prisma_1.prisma.faculty.count({ where: { deleted: false } });
+            const parentRole = await prisma_1.prisma.role.findFirst({ where: { name: 'Parent' } });
+            const parentCount = parentRole ? await prisma_1.prisma.user.count({ where: { roleId: parentRole.id } }) : 0;
+            const mentorRole = await prisma_1.prisma.role.findFirst({ where: { name: 'Mentor' } });
+            const mentorCount = mentorRole ? await prisma_1.prisma.user.count({ where: { roleId: mentorRole.id } }) : 0;
             const latestBackup = await prisma_1.prisma.backupLog.findFirst({
                 where: { status: 'SUCCESS' },
                 orderBy: { createdAt: 'desc' },
@@ -29,6 +34,35 @@ class DashboardController {
             const failedLoginAttempts = await prisma_1.prisma.loginHistory.count({
                 where: { status: 'FAILED' },
             });
+            // Attendance calculations
+            const totalAttendanceRecordsToday = await prisma_1.prisma.attendance.count({
+                where: { date: { gte: startOfDay } }
+            });
+            const presentToday = await prisma_1.prisma.attendance.count({
+                where: { date: { gte: startOfDay }, status: 'PRESENT' }
+            });
+            const attendanceTodayPercentage = totalAttendanceRecordsToday > 0
+                ? `${((presentToday / totalAttendanceRecordsToday) * 100).toFixed(1)}%`
+                : '0.0%';
+            // Fees calculations
+            const feeBillsPaidThisMonth = await prisma_1.prisma.feeBill.aggregate({
+                _sum: { paidAmount: true },
+                where: { status: 'PAID', updatedAt: { gte: startOfMonth } }
+            });
+            const feeCollectionThisMonth = feeBillsPaidThisMonth._sum?.paidAmount || 0;
+            const pendingFeesAgg = await prisma_1.prisma.feeBill.aggregate({
+                _sum: { amount: true },
+                where: { status: { in: ['PENDING', 'PARTIAL'] } }
+            });
+            const pendingFees = pendingFeesAgg._sum?.amount || 0;
+            // Pending Leaves & Complaints
+            const pendingLeaves = await prisma_1.prisma.workflowRequest.count({ where: { status: 'PENDING' } });
+            const pendingComplaints = await prisma_1.prisma.ticket.count({ where: { status: 'OPEN' } });
+            // Placements & Exams & Library
+            const placementsCount = await prisma_1.prisma.placementRecord.count();
+            const libraryBooksCount = await prisma_1.prisma.libraryBook.count();
+            const upcomingExamsCount = await prisma_1.prisma.exam.count({ where: { startDate: { gte: now } } });
+            const transportVehiclesCount = await prisma_1.prisma.transportRoute.count();
             // Uptime calculations
             const uptimeSec = process.uptime();
             const uptimeDays = Math.floor(uptimeSec / (3600 * 24));
@@ -38,7 +72,7 @@ class DashboardController {
                 ? `${uptimeDays}d, ${uptimeHrs}h`
                 : `${uptimeHrs}h, ${uptimeMin}m`;
             // Storage calculation
-            let dbSize = 2.4 * 1024 * 1024; // fallback 2.4 MB
+            let dbSize = 0;
             try {
                 const dbPath = path_1.default.join(__dirname, '../../../prisma/dev.db');
                 if (fs_1.default.existsSync(dbPath)) {
@@ -59,49 +93,42 @@ class DashboardController {
                 status: 'success',
                 data: {
                     metrics: {
-                        // College Branding
                         collegeName: settings.COLLEGE_NAME || 'Geetorus Institute of Technology',
                         collegeAddress: settings.COLLEGE_ADDRESS || '123 Education Boulevard, Campus City, 600001',
                         collegePhone: settings.COLLEGE_PHONE || '+91 98765 43210',
                         collegeWebsite: settings.COLLEGE_WEBSITE || 'https://geetorus.com',
                         brandColor: settings.BRAND_COLOR || '#4f46e5',
-                        principalSignature: settings.PRINCIPAL_SIGNATURE || null,
-                        // Database actuals (seeding base + dynamic updates)
-                        totalStudents: studentCount || 1420,
-                        totalFaculty: facultyCount || 124,
-                        totalParents: 1395,
-                        totalDepartments: totalDepts || 3,
-                        totalCourses: totalCourses || 12,
-                        totalSubjects: totalSubjects || 18,
-                        totalStaff: 48,
+                        // Real dynamic database metrics
+                        totalStudents: studentCount,
+                        totalFaculty: facultyCount,
+                        totalMentors: mentorCount,
+                        totalParents: parentCount,
+                        totalDepartments: totalDepts,
+                        totalCourses: totalCourses,
+                        totalSubjects: totalSubjects,
                         totalActiveUsers,
-                        // Admissions
-                        admissionsToday: 3,
-                        admissionsThisMonth: 42,
                         // Attendance
-                        attendanceToday: 1362,
-                        pendingAttendance: 58,
+                        todayAttendance: attendanceTodayPercentage,
+                        attendanceToday: presentToday,
                         // Fees
-                        feeCollectionToday: 4850,
-                        feeCollectionThisMonth: 125400,
-                        pendingFees: 12450,
-                        // Library
-                        libraryBooks: 18450,
-                        booksIssued: 342,
-                        // Infrastructure & Configs
-                        upcomingExams: 4,
-                        certificatesGenerated: 142,
-                        hostelOccupancy: 382, // Out of 500
-                        transportVehicles: 14,
-                        availableClassrooms: 28,
+                        feeCollectionThisMonth,
+                        pendingFees,
+                        // Placements, Workflows, Support
+                        placementsCount,
+                        pendingLeaves,
+                        pendingComplaints,
+                        // Library & Infrastructure
+                        libraryBooks: libraryBooksCount,
+                        booksIssued: 0,
+                        upcomingExams: upcomingExamsCount,
+                        transportVehicles: transportVehiclesCount,
                         // Security & System
-                        onlineUsers: onlineSessions || 1,
+                        onlineUsers: onlineSessions,
                         systemUptime: uptimeString,
                         databaseStatus: 'CONNECTED',
                         serverStatus: 'HEALTHY',
                         storageUsage: `${(dbSize / (1024 * 1024)).toFixed(2)} MB`,
                         memoryUsage: `${(memoryUsage / (1024 * 1024)).toFixed(1)} MB`,
-                        cpuUsage: '1.2%',
                         appVersion: 'v1.0.0-phase3.1',
                         latestBackupTime,
                         failedLoginAttempts,
@@ -115,105 +142,52 @@ class DashboardController {
     };
     getCharts = async (req, res, next) => {
         try {
+            // 1. Fetch real department overview from DB
+            const departments = await prisma_1.prisma.department.findMany({
+                where: { deleted: false },
+                include: {
+                    students: { where: { deleted: false } },
+                    faculties: { where: { deleted: false } },
+                },
+            });
+            const departmentOverview = departments.map((dept) => ({
+                name: `${dept.name} (${dept.code})`,
+                students: dept.students.length,
+                faculty: dept.faculties.length,
+                attendance: '0.0%',
+                pass: '0.0%',
+                placement: '0.0%',
+            }));
+            // 2. Fetch real recent user activity logs
+            const logs = await prisma_1.prisma.userActivityLog.findMany({
+                take: 5,
+                orderBy: { createdAt: 'desc' },
+                include: { user: true },
+            });
+            const recentActivity = logs.map((log) => ({
+                id: log.id,
+                action: log.action,
+                desc: `${log.user ? `${log.user.firstName} ${log.user.lastName}: ` : ''}${log.description}`,
+                time: log.createdAt.toLocaleTimeString(),
+            }));
             res.status(200).json({
                 status: 'success',
                 data: {
-                    admissionsTrend: [
-                        { year: '2022', count: 320 },
-                        { year: '2023', count: 380 },
-                        { year: '2024', count: 420 },
-                        { year: '2025', count: 480 },
-                        { year: '2026', count: 540 },
-                    ],
-                    studentGrowth: [
-                        { month: 'Jan', count: 1200 },
-                        { month: 'Feb', count: 1240 },
-                        { month: 'Mar', count: 1280 },
-                        { month: 'Apr', count: 1310 },
-                        { month: 'May', count: 1380 },
-                        { month: 'Jun', count: 1420 },
-                    ],
-                    facultyGrowth: [
-                        { month: 'Jan', count: 110 },
-                        { month: 'Feb', count: 112 },
-                        { month: 'Mar', count: 115 },
-                        { month: 'Apr', count: 118 },
-                        { month: 'May', count: 120 },
-                        { month: 'Jun', count: 124 },
-                    ],
-                    departmentDistribution: [
-                        { name: 'Computer Science', count: 480 },
-                        { name: 'Electronics', count: 340 },
-                        { name: 'Mechanical', count: 280 },
-                        { name: 'Civil', count: 160 },
-                        { name: 'Information Tech', count: 220 },
-                    ],
-                    attendanceTrend: [
-                        { label: 'Mon', rate: 94 },
-                        { label: 'Tue', rate: 96 },
-                        { label: 'Wed', rate: 95 },
-                        { label: 'Thu', rate: 93 },
-                        { label: 'Fri', rate: 91 },
-                    ],
-                    feeCollectionTrend: [
-                        { month: 'Jan', amount: 12000 },
-                        { month: 'Feb', amount: 15000 },
-                        { month: 'Mar', amount: 18000 },
-                        { month: 'Apr', amount: 22000 },
-                        { month: 'May', amount: 25000 },
-                        { month: 'Jun', amount: 30000 },
-                    ],
-                    examPerformance: [
-                        { grade: 'A+', count: 85 },
-                        { grade: 'A', count: 240 },
-                        { grade: 'B', count: 410 },
-                        { grade: 'C', count: 180 },
-                        { grade: 'D', count: 45 },
-                        { grade: 'F', count: 12 },
-                    ],
-                    revenueTrend: [
-                        { month: 'Jan', revenue: 15000 },
-                        { month: 'Feb', revenue: 18000 },
-                        { month: 'Mar', revenue: 21000 },
-                        { month: 'Apr', revenue: 28000 },
-                        { month: 'May', revenue: 32000 },
-                        { month: 'Jun', revenue: 45000 },
-                    ],
-                    genderDistribution: [
-                        { gender: 'Male', count: 820 },
-                        { gender: 'Female', count: 590 },
-                        { gender: 'Other', count: 10 },
-                    ],
-                    categoryDistribution: [
-                        { category: 'General', count: 680 },
-                        { category: 'OBC', count: 480 },
-                        { category: 'SC/ST', count: 260 },
-                    ],
-                    courseDistribution: [
-                        { course: 'B.Tech', count: 960 },
-                        { course: 'M.Tech', count: 180 },
-                        { course: 'MBA', count: 160 },
-                        { course: 'BBA', count: 120 },
-                    ],
-                    academicPerformance: [
-                        { semester: 'Sem 1', gpa: 7.8 },
-                        { semester: 'Sem 2', gpa: 8.1 },
-                        { semester: 'Sem 3', gpa: 7.9 },
-                        { semester: 'Sem 4', gpa: 8.3 },
-                    ],
-                    // Panels data
-                    recentActivity: [
-                        { id: '1', action: 'ADMISSION', desc: 'Rahul Kumar admitted to B.Tech CSE', time: '5 mins ago' },
-                        { id: '2', action: 'FACULTY', desc: 'Dr. Sarah Jenkins joined Department of ECE', time: '20 mins ago' },
-                        { id: '3', action: 'FEE', desc: 'Fee collection of $1,250 verified for Student 10852', time: '1 hour ago' },
-                        { id: '4', action: 'SYSTEM', desc: 'Database index optimization completed successfully', time: '3 hours ago' },
-                        { id: '5', action: 'LOGIN', desc: 'Failed login attempt tracked from IP: 192.168.1.45', time: '4 hours ago' },
-                    ],
-                    todaysClasses: [
-                        { id: '1', subject: 'Data Structures (CS201)', time: '09:00 AM - 10:00 AM', room: 'Room 302', faculty: 'Dr. Amit Patel' },
-                        { id: '2', subject: 'Engineering Mathematics (MA101)', time: '10:15 AM - 11:15 AM', room: 'Room 101', faculty: 'Prof. Priya Sharma' },
-                        { id: '3', subject: 'Web Technologies Lab (CS304)', time: '01:30 PM - 03:30 PM', room: 'Lab 2', faculty: 'Mr. Johnathan Cole' },
-                    ],
+                    departmentOverview,
+                    recentActivity,
+                    admissionsTrend: [],
+                    studentGrowth: [],
+                    facultyGrowth: [],
+                    departmentDistribution: departments.map(d => ({ name: d.name, count: d.students.length })),
+                    attendanceTrend: [],
+                    feeCollectionTrend: [],
+                    examPerformance: [],
+                    revenueTrend: [],
+                    genderDistribution: [],
+                    categoryDistribution: [],
+                    courseDistribution: [],
+                    academicPerformance: [],
+                    todaysClasses: [],
                 },
             });
         }

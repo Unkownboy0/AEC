@@ -37,6 +37,14 @@ export const toast = {
   },
 };
 
+export function useToast() {
+  return {
+    showToast: (msg: string, type: ToastType = 'info') => {
+      toast.show(msg, type);
+    }
+  };
+}
+
 export const Toaster: React.FC = () => {
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
 

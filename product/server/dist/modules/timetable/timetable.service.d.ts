@@ -25,9 +25,9 @@ export declare class TimetableService {
         section: {
             status: string;
             id: string;
+            departmentId: string;
             createdAt: Date;
             updatedAt: Date;
-            departmentId: string;
             programId: string;
             semesterId: string;
             archived: boolean;
@@ -43,9 +43,9 @@ export declare class TimetableService {
             code: string;
             status: string;
             id: string;
+            departmentId: string;
             createdAt: Date;
             updatedAt: Date;
-            departmentId: string;
             programId: string;
             semesterId: string;
             sectionId: string | null;
@@ -69,26 +69,36 @@ export declare class TimetableService {
             isOpenElective: boolean;
             isProfessionalElective: boolean;
             subjectCoordinator: string | null;
+            regulationId: string | null;
+            approvalStatus: string;
+            assignedFacultyId: string | null;
+            assignedHodId: string | null;
+            assignedDeanId: string | null;
+            assignedCoordinatorId: string | null;
         };
         faculty: {
             status: string;
+            designation: string;
             program: string | null;
             id: string;
             email: string;
             firstName: string;
             lastName: string;
             phone: string;
+            departmentId: string;
+            gender: string | null;
+            dob: Date;
+            bloodGroup: string | null;
+            qualification: string;
+            experience: number;
             createdAt: Date;
             updatedAt: Date;
-            dob: Date;
-            gender: string | null;
-            bloodGroup: string | null;
+            notificationPrefs: string | null;
             documents: string;
             city: string | null;
             district: string | null;
             state: string | null;
             country: string | null;
-            departmentId: string;
             userId: string | null;
             archived: boolean;
             archivedAt: Date | null;
@@ -96,9 +106,6 @@ export declare class TimetableService {
             deletedAt: Date | null;
             employeeId: string;
             dateOfJoining: Date;
-            designation: string;
-            qualification: string;
-            experience: number;
             subjectMappings: string;
             maritalStatus: string | null;
             nationality: string | null;
@@ -132,14 +139,13 @@ export declare class TimetableService {
             googleScholar: string | null;
             orcidId: string | null;
             portfolioWebsite: string | null;
-            notificationPrefs: string | null;
         };
     } & {
         id: string;
+        departmentId: string;
         createdAt: Date;
         updatedAt: Date;
         academicYearId: string;
-        departmentId: string;
         semesterId: string;
         sectionId: string;
         roomNo: string;
@@ -156,10 +162,10 @@ export declare class TimetableService {
      */
     createSlot(input: any): Promise<{
         id: string;
+        departmentId: string;
         createdAt: Date;
         updatedAt: Date;
         academicYearId: string;
-        departmentId: string;
         semesterId: string;
         sectionId: string;
         roomNo: string;

@@ -3,6 +3,7 @@ import { ThemeProvider } from './context/ThemeContext';
 import { AuthProvider } from './context/AuthContext';
 import { DeviceProvider } from './context/DeviceContext';
 import { RBACProvider } from './context/RBACContext';
+import { ProfileDrawerProvider } from './context/ProfileDrawerContext';
 import { Toaster } from './components/ui/Toast';
 import { AppRouter } from './routes/Router';
 
@@ -23,9 +24,11 @@ function App() {
         <DeviceProvider>
           <AuthProvider>
             <RBACProvider>
-              <AppRouter />
-              {/* Global Toast Notifications container */}
-              <Toaster />
+              <ProfileDrawerProvider>
+                <AppRouter />
+                {/* Global Toast Notifications container */}
+                <Toaster />
+              </ProfileDrawerProvider>
             </RBACProvider>
           </AuthProvider>
         </DeviceProvider>

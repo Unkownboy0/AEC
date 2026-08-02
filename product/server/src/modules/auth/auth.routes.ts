@@ -15,6 +15,7 @@ router.post('/reset-password', controller.resetPassword);
 
 // Protected routes
 router.get('/me', requireAuth, controller.getMe);
+router.post('/switch-workspace', requireAuth, controller.switchWorkspace);
 router.post('/change-password', requireAuth, controller.changePassword);
 router.post('/logout-all', requireAuth, controller.logoutAll);
 

@@ -13,6 +13,7 @@ import { Button } from '../ui/Button';
 import { toast } from '../ui/Toast';
 import api from '../../lib/axios';
 import { GlobalSearch } from './GlobalSearch';
+import { WorkspaceSwitcher } from './WorkspaceSwitcher';
 
 const passwordStrengthRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
 
@@ -263,56 +264,13 @@ const Header: React.FC<HeaderProps> = ({ onOpenPalette }) => {
 
       {/* Action Utilities */}
       <div className="flex items-center gap-4">
-        {/* User Role Tag / Workspace Switcher */}
-        {user && (
-          <div className="relative">
-            {user.workspaces && user.workspaces.length > 1 ? (
-              <>
-                <button
-                  onClick={() => setIsWorkspaceDropdownOpen(!isWorkspaceDropdownOpen)}
-                  className="flex items-center gap-2.5 rounded-full bg-primary/10 hover:bg-primary/20 border border-primary/20 px-3.5 py-1.5 text-[10px] font-black text-primary uppercase tracking-wider transition-all duration-200 active:scale-95 shadow-sm"
-                >
-                  <RefreshCw className="h-3 w-3 animate-spin" style={{ animationDuration: '4s', animationIterationCount: isWorkspaceDropdownOpen ? 'infinite' : 1 }} />
-                  <span>{user.role}</span>
-                  <ChevronDown className="h-3.5 w-3.5 transition-transform duration-200" style={{ transform: isWorkspaceDropdownOpen ? 'rotate(180deg)' : 'rotate(0)' }} />
-                </button>
+        {/* Multi-Workspace Switcher */}
+        <WorkspaceSwitcher />
 
-                {isWorkspaceDropdownOpen && (
-                  <>
-                    <div onClick={() => setIsWorkspaceDropdownOpen(false)} className="fixed inset-0 z-30" />
-                    <div className="absolute right-0 mt-2.5 w-52 origin-top-right rounded-xl border bg-card p-2.5 shadow-2xl ring-1 ring-black/5 z-40 animate-in fade-in-50 slide-in-from-top-3 duration-200 text-[10.5px] font-extrabold uppercase tracking-wider">
-                      <div className="px-2.5 py-1.5 text-muted-foreground text-[8px] tracking-widest border-b mb-1.5 font-black flex items-center justify-between">
-                        <span>Switch Workspace</span>
-                        <RefreshCw className="h-3 w-3 text-muted-foreground" />
-                      </div>
-                      <div className="space-y-1">
-                        {user.workspaces.map((roleName) => (
-                          <button
-                            key={roleName}
-                            onClick={() => {
-                              setIsWorkspaceDropdownOpen(false);
-                              switchWorkspace(roleName).then(() => {
-                                navigate('/');
-                              });
-                            }}
-                            className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-left hover:bg-muted transition-all duration-150 ${
-                              user.role === roleName ? 'text-primary bg-primary/5 font-black border-l-2 border-primary pl-2' : 'text-foreground'
-                            }`}
-                          >
-                            <span>{roleName}</span>
-                            {user.role === roleName && <Check className="h-3.5 w-3.5 text-primary" />}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  </>
-                )}
-              </>
-            ) : (
-              <div className="hidden items-center gap-1.5 rounded-full bg-primary/10 px-2.5 py-1 text-[10px] font-bold text-primary uppercase tracking-wider md:flex">
-                <span>{user.role}</span>
-              </div>
-            )}
+        {/* User Role Tag */}
+        {user && (
+          <div className="hidden items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1 text-[10px] font-bold text-primary uppercase tracking-wider md:flex">
+            <span>{user.role}</span>
           </div>
         )}
 

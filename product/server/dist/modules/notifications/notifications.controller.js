@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.NotificationsController = void 0;
 const prisma_1 = require("../../lib/prisma");
 const exceptions_1 = require("../../utils/exceptions");
+const logger_1 = require("../../utils/logger");
 class NotificationsController {
     /**
      * List all notification logs
@@ -43,10 +44,10 @@ class NotificationsController {
                 },
             });
             if (status === 'SENT') {
-                console.log(`📣 [NOTIFICATION DISPATCHED] Type: ${type} | Title: ${title} | Content: ${content} | Image: ${imageUrl || 'None'}`);
+                logger_1.logger.info(`[NOTIFICATION DISPATCHED] Type: ${type} | Title: ${title} | Content: ${content} | Image: ${imageUrl || 'None'}`);
             }
             else {
-                console.log(`⏰ [NOTIFICATION SCHEDULED] Type: ${type} | For: ${scheduleDate}`);
+                logger_1.logger.info(`[NOTIFICATION SCHEDULED] Type: ${type} | For: ${scheduleDate}`);
             }
             // Audit Log
             await prisma_1.prisma.userActivityLog.create({

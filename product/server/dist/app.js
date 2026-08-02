@@ -26,14 +26,22 @@ const ai_routes_1 = __importDefault(require("./modules/ai/ai.routes"));
 const assignments_routes_1 = __importDefault(require("./modules/enterprise/assignments.routes"));
 const chat_routes_1 = __importDefault(require("./modules/chat/chat.routes"));
 const circular_routes_1 = __importDefault(require("./modules/enterprise/circular.routes"));
+const curriculum_routes_1 = __importDefault(require("./modules/curriculum/curriculum.routes"));
+const sports_routes_1 = __importDefault(require("./modules/sports/sports.routes"));
+const task_routes_1 = __importDefault(require("./modules/enterprise/task.routes"));
 const error_middleware_1 = require("./core/middlewares/error.middleware");
 const logger_1 = require("./utils/logger");
 const env_1 = require("./config/env");
 const app = (0, express_1.default)();
 // Security HTTP headers
 app.use((0, helmet_1.default)());
-// Serve uploaded files statically
-app.use('/uploads', express_1.default.static(path_1.default.join(__dirname, '../uploads')));
+// Serve uploaded files statically with security headers
+app.use('/uploads', express_1.default.static(path_1.default.join(__dirname, '../uploads'), {
+    setHeaders: (res) => {
+        res.setHeader('X-Content-Type-Options', 'nosniff');
+        res.setHeader('Content-Security-Policy', "default-src 'none'");
+    },
+}));
 // Enable CORS
 const allowedOrigins = env_1.env.ALLOWED_ORIGINS.split(',');
 app.use((0, cors_1.default)({
@@ -71,10 +79,14 @@ app.get('/api/health', (req, res) => {
         uptime: process.uptime(),
     });
 });
+const rbac_routes_1 = __importDefault(require("./modules/enterprise/rbac.routes"));
+const iam_routes_1 = __importDefault(require("./modules/enterprise/iam.routes"));
 app.use('/api/auth', rateLimit_middleware_1.authRateLimiter, auth_routes_1.default);
 app.use('/api/dashboard', dashboard_routes_1.default);
 app.use('/api/users', users_routes_1.default);
 app.use('/api/roles', roles_routes_1.default);
+app.use('/api/rbac', rbac_routes_1.default);
+app.use('/api/iam', iam_routes_1.default);
 app.use('/api/settings', settings_routes_1.default);
 app.use('/api/academics', academics_routes_1.default);
 app.use('/api/masters', masters_routes_1.default);
@@ -90,6 +102,9 @@ app.use('/api/ai', ai_routes_1.default);
 app.use('/api/assignments', assignments_routes_1.default);
 app.use('/api/chat', chat_routes_1.default);
 app.use('/api/circulars', circular_routes_1.default);
+app.use('/api/curriculum', curriculum_routes_1.default);
+app.use('/api/sports', sports_routes_1.default);
+app.use('/api/tasks', task_routes_1.default);
 // Fallback Route
 app.use('*', (req, res, next) => {
     res.status(404).json({

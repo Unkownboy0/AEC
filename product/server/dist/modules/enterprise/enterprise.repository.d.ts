@@ -4,12 +4,38 @@ export declare class EnterpriseRepository {
         items: ({
             user: {
                 status: string;
+                designation: string | null;
+                digitalSignature: string | null;
                 id: string;
                 email: string;
                 passwordHash: string;
                 firstName: string;
                 lastName: string;
                 phone: string | null;
+                departmentId: string | null;
+                reportingManagerId: string | null;
+                workspaces: string | null;
+                activeWorkspace: string | null;
+                approvalAuthority: boolean;
+                dashboardConfig: string | null;
+                notificationPreferences: string | null;
+                gender: string | null;
+                dob: Date | null;
+                bloodGroup: string | null;
+                qrCode: string | null;
+                aadhaarNumber: string | null;
+                emergencyContact: string | null;
+                qualification: string | null;
+                experience: string | null;
+                skills: string | null;
+                certificates: string | null;
+                profileCompletion: number;
+                joiningDate: Date | null;
+                accountStatus: string;
+                loginStatus: string;
+                activityTimeline: string | null;
+                designationId: string | null;
+                parentRoleId: string | null;
                 roleId: string;
                 lockedUntil: Date | null;
                 failedLoginAttempts: number;
@@ -18,6 +44,7 @@ export declare class EnterpriseRepository {
                 passwordChangedAt: Date | null;
                 createdAt: Date;
                 updatedAt: Date;
+                username: string | null;
             } | null;
             academicYear: {
                 status: string;
@@ -64,9 +91,9 @@ export declare class EnterpriseRepository {
                 code: string;
                 status: string;
                 id: string;
+                departmentId: string;
                 createdAt: Date;
                 updatedAt: Date;
-                departmentId: string;
                 archived: boolean;
                 archivedAt: Date | null;
                 deleted: boolean;
@@ -80,10 +107,11 @@ export declare class EnterpriseRepository {
             course: {
                 code: string;
                 status: string;
+                regulation: string;
                 id: string;
+                departmentId: string;
                 createdAt: Date;
                 updatedAt: Date;
-                departmentId: string;
                 programId: string;
                 archived: boolean;
                 archivedAt: Date | null;
@@ -94,7 +122,6 @@ export declare class EnterpriseRepository {
                 duration: number;
                 credits: number;
                 coordinator: string | null;
-                regulation: string;
                 courseOutcomes: string;
             };
             semester: {
@@ -119,9 +146,9 @@ export declare class EnterpriseRepository {
             section: {
                 status: string;
                 id: string;
+                departmentId: string;
                 createdAt: Date;
                 updatedAt: Date;
-                departmentId: string;
                 programId: string;
                 semesterId: string;
                 archived: boolean;
@@ -167,13 +194,14 @@ export declare class EnterpriseRepository {
             firstName: string;
             lastName: string;
             phone: string | null;
+            departmentId: string;
+            gender: string;
+            dob: Date;
+            bloodGroup: string | null;
             createdAt: Date;
             updatedAt: Date;
             admissionNo: string;
-            dob: Date;
             dateOfAdmission: Date;
-            gender: string;
-            bloodGroup: string | null;
             religion: string | null;
             category: string | null;
             medicalDetails: string | null;
@@ -208,7 +236,6 @@ export declare class EnterpriseRepository {
             careerObjective: string | null;
             areasOfInterest: string | null;
             academicYearId: string;
-            departmentId: string;
             programDepartmentId: string | null;
             programId: string;
             courseId: string;
@@ -232,12 +259,38 @@ export declare class EnterpriseRepository {
     findStudentById(id: string): Promise<({
         user: {
             status: string;
+            designation: string | null;
+            digitalSignature: string | null;
             id: string;
             email: string;
             passwordHash: string;
             firstName: string;
             lastName: string;
             phone: string | null;
+            departmentId: string | null;
+            reportingManagerId: string | null;
+            workspaces: string | null;
+            activeWorkspace: string | null;
+            approvalAuthority: boolean;
+            dashboardConfig: string | null;
+            notificationPreferences: string | null;
+            gender: string | null;
+            dob: Date | null;
+            bloodGroup: string | null;
+            qrCode: string | null;
+            aadhaarNumber: string | null;
+            emergencyContact: string | null;
+            qualification: string | null;
+            experience: string | null;
+            skills: string | null;
+            certificates: string | null;
+            profileCompletion: number;
+            joiningDate: Date | null;
+            accountStatus: string;
+            loginStatus: string;
+            activityTimeline: string | null;
+            designationId: string | null;
+            parentRoleId: string | null;
             roleId: string;
             lockedUntil: Date | null;
             failedLoginAttempts: number;
@@ -246,6 +299,7 @@ export declare class EnterpriseRepository {
             passwordChangedAt: Date | null;
             createdAt: Date;
             updatedAt: Date;
+            username: string | null;
         } | null;
         academicYear: {
             status: string;
@@ -292,9 +346,9 @@ export declare class EnterpriseRepository {
             code: string;
             status: string;
             id: string;
+            departmentId: string;
             createdAt: Date;
             updatedAt: Date;
-            departmentId: string;
             archived: boolean;
             archivedAt: Date | null;
             deleted: boolean;
@@ -308,10 +362,11 @@ export declare class EnterpriseRepository {
         course: {
             code: string;
             status: string;
+            regulation: string;
             id: string;
+            departmentId: string;
             createdAt: Date;
             updatedAt: Date;
-            departmentId: string;
             programId: string;
             archived: boolean;
             archivedAt: Date | null;
@@ -322,7 +377,6 @@ export declare class EnterpriseRepository {
             duration: number;
             credits: number;
             coordinator: string | null;
-            regulation: string;
             courseOutcomes: string;
         };
         semester: {
@@ -347,9 +401,9 @@ export declare class EnterpriseRepository {
         section: {
             status: string;
             id: string;
+            departmentId: string;
             createdAt: Date;
             updatedAt: Date;
-            departmentId: string;
             programId: string;
             semesterId: string;
             archived: boolean;
@@ -423,13 +477,14 @@ export declare class EnterpriseRepository {
         firstName: string;
         lastName: string;
         phone: string | null;
+        departmentId: string;
+        gender: string;
+        dob: Date;
+        bloodGroup: string | null;
         createdAt: Date;
         updatedAt: Date;
         admissionNo: string;
-        dob: Date;
         dateOfAdmission: Date;
-        gender: string;
-        bloodGroup: string | null;
         religion: string | null;
         category: string | null;
         medicalDetails: string | null;
@@ -464,7 +519,6 @@ export declare class EnterpriseRepository {
         careerObjective: string | null;
         areasOfInterest: string | null;
         academicYearId: string;
-        departmentId: string;
         programDepartmentId: string | null;
         programId: string;
         courseId: string;
@@ -490,13 +544,14 @@ export declare class EnterpriseRepository {
         firstName: string;
         lastName: string;
         phone: string | null;
+        departmentId: string;
+        gender: string;
+        dob: Date;
+        bloodGroup: string | null;
         createdAt: Date;
         updatedAt: Date;
         admissionNo: string;
-        dob: Date;
         dateOfAdmission: Date;
-        gender: string;
-        bloodGroup: string | null;
         religion: string | null;
         category: string | null;
         medicalDetails: string | null;
@@ -531,7 +586,6 @@ export declare class EnterpriseRepository {
         careerObjective: string | null;
         areasOfInterest: string | null;
         academicYearId: string;
-        departmentId: string;
         programDepartmentId: string | null;
         programId: string;
         courseId: string;
@@ -557,13 +611,14 @@ export declare class EnterpriseRepository {
         firstName: string;
         lastName: string;
         phone: string | null;
+        departmentId: string;
+        gender: string;
+        dob: Date;
+        bloodGroup: string | null;
         createdAt: Date;
         updatedAt: Date;
         admissionNo: string;
-        dob: Date;
         dateOfAdmission: Date;
-        gender: string;
-        bloodGroup: string | null;
         religion: string | null;
         category: string | null;
         medicalDetails: string | null;
@@ -598,7 +653,6 @@ export declare class EnterpriseRepository {
         careerObjective: string | null;
         areasOfInterest: string | null;
         academicYearId: string;
-        departmentId: string;
         programDepartmentId: string | null;
         programId: string;
         courseId: string;
@@ -651,23 +705,27 @@ export declare class EnterpriseRepository {
             };
         } & {
             status: string;
+            designation: string;
             program: string | null;
             id: string;
             email: string;
             firstName: string;
             lastName: string;
             phone: string;
+            departmentId: string;
+            gender: string | null;
+            dob: Date;
+            bloodGroup: string | null;
+            qualification: string;
+            experience: number;
             createdAt: Date;
             updatedAt: Date;
-            dob: Date;
-            gender: string | null;
-            bloodGroup: string | null;
+            notificationPrefs: string | null;
             documents: string;
             city: string | null;
             district: string | null;
             state: string | null;
             country: string | null;
-            departmentId: string;
             userId: string | null;
             archived: boolean;
             archivedAt: Date | null;
@@ -675,9 +733,6 @@ export declare class EnterpriseRepository {
             deletedAt: Date | null;
             employeeId: string;
             dateOfJoining: Date;
-            designation: string;
-            qualification: string;
-            experience: number;
             subjectMappings: string;
             maritalStatus: string | null;
             nationality: string | null;
@@ -711,7 +766,6 @@ export declare class EnterpriseRepository {
             googleScholar: string | null;
             orcidId: string | null;
             portfolioWebsite: string | null;
-            notificationPrefs: string | null;
         })[];
         totalCount: number;
     }>;
@@ -748,23 +802,27 @@ export declare class EnterpriseRepository {
         };
     } & {
         status: string;
+        designation: string;
         program: string | null;
         id: string;
         email: string;
         firstName: string;
         lastName: string;
         phone: string;
+        departmentId: string;
+        gender: string | null;
+        dob: Date;
+        bloodGroup: string | null;
+        qualification: string;
+        experience: number;
         createdAt: Date;
         updatedAt: Date;
-        dob: Date;
-        gender: string | null;
-        bloodGroup: string | null;
+        notificationPrefs: string | null;
         documents: string;
         city: string | null;
         district: string | null;
         state: string | null;
         country: string | null;
-        departmentId: string;
         userId: string | null;
         archived: boolean;
         archivedAt: Date | null;
@@ -772,9 +830,6 @@ export declare class EnterpriseRepository {
         deletedAt: Date | null;
         employeeId: string;
         dateOfJoining: Date;
-        designation: string;
-        qualification: string;
-        experience: number;
         subjectMappings: string;
         maritalStatus: string | null;
         nationality: string | null;
@@ -808,27 +863,30 @@ export declare class EnterpriseRepository {
         googleScholar: string | null;
         orcidId: string | null;
         portfolioWebsite: string | null;
-        notificationPrefs: string | null;
     }) | null>;
     createFaculty(data: any): Promise<{
         status: string;
+        designation: string;
         program: string | null;
         id: string;
         email: string;
         firstName: string;
         lastName: string;
         phone: string;
+        departmentId: string;
+        gender: string | null;
+        dob: Date;
+        bloodGroup: string | null;
+        qualification: string;
+        experience: number;
         createdAt: Date;
         updatedAt: Date;
-        dob: Date;
-        gender: string | null;
-        bloodGroup: string | null;
+        notificationPrefs: string | null;
         documents: string;
         city: string | null;
         district: string | null;
         state: string | null;
         country: string | null;
-        departmentId: string;
         userId: string | null;
         archived: boolean;
         archivedAt: Date | null;
@@ -836,9 +894,6 @@ export declare class EnterpriseRepository {
         deletedAt: Date | null;
         employeeId: string;
         dateOfJoining: Date;
-        designation: string;
-        qualification: string;
-        experience: number;
         subjectMappings: string;
         maritalStatus: string | null;
         nationality: string | null;
@@ -872,27 +927,30 @@ export declare class EnterpriseRepository {
         googleScholar: string | null;
         orcidId: string | null;
         portfolioWebsite: string | null;
-        notificationPrefs: string | null;
     }>;
     updateFaculty(id: string, data: any): Promise<{
         status: string;
+        designation: string;
         program: string | null;
         id: string;
         email: string;
         firstName: string;
         lastName: string;
         phone: string;
+        departmentId: string;
+        gender: string | null;
+        dob: Date;
+        bloodGroup: string | null;
+        qualification: string;
+        experience: number;
         createdAt: Date;
         updatedAt: Date;
-        dob: Date;
-        gender: string | null;
-        bloodGroup: string | null;
+        notificationPrefs: string | null;
         documents: string;
         city: string | null;
         district: string | null;
         state: string | null;
         country: string | null;
-        departmentId: string;
         userId: string | null;
         archived: boolean;
         archivedAt: Date | null;
@@ -900,9 +958,6 @@ export declare class EnterpriseRepository {
         deletedAt: Date | null;
         employeeId: string;
         dateOfJoining: Date;
-        designation: string;
-        qualification: string;
-        experience: number;
         subjectMappings: string;
         maritalStatus: string | null;
         nationality: string | null;
@@ -936,7 +991,6 @@ export declare class EnterpriseRepository {
         googleScholar: string | null;
         orcidId: string | null;
         portfolioWebsite: string | null;
-        notificationPrefs: string | null;
     }>;
     findAttendances(params: any, user?: UserPayload): Promise<{
         items: ({
@@ -944,9 +998,9 @@ export declare class EnterpriseRepository {
                 code: string;
                 status: string;
                 id: string;
+                departmentId: string;
                 createdAt: Date;
                 updatedAt: Date;
-                departmentId: string;
                 programId: string;
                 semesterId: string;
                 sectionId: string | null;
@@ -970,6 +1024,12 @@ export declare class EnterpriseRepository {
                 isOpenElective: boolean;
                 isProfessionalElective: boolean;
                 subjectCoordinator: string | null;
+                regulationId: string | null;
+                approvalStatus: string;
+                assignedFacultyId: string | null;
+                assignedHodId: string | null;
+                assignedDeanId: string | null;
+                assignedCoordinatorId: string | null;
             } | null;
             student: {
                 status: string;
@@ -978,13 +1038,14 @@ export declare class EnterpriseRepository {
                 firstName: string;
                 lastName: string;
                 phone: string | null;
+                departmentId: string;
+                gender: string;
+                dob: Date;
+                bloodGroup: string | null;
                 createdAt: Date;
                 updatedAt: Date;
                 admissionNo: string;
-                dob: Date;
                 dateOfAdmission: Date;
-                gender: string;
-                bloodGroup: string | null;
                 religion: string | null;
                 category: string | null;
                 medicalDetails: string | null;
@@ -1019,7 +1080,6 @@ export declare class EnterpriseRepository {
                 careerObjective: string | null;
                 areasOfInterest: string | null;
                 academicYearId: string;
-                departmentId: string;
                 programDepartmentId: string | null;
                 programId: string;
                 courseId: string;
@@ -1040,23 +1100,27 @@ export declare class EnterpriseRepository {
             } | null;
             faculty: {
                 status: string;
+                designation: string;
                 program: string | null;
                 id: string;
                 email: string;
                 firstName: string;
                 lastName: string;
                 phone: string;
+                departmentId: string;
+                gender: string | null;
+                dob: Date;
+                bloodGroup: string | null;
+                qualification: string;
+                experience: number;
                 createdAt: Date;
                 updatedAt: Date;
-                dob: Date;
-                gender: string | null;
-                bloodGroup: string | null;
+                notificationPrefs: string | null;
                 documents: string;
                 city: string | null;
                 district: string | null;
                 state: string | null;
                 country: string | null;
-                departmentId: string;
                 userId: string | null;
                 archived: boolean;
                 archivedAt: Date | null;
@@ -1064,9 +1128,6 @@ export declare class EnterpriseRepository {
                 deletedAt: Date | null;
                 employeeId: string;
                 dateOfJoining: Date;
-                designation: string;
-                qualification: string;
-                experience: number;
                 subjectMappings: string;
                 maritalStatus: string | null;
                 nationality: string | null;
@@ -1100,7 +1161,6 @@ export declare class EnterpriseRepository {
                 googleScholar: string | null;
                 orcidId: string | null;
                 portfolioWebsite: string | null;
-                notificationPrefs: string | null;
             } | null;
         } & {
             type: string;
@@ -1171,10 +1231,11 @@ export declare class EnterpriseRepository {
             course: {
                 code: string;
                 status: string;
+                regulation: string;
                 id: string;
+                departmentId: string;
                 createdAt: Date;
                 updatedAt: Date;
-                departmentId: string;
                 programId: string;
                 archived: boolean;
                 archivedAt: Date | null;
@@ -1185,7 +1246,6 @@ export declare class EnterpriseRepository {
                 duration: number;
                 credits: number;
                 coordinator: string | null;
-                regulation: string;
                 courseOutcomes: string;
             };
             semester: {
@@ -1209,23 +1269,27 @@ export declare class EnterpriseRepository {
             };
             coordinator: {
                 status: string;
+                designation: string;
                 program: string | null;
                 id: string;
                 email: string;
                 firstName: string;
                 lastName: string;
                 phone: string;
+                departmentId: string;
+                gender: string | null;
+                dob: Date;
+                bloodGroup: string | null;
+                qualification: string;
+                experience: number;
                 createdAt: Date;
                 updatedAt: Date;
-                dob: Date;
-                gender: string | null;
-                bloodGroup: string | null;
+                notificationPrefs: string | null;
                 documents: string;
                 city: string | null;
                 district: string | null;
                 state: string | null;
                 country: string | null;
-                departmentId: string;
                 userId: string | null;
                 archived: boolean;
                 archivedAt: Date | null;
@@ -1233,9 +1297,6 @@ export declare class EnterpriseRepository {
                 deletedAt: Date | null;
                 employeeId: string;
                 dateOfJoining: Date;
-                designation: string;
-                qualification: string;
-                experience: number;
                 subjectMappings: string;
                 maritalStatus: string | null;
                 nationality: string | null;
@@ -1269,7 +1330,6 @@ export declare class EnterpriseRepository {
                 googleScholar: string | null;
                 orcidId: string | null;
                 portfolioWebsite: string | null;
-                notificationPrefs: string | null;
             } | null;
         } & {
             type: string;
@@ -1312,10 +1372,11 @@ export declare class EnterpriseRepository {
         course: {
             code: string;
             status: string;
+            regulation: string;
             id: string;
+            departmentId: string;
             createdAt: Date;
             updatedAt: Date;
-            departmentId: string;
             programId: string;
             archived: boolean;
             archivedAt: Date | null;
@@ -1326,7 +1387,6 @@ export declare class EnterpriseRepository {
             duration: number;
             credits: number;
             coordinator: string | null;
-            regulation: string;
             courseOutcomes: string;
         };
         semester: {
@@ -1350,23 +1410,27 @@ export declare class EnterpriseRepository {
         };
         coordinator: {
             status: string;
+            designation: string;
             program: string | null;
             id: string;
             email: string;
             firstName: string;
             lastName: string;
             phone: string;
+            departmentId: string;
+            gender: string | null;
+            dob: Date;
+            bloodGroup: string | null;
+            qualification: string;
+            experience: number;
             createdAt: Date;
             updatedAt: Date;
-            dob: Date;
-            gender: string | null;
-            bloodGroup: string | null;
+            notificationPrefs: string | null;
             documents: string;
             city: string | null;
             district: string | null;
             state: string | null;
             country: string | null;
-            departmentId: string;
             userId: string | null;
             archived: boolean;
             archivedAt: Date | null;
@@ -1374,9 +1438,6 @@ export declare class EnterpriseRepository {
             deletedAt: Date | null;
             employeeId: string;
             dateOfJoining: Date;
-            designation: string;
-            qualification: string;
-            experience: number;
             subjectMappings: string;
             maritalStatus: string | null;
             nationality: string | null;
@@ -1410,7 +1471,6 @@ export declare class EnterpriseRepository {
             googleScholar: string | null;
             orcidId: string | null;
             portfolioWebsite: string | null;
-            notificationPrefs: string | null;
         } | null;
     } & {
         type: string;
@@ -1481,9 +1541,9 @@ export declare class EnterpriseRepository {
                 code: string;
                 status: string;
                 id: string;
+                departmentId: string;
                 createdAt: Date;
                 updatedAt: Date;
-                departmentId: string;
                 programId: string;
                 semesterId: string;
                 sectionId: string | null;
@@ -1507,6 +1567,12 @@ export declare class EnterpriseRepository {
                 isOpenElective: boolean;
                 isProfessionalElective: boolean;
                 subjectCoordinator: string | null;
+                regulationId: string | null;
+                approvalStatus: string;
+                assignedFacultyId: string | null;
+                assignedHodId: string | null;
+                assignedDeanId: string | null;
+                assignedCoordinatorId: string | null;
             };
             student: {
                 status: string;
@@ -1515,13 +1581,14 @@ export declare class EnterpriseRepository {
                 firstName: string;
                 lastName: string;
                 phone: string | null;
+                departmentId: string;
+                gender: string;
+                dob: Date;
+                bloodGroup: string | null;
                 createdAt: Date;
                 updatedAt: Date;
                 admissionNo: string;
-                dob: Date;
                 dateOfAdmission: Date;
-                gender: string;
-                bloodGroup: string | null;
                 religion: string | null;
                 category: string | null;
                 medicalDetails: string | null;
@@ -1556,7 +1623,6 @@ export declare class EnterpriseRepository {
                 careerObjective: string | null;
                 areasOfInterest: string | null;
                 academicYearId: string;
-                departmentId: string;
                 programDepartmentId: string | null;
                 programId: string;
                 courseId: string;
@@ -1693,13 +1759,14 @@ export declare class EnterpriseRepository {
                 firstName: string;
                 lastName: string;
                 phone: string | null;
+                departmentId: string;
+                gender: string;
+                dob: Date;
+                bloodGroup: string | null;
                 createdAt: Date;
                 updatedAt: Date;
                 admissionNo: string;
-                dob: Date;
                 dateOfAdmission: Date;
-                gender: string;
-                bloodGroup: string | null;
                 religion: string | null;
                 category: string | null;
                 medicalDetails: string | null;
@@ -1734,7 +1801,6 @@ export declare class EnterpriseRepository {
                 careerObjective: string | null;
                 areasOfInterest: string | null;
                 academicYearId: string;
-                departmentId: string;
                 programDepartmentId: string | null;
                 programId: string;
                 courseId: string;
@@ -1775,11 +1841,11 @@ export declare class EnterpriseRepository {
             archivedAt: Date | null;
             deleted: boolean;
             deletedAt: Date | null;
-            studentId: string;
+            paidAmount: number;
             amount: number;
             scholarshipDiscount: number;
             fine: number;
-            paidAmount: number;
+            studentId: string;
             billingDate: Date;
             dueDate: Date;
             paymentHistory: string;
@@ -1797,11 +1863,11 @@ export declare class EnterpriseRepository {
         archivedAt: Date | null;
         deleted: boolean;
         deletedAt: Date | null;
-        studentId: string;
+        paidAmount: number;
         amount: number;
         scholarshipDiscount: number;
         fine: number;
-        paidAmount: number;
+        studentId: string;
         billingDate: Date;
         dueDate: Date;
         paymentHistory: string;
@@ -1817,11 +1883,11 @@ export declare class EnterpriseRepository {
         archivedAt: Date | null;
         deleted: boolean;
         deletedAt: Date | null;
-        studentId: string;
+        paidAmount: number;
         amount: number;
         scholarshipDiscount: number;
         fine: number;
-        paidAmount: number;
+        studentId: string;
         billingDate: Date;
         dueDate: Date;
         paymentHistory: string;
@@ -2030,13 +2096,14 @@ export declare class EnterpriseRepository {
                 firstName: string;
                 lastName: string;
                 phone: string | null;
+                departmentId: string;
+                gender: string;
+                dob: Date;
+                bloodGroup: string | null;
                 createdAt: Date;
                 updatedAt: Date;
                 admissionNo: string;
-                dob: Date;
                 dateOfAdmission: Date;
-                gender: string;
-                bloodGroup: string | null;
                 religion: string | null;
                 category: string | null;
                 medicalDetails: string | null;
@@ -2071,7 +2138,6 @@ export declare class EnterpriseRepository {
                 careerObjective: string | null;
                 areasOfInterest: string | null;
                 academicYearId: string;
-                departmentId: string;
                 programDepartmentId: string | null;
                 programId: string;
                 courseId: string;
@@ -2092,23 +2158,27 @@ export declare class EnterpriseRepository {
             } | null;
             faculty: {
                 status: string;
+                designation: string;
                 program: string | null;
                 id: string;
                 email: string;
                 firstName: string;
                 lastName: string;
                 phone: string;
+                departmentId: string;
+                gender: string | null;
+                dob: Date;
+                bloodGroup: string | null;
+                qualification: string;
+                experience: number;
                 createdAt: Date;
                 updatedAt: Date;
-                dob: Date;
-                gender: string | null;
-                bloodGroup: string | null;
+                notificationPrefs: string | null;
                 documents: string;
                 city: string | null;
                 district: string | null;
                 state: string | null;
                 country: string | null;
-                departmentId: string;
                 userId: string | null;
                 archived: boolean;
                 archivedAt: Date | null;
@@ -2116,9 +2186,6 @@ export declare class EnterpriseRepository {
                 deletedAt: Date | null;
                 employeeId: string;
                 dateOfJoining: Date;
-                designation: string;
-                qualification: string;
-                experience: number;
                 subjectMappings: string;
                 maritalStatus: string | null;
                 nationality: string | null;
@@ -2152,7 +2219,6 @@ export declare class EnterpriseRepository {
                 googleScholar: string | null;
                 orcidId: string | null;
                 portfolioWebsite: string | null;
-                notificationPrefs: string | null;
             } | null;
         } & {
             status: string;
@@ -2181,13 +2247,14 @@ export declare class EnterpriseRepository {
             firstName: string;
             lastName: string;
             phone: string | null;
+            departmentId: string;
+            gender: string;
+            dob: Date;
+            bloodGroup: string | null;
             createdAt: Date;
             updatedAt: Date;
             admissionNo: string;
-            dob: Date;
             dateOfAdmission: Date;
-            gender: string;
-            bloodGroup: string | null;
             religion: string | null;
             category: string | null;
             medicalDetails: string | null;
@@ -2222,7 +2289,6 @@ export declare class EnterpriseRepository {
             careerObjective: string | null;
             areasOfInterest: string | null;
             academicYearId: string;
-            departmentId: string;
             programDepartmentId: string | null;
             programId: string;
             courseId: string;
@@ -2243,23 +2309,27 @@ export declare class EnterpriseRepository {
         } | null;
         faculty: {
             status: string;
+            designation: string;
             program: string | null;
             id: string;
             email: string;
             firstName: string;
             lastName: string;
             phone: string;
+            departmentId: string;
+            gender: string | null;
+            dob: Date;
+            bloodGroup: string | null;
+            qualification: string;
+            experience: number;
             createdAt: Date;
             updatedAt: Date;
-            dob: Date;
-            gender: string | null;
-            bloodGroup: string | null;
+            notificationPrefs: string | null;
             documents: string;
             city: string | null;
             district: string | null;
             state: string | null;
             country: string | null;
-            departmentId: string;
             userId: string | null;
             archived: boolean;
             archivedAt: Date | null;
@@ -2267,9 +2337,6 @@ export declare class EnterpriseRepository {
             deletedAt: Date | null;
             employeeId: string;
             dateOfJoining: Date;
-            designation: string;
-            qualification: string;
-            experience: number;
             subjectMappings: string;
             maritalStatus: string | null;
             nationality: string | null;
@@ -2303,7 +2370,6 @@ export declare class EnterpriseRepository {
             googleScholar: string | null;
             orcidId: string | null;
             portfolioWebsite: string | null;
-            notificationPrefs: string | null;
         } | null;
     } & {
         status: string;

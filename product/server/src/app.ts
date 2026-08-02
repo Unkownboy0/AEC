@@ -23,6 +23,7 @@ import chatRoutes from './modules/chat/chat.routes';
 import circularRoutes from './modules/enterprise/circular.routes';
 import curriculumRoutes from './modules/curriculum/curriculum.routes';
 import sportsRoutes from './modules/sports/sports.routes';
+import taskRoutes from './modules/enterprise/task.routes';
 
 
 import { errorHandler } from './core/middlewares/error.middleware';
@@ -116,6 +117,36 @@ app.use('/api/chat', chatRoutes);
 app.use('/api/circulars', circularRoutes);
 app.use('/api/curriculum', curriculumRoutes);
 app.use('/api/sports', sportsRoutes);
+import studentLeaveRoutes from './modules/enterprise/student-leave.routes';
+import hodPortalRoutes from './modules/enterprise/hod-portal.routes';
+import facultyLeaveRoutes from './modules/enterprise/faculty-leave.routes';
+import principalFailoverRoutes from './modules/enterprise/principal-failover.routes';
+import circularEngineRoutes from './modules/enterprise/circular-engine.routes';
+import profileDrilldownRoutes from './modules/enterprise/profile-drilldown.routes';
+import timelineRoutes from './modules/enterprise/timeline.routes';
+import phase8ExportRoutes from './modules/enterprise/phase8-export.routes';
+import analyticsRoutes from './modules/enterprise/analytics.routes';
+import phase10ProductionRoutes from './modules/enterprise/phase10-production.routes';
+import academicDeanRoutes from './modules/enterprise/academic-dean.routes';
+import academicDeanHodRoutes from './modules/enterprise/academic-dean-hod.routes';
+import admissionDeanRoutes from './modules/enterprise/admission-dean.routes';
+
+app.use('/api/enterprise/student-leave', studentLeaveRoutes);
+app.use('/api/student/leave-od', studentLeaveRoutes);
+app.use('/api/mentor/leave-od', studentLeaveRoutes);
+app.use('/api/hod', hodPortalRoutes);
+app.use('/api/enterprise/faculty-leave', facultyLeaveRoutes);
+app.use('/api/enterprise/principal-failover', principalFailoverRoutes);
+app.use('/api/enterprise/circulars', circularEngineRoutes);
+app.use('/api/enterprise/profile', profileDrilldownRoutes);
+app.use('/api/enterprise/timeline', timelineRoutes);
+app.use('/api/enterprise/analytics', analyticsRoutes);
+app.use('/api/enterprise', phase8ExportRoutes);
+app.use('/api', phase10ProductionRoutes);
+app.use('/api/tasks', taskRoutes);
+
+app.use('/api/academic-dean', academicDeanRoutes);
+app.use('/api/admission-dean', admissionDeanRoutes);
 
 
 

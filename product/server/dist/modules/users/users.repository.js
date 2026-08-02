@@ -15,6 +15,7 @@ class UsersRepository {
                 { firstName: { contains: search } },
                 { lastName: { contains: search } },
                 { email: { contains: search } },
+                { username: { contains: search } },
             ];
         }
         if (role) {

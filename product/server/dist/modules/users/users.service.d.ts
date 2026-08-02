@@ -8,25 +8,61 @@ export declare class UsersService {
             role: {
                 status: string;
                 id: string;
+                departmentId: string | null;
+                dashboardConfig: string | null;
                 createdAt: Date;
                 updatedAt: Date;
                 name: string;
                 description: string | null;
                 icon: string;
+                roleCode: string | null;
                 color: string;
                 priority: number;
                 hierarchy: number;
                 isSystem: boolean;
+                sidebarConfig: string | null;
+                moduleAccess: string | null;
+                approvalLevels: string | null;
+                reportAccess: string | null;
+                workspaceAccess: string | null;
+                notificationSettings: string | null;
+                searchScope: string | null;
                 createdBy: string | null;
             };
         } & {
             status: string;
+            designation: string | null;
+            digitalSignature: string | null;
             id: string;
             email: string;
             passwordHash: string;
             firstName: string;
             lastName: string;
             phone: string | null;
+            departmentId: string | null;
+            reportingManagerId: string | null;
+            workspaces: string | null;
+            activeWorkspace: string | null;
+            approvalAuthority: boolean;
+            dashboardConfig: string | null;
+            notificationPreferences: string | null;
+            gender: string | null;
+            dob: Date | null;
+            bloodGroup: string | null;
+            qrCode: string | null;
+            aadhaarNumber: string | null;
+            emergencyContact: string | null;
+            qualification: string | null;
+            experience: string | null;
+            skills: string | null;
+            certificates: string | null;
+            profileCompletion: number;
+            joiningDate: Date | null;
+            accountStatus: string;
+            loginStatus: string;
+            activityTimeline: string | null;
+            designationId: string | null;
+            parentRoleId: string | null;
             roleId: string;
             lockedUntil: Date | null;
             failedLoginAttempts: number;
@@ -35,35 +71,73 @@ export declare class UsersService {
             passwordChangedAt: Date | null;
             createdAt: Date;
             updatedAt: Date;
+            username: string | null;
         })[];
         totalCount: number;
     }>;
     /**
-     * Create a new user
+     * Create a new user with automatic Username & Password generation
      */
     createUser(input: any, triggeredByUserId: string, ip?: string, ua?: string): Promise<{
+        generatedUsername: any;
+        temporaryPassword: any;
         role: {
             status: string;
             id: string;
+            departmentId: string | null;
+            dashboardConfig: string | null;
             createdAt: Date;
             updatedAt: Date;
             name: string;
             description: string | null;
             icon: string;
+            roleCode: string | null;
             color: string;
             priority: number;
             hierarchy: number;
             isSystem: boolean;
+            sidebarConfig: string | null;
+            moduleAccess: string | null;
+            approvalLevels: string | null;
+            reportAccess: string | null;
+            workspaceAccess: string | null;
+            notificationSettings: string | null;
+            searchScope: string | null;
             createdBy: string | null;
         };
-    } & {
         status: string;
+        designation: string | null;
+        digitalSignature: string | null;
         id: string;
         email: string;
         passwordHash: string;
         firstName: string;
         lastName: string;
         phone: string | null;
+        departmentId: string | null;
+        reportingManagerId: string | null;
+        workspaces: string | null;
+        activeWorkspace: string | null;
+        approvalAuthority: boolean;
+        dashboardConfig: string | null;
+        notificationPreferences: string | null;
+        gender: string | null;
+        dob: Date | null;
+        bloodGroup: string | null;
+        qrCode: string | null;
+        aadhaarNumber: string | null;
+        emergencyContact: string | null;
+        qualification: string | null;
+        experience: string | null;
+        skills: string | null;
+        certificates: string | null;
+        profileCompletion: number;
+        joiningDate: Date | null;
+        accountStatus: string;
+        loginStatus: string;
+        activityTimeline: string | null;
+        designationId: string | null;
+        parentRoleId: string | null;
         roleId: string;
         lockedUntil: Date | null;
         failedLoginAttempts: number;
@@ -72,6 +146,28 @@ export declare class UsersService {
         passwordChangedAt: Date | null;
         createdAt: Date;
         updatedAt: Date;
+        username: string | null;
+    }>;
+    /**
+     * Regenerate user temporary credentials (Admin functionality)
+     */
+    regenerateCredentials(id: string, triggeredByUserId: string, ip?: string, ua?: string): Promise<{
+        id: string;
+        email: string;
+        firstName: string;
+        lastName: string;
+        username: string | null;
+        role: string;
+        departmentId: string | null;
+        temporaryPassword: string;
+        forcePasswordChange: boolean;
+    }>;
+    /**
+     * Unlock user account (Admin functionality)
+     */
+    unlockUserAccount(id: string, triggeredByUserId: string, ip?: string, ua?: string): Promise<{
+        status: string;
+        message: string;
     }>;
     /**
      * Update user details
@@ -80,25 +176,61 @@ export declare class UsersService {
         role: {
             status: string;
             id: string;
+            departmentId: string | null;
+            dashboardConfig: string | null;
             createdAt: Date;
             updatedAt: Date;
             name: string;
             description: string | null;
             icon: string;
+            roleCode: string | null;
             color: string;
             priority: number;
             hierarchy: number;
             isSystem: boolean;
+            sidebarConfig: string | null;
+            moduleAccess: string | null;
+            approvalLevels: string | null;
+            reportAccess: string | null;
+            workspaceAccess: string | null;
+            notificationSettings: string | null;
+            searchScope: string | null;
             createdBy: string | null;
         };
     } & {
         status: string;
+        designation: string | null;
+        digitalSignature: string | null;
         id: string;
         email: string;
         passwordHash: string;
         firstName: string;
         lastName: string;
         phone: string | null;
+        departmentId: string | null;
+        reportingManagerId: string | null;
+        workspaces: string | null;
+        activeWorkspace: string | null;
+        approvalAuthority: boolean;
+        dashboardConfig: string | null;
+        notificationPreferences: string | null;
+        gender: string | null;
+        dob: Date | null;
+        bloodGroup: string | null;
+        qrCode: string | null;
+        aadhaarNumber: string | null;
+        emergencyContact: string | null;
+        qualification: string | null;
+        experience: string | null;
+        skills: string | null;
+        certificates: string | null;
+        profileCompletion: number;
+        joiningDate: Date | null;
+        accountStatus: string;
+        loginStatus: string;
+        activityTimeline: string | null;
+        designationId: string | null;
+        parentRoleId: string | null;
         roleId: string;
         lockedUntil: Date | null;
         failedLoginAttempts: number;
@@ -107,6 +239,7 @@ export declare class UsersService {
         passwordChangedAt: Date | null;
         createdAt: Date;
         updatedAt: Date;
+        username: string | null;
     }>;
     /**
      * Delete user
@@ -169,23 +302,27 @@ export declare class UsersService {
             };
         } & {
             status: string;
+            designation: string;
             program: string | null;
             id: string;
             email: string;
             firstName: string;
             lastName: string;
             phone: string;
+            departmentId: string;
+            gender: string | null;
+            dob: Date;
+            bloodGroup: string | null;
+            qualification: string;
+            experience: number;
             createdAt: Date;
             updatedAt: Date;
-            dob: Date;
-            gender: string | null;
-            bloodGroup: string | null;
+            notificationPrefs: string | null;
             documents: string;
             city: string | null;
             district: string | null;
             state: string | null;
             country: string | null;
-            departmentId: string;
             userId: string | null;
             archived: boolean;
             archivedAt: Date | null;
@@ -193,9 +330,6 @@ export declare class UsersService {
             deletedAt: Date | null;
             employeeId: string;
             dateOfJoining: Date;
-            designation: string;
-            qualification: string;
-            experience: number;
             subjectMappings: string;
             maritalStatus: string | null;
             nationality: string | null;
@@ -229,7 +363,6 @@ export declare class UsersService {
             googleScholar: string | null;
             orcidId: string | null;
             portfolioWebsite: string | null;
-            notificationPrefs: string | null;
         }) | null;
     }>;
     /**

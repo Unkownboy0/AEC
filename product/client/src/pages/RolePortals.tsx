@@ -4,7 +4,7 @@ import {
   Shield, Users, GraduationCap, Building, Landmark, Activity,
   CheckCircle, AlertTriangle, Sparkles, BookOpen, Key, User,
   Mail, Phone, Trash2, Check, X, FileText, Download, BarChart2,
-  CheckSquare, Megaphone, FileSpreadsheet, AlertCircle, RefreshCw,
+  CheckSquare, Megaphone, FileSpreadsheet, AlertCircle, RefreshCw, ChevronRight,
   Search, Heart, Gift, ImagePlus, FileImage
 } from 'lucide-react';
 import { toast } from '../components/ui/Toast';
@@ -15,11 +15,13 @@ import { ComplaintMonitoringCenter } from '../components/complaint/ComplaintMoni
 import { CampusActivitiesMonitoring } from '../components/activity/CampusActivitiesMonitoring';
 import { VPOperationsMonitoring } from '../components/vp/VPOperationsMonitoring';
 import { AdmissionDeanPortal as AdmissionDeanPortalComponent } from './admin/AdmissionDeanPortal';
+import { AcademicDeanPortal as AcademicDeanPortalComponent } from './admin/AcademicDeanPortal';
 import { CurriculumManagementPortal } from './admin/CurriculumManagementPortal';
 import { IQACDeanPortal as IQACDeanPortalComponent } from './admin/IQACDeanPortal';
 import { IQACExecutivePortal as IQACExecutivePortalComponent } from './admin/IQACExecutivePortal';
 import { IQACDocumentationPortal as IQACDocumentationPortalComponent } from './admin/IQACDocumentationPortal';
 
+export { AcademicDeanPortalComponent as AcademicDeanPortal };
 export { IQACDeanPortalComponent as IQACDeanPortal };
 export { IQACExecutivePortalComponent as IQACExecutivePortal };
 export { IQACDocumentationPortalComponent as IQACDocumentationPortal };
@@ -65,481 +67,13 @@ const handleExport = async (reportType: string, format: 'PDF' | 'EXCEL' | 'CSV')
 // ─────────────────────────────────────────────────────────────────────────────
 // 1. PRINCIPAL PORTAL
 // ─────────────────────────────────────────────────────────────────────────────
+import { PrincipalExecutivePortal } from './principal/PrincipalExecutivePortal';
+
 interface PrincipalPortalProps {
   user: any;
 }
 export const PrincipalPortal: React.FC<PrincipalPortalProps> = ({ user }) => {
-  const { isMobile } = useDevice();
-  const [searchParams] = useSearchParams();
-  const navigate = useNavigate();
-  const [tickets, setTickets] = useState<any[]>([]);
-  const [stats, setStats] = useState<any>(null);
-  const [departments, setDepartments] = useState<any[]>([]);
-  const [workflows, setWorkflows] = useState<any[]>([]);
-
-  // Navigation tab derived from URL
-  const rawTab = searchParams.get('tab');
-  const validPrincipalTabs = ['overview', 'placements', 'complaints', 'activities'];
-  const principalTab = rawTab && validPrincipalTabs.includes(rawTab) ? (rawTab as 'overview' | 'placements' | 'complaints' | 'activities') : 'overview';
-  const setPrincipalTab = (tab: 'overview' | 'placements' | 'complaints' | 'activities') => {
-    navigate(`/?tab=${tab}`, { replace: true });
-  };
-
-  // Filters state
-  const [selectedYear, setSelectedYear] = useState('2026-2027');
-  const [selectedDept, setSelectedDept] = useState('ALL');
-
-  // Announcement form
-  const [announceTitle, setAnnounceTitle] = useState('');
-  const [announceBody, setAnnounceBody]   = useState('');
-  const [announceTarget, setAnnounceTarget] = useState('ALL');
-
-  // Circular image attachment
-  const [circImage, setCircImage]       = useState<File | null>(null);
-  const [circPreview, setCircPreview]   = useState<string | null>(null);
-  const [circB64, setCircB64]           = useState<string | null>(null);
-  const [circImgErr, setCircImgErr]     = useState('');
-  const circImgRef = useRef<HTMLInputElement>(null);
-
-  const handleCircImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setCircImgErr('');
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const allowed = ['image/jpeg','image/jpg','image/png','image/webp'];
-    if (!allowed.includes(file.type)) { setCircImgErr('Only JPG, JPEG, PNG or WEBP allowed.'); return; }
-    if (file.size > 10 * 1024 * 1024) { setCircImgErr('Image exceeds 10 MB limit.'); return; }
-    setCircImage(file);
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      const r = reader.result as string;
-      setCircPreview(r);
-      setCircB64(r.split(',')[1]);
-    };
-    reader.readAsDataURL(file);
-  };
-
-  const removeCircImage = () => {
-    setCircImage(null); setCircPreview(null); setCircB64(null); setCircImgErr('');
-    if (circImgRef.current) circImgRef.current.value = '';
-  };
-
-  const fetchData = async () => {
-    try {
-      const [ticketsRes, statsRes, deptsRes, wfRes] = await Promise.all([
-        api.get('/enterprise/tickets').catch(() => null),
-        api.get('/dashboard/stats').catch(() => null),
-        api.get('/academics/departments').catch(() => null),
-        api.get('/workflows/requests').catch(() => null)
-      ]);
-      if (ticketsRes?.data?.status === 'success') setTickets(ticketsRes.data.data);
-      if (statsRes?.data?.status === 'success') setStats(statsRes.data.data.metrics);
-      if (deptsRes?.data?.status === 'success') setDepartments(deptsRes.data.data);
-      if (wfRes?.data?.status === 'success') setWorkflows(wfRes.data.data);
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  const handleCreateAnnouncement = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!announceTitle || !announceBody) return;
-    try {
-      let imageUrl: string | undefined;
-
-      // Upload image first if selected
-      if (circImage && circB64) {
-        const upRes = await api.post('/files/upload', {
-          name: circImage.name,
-          mimeType: circImage.type,
-          base64: circB64,
-          folder: '/circulars',
-        }).catch(() => null);
-        if (upRes?.data?.status === 'success') imageUrl = upRes.data.data.path;
-      }
-
-      const res = await api.post('/notifications', {
-        title: announceTitle,
-        content: announceBody,
-        type: 'ANNOUNCEMENT',
-        imageUrl,
-      });
-      if (res.data?.status === 'success') {
-        toast.success('Institution-wide circular published and dispatched.');
-        setAnnounceTitle('');
-        setAnnounceBody('');
-        removeCircImage();
-        fetchData();
-      }
-    } catch {
-      toast.error('Failed to publish circular.');
-    }
-  };
-
-  const handleWorkflowAction = async (id: string, action: 'APPROVE' | 'REJECT') => {
-    try {
-      const res = await api.post(`/workflows/requests/${id}/action`, { action, comment: 'Principal action recorded.' });
-      if (res.data?.status === 'success') {
-        toast.success(`Workflow request successfully ${action.toLowerCase()}d.`);
-        fetchData();
-      }
-    } catch {
-      toast.error('Could not dispatch action on request.');
-    }
-  };
-
-  return (
-    <div className="space-y-6 animate-in fade-in-50 duration-200">
-      {/* Header Banner */}
-      <div className="bg-gradient-to-r from-violet-600 via-indigo-600 to-blue-600 p-6 rounded-2xl text-white shadow-lg relative overflow-hidden">
-        <div className="absolute right-0 bottom-0 opacity-10 transform translate-y-8 translate-x-8">
-          <Shield className="h-64 w-64" />
-        </div>
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="space-y-2">
-            <div className="inline-flex flex-wrap items-center gap-1.5 bg-white/20 px-3 py-1 rounded-full text-xs font-bold backdrop-blur-md uppercase tracking-wider">
-              <Sparkles className="h-3.5 w-3.5" /> Executive Command Portal
-            </div>
-            <h2 className="text-2xl md:text-3xl font-extrabold">Welcome, Principal {user.firstName}</h2>
-            <p className="text-sm opacity-90 font-medium">unified campus monitoring, quality audits & workflow approvals</p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <select
-              value={selectedYear}
-              onChange={e => setSelectedYear(e.target.value)}
-              className="bg-white/10 text-white border border-white/20 rounded-lg px-3 py-1.5 text-xs font-bold focus:outline-none"
-            >
-              <option value="2026-2027" className="text-foreground">AY 2026-27</option>
-              <option value="2025-2026" className="text-foreground">AY 2025-26</option>
-            </select>
-            <button onClick={fetchData} className="p-2 bg-white/15 hover:bg-white/25 rounded-lg border border-white/25 transition-colors">
-              <RefreshCw className="h-4 w-4" />
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Principal Navigation Tabs */}
-      <div className="flex flex-wrap gap-2 border-b pb-1 overflow-x-auto">
-        {[
-          { key: 'overview', label: 'Executive Overview' },
-          { key: 'placements', label: 'Placement Dashboard (Read-Only)' },
-          { key: 'complaints', label: 'Complaint Monitoring Center' },
-          { key: 'activities', label: 'Campus Activities Monitoring' }
-        ].map(t => (
-          <button
-            key={t.key}
-            onClick={() => setPrincipalTab(t.key as any)}
-            className={`px-4 py-2 text-xs font-extrabold border-b-2 transition-all shrink-0 ${
-              principalTab === t.key ? 'border-primary text-primary font-black' : 'border-transparent text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
-
-      {principalTab === 'placements' && (
-        <PlacementDashboard readOnly={true} />
-      )}
-
-      {principalTab === 'complaints' && (
-        <ComplaintMonitoringCenter readOnly={true} />
-      )}
-
-      {principalTab === 'activities' && (
-        <CampusActivitiesMonitoring readOnly={true} />
-      )}
-
-      {principalTab === 'overview' && (
-        <>
-          {/* KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 md:grid-cols-4 gap-4">
-        {[
-          { title: 'Total Enrollment', value: stats?.totalStudents || 1450, sub: 'Active students', icon: Users, color: 'bg-indigo-50 border-indigo-100 text-indigo-600' },
-          { title: 'Faculty Members', value: stats?.totalFaculty || 124, sub: 'Unified faculty roster', icon: GraduationCap, color: 'bg-emerald-50 border-emerald-100 text-emerald-600' },
-          { title: 'Active Departments', value: departments.length || stats?.totalDepartments || 3, sub: 'Departments catalogued', icon: Building, color: 'bg-amber-50 border-amber-100 text-amber-600' },
-          { title: 'Workflow Approvals', value: workflows.filter(w => w.status === 'PENDING').length, sub: 'Awaiting authorization', icon: CheckSquare, color: 'bg-pink-50 border-pink-100 text-pink-600' }
-        ].map((kpi, idx) => (
-          <div key={idx} className="border bg-card p-4 rounded-xl shadow-sm flex items-center justify-between">
-            <div className="space-y-1 font-semibold">
-              <span className="text-[10px] uppercase text-muted-foreground tracking-wider block">{kpi.title}</span>
-              <span className="text-2xl font-black block">{kpi.value}</span>
-              <span className="text-[9px] text-muted-foreground block">{kpi.sub}</span>
-            </div>
-            <div className={`p-3 rounded-lg border ${kpi.color}`}>
-              <kpi.icon className="h-5 w-5" />
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Interactive Controls & Analytics */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 text-xs font-semibold">
-        
-        {/* Left Column: Department health and export reports */}
-        <div className="lg:col-span-2 space-y-6">
-          
-          {/* Departmental Health Table */}
-          <div className="border bg-card p-5 rounded-xl shadow-sm space-y-4">
-            <div className="flex justify-between items-center border-b pb-2">
-              <h3 className="text-sm font-extrabold uppercase">Departmental Health & Performance</h3>
-              <select
-                value={selectedDept}
-                onChange={e => setSelectedDept(e.target.value)}
-                className="h-8 border rounded-lg px-2 text-xs font-bold"
-              >
-                <option value="ALL">All Departments</option>
-                {departments.map((d: any) => (
-                  <option key={d.id} value={d.code}>{d.name}</option>
-                ))}
-              </select>
-            </div>
-            {isMobile ? (
-              <div className="space-y-3">
-                {(departments.length > 0 ? departments.map((d: any) => ({
-                  name: d.name, code: d.code, att: '94.2%', placement: '85.4%', progress: '85%'
-                })) : [
-                  { name: 'Computer Science & Engineering', code: 'CSE', att: '95.1%', placement: '88.2%', progress: '88%' },
-                  { name: 'Electronics & Communication', code: 'ECE', att: '92.4%', placement: '82.0%', progress: '82%' },
-                  { name: 'Mechanical Engineering', code: 'MECH', att: '89.8%', placement: '76.5%', progress: '78%' }
-                ])
-                .filter(row => selectedDept === 'ALL' || row.code === selectedDept)
-                .map((row, idx) => (
-                  <div key={idx} className="p-4 border rounded-xl bg-background space-y-3 text-xs font-semibold text-left">
-                    <div className="flex justify-between items-center border-b pb-2">
-                      <span className="font-extrabold text-slate-800 text-xs">{row.name}</span>
-                      <span className="text-[10px] text-primary font-mono font-bold bg-primary/10 border border-primary/20 px-1.5 py-0.5 rounded">{row.code}</span>
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-[10px]">
-                      <p><span className="text-muted-foreground font-bold">Attendance:</span> <span className="text-emerald-600 font-bold">{row.att}</span></p>
-                      <p><span className="text-muted-foreground font-bold">Placement:</span> <span className="text-indigo-600 font-bold">{row.placement}</span></p>
-                    </div>
-                    <div className="pt-2 border-t flex items-center justify-between text-[10px]">
-                      <span className="text-muted-foreground font-bold">Syllabus Progress:</span>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <div className="w-16 bg-muted h-1.5 rounded-full overflow-hidden shrink-0">
-                          <div className="bg-primary h-full" style={{ width: row.progress }} />
-                        </div>
-                        <span className="font-bold">{row.progress}</span>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse">
-                  <thead>
-                    <tr className="border-b text-muted-foreground text-[9px] uppercase tracking-wider font-bold">
-                      <th className="pb-2">Department</th>
-                      <th className="pb-2">Code</th>
-                      <th className="pb-2">Daily Attendance</th>
-                      <th className="pb-2">Placement Rate</th>
-                      <th className="pb-2">Syllabus Progress</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y">
-                    {(departments.length > 0 ? departments.map((d: any) => ({
-                      name: d.name, code: d.code, att: '94.2%', placement: '85.4%', progress: '85%'
-                    })) : [
-                      { name: 'Computer Science & Engineering', code: 'CSE', att: '95.1%', placement: '88.2%', progress: '88%' },
-                      { name: 'Electronics & Communication', code: 'ECE', att: '92.4%', placement: '82.0%', progress: '82%' },
-                      { name: 'Mechanical Engineering', code: 'MECH', att: '89.8%', placement: '76.5%', progress: '78%' }
-                    ])
-                    .filter(row => selectedDept === 'ALL' || row.code === selectedDept)
-                    .map((row, idx) => (
-                      <tr key={idx} className="hover:bg-muted/10">
-                        <td className="py-3 font-bold">{row.name}</td>
-                        <td className="py-3 text-primary">{row.code}</td>
-                        <td className="py-3 text-emerald-600 font-bold">{row.att}</td>
-                        <td className="py-3 text-indigo-600 font-bold">{row.placement}</td>
-                        <td className="py-3">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <div className="w-16 bg-muted h-1.5 rounded-full overflow-hidden shrink-0">
-                              <div className="bg-primary h-full" style={{ width: row.progress }} />
-                            </div>
-                            <span>{row.progress}</span>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-
-          {/* Action Approval Queue */}
-          <div className="border bg-card p-5 rounded-xl shadow-sm space-y-4">
-            <h3 className="text-sm font-extrabold uppercase border-b pb-2">Institution Approvals Registry</h3>
-            <div className="space-y-3">
-              {workflows.filter(w => w.status === 'PENDING').slice(0, 3).map((w, idx) => (
-                <div key={w.id || idx} className="p-3 border rounded-xl bg-background flex flex-col md:flex-row justify-between md:items-center gap-3">
-                  <div className="space-y-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="bg-primary/10 border border-primary/20 text-primary text-[9px] font-extrabold px-1.5 py-0.5 rounded uppercase">
-                        {w.type}
-                      </span>
-                      <h4 className="font-bold">{w.title}</h4>
-                    </div>
-                    <p className="text-[10px] text-muted-foreground italic">Reason: "{w.reason}"</p>
-                    <p className="text-[9px] text-muted-foreground">
-                      Applied by Student ID: {w.studentId || 'N/A'} · Applied on: {new Date(w.createdAt).toLocaleDateString()}
-                    </p>
-                  </div>
-                  <div className="flex flex-wrap gap-2 shrink-0">
-                    <button onClick={() => handleWorkflowAction(w.id, 'APPROVE')} className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg font-bold flex flex-wrap items-center gap-1">
-                      <Check className="h-3.5 w-3.5" /> Approve
-                    </button>
-                    <button onClick={() => handleWorkflowAction(w.id, 'REJECT')} className="px-3 py-1.5 bg-rose-500 hover:bg-rose-600 text-white rounded-lg font-bold flex flex-wrap items-center gap-1">
-                      <X className="h-3.5 w-3.5" /> Reject
-                    </button>
-                  </div>
-                </div>
-              ))}
-              {workflows.filter(w => w.status === 'PENDING').length === 0 && (
-                <p className="text-xs text-muted-foreground text-center py-6">All workflow requests have been resolved.</p>
-              )}
-            </div>
-          </div>
-
-          {/* Export Report Generator */}
-          <div className="border bg-card p-5 rounded-xl shadow-sm space-y-4">
-            <h3 className="text-sm font-extrabold uppercase border-b pb-2">Institutional Report Ledger</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {[
-                { title: 'Unified Attendance Ledger', type: 'Attendance' },
-                { title: 'University Examination Transcript', type: 'Examination' },
-                { title: 'NBA Standards Accreditation Audit', type: 'Accreditation' },
-                { title: 'Placement Analytics Digest', type: 'Placement' }
-              ].map((rep, idx) => (
-                <div key={idx} className="p-3 border rounded-xl bg-background flex items-center justify-between">
-                  <span className="font-bold">{rep.title}</span>
-                  <div className="flex flex-wrap gap-1.5">
-                    <button onClick={() => handleExport(rep.type, 'PDF')} className="p-1.5 border hover:bg-muted rounded" title="Export PDF">
-                      <FileText className="h-3.5 w-3.5 text-rose-500" />
-                    </button>
-                    <button onClick={() => handleExport(rep.type, 'EXCEL')} className="p-1.5 border hover:bg-muted rounded" title="Export Excel">
-                      <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-600" />
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* Right Column: Complaint monitoring & Announcements */}
-        <div className="space-y-6">
-          
-          {/* Complaint Monitor */}
-          <div className="border bg-card p-5 rounded-xl shadow-sm space-y-4">
-            <h3 className="text-sm font-extrabold uppercase border-b pb-2">Grievance & Support Tickets</h3>
-            <div className="space-y-3">
-              {tickets.slice(0, 3).map((ticket, idx) => (
-                <div key={ticket.id || idx} className="p-3 border rounded-xl bg-background flex flex-col gap-1.5">
-                  <div className="flex justify-between items-center">
-                    <span className={`text-[9px] font-extrabold px-1.5 py-0.5 rounded uppercase ${
-                      ticket.priority === 'HIGH' ? 'bg-rose-50 text-rose-600 border border-rose-100' : 'bg-amber-50 text-amber-600 border border-amber-100'
-                    }`}>
-                      {ticket.priority || 'HIGH'}
-                    </span>
-                    <span className="text-[9px] text-muted-foreground">{ticket.category}</span>
-                  </div>
-                  <h4 className="font-bold text-foreground truncate">{ticket.subject}</h4>
-                  <p className="text-[10px] text-muted-foreground line-clamp-2">{ticket.description}</p>
-                  <div className="flex justify-between items-center pt-2 border-t text-[9px] text-muted-foreground">
-                    <span>Status: <span className="font-bold text-amber-600">{ticket.status}</span></span>
-                    <span>{new Date(ticket.createdAt).toLocaleDateString()}</span>
-                  </div>
-                </div>
-              ))}
-              {tickets.length === 0 && (
-                <p className="text-xs text-muted-foreground text-center py-6">No support tickets escalations logged.</p>
-              )}
-            </div>
-          </div>
-
-          {/* Publish Announcement Creator */}
-          <div className="border bg-card p-5 rounded-xl shadow-sm space-y-4">
-            <h3 className="text-sm font-extrabold uppercase border-b pb-2">Publish Institution Circular</h3>
-            <form onSubmit={handleCreateAnnouncement} className="space-y-3">
-              <div className="flex flex-col gap-1">
-                <label className="text-[9px] uppercase font-bold text-muted-foreground">Target Recipients</label>
-                <select value={announceTarget} onChange={e => setAnnounceTarget(e.target.value)}
-                  className="h-9 border rounded-lg bg-background px-3 font-semibold">
-                  <option value="ALL">All Users</option>
-                  <option value="Student">All Students</option>
-                  <option value="Faculty">All Faculty</option>
-                  <option value="Parent">All Parents</option>
-                  <option value="HOD">All HODs</option>
-                  <option value="Mentor">All Mentors</option>
-                </select>
-              </div>
-              <div className="flex flex-col gap-1">
-                <label className="text-[9px] uppercase font-bold text-muted-foreground">Circular Title *</label>
-                <input type="text" required placeholder="Circular topic..."
-                  value={announceTitle} onChange={e => setAnnounceTitle(e.target.value)}
-                  className="h-9 border rounded-lg bg-background px-3 font-semibold text-xs" />
-              </div>
-              <div className="flex flex-col gap-1">
-                <label className="text-[9px] uppercase font-bold text-muted-foreground">Body Content *</label>
-                <textarea required placeholder="Write full circular content..."
-                  rows={4} value={announceBody} onChange={e => setAnnounceBody(e.target.value)}
-                  className="border rounded-lg bg-background p-3 font-semibold text-xs resize-none" />
-              </div>
-
-              {/* ── Image Attachment ─── */}
-              <div className="flex flex-col gap-2">
-                <label className="text-[9px] uppercase font-bold text-muted-foreground flex flex-wrap items-center gap-1">
-                  <ImagePlus className="h-3 w-3" /> Circular Image Attachment
-                </label>
-                {circPreview ? (
-                  <div className="border rounded-lg overflow-hidden relative">
-                    <img src={circPreview} alt="preview" className="w-full max-h-36 object-contain bg-black/5" />
-                    <div className="p-2 border-t flex flex-wrap items-center justify-between gap-2 bg-card">
-                      <div className="flex flex-wrap items-center gap-1 min-w-0">
-                        <FileImage className="h-3 w-3 text-primary shrink-0" />
-                        <span className="text-[9px] font-semibold truncate">{circImage?.name}</span>
-                      </div>
-                      <button type="button" onClick={removeCircImage}
-                        className="p-0.5 rounded bg-destructive/10 text-destructive hover:bg-destructive/20">
-                        <X className="h-3 w-3" />
-                      </button>
-                    </div>
-                    <button type="button" onClick={() => circImgRef.current?.click()}
-                      className="absolute top-1 right-1 px-2 py-0.5 bg-black/60 text-white text-[9px] font-bold rounded hover:bg-black/80">
-                      Replace
-                    </button>
-                  </div>
-                ) : (
-                  <button type="button" onClick={() => circImgRef.current?.click()}
-                    className="border-2 border-dashed border-muted-foreground/30 rounded-lg p-3 flex flex-wrap items-center justify-center gap-2 hover:border-primary/50 hover:bg-primary/5 transition-all">
-                    <ImagePlus className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-[9px] font-semibold text-muted-foreground">Upload Image (JPG/PNG/WEBP · Max 10 MB)</span>
-                  </button>
-                )}
-                {circImgErr && <p className="text-[9px] text-destructive font-semibold">{circImgErr}</p>}
-                <input ref={circImgRef} type="file" accept="image/jpeg,image/jpg,image/png,image/webp"
-                  onChange={handleCircImageSelect} className="hidden" />
-              </div>
-
-              <button type="submit" className="w-full h-9 bg-primary text-primary-foreground font-bold rounded-lg hover:opacity-90 flex flex-wrap items-center justify-center gap-1.5 text-xs">
-                <Megaphone className="h-4 w-4" /> Publish Circular
-              </button>
-            </form>
-          </div>
-        </div>
-
-      </div>
-        </>
-      )}
-    </div>
-  );
+  return <PrincipalExecutivePortal user={user} />;
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -552,8 +86,8 @@ export const VicePrincipalPortal: React.FC<VicePrincipalPortalProps> = ({ user }
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const rawTab = searchParams.get('tab');
-  const vpTab = rawTab === 'overview' ? 'overview' : 'operations';
-  const setVpTab = (tab: 'operations' | 'overview') => {
+  const vpTab = (rawTab || 'operations') as 'operations' | 'overview' | 'placements' | 'complaints' | 'activities';
+  const setVpTab = (tab: string) => {
     navigate(`/?tab=${tab}`, { replace: true });
   };
   const [requests, setRequests] = useState<any[]>([]);
@@ -645,11 +179,14 @@ export const VicePrincipalPortal: React.FC<VicePrincipalPortalProps> = ({ user }
       <div className="flex flex-wrap gap-2 border-b pb-1 overflow-x-auto">
         {[
           { key: 'operations', label: 'Operations & Monitoring' },
-          { key: 'overview', label: 'Discipline & Workflows' }
+          { key: 'overview', label: 'Discipline & Workflows' },
+          { key: 'placements', label: 'Placement Audit' },
+          { key: 'complaints', label: 'Complaints Monitoring' },
+          { key: 'activities', label: 'Campus Activities' }
         ].map(t => (
           <button
             key={t.key}
-            onClick={() => setVpTab(t.key as any)}
+            onClick={() => setVpTab(t.key)}
             className={`px-4 py-2 text-xs font-extrabold border-b-2 transition-all shrink-0 ${
               vpTab === t.key ? 'border-primary text-primary font-black' : 'border-transparent text-muted-foreground hover:text-foreground'
             }`}
@@ -661,6 +198,18 @@ export const VicePrincipalPortal: React.FC<VicePrincipalPortalProps> = ({ user }
 
       {vpTab === 'operations' && (
         <VPOperationsMonitoring readOnly={true} />
+      )}
+
+      {vpTab === 'placements' && (
+        <PlacementDashboard readOnly={true} />
+      )}
+
+      {vpTab === 'complaints' && (
+        <ComplaintMonitoringCenter readOnly={true} />
+      )}
+
+      {vpTab === 'activities' && (
+        <CampusActivitiesMonitoring readOnly={true} />
       )}
 
       {vpTab === 'overview' && (
@@ -809,276 +358,6 @@ export const VicePrincipalPortal: React.FC<VicePrincipalPortalProps> = ({ user }
   );
 };
 
-// ─────────────────────────────────────────────────────────────────────────────
-// 3. ACADEMIC DEAN PORTAL
-// ─────────────────────────────────────────────────────────────────────────────
-interface AcademicDeanPortalProps {
-  user: any;
-}
-export const AcademicDeanPortal: React.FC<AcademicDeanPortalProps> = ({ user }) => {
-  const [allocations, setAllocations] = useState<any[]>([]);
-  const [subjects, setSubjects] = useState<any[]>([]);
-  const [faculties, setFaculties] = useState<any[]>([]);
-  const [sections, setSections] = useState<any[]>([]);
-  const [semesters, setSemesters] = useState<any[]>([]);
-  const [years, setYears] = useState<any[]>([]);
-
-  const [form, setForm] = useState({
-    facultyId: '',
-    subjectId: '',
-    sectionId: '',
-    semesterId: '',
-    academicYearId: '',
-    isMentor: false
-  });
-
-  const fetchData = async () => {
-    try {
-      const [allocRes, subRes, facRes, secRes, semRes, yearRes] = await Promise.all([
-        api.get('/academics/subject-assignments'),
-        api.get('/academics/subjects?pageSize=100'),
-        api.get('/enterprise/faculty?pageSize=100'),
-        api.get('/academics/sections?pageSize=100'),
-        api.get('/academics/semesters?pageSize=100'),
-        api.get('/academics/years?pageSize=100')
-      ]);
-
-      if (allocRes.data?.status === 'success') setAllocations(allocRes.data.data);
-      if (subRes.data?.status === 'success') setSubjects(subRes.data.data);
-      if (facRes.data?.status === 'success') setFaculties(facRes.data.data);
-      if (secRes.data?.status === 'success') setSections(secRes.data.data);
-      if (semRes.data?.status === 'success') setSemesters(semRes.data.data);
-      if (yearRes.data?.status === 'success') setYears(yearRes.data.data);
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  const handleAssign = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      const res = await api.post('/academics/subject-assignments', form);
-      if (res.data?.status === 'success') {
-        toast.success('Subject mapping allocated successfully.');
-        fetchData();
-        setForm({ facultyId: '', subjectId: '', sectionId: '', semesterId: '', academicYearId: '', isMentor: false });
-      }
-    } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Conflict or duplicate mapping found.');
-    }
-  };
-
-  const handleRemove = async (id: string) => {
-    try {
-      await api.delete(`/academics/subject-assignments/${id}`);
-      toast.success('Allocation mapping revoked.');
-      fetchData();
-    } catch {
-      toast.error('Could not revoke allocation.');
-    }
-  };
-
-  return (
-    <div className="space-y-6 animate-in fade-in-50 duration-200">
-      {/* Banner */}
-      <div className="bg-gradient-to-r from-blue-600 via-sky-600 to-indigo-600 p-6 rounded-2xl text-white shadow-lg relative overflow-hidden">
-        <div className="absolute right-0 bottom-0 opacity-10 transform translate-y-8 translate-x-8">
-          <BookOpen className="h-64 w-64" />
-        </div>
-        <div className="relative z-10 flex justify-between items-center">
-          <div className="space-y-2">
-            <div className="inline-flex flex-wrap items-center gap-1.5 bg-white/20 px-3 py-1 rounded-full text-xs font-bold backdrop-blur-md uppercase tracking-wider">
-              <BookOpen className="h-3.5 w-3.5" /> Academic Master Mapping Suite
-            </div>
-            <h2 className="text-2xl md:text-3xl font-extrabold">Welcome, Dean {user.firstName}</h2>
-            <p className="text-sm opacity-90 font-medium">Curriculum maps, syllabus tracking, timetable structures, OBE & audit compliance</p>
-          </div>
-          <button onClick={fetchData} className="p-2 bg-white/10 hover:bg-white/20 border border-white/20 rounded-lg">
-            <RefreshCw className="h-4 w-4" />
-          </button>
-        </div>
-      </div>
-
-      {/* OBE & Compliance KPIs */}
-      <div className="grid grid-cols-1 md:grid-cols-2 md:grid-cols-4 gap-4 text-xs font-semibold">
-        {[
-          { title: 'Accreditation OBE Score', value: 'OBE Compliance: A', sub: 'Target: NBA Tier 1 standards', icon: CheckCircle, color: 'text-indigo-600 bg-indigo-50 border-indigo-100' },
-          { title: 'Syllabus Mappings', value: `${subjects.length} Courses mapped`, sub: 'Unified Outcome matrix catalogued', icon: BookOpen, color: 'text-emerald-600 bg-emerald-50 border-emerald-100' },
-          { title: 'Faculty allocations', value: `${allocations.length} Active`, sub: 'Current semester mapping', icon: Users, color: 'text-amber-600 bg-amber-50 border-amber-100' },
-          { title: 'Academic Performance', value: 'Avg GPA: 8.44', sub: 'Across B.Tech programs', icon: BarChart2, color: 'text-pink-600 bg-pink-50 border-pink-100' }
-        ].map((kpi, idx) => (
-          <div key={idx} className="border bg-card p-4 rounded-xl shadow-sm flex items-center justify-between">
-            <div className="space-y-1">
-              <span className="text-[10px] uppercase text-muted-foreground block">{kpi.title}</span>
-              <span className="text-xs font-black block">{kpi.value}</span>
-              <span className="text-[9px] text-muted-foreground block">{kpi.sub}</span>
-            </div>
-            <div className={`p-2.5 rounded-lg border ${kpi.color}`}>
-              <kpi.icon className="h-5 w-5" />
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 text-xs font-semibold">
-        
-        {/* Left Form: Assign Faculty */}
-        <div className="border bg-card p-5 rounded-xl shadow-sm space-y-4 lg:col-span-1 h-fit">
-          <h3 className="text-sm font-extrabold uppercase border-b pb-2">Allocate Faculty Mapping</h3>
-          <form onSubmit={handleAssign} className="space-y-3">
-            <div className="flex flex-col gap-1">
-              <label className="text-[9px] uppercase font-bold text-muted-foreground">Faculty Member</label>
-              <select
-                required
-                value={form.facultyId}
-                onChange={e => setForm({...form, facultyId: e.target.value})}
-                className="h-9 border rounded bg-background px-3"
-              >
-                <option value="">Select Faculty...</option>
-                {faculties.map((f: any) => (
-                  <option key={f.id} value={f.id}>{f.firstName} {f.lastName} ({f.employeeId})</option>
-                ))}
-              </select>
-            </div>
-
-            <div className="flex flex-col gap-1">
-              <label className="text-[9px] uppercase font-bold text-muted-foreground">Subject / Course</label>
-              <select
-                required
-                value={form.subjectId}
-                onChange={e => setForm({...form, subjectId: e.target.value})}
-                className="h-9 border rounded bg-background px-3"
-              >
-                <option value="">Select Subject...</option>
-                {subjects.map((s: any) => (
-                  <option key={s.id} value={s.id}>{s.name} ({s.code})</option>
-                ))}
-              </select>
-            </div>
-
-            <div className="flex flex-col gap-1">
-              <label className="text-[9px] uppercase font-bold text-muted-foreground">Section</label>
-              <select
-                required
-                value={form.sectionId}
-                onChange={e => setForm({...form, sectionId: e.target.value})}
-                className="h-9 border rounded bg-background px-3"
-              >
-                <option value="">Select Section...</option>
-                {sections.map((s: any) => (
-                  <option key={s.id} value={s.id}>{s.name}</option>
-                ))}
-              </select>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-              <div className="flex flex-col gap-1">
-                <label className="text-[9px] uppercase font-bold text-muted-foreground">Semester</label>
-                <select
-                  required
-                  value={form.semesterId}
-                  onChange={e => setForm({...form, semesterId: e.target.value})}
-                  className="h-9 border rounded bg-background px-2"
-                >
-                  <option value="">Select...</option>
-                  {semesters.map((s: any) => (
-                    <option key={s.id} value={s.id}>{s.name}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="flex flex-col gap-1">
-                <label className="text-[9px] uppercase font-bold text-muted-foreground">Academic Year</label>
-                <select
-                  required
-                  value={form.academicYearId}
-                  onChange={e => setForm({...form, academicYearId: e.target.value})}
-                  className="h-9 border rounded bg-background px-2"
-                >
-                  <option value="">Select...</option>
-                  {years.map((y: any) => (
-                    <option key={y.id} value={y.id}>{y.name}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-2 pt-1">
-              <input
-                type="checkbox"
-                id="isMentor"
-                checked={form.isMentor}
-                onChange={e => setForm({...form, isMentor: e.target.checked})}
-                className="h-4 w-4 border rounded accent-primary"
-              />
-              <label htmlFor="isMentor" className="text-[10px] font-bold text-muted-foreground cursor-pointer">
-                Designate as Section Mentor
-              </label>
-            </div>
-
-            <button type="submit" className="w-full h-9 bg-primary text-primary-foreground font-bold rounded-lg hover:opacity-90 transition-opacity mt-2">
-              Save Subject Allocation
-            </button>
-          </form>
-        </div>
-
-        {/* Right Table: List mapping allocations */}
-        <div className="border bg-card p-5 rounded-xl shadow-sm space-y-4 lg:col-span-2">
-          <div className="flex justify-between items-center border-b pb-2">
-            <h3 className="text-sm font-extrabold uppercase">Current Faculty Allocations Ledger</h3>
-            <button onClick={() => handleExport('Academic Master Syllabus Mappings', 'EXCEL')} className="h-8 border hover:bg-muted text-xs px-2.5 rounded-lg flex flex-wrap items-center gap-1.5">
-              <Download className="h-3.5 w-3.5" /> Export Matrix
-            </button>
-          </div>
-          
-          {/* AI Insights panel */}
-          <div className="p-3 bg-indigo-50/40 border border-indigo-100 rounded-xl space-y-2">
-            <h4 className="font-extrabold text-[10px] text-indigo-700 flex flex-wrap items-center gap-1.5 uppercase">
-              <Sparkles className="h-3.5 w-3.5" /> Dean's AI Academic Audit Assistant
-            </h4>
-            <ul className="list-disc pl-4 space-y-1 text-[10px] text-indigo-950 font-bold leading-normal">
-              <li>Low Performance Warning: <strong>Mechanical Eng</strong> has a 12.5% failure probability rate in Thermals exams this year. Recommended remedial sessions.</li>
-              <li>Syllabus Completion Risk: <strong>Section B DBMS</strong> is 15% behind standard schedules. Action plan assigned to Mentor.</li>
-            </ul>
-          </div>
-
-          <div className="space-y-3 max-h-[360px] overflow-y-auto pr-1">
-            {allocations.map((alloc, idx) => (
-              <div key={alloc.id || idx} className="p-3 border rounded-lg bg-background flex flex-wrap justify-between items-center gap-3">
-                <div className="space-y-1">
-                  <span className="text-[9px] font-extrabold bg-primary/10 border border-primary/20 text-primary px-1.5 py-0.5 rounded uppercase">
-                    {alloc.subject?.code} · {alloc.section?.name}
-                  </span>
-                  <h4 className="font-bold text-foreground text-xs">{alloc.subject?.name}</h4>
-                  <p className="text-[10px] text-muted-foreground font-bold">
-                    Assigned: <span className="text-foreground">{alloc.faculty?.firstName} {alloc.faculty?.lastName}</span>
-                  </p>
-                  <p className="text-[9px] text-muted-foreground">
-                    Year: {alloc.academicYear?.name} · Sem: {alloc.semester?.name} {alloc.isMentor && ' · 🤝 Mentor'}
-                  </p>
-                </div>
-                <button
-                  onClick={() => handleRemove(alloc.id)}
-                  className="h-8 w-8 text-rose-500 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 rounded-lg flex items-center justify-center transition-colors shrink-0"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </button>
-              </div>
-            ))}
-            {allocations.length === 0 && (
-              <p className="text-xs text-muted-foreground py-6 text-center">No allocations recorded yet.</p>
-            )}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 4. ADMISSION DEAN PORTAL

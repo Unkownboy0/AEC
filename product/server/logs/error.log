@@ -34,3 +34,245 @@ Argument `effectiveYear`: Invalid value provided. Expected String, provided Int.
     at l (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:130:9633)
     at EnterpriseService.saveSetupStep (D:\company work\crm\product\server\src\modules\enterprise\enterprise.service.ts:1265:13)
     at saveSetupStep (D:\company work\crm\product\server\src\modules\enterprise\enterprise.controller.ts:1526:20)
+[2026-07-29 10:32:38] [ERROR]: SyntaxError: Expected property name or '}' in JSON at position 1
+    at JSON.parse (<anonymous>)
+    at parse (D:\company work\crm\product\server\node_modules\body-parser\lib\types\json.js:96:19)
+    at D:\company work\crm\product\server\node_modules\body-parser\lib\read.js:128:18
+    at AsyncResource.runInAsyncScope (node:async_hooks:206:9)
+    at invokeCallback (D:\company work\crm\product\server\node_modules\raw-body\index.js:238:16)
+    at done (D:\company work\crm\product\server\node_modules\raw-body\index.js:227:7)
+    at IncomingMessage.onEnd (D:\company work\crm\product\server\node_modules\raw-body\index.js:287:7)
+    at IncomingMessage.emit (node:events:524:28)
+    at endReadableNT (node:internal/streams/readable:1698:12)
+    at processTicksAndRejections (node:internal/process/task_queues:82:21)
+[2026-07-30 21:08:48] [ERROR]: PrismaClientKnownRequestError: 
+Invalid `prisma.task.findMany()` invocation in
+D:\company work\crm\product\server\src\modules\enterprise\hod.controller.ts:87:21
+
+  84   where: { subject: { departmentId: deptId } },
+  85 }),
+  86 // Tasks
+→ 87 prisma.task.findMany(
+The column `main.tasks.parentTaskId` does not exist in the current database.
+    at $n.handleRequestError (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:7315)
+    at $n.handleAndLogRequestError (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6623)
+    at $n.request (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6307)
+    at l (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:130:9633)
+    at async Promise.all (index 11)
+    at getDashboard (D:\company work\crm\product\server\src\modules\enterprise\hod.controller.ts:42:11)
+[2026-07-30 21:08:48] [ERROR]: PrismaClientKnownRequestError: 
+Invalid `prisma.task.findMany()` invocation in
+D:\company work\crm\product\server\src\modules\enterprise\hod.controller.ts:87:21
+
+  84   where: { subject: { departmentId: deptId } },
+  85 }),
+  86 // Tasks
+→ 87 prisma.task.findMany(
+The column `main.tasks.parentTaskId` does not exist in the current database.
+    at $n.handleRequestError (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:7315)
+    at $n.handleAndLogRequestError (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6623)
+    at $n.request (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6307)
+    at l (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:130:9633)
+    at async Promise.all (index 11)
+    at getDashboard (D:\company work\crm\product\server\src\modules\enterprise\hod.controller.ts:42:11)
+[2026-07-30 21:08:57] [ERROR]: PrismaClientKnownRequestError: 
+Invalid `prisma.task.findMany()` invocation in
+D:\company work\crm\product\server\src\modules\enterprise\hod.controller.ts:87:21
+
+  84   where: { subject: { departmentId: deptId } },
+  85 }),
+  86 // Tasks
+→ 87 prisma.task.findMany(
+The column `main.tasks.parentTaskId` does not exist in the current database.
+    at $n.handleRequestError (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:7315)
+    at $n.handleAndLogRequestError (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6623)
+    at $n.request (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6307)
+    at l (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:130:9633)
+    at async Promise.all (index 11)
+    at getDashboard (D:\company work\crm\product\server\src\modules\enterprise\hod.controller.ts:42:11)
+[2026-07-30 21:08:59] [ERROR]: PrismaClientKnownRequestError: 
+Invalid `prisma.task.findMany()` invocation in
+D:\company work\crm\product\server\src\modules\enterprise\hod.controller.ts:87:21
+
+  84   where: { subject: { departmentId: deptId } },
+  85 }),
+  86 // Tasks
+→ 87 prisma.task.findMany(
+The column `main.tasks.parentTaskId` does not exist in the current database.
+    at $n.handleRequestError (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:7315)
+    at $n.handleAndLogRequestError (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6623)
+    at $n.request (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6307)
+    at l (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:130:9633)
+    at async Promise.all (index 11)
+    at getDashboard (D:\company work\crm\product\server\src\modules\enterprise\hod.controller.ts:42:11)
+[2026-07-30 21:09:03] [ERROR]: PrismaClientKnownRequestError: 
+Invalid `prisma.task.findMany()` invocation in
+D:\company work\crm\product\server\src\modules\enterprise\hod.controller.ts:87:21
+
+  84   where: { subject: { departmentId: deptId } },
+  85 }),
+  86 // Tasks
+→ 87 prisma.task.findMany(
+The column `main.tasks.parentTaskId` does not exist in the current database.
+    at $n.handleRequestError (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:7315)
+    at $n.handleAndLogRequestError (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6623)
+    at $n.request (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6307)
+    at l (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:130:9633)
+    at async Promise.all (index 11)
+    at getDashboard (D:\company work\crm\product\server\src\modules\enterprise\hod.controller.ts:42:11)
+[2026-07-31 10:54:35] [ERROR]: PrismaClientValidationError: 
+Invalid `any).auditLog.findMany()` invocation in
+D:\company work\crm\product\server\src\modules\enterprise\profile-drilldown.service.ts:153:40
+
+  150 
+  151 // Fetch Audit Logs
+  152 const auditLogs = userId
+→ 153   ? await (prisma as any).auditLog.findMany({
+          where: {
+            actorId: "d6310b07-eb8d-4ed7-92bf-3f08590c5123"
+          },
+          take: 15,
+          orderBy: {
+            timestamp: "desc",
+            ~~~~~~~~~
+        ?   id?: SortOrder,
+        ?   actorId?: SortOrder | SortOrderInput,
+        ?   action?: SortOrder,
+        ?   entityType?: SortOrder,
+        ?   entityId?: SortOrder | SortOrderInput,
+        ?   description?: SortOrder,
+        ?   previousValues?: SortOrder | SortOrderInput,
+        ?   newValues?: SortOrder | SortOrderInput,
+        ?   ipAddress?: SortOrder | SortOrderInput,
+        ?   userAgent?: SortOrder | SortOrderInput,
+        ?   requestId?: SortOrder | SortOrderInput,
+        ?   createdAt?: SortOrder,
+        ?   actor?: UserOrderByWithRelationInput
+          }
+        })
+
+Unknown argument `timestamp`. Available options are marked with ?.
+    at wn (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:29:1363)
+    at $n.handleRequestError (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6958)
+    at $n.handleAndLogRequestError (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6623)
+    at $n.request (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6307)
+    at l (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:130:9633)
+    at ProfileDrilldownService.getUser360Profile (D:\company work\crm\product\server\src\modules\enterprise\profile-drilldown.service.ts:153:9)
+    at getUser360 (D:\company work\crm\product\server\src\modules\enterprise\profile-drilldown.controller.ts:10:20)
+[2026-07-31 10:54:35] [ERROR]: PrismaClientValidationError: 
+Invalid `any).auditLog.findMany()` invocation in
+D:\company work\crm\product\server\src\modules\enterprise\profile-drilldown.service.ts:153:40
+
+  150 
+  151 // Fetch Audit Logs
+  152 const auditLogs = userId
+→ 153   ? await (prisma as any).auditLog.findMany({
+          where: {
+            actorId: "d6310b07-eb8d-4ed7-92bf-3f08590c5123"
+          },
+          take: 15,
+          orderBy: {
+            timestamp: "desc",
+            ~~~~~~~~~
+        ?   id?: SortOrder,
+        ?   actorId?: SortOrder | SortOrderInput,
+        ?   action?: SortOrder,
+        ?   entityType?: SortOrder,
+        ?   entityId?: SortOrder | SortOrderInput,
+        ?   description?: SortOrder,
+        ?   previousValues?: SortOrder | SortOrderInput,
+        ?   newValues?: SortOrder | SortOrderInput,
+        ?   ipAddress?: SortOrder | SortOrderInput,
+        ?   userAgent?: SortOrder | SortOrderInput,
+        ?   requestId?: SortOrder | SortOrderInput,
+        ?   createdAt?: SortOrder,
+        ?   actor?: UserOrderByWithRelationInput
+          }
+        })
+
+Unknown argument `timestamp`. Available options are marked with ?.
+    at wn (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:29:1363)
+    at $n.handleRequestError (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6958)
+    at $n.handleAndLogRequestError (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6623)
+    at $n.request (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6307)
+    at l (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:130:9633)
+    at ProfileDrilldownService.getUser360Profile (D:\company work\crm\product\server\src\modules\enterprise\profile-drilldown.service.ts:153:9)
+    at getUser360 (D:\company work\crm\product\server\src\modules\enterprise\profile-drilldown.controller.ts:10:20)
+[2026-07-31 10:57:23] [ERROR]: PrismaClientValidationError: 
+Invalid `any).auditLog.findMany()` invocation in
+D:\company work\crm\product\server\src\modules\enterprise\profile-drilldown.service.ts:190:40
+
+  187 
+  188 // Fetch Audit Logs
+  189 const auditLogs = userId
+→ 190   ? await (prisma as any).auditLog.findMany({
+          where: {
+            actorId: "4bdab17d-682c-4b11-980b-4bc1a1966469"
+          },
+          take: 15,
+          orderBy: {
+            timestamp: "desc",
+            ~~~~~~~~~
+        ?   id?: SortOrder,
+        ?   actorId?: SortOrder | SortOrderInput,
+        ?   action?: SortOrder,
+        ?   entityType?: SortOrder,
+        ?   entityId?: SortOrder | SortOrderInput,
+        ?   description?: SortOrder,
+        ?   previousValues?: SortOrder | SortOrderInput,
+        ?   newValues?: SortOrder | SortOrderInput,
+        ?   ipAddress?: SortOrder | SortOrderInput,
+        ?   userAgent?: SortOrder | SortOrderInput,
+        ?   requestId?: SortOrder | SortOrderInput,
+        ?   createdAt?: SortOrder,
+        ?   actor?: UserOrderByWithRelationInput
+          }
+        })
+
+Unknown argument `timestamp`. Available options are marked with ?.
+    at wn (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:29:1363)
+    at $n.handleRequestError (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6958)
+    at $n.handleAndLogRequestError (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6623)
+    at $n.request (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6307)
+    at l (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:130:9633)
+    at ProfileDrilldownService.getUser360Profile (D:\company work\crm\product\server\src\modules\enterprise\profile-drilldown.service.ts:190:9)
+    at getUser360 (D:\company work\crm\product\server\src\modules\enterprise\profile-drilldown.controller.ts:10:20)
+[2026-07-31 10:57:23] [ERROR]: PrismaClientValidationError: 
+Invalid `any).auditLog.findMany()` invocation in
+D:\company work\crm\product\server\src\modules\enterprise\profile-drilldown.service.ts:190:40
+
+  187 
+  188 // Fetch Audit Logs
+  189 const auditLogs = userId
+→ 190   ? await (prisma as any).auditLog.findMany({
+          where: {
+            actorId: "4bdab17d-682c-4b11-980b-4bc1a1966469"
+          },
+          take: 15,
+          orderBy: {
+            timestamp: "desc",
+            ~~~~~~~~~
+        ?   id?: SortOrder,
+        ?   actorId?: SortOrder | SortOrderInput,
+        ?   action?: SortOrder,
+        ?   entityType?: SortOrder,
+        ?   entityId?: SortOrder | SortOrderInput,
+        ?   description?: SortOrder,
+        ?   previousValues?: SortOrder | SortOrderInput,
+        ?   newValues?: SortOrder | SortOrderInput,
+        ?   ipAddress?: SortOrder | SortOrderInput,
+        ?   userAgent?: SortOrder | SortOrderInput,
+        ?   requestId?: SortOrder | SortOrderInput,
+        ?   createdAt?: SortOrder,
+        ?   actor?: UserOrderByWithRelationInput
+          }
+        })
+
+Unknown argument `timestamp`. Available options are marked with ?.
+    at wn (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:29:1363)
+    at $n.handleRequestError (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6958)
+    at $n.handleAndLogRequestError (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6623)
+    at $n.request (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6307)
+    at l (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:130:9633)
+    at ProfileDrilldownService.getUser360Profile (D:\company work\crm\product\server\src\modules\enterprise\profile-drilldown.service.ts:190:9)
+    at getUser360 (D:\company work\crm\product\server\src\modules\enterprise\profile-drilldown.controller.ts:10:20)

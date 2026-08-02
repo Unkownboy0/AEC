@@ -23,7 +23,7 @@ export declare class AuthService {
     /**
      * Get currently logged-in user profile (full — includes faculty/department for HOD/Faculty roles)
      */
-    getMe(userId: string): Promise<{
+    getMe(userId: string, activeRole?: string): Promise<{
         id: string;
         email: string;
         firstName: string;
@@ -36,6 +36,7 @@ export declare class AuthService {
         menus: any[];
         forcePasswordChange: boolean;
         faculty: any;
+        workspaces: string[];
     }>;
     /**
      * Change password for logged-in user

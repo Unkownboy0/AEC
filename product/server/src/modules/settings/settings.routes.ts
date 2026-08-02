@@ -7,5 +7,7 @@ const controller = new SettingsController();
 
 router.get('/', requireAuth, requirePermission('settings:read'), controller.list);
 router.post('/', requireAuth, requirePermission('settings:write'), controller.update);
+router.get('/principal-availability', requireAuth, controller.getPrincipalAvailability);
+router.post('/principal-availability', requireAuth, controller.setPrincipalAvailability);
 
 export default router;

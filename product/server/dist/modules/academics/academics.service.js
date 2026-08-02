@@ -11,16 +11,25 @@ class AcademicsService {
     // ==========================================
     async getFacultyDeptId(userId) {
         const f = await prisma_1.prisma.faculty.findFirst({ where: { userId } });
-        return f ? f.departmentId : null;
+        if (f?.departmentId)
+            return f.departmentId;
+        const mem = await prisma_1.prisma.departmentMembership.findFirst({ where: { userId } });
+        if (mem?.departmentId)
+            return mem.departmentId;
+        const usr = await prisma_1.prisma.user.findUnique({ where: { id: userId } });
+        return usr?.departmentId || null;
     }
     async listDepartments(params, user) {
         const page = Math.max(1, parseInt(params.page) || 1);
-        const pageSize = Math.max(1, parseInt(params.pageSize) || 10);
-        if (user && (user.role === 'HOD' || user.role === 'Faculty')) {
-            const deptId = await this.getFacultyDeptId(user.id);
-            if (deptId) {
-                const dept = await this.repo.findDeptById(deptId);
-                return { items: dept ? [dept] : [], totalCount: dept ? 1 : 0 };
+        const pageSize = Math.max(1, parseInt(params.pageSize) || 100);
+        // If caller explicitly asks for scope='own' or params.onlyMyDept === 'true'
+        if (params.scope === 'own' || params.onlyMyDept === 'true') {
+            if (user && (user.role === 'HOD' || user.role === 'Faculty')) {
+                const deptId = await this.getFacultyDeptId(user.id);
+                if (deptId) {
+                    const dept = await this.repo.findDeptById(deptId);
+                    return { items: dept ? [dept] : [], totalCount: dept ? 1 : 0 };
+                }
             }
         }
         return this.repo.findDepartments({

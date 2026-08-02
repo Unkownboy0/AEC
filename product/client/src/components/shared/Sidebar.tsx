@@ -206,30 +206,89 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed }) => {
             return renderedList;
           }
 
-          return menus.map((item: any) => {
-            const Icon = (LucideIcons as any)[item.icon] || LucideIcons.Layers;
-            const isActive = checkIsActive(item.path);
-            return (
-              <NavLink
-                key={item.path}
-                to={item.path}
-                className={cn(
-                  'relative flex items-center gap-3 py-2 px-3 text-xs font-semibold transition-all duration-200 ease-in-out',
-                  isActive
-                    ? 'bg-primary/10 text-primary font-bold border-l-[3px] border-primary pl-[9px] rounded-r-lg rounded-l-none'
-                    : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground pl-3 rounded-lg'
-                )}
-              >
-                <div className="relative">
-                  <Icon className={cn('h-4.5 w-4.5 flex-shrink-0 transition-colors duration-200', isActive ? 'text-primary' : 'text-muted-foreground group-hover:text-foreground')} />
-                  {isCollapsed && (item.path === '/?tab=leave_requests' || item.path === '/?tab=workflows') && pendingWfCount > 0 && (
-                    <span className="absolute -top-1.5 -right-1.5 flex h-2.5 w-2.5 rounded-full bg-rose-600 animate-pulse border border-card" />
+          return (
+            <>
+              {(user?.role === 'Principal' || user?.role === 'Vice Principal') && (
+                <NavLink
+                  to="/approval-center"
+                  className={cn(
+                    'relative flex items-center gap-3 py-2 px-3 text-xs font-semibold transition-all duration-200 ease-in-out mb-1',
+                    location.pathname === '/approval-center'
+                      ? 'bg-violet-600/15 text-violet-500 font-bold border-l-[3px] border-violet-500 pl-[9px] rounded-r-lg rounded-l-none'
+                      : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground pl-3 rounded-lg'
                   )}
+                >
+                  <div className="relative">
+                    <LucideIcons.ShieldCheck className={cn('h-4.5 w-4.5 flex-shrink-0 transition-colors duration-200', location.pathname === '/approval-center' ? 'text-violet-500' : 'text-muted-foreground')} />
+                  </div>
+                  {!isCollapsed && <span className="truncate font-bold">Approval Center</span>}
+                </NavLink>
+              )}
+              {user?.role === 'HOD' && (
+                <div className="space-y-0.5 my-1 border-b border-border/50 pb-2">
+                  <div className="px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">HOD Workspace</div>
+                  {[
+                    { name: 'HOD Dashboard', path: '/hod/dashboard', icon: LucideIcons.LayoutDashboard },
+                    { name: 'Leave & OD Approvals', path: '/hod/leave-approvals', icon: LucideIcons.FileCheck, badge: pendingWfCount },
+                    { name: 'Department Students', path: '/hod/students', icon: LucideIcons.Users },
+                    { name: 'Faculty Workload', path: '/hod/faculty', icon: LucideIcons.UserCheck },
+                    { name: 'Attendance Monitor', path: '/hod/attendance', icon: LucideIcons.AlertTriangle },
+                    { name: 'Task Desk', path: '/hod/tasks', icon: LucideIcons.Layers },
+                    { name: 'Reports & Exports', path: '/hod/reports', icon: LucideIcons.Download },
+                  ].map((hodItem) => {
+                    const HodIcon = hodItem.icon || LucideIcons.Layers;
+                    const isHodActive = checkIsActive(hodItem.path);
+                    return (
+                      <NavLink
+                        key={hodItem.path}
+                        to={hodItem.path}
+                        className={cn(
+                          'relative flex items-center gap-3 py-2 px-3 text-xs font-semibold transition-all duration-200 ease-in-out',
+                          isHodActive
+                            ? 'bg-indigo-600/15 text-indigo-500 font-bold border-l-[3px] border-indigo-500 pl-[9px] rounded-r-lg rounded-l-none'
+                            : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground pl-3 rounded-lg'
+                        )}
+                      >
+                        <div className="relative">
+                          {HodIcon && <HodIcon className={cn('h-4.5 w-4.5 flex-shrink-0 transition-colors duration-200', isHodActive ? 'text-indigo-500' : 'text-muted-foreground')} />}
+                        </div>
+                        {!isCollapsed && <span className="truncate">{hodItem.name}</span>}
+                        {!isCollapsed && hodItem.badge && hodItem.badge > 0 ? (
+                          <span className="ml-auto bg-amber-500 text-white font-bold px-1.5 py-0.5 rounded-full text-[10px]">
+                            {hodItem.badge}
+                          </span>
+                        ) : null}
+                      </NavLink>
+                    );
+                  })}
                 </div>
-                {!isCollapsed && <span className="truncate">{item.name}</span>}
-              </NavLink>
-            );
-          });
+              )}
+              {menus.map((item: any) => {
+                const Icon = (LucideIcons as any)[item.icon] || LucideIcons.Layers;
+                const isActive = checkIsActive(item.path);
+                return (
+                  <NavLink
+                    key={item.path}
+                    to={item.path}
+                    className={cn(
+                      'relative flex items-center gap-3 py-2 px-3 text-xs font-semibold transition-all duration-200 ease-in-out',
+                      isActive
+                        ? 'bg-primary/10 text-primary font-bold border-l-[3px] border-primary pl-[9px] rounded-r-lg rounded-l-none'
+                        : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground pl-3 rounded-lg'
+                    )}
+                  >
+                    <div className="relative">
+                      <Icon className={cn('h-4.5 w-4.5 flex-shrink-0 transition-colors duration-200', isActive ? 'text-primary' : 'text-muted-foreground group-hover:text-foreground')} />
+                      {isCollapsed && (item.path === '/?tab=leave_requests' || item.path === '/?tab=workflows') && pendingWfCount > 0 && (
+                        <span className="absolute -top-1.5 -right-1.5 flex h-2.5 w-2.5 rounded-full bg-rose-600 animate-pulse border border-card" />
+                      )}
+                    </div>
+                    {!isCollapsed && <span className="truncate">{item.name}</span>}
+                  </NavLink>
+                );
+              })}
+            </>
+          );
         })()}
       </nav>
 

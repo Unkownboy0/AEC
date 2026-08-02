@@ -12,7 +12,7 @@ declare global {
         }
     }
 }
-export declare const requireAuth: (req: Request, res: Response, next: NextFunction) => void;
+export declare const requireAuth: (req: Request, res: Response, next: NextFunction) => Promise<void>;
 export declare const checkPermission: (userPermissions: string[], required: string) => boolean;
 export declare const requirePermission: (permission: string) => (req: Request, res: Response, next: NextFunction) => void;
 export declare const requireRole: (allowedRoles: string[]) => (req: Request, res: Response, next: NextFunction) => void;

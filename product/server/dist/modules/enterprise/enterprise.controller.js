@@ -1408,6 +1408,100 @@ class EnterpriseController {
             next(error);
         }
     };
+    listCounselingRecords = async (req, res, next) => {
+        try {
+            const user = req.user;
+            const data = await this.service.listCounselingRecords(user);
+            res.status(200).json({ status: 'success', data });
+        }
+        catch (error) {
+            next(error);
+        }
+    };
+    createCounselingRecord = async (req, res, next) => {
+        try {
+            const user = req.user;
+            const data = await this.service.createCounselingRecord(user, req.body);
+            res.status(201).json({ status: 'success', data });
+        }
+        catch (error) {
+            next(error);
+        }
+    };
+    globalSearch = async (req, res, next) => {
+        try {
+            const user = req.user;
+            const query = req.query.q || '';
+            const data = await this.service.globalSearch(query, user);
+            res.status(200).json({ status: 'success', data });
+        }
+        catch (error) {
+            next(error);
+        }
+    };
+    getStudentFullProfile = async (req, res, next) => {
+        try {
+            const studentId = req.params.id;
+            const student = await prisma_1.prisma.student.findUnique({
+                where: { id: studentId },
+                include: {
+                    user: { select: { id: true, email: true, status: true, profilePhoto: true } },
+                    department: true,
+                    program: true,
+                    course: true,
+                    semester: true,
+                    section: true,
+                    academicYear: true,
+                    mentor: { select: { id: true, firstName: true, lastName: true, email: true, phone: true } },
+                    parentRelations: {
+                        include: { parent: { include: { user: { select: { email: true, firstName: true, lastName: true, phone: true } } } } }
+                    },
+                    attendanceRecords: { take: 50, orderBy: { date: 'desc' } },
+                    marks: { include: { subject: { select: { name: true, code: true } } } },
+                    submissions: { include: { assignment: { select: { title: true, maxMarks: true } } } },
+                    workflowRequests: { include: { history: true }, orderBy: { createdAt: 'desc' } },
+                    counselingRecords: { include: { mentor: { select: { firstName: true, lastName: true } } } },
+                    feeBills: true,
+                    internships: { include: { documents: true } },
+                    placementApplications: { include: { drive: true } },
+                    transportRoute: true,
+                    hostelBuilding: true,
+                }
+            });
+            if (!student) {
+                return res.status(404).json({ status: 'error', message: 'Student profile not found.' });
+            }
+            res.status(200).json({ status: 'success', data: student });
+        }
+        catch (error) {
+            next(error);
+        }
+    };
+    getFacultyFullProfile = async (req, res, next) => {
+        try {
+            const facultyId = req.params.id;
+            const faculty = await prisma_1.prisma.faculty.findUnique({
+                where: { id: facultyId },
+                include: {
+                    user: { select: { id: true, email: true, status: true, profilePhoto: true, role: true } },
+                    department: true,
+                    assignedSubjects: true,
+                    subjectAssignments: { include: { subject: true, section: true } },
+                    timetableSlots: { include: { subject: true, section: true } },
+                    mentoredStudents: { select: { id: true, admissionNo: true, firstName: true, lastName: true, email: true } },
+                    workflowRequestsAsRequester: { include: { history: true }, orderBy: { createdAt: 'desc' } },
+                    counselingGiven: { include: { student: { select: { firstName: true, lastName: true } } } },
+                }
+            });
+            if (!faculty) {
+                return res.status(404).json({ status: 'error', message: 'Faculty profile not found.' });
+            }
+            res.status(200).json({ status: 'success', data: faculty });
+        }
+        catch (error) {
+            next(error);
+        }
+    };
 }
 exports.EnterpriseController = EnterpriseController;
 //# sourceMappingURL=enterprise.controller.js.map

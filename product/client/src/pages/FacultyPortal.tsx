@@ -58,6 +58,23 @@ interface FacultyPortalProps {
 export const FacultyPortal: React.FC<FacultyPortalProps> = ({ user }) => {
   const { user: authUser, refreshUser, updateUser } = useAuth();
   const currentUser = authUser || user;
+  // Derive role name safely whether role is string or object
+  const userRoleName: string = typeof currentUser?.role === 'object'
+    ? (currentUser?.role?.name || '')
+    : (currentUser?.role || '');
+  // Only pure Faculty / Mentor roles can see the Mentor Workspace tab.
+  // HOD, Deans, VP, Principal, Admins etc. do NOT get the mentor workspace.
+  const HOD_AND_ABOVE_ROLES = [
+    'HOD', 'Academic Dean',
+    'Admission Dean', 'Admission & Administration Dean',
+    'IQAC Dean',
+    'IQAC Executive Officer', 'IQAC Executive',
+    'IQAC Documentation Officer', 'IQAC Documentation',
+    'Vice Principal', 'Principal', 'College Admin', 'Super Admin',
+    'Exam Cell', 'Sports Officer', 'Hostel Warden', 'Transport Manager',
+    'Librarian', 'Office Staff', 'Non Teaching Staff', 'IQAC Employee'
+  ];
+  const isMentorEligible = !HOD_AND_ABOVE_ROLES.includes(userRoleName);
   const { isMobile, isTablet } = useDevice();
   const isMobileOrTablet = isMobile || isTablet;
   const [searchParams, setSearchParams] = useSearchParams();
@@ -1561,6 +1578,52 @@ export const FacultyPortal: React.FC<FacultyPortalProps> = ({ user }) => {
   }
   return (
     <div className="animate-in fade-in-50 duration-200 space-y-6">
+
+      {/* Top Header Workspace Switcher (Unified Faculty & Mentor Login) */}
+      {isMentorEligible && (
+        <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 border border-indigo-500/30 p-4 rounded-2xl shadow-lg flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 bg-indigo-500/20 text-indigo-400 rounded-xl border border-indigo-500/30">
+              <Shield className="w-5 h-5" />
+            </div>
+            <div>
+              <h2 className="text-sm font-extrabold text-white flex items-center gap-2">
+                CampusOS Faculty & Mentor Unified Suite
+                <span className="px-2 py-0.5 text-[10px] font-bold bg-indigo-500/20 text-indigo-300 rounded-full border border-indigo-500/40">
+                  Single Login
+                </span>
+              </h2>
+              <p className="text-[11px] text-slate-400">Switch your active workspace directly from the top header bar</p>
+            </div>
+          </div>
+
+          {/* Header Workspace Switcher Buttons */}
+          <div className="flex items-center bg-slate-950/80 p-1.5 rounded-xl border border-slate-800 gap-1.5 shrink-0">
+            <button
+              onClick={() => setActiveTab('overview')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all ${
+                activeTab !== 'mentor_workspace'
+                  ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30'
+                  : 'text-slate-400 hover:text-white hover:bg-slate-800'
+              }`}
+            >
+              <BookOpen className="w-4 h-4" />
+              <span>Faculty Workspace</span>
+            </button>
+            <button
+              onClick={() => setActiveTab('mentor_workspace')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all ${
+                activeTab === 'mentor_workspace'
+                  ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30'
+                  : 'text-slate-400 hover:text-white hover:bg-slate-800'
+              }`}
+            >
+              <Users className="w-4 h-4" />
+              <span>Mentor Workspace</span>
+            </button>
+          </div>
+        </div>
+      )}
 
 
       {/* Mobile & Tablet Top Header, Profile Card & Navigation Buttons (Option 1: Responsive Grid) */}
@@ -4409,7 +4472,7 @@ export const FacultyPortal: React.FC<FacultyPortalProps> = ({ user }) => {
           );
         })()}
 
-        {activeTab === 'mentor_workspace' && (
+        {activeTab === 'mentor_workspace' && isMentorEligible && (
           <MentorPortal user={user} />
         )}
 

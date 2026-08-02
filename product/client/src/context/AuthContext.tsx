@@ -146,11 +146,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const switchWorkspace = useCallback(async (roleName: string) => {
-    localStorage.setItem('geetorus_active_role', roleName);
     try {
-      await fetchProfile();
+      setIsLoading(true);
+      const res = await api.post('/auth/switch-workspace', { targetRole: roleName });
+      if (res.data?.status === 'success' && res.data.data) {
+        const { accessToken, user: updatedUser } = res.data.data;
+        if (accessToken) {
+          localStorage.setItem('geetorus_access_token', accessToken);
+        }
+        localStorage.setItem('geetorus_active_role', roleName);
+        setUser(formatUserWithCacheBust(updatedUser));
+      } else {
+        localStorage.setItem('geetorus_active_role', roleName);
+        await fetchProfile();
+      }
     } catch (err) {
-      console.error('Failed to switch workspace:', err);
+      console.error('Failed to switch workspace via API:', err);
+      localStorage.setItem('geetorus_active_role', roleName);
+      await fetchProfile();
+    } finally {
+      setIsLoading(false);
     }
   }, [fetchProfile]);
 
