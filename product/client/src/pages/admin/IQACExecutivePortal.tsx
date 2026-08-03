@@ -5,17 +5,21 @@ import {
 } from 'lucide-react';
 import { toast } from '../../components/ui/Toast';
 
+import { useAuth } from '../../context/AuthContext';
+
 interface IQACExecutivePortalProps {
-  user: any;
+  user?: any;
 }
 
-export const IQACExecutivePortal: React.FC<IQACExecutivePortalProps> = ({ user }) => {
+export const IQACExecutivePortal: React.FC<IQACExecutivePortalProps> = ({ user: propUser }) => {
+  const { user: authUser } = useAuth();
+  const user = propUser || authUser;
   const [activeTab, setActiveTab] = useState<'audits' | 'checklist' | 'atr' | 'meetings'>('audits');
 
   const [audits, setAudits] = useState([
-    { id: 'AUD-01', dept: 'Computer Science & Engineering', date: 'Today, 10:30 AM', auditor: user.firstName + ' ' + user.lastName, status: 'IN_PROGRESS', checklistProgress: '8 / 12 Checked' },
-    { id: 'AUD-02', dept: 'Electrical & Electronics Engineering', date: 'Tomorrow, 02:00 PM', auditor: user.firstName + ' ' + user.lastName, status: 'SCHEDULED', checklistProgress: '0 / 12 Checked' },
-    { id: 'AUD-03', dept: 'Civil Engineering', date: '2026-07-25', auditor: user.firstName + ' ' + user.lastName, status: 'COMPLETED', checklistProgress: '12 / 12 Checked' },
+    { id: 'AUD-01', dept: 'Computer Science & Engineering', date: 'Today, 10:30 AM', auditor: (user?.firstName || 'Auditor') + ' ' + (user?.lastName || ''), status: 'IN_PROGRESS', checklistProgress: '8 / 12 Checked' },
+    { id: 'AUD-02', dept: 'Electrical & Electronics Engineering', date: 'Tomorrow, 02:00 PM', auditor: (user?.firstName || 'Auditor') + ' ' + (user?.lastName || ''), status: 'SCHEDULED', checklistProgress: '0 / 12 Checked' },
+    { id: 'AUD-03', dept: 'Civil Engineering', date: '2026-07-25', auditor: (user?.firstName || 'Auditor') + ' ' + (user?.lastName || ''), status: 'COMPLETED', checklistProgress: '12 / 12 Checked' },
   ]);
 
   const [checklist, setChecklist] = useState([

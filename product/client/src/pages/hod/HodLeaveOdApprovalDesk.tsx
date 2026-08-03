@@ -95,14 +95,14 @@ export const HodLeaveOdApprovalDesk: React.FC = () => {
   const fetchRequests = async () => {
     try {
       setLoading(true);
-      const res = await api.get(`/api/hod/leave-od?status=${activeTab}`);
+      const res = await api.get(`/hod/leave-od?status=${activeTab}`);
       if (res.data?.data) {
         setRequests(res.data.data);
       } else {
         setRequests([]);
       }
     } catch (err: any) {
-      showToast(err.response?.data?.message || 'Failed to load requests', 'error');
+      showToast(err.response?.data?.message || err.message || 'Failed to load requests', 'error');
     } finally {
       setLoading(false);
     }
@@ -134,7 +134,7 @@ export const HodLeaveOdApprovalDesk: React.FC = () => {
 
     try {
       setSubmittingAction(true);
-      await api.post(`/api/hod/leave-od/${id}/${action}`, {
+      await api.post(`/hod/leave-od/${id}/${action}`, {
         remarks: actionRemarks.trim() || `HOD ${action.toUpperCase().replace(/-/g, ' ')}`,
       });
 
@@ -143,7 +143,7 @@ export const HodLeaveOdApprovalDesk: React.FC = () => {
       setActionRemarks('');
       fetchRequests();
     } catch (err: any) {
-      showToast(err.response?.data?.message || 'Failed to process request', 'error');
+      showToast(err.response?.data?.message || err.message || 'Failed to process request', 'error');
     } finally {
       setSubmittingAction(false);
     }
@@ -158,7 +158,7 @@ export const HodLeaveOdApprovalDesk: React.FC = () => {
 
     try {
       setSubmittingAction(true);
-      const endpoint = bulkActionType === 'APPROVE' ? '/api/hod/leave-od/bulk-approve' : '/api/hod/leave-od/bulk-reject';
+      const endpoint = bulkActionType === 'APPROVE' ? '/hod/leave-od/bulk-approve' : '/hod/leave-od/bulk-reject';
       await api.post(endpoint, {
         requestIds: selectedIds,
         remarks: bulkRemarks.trim() || 'Bulk Action Executed by HOD',

@@ -45,6 +45,7 @@ model User {
   roleId              String
   role                Role                 @relation(fields: [roleId], references: [id])
   assignedRoles       UserRole[]
+  userWorkspaces      UserWorkspace[]
   committees          UserCommittee[]
   sessions            UserSession[]
   resetTokens         PasswordResetToken[]
@@ -102,6 +103,7 @@ model User {
   assignedAdmissionRequests   AdmissionCoordinationRequest[] @relation("AdmissionCoordinationHod")
   reviewedAdmissionRequests   AdmissionCoordinationRequest[] @relation("AdmissionCoordinationReviewer")
   createdAdmissionRequests    AdmissionCoordinationRequest[] @relation("AdmissionCoordinationCreator")
+  hodAssignments              DepartmentHodAssignment[]
 
   @@index([email])
   @@index([username])
@@ -219,6 +221,22 @@ model PermissionDelegation {
   @@index([delegatorId])
   @@index([delegateeId])
   @@map("permission_delegations")
+}
+
+model UserWorkspace {
+  id           String   @id @default(uuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspaceCode String  // e.g. "FACULTY", "HOD", "MENTOR", "IQAC", "ADMISSION", "ADMINISTRATION"
+  workspaceName String  // e.g. "Faculty Workspace", "HOD Workspace"
+  roleName      String  // Matching role name for permissions context
+  isPrimary    Boolean  @default(false)
+  status       String   @default("ACTIVE")
+  assignedAt   DateTime @default(now())
+
+  @@unique([userId, workspaceCode])
+  @@index([userId])
+  @@map("user_workspaces")
 }
 
 model RbacAuditLog {
@@ -442,6 +460,7 @@ model Department {
   academicTaskAssignments AcademicTaskAssignment[] @relation("AcademicTaskDepartment")
   academicTaskTimelineEvents AcademicTaskTimeline[] @relation("AcademicTaskTimelineDepartment")
   admissionCoordinationRequests AdmissionCoordinationRequest[] @relation("AdmissionCoordinationDepartment")
+  hodAssignments        DepartmentHodAssignment[]
 
   @@map("departments")
 }
@@ -3369,6 +3388,30 @@ model AdmissionCoordinationRequest {
   @@index([status])
   @@index([createdById])
   @@map("admission_coordination_requests")
+}
+
+model DepartmentHodAssignment {
+  id             String    @id @default(uuid())
+  departmentId   String
+  hodUserId      String
+  isPrimary      Boolean   @default(true)
+  isActive       Boolean   @default(true)
+  assignedBy     String
+  assignedAt     DateTime  @default(now())
+  effectiveFrom  DateTime  @default(now())
+  effectiveTo    DateTime?
+  removedAt      DateTime?
+  removalReason  String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  department     Department @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  hodUser        User       @relation(fields: [hodUserId], references: [id], onDelete: Cascade)
+
+  @@index([departmentId])
+  @@index([hodUserId])
+  @@index([isActive])
+  @@map("department_hod_assignments")
 }
 
 

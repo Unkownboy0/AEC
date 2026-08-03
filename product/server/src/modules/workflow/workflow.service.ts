@@ -411,9 +411,11 @@ export class WorkflowService {
     }
 
     // Verify auth role matches step
+    const isExecutiveOrHod = ['HOD', 'Academic Dean', 'Admission Dean', 'IQAC Dean', 'Vice Principal', 'Principal', 'Super Admin'].includes(userRole);
+
     if (request.facultyRequesterId) {
-      if (request.currentStep === 'HOD' && userRole !== 'HOD' && userRole !== 'Super Admin') {
-        throw new UnauthorizedException('Only the Department HOD can action this request');
+      if (request.currentStep === 'HOD' && !isExecutiveOrHod) {
+        throw new UnauthorizedException('Only the Department HOD or Executive Authority can action this request');
       }
       if (request.currentStep === 'PRINCIPAL') {
         const offlineSetting = await prisma.systemSetting.findUnique({ where: { key: 'PRINCIPAL_OFFLINE_MODE' } });
@@ -427,11 +429,11 @@ export class WorkflowService {
         }
       }
     } else {
-      if (request.currentStep === 'MENTOR' && userRole !== 'Faculty' && userRole !== 'Mentor' && userRole !== 'Super Admin') {
-        throw new UnauthorizedException('Only the assigned Mentor/Faculty can action this request');
+      if (request.currentStep === 'MENTOR' && !isExecutiveOrHod && !['Faculty', 'Mentor', 'FACULTY', 'MENTOR'].includes(userRole)) {
+        throw new UnauthorizedException('Only the assigned Mentor/Faculty or Department HOD can action this request');
       }
 
-      if (request.currentStep === 'MENTOR' && ['Faculty', 'Mentor', 'FACULTY', 'MENTOR'].includes(userRole)) {
+      if (request.currentStep === 'MENTOR' && ['Faculty', 'Mentor', 'FACULTY', 'MENTOR'].includes(userRole) && !isExecutiveOrHod) {
         const user = await prisma.user.findFirst({ where: { email: userEmail } });
         const faculty = await prisma.faculty.findFirst({
           where: {
@@ -463,8 +465,8 @@ export class WorkflowService {
         }
       }
 
-      if (request.currentStep === 'HOD' && userRole !== 'HOD' && userRole !== 'Super Admin') {
-        throw new UnauthorizedException('Only the Department HOD can action this request');
+      if (request.currentStep === 'HOD' && !isExecutiveOrHod) {
+        throw new UnauthorizedException('Only the Department HOD or Executive Authority can action this request');
       }
     }
 
@@ -478,21 +480,31 @@ export class WorkflowService {
 
     if (action === 'REJECT') {
       if (request.currentStep === 'MENTOR') {
-        nextStatus = 'REJECTED_BY_MENTOR';
+        nextStatus = isExecutiveOrHod ? 'REJECTED_BY_HOD' : 'REJECTED_BY_MENTOR';
+        nextStep = 'COMPLETED';
       } else if (request.currentStep === 'HOD') {
         nextStatus = 'REJECTED_BY_HOD';
+        nextStep = 'COMPLETED';
       } else if (request.currentStep === 'PRINCIPAL') {
         nextStatus = 'REJECTED_BY_PRINCIPAL';
+        nextStep = 'COMPLETED';
       } else {
         nextStatus = 'REJECTED';
+        nextStep = 'COMPLETED';
       }
     } else if (action === 'CLARIFICATION') {
       nextStatus = 'CLARIFICATION_REQUESTED';
     } else if (action === 'FORWARD' || action === 'APPROVE') {
       if (request.currentStep === 'MENTOR') {
-        // Student workflow: Mentor Approved -> Forward to HOD for final approval
-        nextStep = 'HOD';
-        nextStatus = 'MENTOR_APPROVED';
+        if (isExecutiveOrHod) {
+          // HOD or Executive Authority approving directly approves the student request
+          nextStatus = 'APPROVED';
+          nextStep = 'COMPLETED';
+        } else {
+          // Student workflow: Mentor Approved -> Forward to HOD for final approval
+          nextStep = 'HOD';
+          nextStatus = 'MENTOR_APPROVED';
+        }
       } else if (request.currentStep === 'HOD') {
         if (request.facultyRequesterId) {
           // Faculty workflow: HOD Approved -> Forward to Principal

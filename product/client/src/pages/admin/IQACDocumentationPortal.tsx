@@ -5,11 +5,15 @@ import {
 } from 'lucide-react';
 import { toast } from '../../components/ui/Toast';
 
+import { useAuth } from '../../context/AuthContext';
+
 interface IQACDocumentationPortalProps {
-  user: any;
+  user?: any;
 }
 
-export const IQACDocumentationPortal: React.FC<IQACDocumentationPortalProps> = ({ user }) => {
+export const IQACDocumentationPortal: React.FC<IQACDocumentationPortalProps> = ({ user: propUser }) => {
+  const { user: authUser } = useAuth();
+  const user = propUser || authUser;
   const [activeTab, setActiveTab] = useState<'evidence' | 'uploads' | 'expiry' | 'qr'>('evidence');
   const [search, setSearch] = useState('');
 

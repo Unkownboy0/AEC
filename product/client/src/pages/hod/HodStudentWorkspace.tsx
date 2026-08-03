@@ -21,13 +21,13 @@ export const HodStudentWorkspace: React.FC = () => {
     try {
       setLoading(true);
       const [stRes, mRes] = await Promise.all([
-        api.get(`/api/hod/students?search=${search}&attendanceFilter=${attendanceFilter}`),
-        api.get('/api/hod/mentors'),
+        api.get(`/hod/students?search=${search}&attendanceFilter=${attendanceFilter}`),
+        api.get('/hod/faculty'),
       ]);
       setStudents(stRes.data?.data || []);
-      setMentors(mRes.data?.data?.mentors || []);
+      setMentors(mRes.data?.data || []);
     } catch (err: any) {
-      showToast(err.response?.data?.message || 'Failed to load department student roster', 'error');
+      showToast(err.response?.data?.message || err.message || 'Failed to load department student roster', 'error');
     } finally {
       setLoading(false);
     }
@@ -46,7 +46,7 @@ export const HodStudentWorkspace: React.FC = () => {
 
     try {
       setSubmitting(true);
-      const res = await api.post('/api/hod/students/assign-mentor', {
+      const res = await api.post('/hod/students/assign-mentor', {
         mentorId: targetMentorId,
         studentIds: selectedIds,
       });

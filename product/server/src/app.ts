@@ -118,7 +118,7 @@ app.use('/api/circulars', circularRoutes);
 app.use('/api/curriculum', curriculumRoutes);
 app.use('/api/sports', sportsRoutes);
 import studentLeaveRoutes from './modules/enterprise/student-leave.routes';
-import hodPortalRoutes from './modules/enterprise/hod-portal.routes';
+import hodPortalRoutes from './modules/hod/hod.routes';
 import facultyLeaveRoutes from './modules/enterprise/faculty-leave.routes';
 import principalFailoverRoutes from './modules/enterprise/principal-failover.routes';
 import circularEngineRoutes from './modules/enterprise/circular-engine.routes';

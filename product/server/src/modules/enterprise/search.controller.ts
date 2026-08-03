@@ -17,7 +17,7 @@ export class SearchController {
 
       const isExecutive = [
         'Super Admin', 'College Admin', 'Principal', 'Vice Principal',
-        'Academic Dean', 'Admission Dean', 'IQAC Dean',
+        'Academic Dean', 'Admission Dean', 'IQAC Dean', 'HOD', 'Faculty', 'Mentor'
       ].includes(user.role);
 
       if (!isExecutive) {
@@ -37,7 +37,7 @@ export class SearchController {
             deleted: false,
           },
           take: 10,
-          select: { id: true, firstName: true, lastName: true, admissionNo: true, email: true, departmentId: true },
+          select: { id: true, firstName: true, lastName: true, admissionNo: true, email: true, departmentId: true, userId: true },
         }),
         prisma.faculty.findMany({
           where: {
@@ -51,7 +51,7 @@ export class SearchController {
             deleted: false,
           },
           take: 10,
-          select: { id: true, firstName: true, lastName: true, employeeId: true, email: true, designation: true, departmentId: true },
+          select: { id: true, firstName: true, lastName: true, employeeId: true, email: true, designation: true, departmentId: true, userId: true },
         }),
         prisma.department.findMany({
           where: {
@@ -89,15 +89,47 @@ export class SearchController {
         }),
       ]);
 
+      const formattedResults = [
+        ...students.map(s => ({
+          id: s.id,
+          title: `${s.firstName} ${s.lastName}`,
+          subtitle: `Student • Reg: ${s.admissionNo}`,
+          type: 'STUDENT',
+          link: `/profile/${s.userId || s.id}`
+        })),
+        ...faculty.map(f => ({
+          id: f.id,
+          title: `${f.firstName} ${f.lastName}`,
+          subtitle: `${f.designation || 'Faculty'} • Emp ID: ${f.employeeId}`,
+          type: 'FACULTY',
+          link: `/profile/${f.userId || f.id}`
+        })),
+        ...departments.map(d => ({
+          id: d.id,
+          title: `${d.name} (${d.code})`,
+          subtitle: `Department • HOD: ${d.hodName || 'N/A'}`,
+          type: 'DEPARTMENT',
+          link: `/hod/dashboard?departmentId=${d.id}`
+        })),
+        ...programs.map(p => ({
+          id: p.id,
+          title: `${p.name} (${p.code})`,
+          subtitle: 'Academic Program',
+          type: 'PROGRAM',
+          link: `/academics`
+        })),
+        ...subjects.map(sub => ({
+          id: sub.id,
+          title: `${sub.name} (${sub.code})`,
+          subtitle: 'Course Subject',
+          type: 'SUBJECT',
+          link: `/academics`
+        }))
+      ];
+
       res.status(200).json({
         status: 'success',
-        data: {
-          students,
-          faculty,
-          departments,
-          programs,
-          subjects,
-        },
+        data: formattedResults,
       });
     } catch (error) {
       next(error);

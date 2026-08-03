@@ -23,8 +23,10 @@ const KPICard: React.FC<{ title: string; value: string | number; icon: React.Com
   </div>
 );
 
+import { useAuth } from '../../context/AuthContext';
+
 interface AdmissionDeanPortalProps {
-  user: any;
+  user?: any;
 }
 
 import { AdmissionCoordinationWorkspace } from '../../components/admin/AdmissionCoordinationWorkspace';
@@ -32,7 +34,9 @@ import { AdmissionCoordinationWorkspace } from '../../components/admin/Admission
 const VALID_TABS = ['overview','coordination','applications','faculty_leaves','seats','scholarships','enquiries','counselling','payments'] as const;
 type AdmissionTab = typeof VALID_TABS[number];
 
-export const AdmissionDeanPortal: React.FC<AdmissionDeanPortalProps> = ({ user }) => {
+export const AdmissionDeanPortal: React.FC<AdmissionDeanPortalProps> = ({ user: propUser }) => {
+  const { user: authUser } = useAuth();
+  const user = propUser || authUser;
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
 

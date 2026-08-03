@@ -6,11 +6,15 @@ import {
 import { toast } from '../../components/ui/Toast';
 import api from '../../lib/axios';
 
+import { useAuth } from '../../context/AuthContext';
+
 interface IQACDeanPortalProps {
-  user: any;
+  user?: any;
 }
 
-export const IQACDeanPortal: React.FC<IQACDeanPortalProps> = ({ user }) => {
+export const IQACDeanPortal: React.FC<IQACDeanPortalProps> = ({ user: propUser }) => {
+  const { user: authUser } = useAuth();
+  const user = propUser || authUser;
   const [activeTab, setActiveTab] = useState<'overview' | 'accreditation' | 'audits' | 'evidence'>('overview');
   const [accreditationScores, setAccreditationScores] = useState({
     naacCGPA: '3.62 / 4.0 (A++)',

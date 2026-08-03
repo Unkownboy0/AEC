@@ -226,15 +226,22 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed }) => {
               )}
               {user?.role === 'HOD' && (
                 <div className="space-y-0.5 my-1 border-b border-border/50 pb-2">
-                  <div className="px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">HOD Workspace</div>
+                  <div className="px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">HOD Portal</div>
                   {[
-                    { name: 'HOD Dashboard', path: '/hod/dashboard', icon: LucideIcons.LayoutDashboard },
-                    { name: 'Leave & OD Approvals', path: '/hod/leave-approvals', icon: LucideIcons.FileCheck, badge: pendingWfCount },
-                    { name: 'Department Students', path: '/hod/students', icon: LucideIcons.Users },
-                    { name: 'Faculty Workload', path: '/hod/faculty', icon: LucideIcons.UserCheck },
-                    { name: 'Attendance Monitor', path: '/hod/attendance', icon: LucideIcons.AlertTriangle },
-                    { name: 'Task Desk', path: '/hod/tasks', icon: LucideIcons.Layers },
-                    { name: 'Reports & Exports', path: '/hod/reports', icon: LucideIcons.Download },
+                    { name: 'Dashboard', path: '/hod/dashboard', icon: LucideIcons.LayoutDashboard },
+                    { name: 'Approvals', path: '/hod/leave-approvals', icon: LucideIcons.FileCheck, badge: pendingWfCount },
+                    { name: 'Students', path: '/hod/students', icon: LucideIcons.Users },
+                    { name: 'Faculty', path: '/hod/faculty', icon: LucideIcons.UserCheck },
+                    { name: 'Mentors', path: '/hod/mentors', icon: LucideIcons.UserPlus },
+                    { name: 'Academics', path: '/hod/academics', icon: LucideIcons.BookOpen },
+                    { name: 'Attendance', path: '/hod/attendance', icon: LucideIcons.Clock },
+                    { name: 'Timetable', path: '/hod/timetable', icon: LucideIcons.Calendar },
+                    { name: 'Tasks Workspace', path: '/hod/tasks', icon: LucideIcons.CheckSquare },
+                    { name: 'Circulars', path: '/hod/circulars', icon: LucideIcons.Megaphone },
+                    { name: 'Complaints', path: '/hod/complaints', icon: LucideIcons.AlertTriangle },
+                    { name: 'Department Activities', path: '/hod/activities', icon: LucideIcons.Activity },
+                    { name: 'Reports', path: '/hod/reports', icon: LucideIcons.Download },
+                    { name: 'Profile', path: '/hod/profile', icon: LucideIcons.User },
                   ].map((hodItem) => {
                     const HodIcon = hodItem.icon || LucideIcons.Layers;
                     const isHodActive = checkIsActive(hodItem.path);

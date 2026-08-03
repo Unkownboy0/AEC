@@ -8,8 +8,10 @@ import {
 import { AcademicDeanDashboard } from '../../components/academic-dean/AcademicDeanDashboard';
 import { AcademicTaskWorkspace } from '../../components/academic-dean/AcademicTaskWorkspace';
 
+import { useAuth } from '../../context/AuthContext';
+
 interface AcademicDeanPortalProps {
-  user: any;
+  user?: any;
 }
 
 const VALID_TABS = [
@@ -35,7 +37,9 @@ const VALID_TABS = [
 
 type AcademicTab = typeof VALID_TABS[number];
 
-export const AcademicDeanPortal: React.FC<AcademicDeanPortalProps> = ({ user }) => {
+export const AcademicDeanPortal: React.FC<AcademicDeanPortalProps> = ({ user: propUser }) => {
+  const { user: authUser } = useAuth();
+  const user = propUser || authUser;
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
 

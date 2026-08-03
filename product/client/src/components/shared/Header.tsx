@@ -274,6 +274,15 @@ const Header: React.FC<HeaderProps> = ({ onOpenPalette }) => {
           </div>
         )}
 
+        {/* Theme Mode Switcher */}
+        <button
+          onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+          className="rounded-lg p-2 text-muted-foreground hover:bg-muted hover:text-foreground transition-all duration-150"
+          title={`Switch to ${theme === 'dark' ? 'Light' : 'Dark'} mode`}
+        >
+          {theme === 'dark' ? <Sun className="h-4.5 w-4.5 text-amber-400" /> : <Moon className="h-4.5 w-4.5 text-slate-700" />}
+        </button>
+
         {/* Notifications Bell */}
         <div className="relative">
           <button

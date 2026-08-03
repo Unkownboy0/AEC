@@ -140,28 +140,22 @@ export class StudentLeaveController {
   }
 
   /**
-   * HOD Bulk Approve
+   * HOD Bulk Approve (Legacy redirect stub)
    */
   async bulkApproveHod(req: Request, res: Response, next: NextFunction) {
     try {
-      const userId = (req as any).user.id;
-      const { requestIds, remarks } = req.body;
-      const result = await service.bulkApproveHod(userId, requestIds || [], remarks);
-      res.status(200).json({ status: 'success', data: result });
+      res.status(200).json({ status: 'success', message: 'Use /api/hod/leave-od/bulk-approve' });
     } catch (err) {
       next(err);
     }
   }
 
   /**
-   * HOD Bulk Reject
+   * HOD Bulk Reject (Legacy redirect stub)
    */
   async bulkRejectHod(req: Request, res: Response, next: NextFunction) {
     try {
-      const userId = (req as any).user.id;
-      const { requestIds, remarks } = req.body;
-      const result = await service.bulkRejectHod(userId, requestIds || [], remarks);
-      res.status(200).json({ status: 'success', data: result });
+      res.status(200).json({ status: 'success', message: 'Use /api/hod/leave-od/bulk-reject' });
     } catch (err) {
       next(err);
     }

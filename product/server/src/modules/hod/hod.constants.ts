@@ -1,0 +1,42 @@
+export const HOD_ROLES = ['HOD', 'HEAD_OF_DEPARTMENT', 'DEPARTMENT_HEAD'];
+
+export const HOD_PERMISSIONS = {
+  DASHBOARD_VIEW: 'hod.dashboard.view',
+  STUDENTS_VIEW: 'hod.students.view',
+  STUDENTS_ASSIGN_MENTOR: 'hod.students.assign_mentor',
+  FACULTY_VIEW: 'hod.faculty.view',
+  FACULTY_ASSIGN_SUBJECT: 'hod.faculty.assign_subject',
+  MENTORS_MANAGE: 'hod.mentors.manage',
+  LEAVE_OD_VIEW: 'hod.leave_od.view',
+  LEAVE_OD_APPROVE: 'hod.leave_od.approve',
+  LEAVE_OD_REJECT: 'hod.leave_od.reject',
+  LEAVE_OD_RETURN: 'hod.leave_od.return',
+  LEAVE_OD_ESCALATE: 'hod.leave_od.escalate',
+  ATTENDANCE_VIEW: 'hod.attendance.view',
+  ATTENDANCE_CORRECT: 'hod.attendance.correct',
+  SUBJECTS_ASSIGN: 'hod.subjects.assign',
+  TIMETABLE_VIEW: 'hod.timetable.view',
+  TIMETABLE_MANAGE: 'hod.timetable.manage',
+  TASKS_VIEW: 'hod.tasks.view',
+  TASKS_CREATE: 'hod.tasks.create',
+  TASKS_REVIEW: 'hod.tasks.review',
+  CIRCULARS_CREATE: 'hod.circulars.create',
+  COMPLAINTS_VIEW: 'hod.complaints.view',
+  COMPLAINTS_ESCALATE: 'hod.complaints.escalate',
+  REPORTS_VIEW: 'hod.reports.view',
+  REPORTS_EXPORT: 'hod.reports.export',
+  PROFILE_UPDATE: 'hod.profile.update',
+} as const;
+
+export const WORKFLOW_STATUSES = {
+  PENDING_MENTOR: 'PENDING_MENTOR',
+  PENDING_HOD: 'PENDING_HOD',
+  APPROVED_BY_HOD: 'APPROVED_BY_HOD',
+  REJECTED_BY_HOD: 'REJECTED_BY_HOD',
+  RETURNED_TO_MENTOR: 'RETURNED_TO_MENTOR',
+  RETURNED_TO_STUDENT: 'RETURNED_TO_STUDENT',
+  ESCALATED_TO_DEAN: 'ESCALATED_TO_DEAN',
+  APPROVED: 'APPROVED',
+  REJECTED: 'REJECTED',
+  CONFIGURATION_ERROR: 'CONFIGURATION_ERROR',
+} as const;

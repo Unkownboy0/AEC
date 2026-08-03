@@ -22,13 +22,13 @@ export const HodTaskWorkspace: React.FC = () => {
     try {
       setLoading(true);
       const [tRes, fRes] = await Promise.all([
-        api.get('/api/hod/tasks'),
-        api.get('/api/hod/faculty'),
+        api.get('/hod/tasks'),
+        api.get('/hod/faculty'),
       ]);
       setTasks(tRes.data?.data || []);
       setFaculty(fRes.data?.data || []);
     } catch (err: any) {
-      showToast(err.response?.data?.message || 'Failed to load department task workspace', 'error');
+      showToast(err.response?.data?.message || err.message || 'Failed to load department task workspace', 'error');
     } finally {
       setLoading(false);
     }
@@ -46,7 +46,7 @@ export const HodTaskWorkspace: React.FC = () => {
 
     try {
       setSubmitting(true);
-      await api.post('/api/hod/tasks', {
+      await api.post('/hod/tasks', {
         title: title.trim(),
         description: description.trim(),
         priority,

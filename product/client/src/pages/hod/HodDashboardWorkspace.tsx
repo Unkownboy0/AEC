@@ -17,12 +17,12 @@ export const HodDashboardWorkspace: React.FC = () => {
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
-      const res = await api.get('/api/hod/dashboard');
+      const res = await api.get('/hod/dashboard');
       if (res.data?.data) {
         setData(res.data.data);
       }
     } catch (err: any) {
-      showToast(err.response?.data?.message || 'Failed to load HOD dashboard', 'error');
+      showToast(err.response?.data?.message || err.message || 'Failed to load HOD dashboard', 'error');
     } finally {
       setLoading(false);
     }

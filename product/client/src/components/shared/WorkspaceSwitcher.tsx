@@ -31,23 +31,9 @@ export const WorkspaceSwitcher: React.FC = () => {
 
   const currentRole = typeof user.role === 'object' ? (user.role as any)?.name || '' : user.role || '';
 
-  const EXCLUDED_MENTOR_ROLES = [
-    'HOD', 'Academic Dean', 'Admission Dean', 'Admission & Administration Dean',
-    'IQAC Dean', 'IQAC Executive Officer', 'IQAC Executive', 'IQAC Documentation Officer',
-    'IQAC Documentation', 'Vice Principal', 'Principal', 'College Admin', 'Super Admin',
-    'Exam Cell', 'Sports Officer', 'Hostel Warden', 'Transport Manager', 'Librarian',
-    'Office Staff', 'Non Teaching Staff', 'IQAC Employee'
-  ];
-
-  const isMentorDisabled = EXCLUDED_MENTOR_ROLES.includes(currentRole);
-
   let workspacesList = user.workspaces && user.workspaces.length > 1
     ? user.workspaces
     : (currentRole === 'Faculty' ? ['Faculty', 'Mentor'] : [currentRole]);
-
-  if (isMentorDisabled) {
-    workspacesList = workspacesList.filter((r: string) => r !== 'Mentor');
-  }
 
   if (workspacesList.length <= 1) return null;
 

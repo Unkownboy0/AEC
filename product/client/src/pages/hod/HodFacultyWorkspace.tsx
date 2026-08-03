@@ -11,10 +11,10 @@ export const HodFacultyWorkspace: React.FC = () => {
   const fetchFaculty = async () => {
     try {
       setLoading(true);
-      const res = await api.get('/api/hod/faculty');
+      const res = await api.get('/hod/faculty');
       setFaculty(res.data?.data || []);
     } catch (err: any) {
-      showToast(err.response?.data?.message || 'Failed to load department faculty', 'error');
+      showToast(err.response?.data?.message || err.message || 'Failed to load department faculty', 'error');
     } finally {
       setLoading(false);
     }

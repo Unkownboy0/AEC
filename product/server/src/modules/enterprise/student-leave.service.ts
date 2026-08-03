@@ -27,6 +27,17 @@ export class StudentLeaveService {
   async resolveDepartmentHodUser(departmentId: string): Promise<{ hodUserId: string; hodFacultyId?: string } | null> {
     if (!departmentId) return null;
 
+    // Strategy 0: Check DepartmentHodAssignment model
+    try {
+      const activeAssignment = await (prisma as any).departmentHodAssignment.findFirst({
+        where: { departmentId, isActive: true },
+      });
+      if (activeAssignment?.hodUserId) {
+        const fac = await prisma.faculty.findFirst({ where: { userId: activeAssignment.hodUserId } });
+        return { hodUserId: activeAssignment.hodUserId, hodFacultyId: fac?.id };
+      }
+    } catch (e) {}
+
     // Strategy 1: Check Department model directly
     const dept = await prisma.department.findUnique({
       where: { id: departmentId },
@@ -479,7 +490,6 @@ export class StudentLeaveService {
     const user = await prisma.user.findUnique({ where: { id: userId }, include: { role: true } });
 
     if (!user || !['HOD', 'Super Admin', 'Principal', 'Vice Principal', 'Academic Dean'].includes(user.role.name)) {
-      // Verify via DepartmentMembership if role name isn't explicitly HOD
       const membership = await prisma.departmentMembership.findFirst({
         where: { userId, role: 'HOD' }
       });
@@ -488,12 +498,77 @@ export class StudentLeaveService {
       }
     }
 
-    const request = await prisma.studentLeaveRequest.findUnique({
+    let request = await prisma.studentLeaveRequest.findUnique({
       where: { id: requestId },
       include: { student: { include: { department: true } }, mentor: true },
     });
 
     if (!request) {
+      // Fallback: Check WorkflowRequest table (legacy / unified workflow engine)
+      const wfReq = await prisma.workflowRequest.findUnique({
+        where: { id: requestId },
+        include: { student: true, facultyRequester: true }
+      });
+
+      if (wfReq) {
+        const wfNextStep = action === 'APPROVE' ? (wfReq.facultyRequesterId ? 'PRINCIPAL' : 'COMPLETED') : wfReq.currentStep;
+        const wfNextStatus = action === 'APPROVE' ? 'APPROVED' : action === 'REJECT' ? 'REJECTED_BY_HOD' : 'CLARIFICATION_REQUESTED';
+
+        const updatedWf = await prisma.workflowRequest.update({
+          where: { id: requestId },
+          data: { status: wfNextStatus, currentStep: wfNextStep }
+        });
+
+        await prisma.workflowHistory.create({
+          data: {
+            requestId,
+            stage: 'HOD',
+            action: action === 'APPROVE' ? 'APPROVE' : action === 'REJECT' ? 'REJECT' : 'CLARIFICATION',
+            comment: remarks || `HOD ${action} action executed`,
+            actionById: userId,
+            actionByName: user ? `${user.firstName} ${user.lastName}` : 'HOD',
+          }
+        });
+
+        // Auto-adjust attendance if approved
+        if (action === 'APPROVE' && wfReq.studentId && wfReq.startDate && wfReq.endDate) {
+          const startDate = new Date(wfReq.startDate);
+          const endDate = new Date(wfReq.endDate);
+          const currentDate = new Date(startDate);
+          while (currentDate <= endDate) {
+            const dateObj = new Date(currentDate);
+            const existingAtt = await prisma.attendance.findFirst({
+              where: { studentId: wfReq.studentId, date: dateObj }
+            });
+
+            if (existingAtt) {
+              await prisma.attendance.update({
+                where: { id: existingAtt.id },
+                data: { status: wfReq.type === 'ON_DUTY' ? 'ON_DUTY' : 'EXCUSED_LEAVE', remarks: `Approved by HOD: ${wfReq.title || 'Leave/OD'}` }
+              });
+            } else {
+              await prisma.attendance.create({
+                data: {
+                  studentId: wfReq.studentId,
+                  date: dateObj,
+                  status: wfReq.type === 'ON_DUTY' ? 'ON_DUTY' : 'EXCUSED_LEAVE',
+                  remarks: `Approved by HOD: ${wfReq.title || 'Leave/OD'}`,
+                }
+              });
+            }
+            currentDate.setDate(currentDate.getDate() + 1);
+          }
+        }
+
+        return {
+          id: updatedWf.id,
+          requestNumber: `WF-${updatedWf.id.slice(-6).toUpperCase()}`,
+          workflowStatus: updatedWf.status,
+          status: updatedWf.status,
+          approvedAt: new Date(),
+        };
+      }
+
       throw new NotFoundException('Leave request not found');
     }
 
@@ -536,13 +611,12 @@ export class StudentLeaveService {
           workflowStatus: newStatus,
           hodStatus: newHodStatus,
           finalStatus: finalStatus,
-          hodId: faculty?.id || userId,
+          hodId: faculty?.id || request.hodId,
           hodApprovedAt: action === 'APPROVE' ? new Date() : undefined,
-          rejectedAt: action === 'REJECT' ? new Date() : undefined,
           approvedAt: action === 'APPROVE' ? new Date() : undefined,
-          hodRemarks: remarks || `HOD Action: ${action}`,
+          rejectedAt: action === 'REJECT' ? new Date() : undefined,
+          hodRemarks: remarks || `HOD ${action}`,
           studentActionRequired: action === 'RETURN_STUDENT',
-          mentorStatus: action === 'RETURN_MENTOR' ? 'ACTION_REQUIRED' : request.mentorStatus,
         },
         include: { student: true }
       });
@@ -556,7 +630,7 @@ export class StudentLeaveService {
           decision: action,
           remarks: remarks || `HOD ${action}`,
           previousStatus: 'PENDING_HOD',
-          newStatus,
+          newStatus: newStatus,
           ipAddress,
           deviceInfo,
         }
@@ -574,18 +648,58 @@ export class StudentLeaveService {
         }
       });
 
+      // Daily Attendance Auto-Adjustment on Final Approval
+      if (action === 'APPROVE') {
+        const startDate = new Date(request.startDate);
+        const endDate = new Date(request.endDate);
+        const currentDate = new Date(startDate);
+        const attendanceStatus = request.type === 'ON_DUTY' ? 'ON_DUTY' : 'EXCUSED_LEAVE';
+
+        while (currentDate <= endDate) {
+          const dateObj = new Date(currentDate);
+          const existingAtt = await tx.attendance.findFirst({
+            where: { studentId: request.studentId, date: dateObj }
+          });
+
+          if (existingAtt) {
+            await tx.attendance.update({
+              where: { id: existingAtt.id },
+              data: {
+                status: attendanceStatus,
+                remarks: `Official ${request.type} Approved by HOD (${request.requestNumber})`
+              }
+            });
+          } else {
+            await tx.attendance.create({
+              data: {
+                studentId: request.studentId,
+                date: dateObj,
+                status: attendanceStatus,
+                remarks: `Official ${request.type} Approved by HOD (${request.requestNumber})`
+              }
+            });
+          }
+          currentDate.setDate(currentDate.getDate() + 1);
+        }
+
+        await tx.studentLeaveRequest.update({
+          where: { id: requestId },
+          data: { attendanceUpdated: true }
+        });
+      }
+
       return req;
     });
 
-    // Send Notifications
+    // Notify Student
     if (request.student.userId) {
       try {
         await prisma.notification.create({
           data: {
             recipientId: request.student.userId,
-            eventType: action === 'APPROVE' ? 'LEAVE_FINAL_APPROVED' : 'LEAVE_FINAL_REJECTED',
-            title: `Final Decision: ${request.type} Request ${action}`,
-            message: `Your ${request.type} request (${request.requestNumber}) decision: ${newStatus}. Remarks: ${remarks || 'None'}`,
+            eventType: `LEAVE_HOD_${action}`,
+            title: `${request.type} Request ${action === 'APPROVE' ? 'Approved by HOD' : action === 'REJECT' ? 'Rejected by HOD' : 'Updated by HOD'}`,
+            message: `Your ${request.type} request (${request.requestNumber}) has been ${action.toLowerCase()}ed by the Department HOD. ${remarks ? `Remarks: ${remarks}` : ''}`,
             relatedEntityType: 'STUDENT_LEAVE_REQUEST',
             relatedEntityId: request.id,
           },
@@ -593,21 +707,12 @@ export class StudentLeaveService {
       } catch (err) {}
     }
 
-    // Trigger Automated Attendance Adjustment on Final Approval
-    if (action === 'APPROVE') {
-      await this.adjustAttendance(updated);
-    }
-
     broadcastRBACUpdate({ type: 'APPROVAL_UPDATED', userId: request.student.userId || undefined, payload: { requestId: request.id } });
+
     return updated;
   }
 
   /**
-   * Bulk Approve requests for HOD
-   */
-  async bulkApproveHod(userId: string, requestIds: string[], remarks?: string) {
-    const results = [];
-    for (const id of requestIds) {
       try {
         const res = await this.hodReview(userId, id, 'APPROVE', remarks || 'Bulk Approved by HOD');
         results.push({ id, status: 'SUCCESS', res });
@@ -773,7 +878,12 @@ export class StudentLeaveService {
 
     if (filterStatus) {
       if (filterStatus === 'PENDING_HOD') {
-        whereCondition.workflowStatus = 'PENDING_HOD';
+        whereCondition.OR = [
+          { workflowStatus: 'PENDING_HOD' },
+          { status: 'PENDING_HOD' },
+          { status: 'APPROVED_MENTOR' },
+          { workflowStatus: 'APPROVED_MENTOR' },
+        ];
       } else if (filterStatus === 'APPROVED') {
         whereCondition.workflowStatus = 'APPROVED';
       } else if (filterStatus === 'REJECTED') {
@@ -789,7 +899,7 @@ export class StudentLeaveService {
       }
     }
 
-    return prisma.studentLeaveRequest.findMany({
+    const studentLeaveReqs = await prisma.studentLeaveRequest.findMany({
       where: whereCondition,
       orderBy: { createdAt: 'desc' },
       include: {
@@ -813,6 +923,109 @@ export class StudentLeaveService {
         attachments: true,
       },
     });
+
+    // Also fetch matching WorkflowRequests (from general workflow engine)
+    const workflowWhere: any = {};
+    if (!isSuperAdmin && departmentId) {
+      workflowWhere.OR = [
+        { departmentId },
+        { student: { departmentId } }
+      ];
+    }
+
+    if (filterStatus === 'PENDING_HOD') {
+      workflowWhere.OR = [
+        { currentStep: 'HOD' },
+        { status: 'MENTOR_APPROVED' },
+        { status: 'PENDING_HOD' }
+      ];
+    } else if (filterStatus === 'APPROVED') {
+      workflowWhere.status = { in: ['APPROVED', 'COMPLETED', 'HOD_APPROVED'] };
+    } else if (filterStatus === 'REJECTED') {
+      workflowWhere.status = { in: ['REJECTED', 'REJECTED_BY_HOD', 'REJECTED_BY_MENTOR'] };
+    }
+
+    const workflowReqs = await prisma.workflowRequest.findMany({
+      where: workflowWhere,
+      include: {
+        student: {
+          include: {
+            department: true,
+            section: true,
+            semester: true,
+            attendanceRecords: { select: { status: true } },
+          }
+        },
+        facultyRequester: { include: { department: true } },
+        history: true,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    const mappedWfReqs = workflowReqs.map((wf: any) => ({
+      id: wf.id,
+      requestNumber: `WF-${wf.id.slice(-6).toUpperCase()}`,
+      studentId: wf.studentId,
+      departmentId: wf.departmentId || wf.student?.departmentId,
+      type: wf.type || 'LEAVE',
+      requestCategory: 'ACADEMIC',
+      reason: wf.reason || wf.title || 'Student Request',
+      description: wf.title || wf.reason || '',
+      startDate: wf.startDate || wf.createdAt,
+      endDate: wf.endDate || wf.createdAt,
+      totalDays: wf.startDate && wf.endDate ? Math.max(1, Math.ceil((new Date(wf.endDate).getTime() - new Date(wf.startDate).getTime()) / (1000 * 3600 * 24)) + 1) : 1,
+      workflowStatus: (wf.currentStep === 'HOD' || wf.status === 'MENTOR_APPROVED') ? 'PENDING_HOD' : wf.status,
+      status: wf.status,
+      isEmergency: false,
+      student: wf.student ? {
+        id: wf.student.id,
+        firstName: wf.student.firstName,
+        lastName: wf.student.lastName,
+        admissionNo: wf.student.admissionNo,
+        phone: wf.student.phone || '',
+        parentPhone: wf.student.parentPhone || '',
+        department: wf.student.department,
+        section: wf.student.section,
+        semester: wf.student.semester,
+        attendanceRecords: wf.student.attendanceRecords || [],
+      } : {
+        id: wf.facultyRequester?.id || 'FAC',
+        firstName: wf.facultyRequester?.firstName || 'Faculty',
+        lastName: wf.facultyRequester?.lastName || 'Member',
+        admissionNo: wf.facultyRequester?.employeeId || 'EMP',
+        phone: wf.facultyRequester?.phone || '',
+        parentPhone: '',
+        department: wf.facultyRequester?.department,
+        section: { name: 'Faculty' },
+        semester: { name: 'Staff', number: 0 },
+        attendanceRecords: [],
+      },
+      mentor: null,
+      approvals: (wf.history || []).map((h: any) => ({
+        id: h.id,
+        approverRole: h.stage,
+        decision: h.action,
+        remarks: h.comment,
+        actedAt: h.createdAt,
+      })),
+      workflowHistory: (wf.history || []).map((h: any) => ({
+        id: h.id,
+        action: h.action,
+        performedRole: h.stage,
+        remarks: h.comment,
+        createdAt: h.createdAt,
+      })),
+      attachments: [],
+      createdAt: wf.createdAt,
+      updatedAt: wf.updatedAt,
+    }));
+
+    const existingIds = new Set(studentLeaveReqs.map(r => r.id));
+    const uniqueMappedWf = mappedWfReqs.filter(w => !existingIds.has(w.id));
+
+    return [...studentLeaveReqs, ...uniqueMappedWf].sort(
+      (a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    );
   }
 
   /**

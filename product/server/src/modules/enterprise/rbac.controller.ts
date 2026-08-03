@@ -9,13 +9,27 @@ export class RbacController {
   async streamRealtimeEvents(req: Request, res: Response) {
     const userId = (req as any).user?.id || (req.query.userId as string);
     res.setHeader('Content-Type', 'text/event-stream');
-    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Cache-Control', 'no-cache, no-transform');
     res.setHeader('Connection', 'keep-alive');
+    res.setHeader('X-Accel-Buffering', 'no');
     res.flushHeaders();
+
+    // Initial connected event
+    res.write(`data: ${JSON.stringify({ type: 'CONNECTED', timestamp: new Date().toISOString() })}\n\n`);
+
+    // Periodic ping to keep TCP stream alive
+    const pingInterval = setInterval(() => {
+      try {
+        res.write(': keep-alive\n\n');
+      } catch (err) {
+        clearInterval(pingInterval);
+      }
+    }, 15000);
 
     registerSSEClient(userId || 'anonymous', res);
 
     req.on('close', () => {
+      clearInterval(pingInterval);
       removeSSEClient(res);
     });
   }

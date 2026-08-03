@@ -106,12 +106,18 @@ import { PrincipalApprovalCenter } from '../pages/principal/PrincipalApprovalCen
 
 import { AcademicDeanPortal } from '../pages/admin/AcademicDeanPortal';
 import { AdmissionDeanPortal } from '../pages/admin/AdmissionDeanPortal';
+import { IQACDeanPortal } from '../pages/admin/IQACDeanPortal';
+import { IQACExecutivePortal } from '../pages/admin/IQACExecutivePortal';
+import { IQACDocumentationPortal } from '../pages/admin/IQACDocumentationPortal';
 
 // React component registry mapping keys to Page Components
 const COMPONENT_MAP: Record<string, React.ComponentType<any>> = {
   dashboard: Dashboard,
   academic_dean_portal: AcademicDeanPortal,
   admission_dean_portal: AdmissionDeanPortal,
+  iqac_dean_portal: IQACDeanPortal,
+  iqac_executive: IQACExecutivePortal,
+  iqac_documentation: IQACDocumentationPortal,
   approval_center: PrincipalApprovalCenter,
   principal_approvals: PrincipalApprovalCenter,
   rbac: IAMMasterControlConsole,
@@ -243,6 +249,11 @@ export const AppRouter: React.FC = () => {
           <Route path="governance-suite" element={<GovernanceSuite />} />
           <Route path="governance" element={<GovernanceSuite />} />
           <Route path="approval-center" element={<PrincipalApprovalCenter />} />
+          <Route path="academic-dean" element={<AcademicDeanPortal user={user} />} />
+          <Route path="admission-dean" element={<AdmissionDeanPortal user={user} />} />
+          <Route path="iqac-dean" element={<IQACDeanPortal user={user} />} />
+          <Route path="iqac-executive" element={<IQACExecutivePortal user={user} />} />
+          <Route path="iqac-documentation" element={<IQACDocumentationPortal user={user} />} />
 
           {/* HOD Portal Direct Routes */}
           <Route path="hod/dashboard" element={<HodDashboardWorkspace />} />
@@ -251,9 +262,15 @@ export const AppRouter: React.FC = () => {
           <Route path="hod/students" element={<HodStudentWorkspace />} />
           <Route path="hod/faculty" element={<HodFacultyWorkspace />} />
           <Route path="hod/mentors" element={<HodStudentWorkspace />} />
+          <Route path="hod/academics" element={<AcademicPerformance />} />
           <Route path="hod/attendance" element={<HodAttendanceWorkspace />} />
+          <Route path="hod/timetable" element={<TimetableEngine />} />
           <Route path="hod/tasks" element={<HodTaskWorkspace />} />
+          <Route path="hod/circulars" element={<CircularManagement />} />
+          <Route path="hod/complaints" element={<HodLeaveOdApprovalDesk />} />
+          <Route path="hod/activities" element={<HodReportsWorkspace />} />
           <Route path="hod/reports" element={<HodReportsWorkspace />} />
+          <Route path="hod/profile" element={<HODProfile />} />
 
 
           {/* Dynamically register other routes if permitted */}

@@ -11,10 +11,10 @@ export const HodAttendanceWorkspace: React.FC = () => {
   const fetchAttendance = async () => {
     try {
       setLoading(true);
-      const res = await api.get('/api/hod/attendance');
+      const res = await api.get('/hod/attendance');
       setData(res.data?.data || null);
     } catch (err: any) {
-      showToast(err.response?.data?.message || 'Failed to load attendance monitoring data', 'error');
+      showToast(err.response?.data?.message || err.message || 'Failed to load attendance monitoring data', 'error');
     } finally {
       setLoading(false);
     }

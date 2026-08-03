@@ -277,6 +277,15 @@ export class AuthService {
 
     // Determine allowed workspaces for this user
     const allowedRoles = [user.role.name];
+    
+    // Query UserWorkspace relational table
+    const dbWorkspaces = await prisma.userWorkspace.findMany({
+      where: { userId, status: 'ACTIVE' }
+    });
+    dbWorkspaces.forEach(w => {
+      if (!allowedRoles.includes(w.roleName)) allowedRoles.push(w.roleName);
+    });
+
     if (user.role.name === 'Faculty' || user.role.name === 'Mentor') {
       if (!allowedRoles.includes('Faculty')) allowedRoles.push('Faculty');
       if (!allowedRoles.includes('Mentor')) allowedRoles.push('Mentor');
@@ -358,7 +367,14 @@ export class AuthService {
 
     if (activeRole && activeRole !== user.role.name) {
       const allowedRoles = [user.role.name];
-      if (['Faculty', 'HOD', 'Academic Dean', 'Vice Principal', 'Principal'].includes(user.role.name)) {
+      const dbWorkspaces = await prisma.userWorkspace.findMany({
+        where: { userId, status: 'ACTIVE' }
+      });
+      dbWorkspaces.forEach(w => {
+        if (!allowedRoles.includes(w.roleName)) allowedRoles.push(w.roleName);
+      });
+
+      if (['Faculty', 'HOD', 'Academic Dean', 'Vice Principal', 'Principal', 'Admission Dean', 'IQAC Dean'].includes(user.role.name)) {
         allowedRoles.push('Faculty', 'Mentor');
       }
 
@@ -376,7 +392,7 @@ export class AuthService {
 
     const menus = await SecurityHelper.getPermittedMenus(permissions, roleName);
 
-    // Fetch faculty record with department (non-blocking — profile loads even if this fails)
+    // Fetch faculty record with department
     let faculty: any = null;
     try {
       faculty = await prisma.faculty.findFirst({
@@ -384,15 +400,34 @@ export class AuthService {
         include: { department: true },
       });
     } catch (_) {
-      // Silently ignore — faculty data is supplementary
+      // Silently ignore
     }
 
-    // Resolve workspaces
-    const workspaces = [user.role.name];
-    if (user.role.name === 'Faculty' || user.role.name === 'Mentor') {
-      if (!workspaces.includes('Faculty')) workspaces.push('Faculty');
-      if (!workspaces.includes('Mentor')) workspaces.push('Mentor');
+    // Resolve workspaces from UserWorkspace table
+    const dbWorkspaces = await prisma.userWorkspace.findMany({
+      where: { userId, status: 'ACTIVE' }
+    });
+    
+    const workspacesSet = new Set<string>();
+    workspacesSet.add(user.role.name);
+    dbWorkspaces.forEach(w => workspacesSet.add(w.roleName));
+
+    if (user.role.name === 'Admission Dean') {
+      workspacesSet.add('Admission Dean');
+      workspacesSet.add('Faculty');
+      workspacesSet.add('Administration');
+    } else if (user.role.name === 'IQAC Dean') {
+      workspacesSet.add('IQAC Dean');
+      workspacesSet.add('Faculty');
+    } else if (user.role.name === 'HOD') {
+      workspacesSet.add('HOD');
+      workspacesSet.add('Faculty');
+    } else if (user.role.name === 'Faculty') {
+      workspacesSet.add('Faculty');
+      workspacesSet.add('Mentor');
     }
+
+    const workspaces = Array.from(workspacesSet);
 
     return {
       id: user.id,

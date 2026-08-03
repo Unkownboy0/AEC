@@ -10,7 +10,7 @@ export const HodReportsWorkspace: React.FC = () => {
   const handleExport = async (dataset: 'STUDENTS' | 'FACULTY' | 'LEAVES' | 'ATTENDANCE') => {
     try {
       setDownloading(dataset);
-      const res = await api.get(`/api/hod/reports?dataset=${dataset}`);
+      const res = await api.get(`/hod/reports/export?dataset=${dataset}`);
       const data = res.data?.data || [];
 
       if (data.length === 0) {

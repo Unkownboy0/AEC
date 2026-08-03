@@ -1,7 +1,10 @@
 import axios, { AxiosError } from 'axios';
 
+const rawServerUrl = import.meta.env.VITE_SERVER_BASE_URL;
+const serverBaseUrl = (rawServerUrl && rawServerUrl !== 'undefined') ? rawServerUrl : '';
+
 const api = axios.create({
-  baseURL: `${import.meta.env.VITE_SERVER_BASE_URL}/api`,
+  baseURL: `${serverBaseUrl}/api`,
   headers: {
     'Content-Type': 'application/json',
   },
