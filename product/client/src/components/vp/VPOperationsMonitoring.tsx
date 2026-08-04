@@ -8,12 +8,15 @@ import {
 } from 'lucide-react';
 import { toast } from '../ui/Toast';
 import api from '../../lib/axios';
+import { ExecutiveLeaveOdModal } from '../shared/ExecutiveLeaveOdModal';
+import { ActingPrincipalBanner } from '../../modules/vp/ActingPrincipalBanner';
 
 interface VPOperationsMonitoringProps {
   readOnly?: boolean;
 }
 
 export const VPOperationsMonitoring: React.FC<VPOperationsMonitoringProps> = () => {
+  const [isLeaveModalOpen, setIsLeaveModalOpen] = useState(false);
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -237,7 +240,9 @@ export const VPOperationsMonitoring: React.FC<VPOperationsMonitoringProps> = () 
 
   return (
     <div className="space-y-6 animate-in fade-in-50 duration-200">
-      
+      {/* Acting Principal Banner */}
+      <ActingPrincipalBanner />
+
       {/* Executive Header Banner */}
       <div className="bg-gradient-to-r from-blue-950 via-indigo-900 to-slate-900 p-6 rounded-2xl text-white shadow-xl relative overflow-hidden">
         <div className="absolute right-0 bottom-0 opacity-10 transform translate-y-8 translate-x-8">
@@ -257,6 +262,12 @@ export const VPOperationsMonitoring: React.FC<VPOperationsMonitoringProps> = () 
 
           {/* Action Buttons */}
           <div className="flex flex-wrap items-center gap-2">
+            <button
+              onClick={() => setIsLeaveModalOpen(true)}
+              className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 border border-blue-400/40 rounded-lg text-xs font-extrabold flex items-center gap-1.5 shadow-md transition-colors text-white"
+            >
+              <CalendarIcon className="h-3.5 w-3.5" /> Apply Leave / OD
+            </button>
             <button
               onClick={handleExportPDF}
               className="px-3 py-1.5 bg-white/10 hover:bg-white/20 border border-white/20 rounded-lg text-xs font-extrabold flex flex-wrap items-center gap-1.5 transition-colors"
@@ -616,6 +627,12 @@ export const VPOperationsMonitoring: React.FC<VPOperationsMonitoringProps> = () 
         </div>
       )}
 
+      {/* Executive Leave & OD Modal */}
+      <ExecutiveLeaveOdModal
+        isOpen={isLeaveModalOpen}
+        onClose={() => setIsLeaveModalOpen(false)}
+        userRole="Vice Principal"
+      />
     </div>
   );
 };

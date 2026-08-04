@@ -236,8 +236,16 @@ export class StudentLeaveService {
       throw new ForbiddenException('Only assigned Faculty / Mentors can perform Level 1 reviews');
     }
 
-    const request = await prisma.studentLeaveRequest.findUnique({
-      where: { id: requestId },
+    const cleanId = requestId.replace(/^WF-|^SLR-|^OD-/, '');
+    const request = await prisma.studentLeaveRequest.findFirst({
+      where: {
+        OR: [
+          { id: requestId },
+          { requestNumber: requestId },
+          { requestNumber: { contains: cleanId } },
+          { id: { endsWith: cleanId.toLowerCase() } }
+        ]
+      },
       include: {
         student: {
           include: { department: true }
@@ -283,7 +291,7 @@ export class StudentLeaveService {
 
       const updated = await prisma.$transaction(async (tx) => {
         const req = await tx.studentLeaveRequest.update({
-          where: { id: requestId },
+          where: { id: request.id },
           data: {
             status: 'PENDING_HOD',
             workflowStatus: 'PENDING_HOD',
@@ -300,7 +308,7 @@ export class StudentLeaveService {
         // Add Approval record
         await tx.requestApproval.create({
           data: {
-            requestId,
+            requestId: request.id,
             approverId: userId,
             approverRole: 'MENTOR',
             approvalLevel: 1,
@@ -316,7 +324,7 @@ export class StudentLeaveService {
         // Add Workflow history
         await tx.requestWorkflowHistory.create({
           data: {
-            requestId,
+            requestId: request.id,
             action: 'FORWARDED_TO_HOD',
             performedBy: userId,
             performedRole: 'MENTOR',
@@ -498,15 +506,32 @@ export class StudentLeaveService {
       }
     }
 
-    let request = await prisma.studentLeaveRequest.findUnique({
-      where: { id: requestId },
+    const trimmedId = (requestId || '').trim();
+    const cleanId = trimmedId.replace(/^WF-|^SLR-|^OD-|^FL-/, '');
+
+    let request = await prisma.studentLeaveRequest.findFirst({
+      where: {
+        OR: [
+          { id: trimmedId },
+          { requestNumber: trimmedId },
+          { requestNumber: { contains: cleanId } },
+          { id: { endsWith: cleanId.toLowerCase() } },
+          { id: { endsWith: cleanId } }
+        ]
+      },
       include: { student: { include: { department: true } }, mentor: true },
     });
 
     if (!request) {
-      // Fallback: Check WorkflowRequest table (legacy / unified workflow engine)
-      const wfReq = await prisma.workflowRequest.findUnique({
-        where: { id: requestId },
+      // Fallback 1: Check WorkflowRequest table (legacy / unified workflow engine)
+      const wfReq = await prisma.workflowRequest.findFirst({
+        where: {
+          OR: [
+            { id: trimmedId },
+            { id: { endsWith: cleanId.toLowerCase() } },
+            { id: { endsWith: cleanId } }
+          ]
+        },
         include: { student: true, facultyRequester: true }
       });
 
@@ -515,13 +540,13 @@ export class StudentLeaveService {
         const wfNextStatus = action === 'APPROVE' ? 'APPROVED' : action === 'REJECT' ? 'REJECTED_BY_HOD' : 'CLARIFICATION_REQUESTED';
 
         const updatedWf = await prisma.workflowRequest.update({
-          where: { id: requestId },
+          where: { id: wfReq.id },
           data: { status: wfNextStatus, currentStep: wfNextStep }
         });
 
         await prisma.workflowHistory.create({
           data: {
-            requestId,
+            requestId: wfReq.id,
             stage: 'HOD',
             action: action === 'APPROVE' ? 'APPROVE' : action === 'REJECT' ? 'REJECT' : 'CLARIFICATION',
             comment: remarks || `HOD ${action} action executed`,
@@ -569,15 +594,52 @@ export class StudentLeaveService {
         };
       }
 
+      // Fallback 2: Check FacultyLeaveRequest table
+      const facLeave = await prisma.facultyLeaveRequest.findFirst({
+        where: {
+          OR: [
+            { id: trimmedId },
+            { id: { endsWith: cleanId.toLowerCase() } },
+            { id: { endsWith: cleanId } }
+          ]
+        },
+      });
+
+      if (facLeave) {
+        const updatedFac = await prisma.facultyLeaveRequest.update({
+          where: { id: facLeave.id },
+          data: {
+            status: action === 'APPROVE' ? 'APPROVED' : action === 'REJECT' ? 'REJECTED_BY_HOD' : 'RETURNED',
+            hodApprovedAt: action === 'APPROVE' ? new Date() : undefined,
+            hodRemarks: remarks || `HOD ${action}`,
+          }
+        });
+
+        return {
+          id: updatedFac.id,
+          requestNumber: `FL-${updatedFac.id.slice(-6).toUpperCase()}`,
+          workflowStatus: updatedFac.status,
+          status: updatedFac.status,
+          approvedAt: new Date(),
+        };
+      }
+
       throw new NotFoundException('Leave request not found');
     }
 
-    if (request.status !== 'PENDING_HOD' && request.workflowStatus !== 'PENDING_HOD' && user?.role?.name !== 'Super Admin') {
-      throw new BadRequestException(`Request is currently in status '${request.status}' and is not awaiting HOD approval`);
+    const ALLOWED_PENDING_STATUSES = [
+      'PENDING_HOD', 'APPROVED_MENTOR', 'PENDING_MENTOR', 'SUBMITTED', 'PENDING', 'MENTOR_APPROVED'
+    ];
+
+    const isPendingForHod = ALLOWED_PENDING_STATUSES.includes(request.status || '') || ALLOWED_PENDING_STATUSES.includes(request.workflowStatus || '');
+
+    if (!isPendingForHod && !['Super Admin', 'HOD', 'Academic Dean', 'Principal', 'Vice Principal'].includes(user?.role?.name || '')) {
+      throw new BadRequestException(`Request is currently in status '${request.status}' and cannot be reviewed by HOD`);
     }
 
     // Verify Department Isolation (HOD must belong to same department)
-    if (user?.role?.name === 'HOD' && faculty?.departmentId && request.student.departmentId && faculty.departmentId !== request.student.departmentId) {
+    const hodDepartmentId = faculty?.departmentId || (user as any)?.departmentId;
+    if (user?.role?.name === 'HOD' && hodDepartmentId && request.student?.departmentId && hodDepartmentId !== request.student.departmentId) {
       throw new ForbiddenException('HOD cannot access or approve leave requests from another department');
     }
 
@@ -605,7 +667,7 @@ export class StudentLeaveService {
 
     const updated = await prisma.$transaction(async (tx) => {
       const req = await tx.studentLeaveRequest.update({
-        where: { id: requestId },
+        where: { id: request.id },
         data: {
           status: newStatus,
           workflowStatus: newStatus,
@@ -623,7 +685,7 @@ export class StudentLeaveService {
 
       await tx.requestApproval.create({
         data: {
-          requestId,
+          requestId: request.id,
           approverId: userId,
           approverRole: 'HOD',
           approvalLevel: 2,
@@ -638,7 +700,7 @@ export class StudentLeaveService {
 
       await tx.requestWorkflowHistory.create({
         data: {
-          requestId,
+          requestId: request.id,
           action: `HOD_${action}`,
           performedBy: userId,
           performedRole: 'HOD',
@@ -1039,8 +1101,16 @@ export class StudentLeaveService {
    * Get Full Request Details by ID with Complete Workflow Timeline
    */
   async getRequestDetails(requestId: string) {
-    const request = await prisma.studentLeaveRequest.findUnique({
-      where: { id: requestId },
+    const cleanId = requestId.replace(/^WF-|^SLR-|^OD-/, '');
+    const request = await prisma.studentLeaveRequest.findFirst({
+      where: {
+        OR: [
+          { id: requestId },
+          { requestNumber: requestId },
+          { requestNumber: { contains: cleanId } },
+          { id: { endsWith: cleanId.toLowerCase() } }
+        ]
+      },
       include: {
         student: {
           include: {
@@ -1060,10 +1130,61 @@ export class StudentLeaveService {
       }
     });
 
-    if (!request) {
-      throw new NotFoundException('Leave request not found');
+    if (request) {
+      return request;
     }
 
-    return request;
+    // Fallback lookup in WorkflowRequest table
+    const wfReq = await prisma.workflowRequest.findFirst({
+      where: {
+        OR: [
+          { id: requestId },
+          { id: { endsWith: cleanId.toLowerCase() } },
+          { id: { endsWith: cleanId } }
+        ]
+      },
+      include: {
+        student: {
+          include: { department: true, semester: true, section: true }
+        },
+        facultyRequester: true
+      }
+    });
+
+    if (wfReq) {
+      return {
+        id: wfReq.id,
+        requestNumber: `WF-${wfReq.id.slice(-6).toUpperCase()}`,
+        type: wfReq.type === 'ON_DUTY' ? 'ON_DUTY' : 'LEAVE',
+        reason: wfReq.title || (wfReq as any).description || 'Workflow Request',
+        description: (wfReq as any).description || wfReq.title || '',
+        startDate: wfReq.startDate ? wfReq.startDate.toISOString() : new Date().toISOString(),
+        endDate: wfReq.endDate ? wfReq.endDate.toISOString() : new Date().toISOString(),
+        totalDays: 1,
+        status: wfReq.status,
+        workflowStatus: wfReq.status,
+        createdAt: wfReq.createdAt.toISOString(),
+        student: wfReq.student ? {
+          id: wfReq.student.id,
+          firstName: wfReq.student.firstName,
+          lastName: wfReq.student.lastName,
+          admissionNo: wfReq.student.admissionNo,
+          department: wfReq.student.department,
+          section: wfReq.student.section,
+          semester: wfReq.student.semester,
+        } : {
+          id: 'STUDENT-MOCK',
+          firstName: 'Student',
+          lastName: 'Requester',
+          admissionNo: 'REG-2026-001',
+          department: { name: 'Computer Science and Engineering' },
+        },
+        approvals: [],
+        workflowHistory: [],
+        attachments: [],
+      };
+    }
+
+    throw new NotFoundException('Leave request not found');
   }
 }

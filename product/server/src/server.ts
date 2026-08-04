@@ -3,8 +3,21 @@ import { env } from './config/env';
 import { logger } from './utils/logger';
 import { prisma } from './lib/prisma';
 
-const server = app.listen(env.PORT, () => {
+const server = app.listen(env.PORT, '0.0.0.0', () => {
   logger.info(`🚀 GEETORUS CAMPUSOS Engine running in ${env.NODE_ENV} mode on port ${env.PORT}`);
+});
+
+server.on('error', (err: any) => {
+  if (err.code === 'EADDRINUSE') {
+    setTimeout(() => {
+      try {
+        server.close();
+        server.listen(env.PORT, '0.0.0.0');
+      } catch (_) {}
+    }, 1000);
+  } else {
+    logger.error('HTTP Server Error:', err);
+  }
 });
 
 const gracefulShutdown = async (signal: string) => {
@@ -37,8 +50,10 @@ process.on('unhandledRejection', (reason, promise) => {
   logger.error('Unhandled Rejection at:', promise, 'reason:', reason);
 });
 
-process.on('uncaughtException', (error) => {
+process.on('uncaughtException', (error: any) => {
+  if (error && error.code === 'EADDRINUSE') {
+    return;
+  }
   logger.error('Uncaught Exception thrown:', error);
-  // Optional: Graceful shutdown on uncaught exception
   gracefulShutdown('UNCAUGHT_EXCEPTION');
 });

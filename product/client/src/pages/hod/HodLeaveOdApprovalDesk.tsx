@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { api } from '../../lib/api';
 import { useToast } from '../../components/ui/Toast';
+import { ExecutiveLeaveOdModal } from '../../components/shared/ExecutiveLeaveOdModal';
 
 interface LeaveRequest {
   id: string;
@@ -76,6 +77,7 @@ interface LeaveRequest {
 
 export const HodLeaveOdApprovalDesk: React.FC = () => {
   const { showToast } = useToast();
+  const [isLeaveModalOpen, setIsLeaveModalOpen] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<'PENDING_HOD' | 'ALL' | 'APPROVED' | 'REJECTED' | 'RETURNED' | 'EMERGENCY' | 'ESCALATED'>('PENDING_HOD');
   const [requests, setRequests] = useState<LeaveRequest[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -223,6 +225,12 @@ export const HodLeaveOdApprovalDesk: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-3">
+          <button
+            onClick={() => setIsLeaveModalOpen(true)}
+            className="flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-bold shadow-sm transition"
+          >
+            <Calendar className="w-4 h-4" /> Apply HOD Leave / OD
+          </button>
           <button
             onClick={fetchRequests}
             className="p-2.5 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-xl border border-slate-200 dark:border-slate-700 transition"
@@ -661,6 +669,12 @@ export const HodLeaveOdApprovalDesk: React.FC = () => {
           </div>
         </div>
       )}
+      {/* Executive Leave & OD Modal */}
+      <ExecutiveLeaveOdModal
+        isOpen={isLeaveModalOpen}
+        onClose={() => setIsLeaveModalOpen(false)}
+        userRole="Head of Department (HOD)"
+      />
     </div>
   );
 };

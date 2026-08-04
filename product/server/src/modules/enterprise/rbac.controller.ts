@@ -19,6 +19,10 @@ export class RbacController {
 
     // Periodic ping to keep TCP stream alive
     const pingInterval = setInterval(() => {
+      if (res.writableEnded || res.destroyed) {
+        clearInterval(pingInterval);
+        return;
+      }
       try {
         res.write(': keep-alive\n\n');
       } catch (err) {
@@ -28,10 +32,24 @@ export class RbacController {
 
     registerSSEClient(userId || 'anonymous', res);
 
-    req.on('close', () => {
+    const cleanup = () => {
       clearInterval(pingInterval);
       removeSSEClient(res);
-    });
+      if (!res.writableEnded) {
+        try { res.end(); } catch (_) {}
+      }
+    };
+
+    const ignoreSocketError = (err: any) => {
+      cleanup();
+    };
+
+    req.on('close', cleanup);
+    res.on('close', cleanup);
+    req.on('error', ignoreSocketError);
+    res.on('error', ignoreSocketError);
+    req.socket?.on('error', ignoreSocketError);
+    res.socket?.on('error', ignoreSocketError);
   }
 
   // Get current user's dynamic RBAC profile

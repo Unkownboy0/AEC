@@ -109,6 +109,7 @@ export declare class AcademicsRepository {
             officeLocation: string | null;
             establishedYear: number | null;
             hodId: string | null;
+            hodUserId: string | null;
             hodName: string | null;
         })[];
         totalCount: number;
@@ -176,6 +177,7 @@ export declare class AcademicsRepository {
         officeLocation: string | null;
         establishedYear: number | null;
         hodId: string | null;
+        hodUserId: string | null;
         hodName: string | null;
     }) | null>;
     createDept(data: any): Promise<{
@@ -203,6 +205,7 @@ export declare class AcademicsRepository {
         officeLocation: string | null;
         establishedYear: number | null;
         hodId: string | null;
+        hodUserId: string | null;
         hodName: string | null;
     }>;
     updateDept(id: string, data: any): Promise<{
@@ -230,6 +233,7 @@ export declare class AcademicsRepository {
         officeLocation: string | null;
         establishedYear: number | null;
         hodId: string | null;
+        hodUserId: string | null;
         hodName: string | null;
     }>;
     findPrograms(params: {
@@ -269,6 +273,7 @@ export declare class AcademicsRepository {
                 officeLocation: string | null;
                 establishedYear: number | null;
                 hodId: string | null;
+                hodUserId: string | null;
                 hodName: string | null;
             };
         } & {
@@ -316,6 +321,7 @@ export declare class AcademicsRepository {
             officeLocation: string | null;
             establishedYear: number | null;
             hodId: string | null;
+            hodUserId: string | null;
             hodName: string | null;
         };
     } & {
@@ -407,6 +413,7 @@ export declare class AcademicsRepository {
                 officeLocation: string | null;
                 establishedYear: number | null;
                 hodId: string | null;
+                hodUserId: string | null;
                 hodName: string | null;
             };
             program: {
@@ -474,6 +481,7 @@ export declare class AcademicsRepository {
             officeLocation: string | null;
             establishedYear: number | null;
             hodId: string | null;
+            hodUserId: string | null;
             hodName: string | null;
         };
         program: {
@@ -853,6 +861,7 @@ export declare class AcademicsRepository {
                 officeLocation: string | null;
                 establishedYear: number | null;
                 hodId: string | null;
+                hodUserId: string | null;
                 hodName: string | null;
             };
             program: {
@@ -936,6 +945,7 @@ export declare class AcademicsRepository {
             officeLocation: string | null;
             establishedYear: number | null;
             hodId: string | null;
+            hodUserId: string | null;
             hodName: string | null;
         };
         program: {
@@ -1067,6 +1077,7 @@ export declare class AcademicsRepository {
                 officeLocation: string | null;
                 establishedYear: number | null;
                 hodId: string | null;
+                hodUserId: string | null;
                 hodName: string | null;
             };
             program: {
@@ -1187,6 +1198,7 @@ export declare class AcademicsRepository {
             officeLocation: string | null;
             establishedYear: number | null;
             hodId: string | null;
+            hodUserId: string | null;
             hodName: string | null;
         };
         program: {

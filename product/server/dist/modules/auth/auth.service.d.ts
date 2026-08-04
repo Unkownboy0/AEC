@@ -21,6 +21,26 @@ export declare class AuthService {
      */
     logoutAll(userId: string): Promise<void>;
     /**
+     * Dynamic Multi-Workspace Context Switcher
+     * Swaps active role context without re-authentication
+     */
+    switchWorkspace(userId: string, targetRole: string): Promise<{
+        accessToken: string;
+        activeWorkspace: string;
+        user: {
+            id: string;
+            email: string;
+            firstName: string;
+            lastName: string;
+            role: string;
+            profilePhoto: string | null;
+            permissions: string[];
+            menus: any[];
+            workspaces: string[];
+            activeWorkspace: string;
+        };
+    }>;
+    /**
      * Get currently logged-in user profile (full — includes faculty/department for HOD/Faculty roles)
      */
     getMe(userId: string, activeRole?: string): Promise<{

@@ -31,6 +31,9 @@ interface AdmissionDeanPortalProps {
 
 import { AdmissionCoordinationWorkspace } from '../../components/admin/AdmissionCoordinationWorkspace';
 
+import { ExecutiveLeaveOdModal } from '../../components/shared/ExecutiveLeaveOdModal';
+import { Calendar as CalendarIcon } from 'lucide-react';
+
 const VALID_TABS = ['overview','coordination','applications','faculty_leaves','seats','scholarships','enquiries','counselling','payments'] as const;
 type AdmissionTab = typeof VALID_TABS[number];
 
@@ -39,6 +42,7 @@ export const AdmissionDeanPortal: React.FC<AdmissionDeanPortalProps> = ({ user: 
   const user = propUser || authUser;
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const [isLeaveModalOpen, setIsLeaveModalOpen] = useState(false);
 
   // Derive active tab from URL ?tab= param (sidebar navigation support)
   const rawTab = searchParams.get('tab') as AdmissionTab | null;
@@ -472,6 +476,13 @@ export const AdmissionDeanPortal: React.FC<AdmissionDeanPortalProps> = ({ user: 
             <p className="text-sm opacity-90 font-medium">Verify credentials · Run merit algorithms · Manage seat distributions</p>
           </div>
           <div className="flex items-center gap-2">
+            <button
+              onClick={() => setIsLeaveModalOpen(true)}
+              className="px-3.5 py-2 bg-indigo-900/80 hover:bg-indigo-950 text-white font-black rounded-lg text-xs flex items-center gap-1.5 shadow-md transition-all active:scale-95 border border-white/20"
+            >
+              <CalendarIcon className="h-4 w-4 text-pink-300" />
+              <span>Apply Leave / OD</span>
+            </button>
             <button
               onClick={() => {
                 const current = localStorage.getItem('admission_dean_workspace') || 'ADMINISTRATION';
@@ -1724,6 +1735,12 @@ export const AdmissionDeanPortal: React.FC<AdmissionDeanPortalProps> = ({ user: 
         </div>
       )}
 
+      {/* Executive Leave & OD Modal */}
+      <ExecutiveLeaveOdModal
+        isOpen={isLeaveModalOpen}
+        onClose={() => setIsLeaveModalOpen(false)}
+        userRole="Admission Dean"
+      />
     </div>
   );
 };

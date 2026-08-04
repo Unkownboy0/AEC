@@ -13,6 +13,7 @@ export declare class AuthRepository {
                     action: string;
                     module: string;
                     description: string | null;
+                    groupId: string | null;
                 };
             } & {
                 roleId: string;
@@ -232,6 +233,7 @@ export declare class AuthRepository {
                     action: string;
                     module: string;
                     description: string | null;
+                    groupId: string | null;
                 };
             } & {
                 roleId: string;

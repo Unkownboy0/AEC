@@ -102,17 +102,36 @@ import { SportsModule } from '../pages/admin/SportsModule';
 import { MasterRBACConsole } from '../pages/admin/MasterRBACConsole';
 import { IAMMasterControlConsole } from '../pages/admin/IAMMasterControlConsole';
 
-import { PrincipalApprovalCenter } from '../pages/principal/PrincipalApprovalCenter';
+import { PrincipalApprovalCenterPage as PrincipalApprovalCenter } from '../modules/principal-availability/pages/PrincipalApprovalCenterPage';
+import { VpActingPrincipalApprovalPage } from '../modules/vp/pages/acting-principal/VpActingPrincipalApprovalPage';
+import { VpDelegatedRequestDetailsPage } from '../modules/vp/pages/acting-principal/VpDelegatedRequestDetailsPage';
+import { ActingPrincipalRouteGuard } from '../modules/vp/guards/ActingPrincipalRouteGuard';
+import { PrincipalDashboardPage } from '../modules/principal/pages/PrincipalDashboardPage';
+import { VpDashboardPage } from '../modules/vp/pages/VpDashboardPage';
 
 import { AcademicDeanPortal } from '../pages/admin/AcademicDeanPortal';
 import { AdmissionDeanPortal } from '../pages/admin/AdmissionDeanPortal';
 import { IQACDeanPortal } from '../pages/admin/IQACDeanPortal';
 import { IQACExecutivePortal } from '../pages/admin/IQACExecutivePortal';
 import { IQACDocumentationPortal } from '../pages/admin/IQACDocumentationPortal';
+import ParentWorkspacePortal from '../pages/parent/ParentWorkspacePortal';
+import FacultyWorkspacePortal from '../pages/faculty/FacultyWorkspacePortal';
+import MentorWorkspacePortal from '../pages/mentor/MentorWorkspacePortal';
+import { FacultyDashboard } from '../modules/faculty/FacultyDashboard';
+import { CircularCenter } from '../modules/circulars/CircularCenter';
+import { DepartmentAvailabilityBoard } from '../components/department/DepartmentAvailabilityBoard';
 
 // React component registry mapping keys to Page Components
 const COMPONENT_MAP: Record<string, React.ComponentType<any>> = {
   dashboard: Dashboard,
+  faculty_portal: FacultyWorkspacePortal,
+  faculty_dashboard: FacultyWorkspacePortal,
+  faculty: FacultyWorkspacePortal,
+  mentor_portal: MentorWorkspacePortal,
+  mentor_dashboard: MentorWorkspacePortal,
+  mentor: MentorWorkspacePortal,
+  parent_portal: ParentWorkspacePortal,
+  parent_dashboard: ParentWorkspacePortal,
   academic_dean_portal: AcademicDeanPortal,
   admission_dean_portal: AdmissionDeanPortal,
   iqac_dean_portal: IQACDeanPortal,
@@ -133,7 +152,7 @@ const COMPONENT_MAP: Record<string, React.ComponentType<any>> = {
 
   masters: MasterLists,
   students: Students,
-  faculty: Faculty,
+  faculty_admin: Faculty,
   attendance: Attendance,
   exams: Exams,
   fees: Fees,
@@ -254,6 +273,71 @@ export const AppRouter: React.FC = () => {
           <Route path="iqac-dean" element={<IQACDeanPortal user={user} />} />
           <Route path="iqac-executive" element={<IQACExecutivePortal user={user} />} />
           <Route path="iqac-documentation" element={<IQACDocumentationPortal user={user} />} />
+          <Route path="faculty" element={<FacultyDashboard />} />
+          <Route path="faculty/dashboard" element={<FacultyDashboard />} />
+          <Route path="faculty/timetable" element={<FacultyWorkspacePortal />} />
+          <Route path="faculty/subjects" element={<FacultyWorkspacePortal />} />
+          <Route path="faculty/attendance" element={<FacultyWorkspacePortal />} />
+          <Route path="faculty/assignments" element={<FacultyWorkspacePortal />} />
+          <Route path="faculty/internal-marks" element={<FacultyWorkspacePortal />} />
+          <Route path="faculty/marks" element={<FacultyWorkspacePortal />} />
+          <Route path="faculty/students" element={<FacultyWorkspacePortal />} />
+          <Route path="faculty/leave" element={<FacultyWorkspacePortal />} />
+          <Route path="faculty/tasks" element={<FacultyWorkspacePortal />} />
+          <Route path="faculty/availability" element={<FacultyWorkspacePortal />} />
+          <Route path="faculty/ai_assistant" element={<FacultyWorkspacePortal />} />
+          <Route path="faculty/profile" element={<FacultyWorkspacePortal />} />
+          <Route path="faculty/mentor" element={<MentorWorkspacePortal />} />
+          <Route path="circulars" element={<CircularCenter />} />
+          <Route path="circulars/:id" element={<CircularCenter />} />
+          <Route path="mentor" element={<MentorWorkspacePortal />} />
+          {/* Principal Workspace Routes */}
+          <Route path="principal" element={<Navigate to="/principal/dashboard" replace />} />
+          <Route path="principal/dashboard" element={<PrincipalDashboardPage />} />
+          <Route path="principal/approval-center" element={<PrincipalApprovalCenter />} />
+
+          {/* Vice Principal Workspace Routes */}
+          <Route path="vp" element={<Navigate to="/vp/dashboard" replace />} />
+          <Route path="vp/dashboard" element={<VpDashboardPage />} />
+          <Route path="vp/operations" element={<VpDashboardPage />} />
+          <Route path="vp/departments" element={<VpDashboardPage />} />
+          <Route path="vp/faculty" element={<VpDashboardPage />} />
+          <Route path="vp/students" element={<VpDashboardPage />} />
+          <Route path="vp/attendance" element={<VpDashboardPage />} />
+          <Route path="vp/leave-approvals" element={<VpDashboardPage />} />
+          <Route path="vp/examinations" element={<VpDashboardPage />} />
+          <Route path="vp/placements" element={<VpDashboardPage />} />
+          <Route path="vp/complaints" element={<VpDashboardPage />} />
+          <Route path="vp/activities" element={<VpDashboardPage />} />
+          <Route path="vp/reports" element={<VpDashboardPage />} />
+          <Route path="vp/audit" element={<VpDashboardPage />} />
+          <Route path="vp/notifications" element={<VpDashboardPage />} />
+
+          {/* VP Acting Principal Delegated Approvals */}
+          <Route
+            path="vp/acting-principal/approvals"
+            element={
+              <ActingPrincipalRouteGuard>
+                <VpActingPrincipalApprovalPage />
+              </ActingPrincipalRouteGuard>
+            }
+          />
+          <Route
+            path="vp/acting-principal/approval-center"
+            element={
+              <ActingPrincipalRouteGuard>
+                <VpActingPrincipalApprovalPage />
+              </ActingPrincipalRouteGuard>
+            }
+          />
+          <Route
+            path="vp/acting-principal/approvals/:requestId"
+            element={
+              <ActingPrincipalRouteGuard>
+                <VpDelegatedRequestDetailsPage />
+              </ActingPrincipalRouteGuard>
+            }
+          />
 
           {/* HOD Portal Direct Routes */}
           <Route path="hod/dashboard" element={<HodDashboardWorkspace />} />
@@ -267,14 +351,22 @@ export const AppRouter: React.FC = () => {
           <Route path="hod/timetable" element={<TimetableEngine />} />
           <Route path="hod/tasks" element={<HodTaskWorkspace />} />
           <Route path="hod/circulars" element={<CircularManagement />} />
+          <Route path="hod/board" element={<DepartmentAvailabilityBoard />} />
           <Route path="hod/complaints" element={<HodLeaveOdApprovalDesk />} />
           <Route path="hod/activities" element={<HodReportsWorkspace />} />
           <Route path="hod/reports" element={<HodReportsWorkspace />} />
           <Route path="hod/profile" element={<HODProfile />} />
 
 
-          {/* Dynamically register other routes if permitted */}
-          {user?.menus?.filter((m: any) => m.componentKey !== 'dashboard' && m.componentKey !== 'profile').map((m: any) => {
+          {/* Dynamically register other admin routes if permitted (excluding HOD and Faculty paths to prevent blank screen overrides) */}
+          {user?.menus?.filter((m: any) => 
+            m.componentKey !== 'dashboard' && 
+            m.componentKey !== 'profile' && 
+            !m.path?.startsWith('/hod') && 
+            !m.path?.startsWith('hod') &&
+            !m.path?.startsWith('/faculty') && 
+            !m.path?.startsWith('faculty')
+          ).map((m: any) => {
             const PageComp = COMPONENT_MAP[m.componentKey];
             if (!PageComp) return null;
             // Clean leading slashes for sub-routes

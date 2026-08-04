@@ -3414,6 +3414,286 @@ model DepartmentHodAssignment {
   @@map("department_hod_assignments")
 }
 
+// ==========================================
+// PRINCIPAL DELEGATION & OFFLINE MODE MODELS
+// ==========================================
+
+model PrincipalStatus {
+  id                  String    @id @default(uuid())
+  principalUserId     String    @unique
+  status              String    @default("AVAILABLE") // AVAILABLE, BUSY, OFFLINE
+  reason              String?
+  startsAt            DateTime?
+  endsAt              DateTime?
+  updatedBy           String?
+  activeDelegationId  String?
+  version             Int       @default(1)
+  updatedAt           DateTime  @updatedAt
+  createdAt           DateTime  @default(now())
+
+  @@map("principal_statuses")
+}
+
+model PrincipalDelegation {
+  id                    String    @id @default(uuid())
+  principalUserId       String
+  actingUserId          String
+  actingUserRole        String    @default("Vice Principal")
+  status                String    @default("ACTIVE") // INACTIVE, PENDING, ACTIVE, REVOKED, EXPIRED, CANCELLED
+  principalStatus       String    @default("OFFLINE") // BUSY, OFFLINE
+  startDate             DateTime
+  endDate               DateTime
+  reason                String
+  delegatedCategories   String    @default("[]") // JSON string array of categories
+  delegatedPermissions  String    @default("[]") // JSON string array of permissions
+  emergencyContactNote  String?
+  messageToVp           String?
+  acknowledgedAt        DateTime?
+  acknowledgedDeviceId  String?
+  revokedAt             DateTime?
+  revokedBy             String?
+  revokedReason         String?
+  expiredAt             DateTime?
+  createdBy             String?
+  version               Int       @default(1)
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  logs                  DelegationActionLog[]
+  handovers             DelegationHandover[]
+  assignments          ApprovalAssignment[]
+
+  @@index([principalUserId])
+  @@index([actingUserId])
+  @@index([status])
+  @@map("principal_delegations")
+}
+
+model ApprovalAssignment {
+  id                String               @id @default(uuid())
+  requestId         String
+  requestType       String               // LEAVE, OD, DOCUMENT, CIRCULAR, TASK, MEETING, ADMINISTRATIVE
+  title             String?
+  applicantName     String?
+  departmentName    String?
+  assignedUserId    String
+  assignedRole      String               // PRINCIPAL, ACTING_PRINCIPAL
+  assignmentType    String               @default("DIRECT") // DIRECT, DELEGATED, RETURNED_TO_PRINCIPAL
+  delegationId      String?
+  delegation        PrincipalDelegation? @relation(fields: [delegationId], references: [id], onDelete: SetNull)
+  status            String               @default("PENDING") // PENDING, APPROVED, REJECTED, RETURNED
+  assignedAt        DateTime             @default(now())
+  returnedAt        DateTime?
+  completedAt       DateTime?
+  actionByUserId    String?
+  actionByRole      String?
+  actionAsRole      String?
+  actionRemarks     String?
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+
+  @@index([requestId])
+  @@index([assignedUserId])
+  @@index([delegationId])
+  @@index([status])
+  @@map("approval_assignments")
+}
+
+model DelegationHandover {
+  id                  String               @id @default(uuid())
+  delegationId        String
+  delegation          PrincipalDelegation  @relation(fields: [delegationId], references: [id], onDelete: Cascade)
+  principalUserId     String
+  actingUserId        String
+  totalRequests       Int                  @default(0)
+  approvedCount       Int                  @default(0)
+  rejectedCount       Int                  @default(0)
+  returnedCount       Int                  @default(0)
+  pendingCount        Int                  @default(0)
+  summary             String?              // JSON of detailed breakdown
+  generatedAt         DateTime             @default(now())
+  acknowledgedAt      DateTime?
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+
+  @@index([principalUserId])
+  @@index([delegationId])
+  @@map("delegation_handovers")
+}
+
+model DelegationActionLog {
+  id                   String               @id @default(uuid())
+  delegationId         String?
+  delegation           PrincipalDelegation? @relation(fields: [delegationId], references: [id], onDelete: SetNull)
+  module               String               // WORKFLOW, LEAVE, OD, CIRCULAR, TASK, COMPLAINT, REPORT
+  recordId             String
+  actionType           String               // APPROVED, REJECTED, RETURNED, FORWARDED, UPLOADED, SIGNED, PUBLISHED, CIRCULATED, ESCALATED
+  performedByUserId    String
+  performedByRole      String
+  performedAsRole      String               @default("ACTING_PRINCIPAL") // ACTING_PRINCIPAL, VP, etc.
+  delegatedByUserId    String?
+  previousStatus       String?
+  newStatus            String?
+  remarks              String?
+  attachmentId         String?
+  ipAddress            String?
+  deviceId             String?
+  platform             String?              @default("WEB")
+  createdAt            DateTime             @default(now())
+
+  @@index([performedByUserId])
+  @@index([recordId])
+  @@index([actionType])
+  @@map("delegation_action_logs")
+}
+
+// ==========================================
+// UNIFIED NATIVE NOTIFICATION SYSTEM MODELS
+// ==========================================
+
+model NotificationDelivery {
+  id                String       @id @default(uuid())
+  notificationId    String
+  recipientId       String
+  channel           String       // IN_APP, PUSH, EMAIL, SMS, WHATSAPP
+  status            String       @default("QUEUED") // QUEUED, SENT, DELIVERED, OPENED, READ, ACKNOWLEDGED, FAILED, EXPIRED
+  idempotencyKey    String?      @unique
+  providerResponse  String?
+  retryCount        Int          @default(0)
+  deliveredAt       DateTime?
+  openedAt          DateTime?
+  readAt            DateTime?
+  acknowledgedAt    DateTime?
+  failedAt          DateTime?
+  errorMessage      String?
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+
+  @@index([notificationId])
+  @@index([recipientId])
+  @@index([status])
+  @@map("notification_deliveries")
+}
+
+// ==========================================
+// EXPANDED CIRCULAR MANAGEMENT MODELS
+// ==========================================
+
+model Circular {
+  id                      String              @id @default(uuid())
+  circularNumber          String              @unique
+  title                   String
+  category                String              @default("GENERAL") // General, Academic, Examination, Admission, IQAC, Placement, Internship, Fees, Transport, Emergency, Event, Department
+  priority                String              @default("NORMAL") // LOW, NORMAL, HIGH, URGENT, EMERGENCY
+  description             String?
+  content                 String              // Rich text content
+  broadcastLevel          String              @default("ALL_CAMPUS") // ALL_CAMPUS, FACULTY_ONLY, STUDENT_ONLY, DEPARTMENT_SPECIFIC, PARENTS_ONLY, SELECTED_USERS, ROLE_SPECIFIC
+  departmentId            String?
+  authorId                String
+  authorRole              String?             // Principal, Vice Principal, Academic Dean, Admission Dean, IQAC Dean, HOD
+  publishedAs             String?             // Vice Principal — Acting Principal, Academic Dean, etc.
+  delegationId            String?
+  attachmentUrl           String?
+  attachmentName          String?
+  referenceLink           String?
+  status                  String              @default("PUBLISHED") // DRAFT, PUBLISHED, ARCHIVED
+  effectiveDate           DateTime?           @default(now())
+  publishDate             DateTime?           @default(now())
+  expiryDate              DateTime?
+  targetDepartments       String              @default("[]") // JSON string array of dept IDs
+  targetYears             String              @default("[]") // JSON string array
+  targetSemesters         String              @default("[]") // JSON string array
+  targetSections          String              @default("[]") // JSON string array
+  targetRoles             String              @default("[]") // JSON string array of role names
+  selectedUserIds         String              @default("[]") // JSON string array of user IDs
+  acknowledgementRequired Boolean             @default(false)
+  isPinned                Boolean             @default(false)
+  isEmergency             Boolean             @default(false)
+  recipients              CircularRecipient[]
+  publishedAt             DateTime?           @default(now())
+  createdAt               DateTime            @default(now())
+  updatedAt               DateTime            @updatedAt
+
+  @@index([broadcastLevel])
+  @@index([departmentId])
+  @@index([authorId])
+  @@index([publishedAt])
+  @@map("circulars")
+}
+
+model CircularRecipient {
+  id              String    @id @default(uuid())
+  circularId      String
+  circular        Circular  @relation(fields: [circularId], references: [id], onDelete: Cascade)
+  userId          String
+  status          String    @default("DELIVERED") // DELIVERED, VIEWED, READ, ACKNOWLEDGED
+  deliveredAt     DateTime  @default(now())
+  viewedAt        DateTime?
+  readAt          DateTime?
+  acknowledgedAt  DateTime?
+  downloadedAt    DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@unique([circularId, userId])
+  @@index([userId])
+  @@index([status])
+  @@map("circular_recipients")
+}
+
+model ApprovalWorkflowEvent {
+  id                 String   @id @default(uuid())
+  requestId          String
+  eventType          String
+  fromStage          String?
+  toStage            String?
+  fromStatus         String?
+  toStatus           String?
+  actorUserId        String?
+  actorNameSnapshot  String
+  actorRole          String
+  actorDisplayRole   String?
+  performedAsRole    String?
+  delegationId       String?
+  remarks            String?
+  attachmentId       String?
+  metadataJson       String?
+  sequenceNumber     Int      @default(0)
+  idempotencyKey     String?  @unique
+  createdAt          DateTime @default(now())
+
+  @@index([requestId])
+  @@index([eventType])
+  @@index([actorUserId])
+  @@map("approval_workflow_events")
+}
+
+model ApprovalAttachment {
+  id                     String    @id @default(uuid())
+  requestId              String
+  uploadedByUserId       String?
+  fileName               String
+  originalFileName       String
+  storageKey             String
+  mimeType               String
+  fileSize               Int
+  checksum               String?
+  status                 String    @default("AVAILABLE")
+  uploadedAt             DateTime  @default(now())
+  deletedAt              DateTime?
+  replacedByAttachmentId String?
+  createdAt              DateTime  @default(now())
+
+  @@index([requestId])
+  @@index([status])
+  @@map("approval_attachments")
+}
+
+
+
+
+
+
 
 
 

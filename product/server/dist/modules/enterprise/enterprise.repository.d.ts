@@ -85,6 +85,7 @@ export declare class EnterpriseRepository {
                 officeLocation: string | null;
                 establishedYear: number | null;
                 hodId: string | null;
+                hodUserId: string | null;
                 hodName: string | null;
             };
             program: {
@@ -185,6 +186,7 @@ export declare class EnterpriseRepository {
                 officeLocation: string | null;
                 establishedYear: number | null;
                 hodId: string | null;
+                hodUserId: string | null;
                 hodName: string | null;
             } | null;
         } & {
@@ -340,6 +342,7 @@ export declare class EnterpriseRepository {
             officeLocation: string | null;
             establishedYear: number | null;
             hodId: string | null;
+            hodUserId: string | null;
             hodName: string | null;
         };
         program: {
@@ -468,6 +471,7 @@ export declare class EnterpriseRepository {
             officeLocation: string | null;
             establishedYear: number | null;
             hodId: string | null;
+            hodUserId: string | null;
             hodName: string | null;
         } | null;
     } & {
@@ -701,6 +705,7 @@ export declare class EnterpriseRepository {
                 officeLocation: string | null;
                 establishedYear: number | null;
                 hodId: string | null;
+                hodUserId: string | null;
                 hodName: string | null;
             };
         } & {
@@ -798,6 +803,7 @@ export declare class EnterpriseRepository {
             officeLocation: string | null;
             establishedYear: number | null;
             hodId: string | null;
+            hodUserId: string | null;
             hodName: string | null;
         };
     } & {

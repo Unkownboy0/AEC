@@ -264,24 +264,45 @@ export class HodService {
     creatorUserId: string,
     payload: HodTaskCreatePayload
   ) {
+    const rawDue = payload.dueAt || (payload as any).dueDate;
+    const dueDate = rawDue ? new Date(rawDue) : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+    const validDueDate = isNaN(dueDate.getTime()) ? new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) : dueDate;
+
     const taskNumber = `TASK-HOD-${Date.now()}`;
     const task = await prisma.task.create({
       data: {
         taskNumber,
         title: payload.title,
-        description: payload.description,
+        description: payload.description || '',
         departmentId,
         createdById: creatorUserId,
-        dueDate: new Date(payload.dueAt),
+        dueDate: validDueDate,
         priority: payload.priority || 'MEDIUM',
         status: 'PENDING',
         checklist: JSON.stringify(payload.checklist || []),
       },
     });
 
-    if (payload.assigneeUserIds && payload.assigneeUserIds.length > 0) {
+    const rawAssigneeIds: string[] = payload.assigneeUserIds || (payload as any).assigneeIds || [];
+    if (rawAssigneeIds.length > 0) {
+      // Map any Faculty IDs to User IDs if necessary
+      const facultyList = await prisma.faculty.findMany({
+        where: { OR: [{ id: { in: rawAssigneeIds } }, { userId: { in: rawAssigneeIds } }] },
+        select: { id: true, userId: true },
+      });
+
+      const userIdsToAssign = new Set<string>();
+      rawAssigneeIds.forEach((id) => {
+        const matched = facultyList.find((f) => f.id === id || f.userId === id);
+        if (matched && matched.userId) {
+          userIdsToAssign.add(matched.userId);
+        } else {
+          userIdsToAssign.add(id);
+        }
+      });
+
       await prisma.taskAssignee.createMany({
-        data: payload.assigneeUserIds.map((userId) => ({
+        data: Array.from(userIdsToAssign).map((userId) => ({
           taskId: task.id,
           assigneeId: userId,
         })),

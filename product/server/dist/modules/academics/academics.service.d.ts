@@ -66,6 +66,7 @@ export declare class AcademicsService {
             officeLocation: string | null;
             establishedYear: number | null;
             hodId: string | null;
+            hodUserId: string | null;
             hodName: string | null;
         })[];
         totalCount: number;
@@ -133,6 +134,7 @@ export declare class AcademicsService {
         officeLocation: string | null;
         establishedYear: number | null;
         hodId: string | null;
+        hodUserId: string | null;
         hodName: string | null;
     }>;
     createDepartment(input: any, userId: string, ip?: string, ua?: string): Promise<{
@@ -160,6 +162,7 @@ export declare class AcademicsService {
         officeLocation: string | null;
         establishedYear: number | null;
         hodId: string | null;
+        hodUserId: string | null;
         hodName: string | null;
     }>;
     updateDepartment(id: string, input: any, userId: string, ip?: string, ua?: string): Promise<{
@@ -187,6 +190,7 @@ export declare class AcademicsService {
         officeLocation: string | null;
         establishedYear: number | null;
         hodId: string | null;
+        hodUserId: string | null;
         hodName: string | null;
     }>;
     listPrograms(params: any, user?: UserPayload): Promise<{
@@ -216,6 +220,7 @@ export declare class AcademicsService {
                 officeLocation: string | null;
                 establishedYear: number | null;
                 hodId: string | null;
+                hodUserId: string | null;
                 hodName: string | null;
             };
         } & {
@@ -263,6 +268,7 @@ export declare class AcademicsService {
             officeLocation: string | null;
             establishedYear: number | null;
             hodId: string | null;
+            hodUserId: string | null;
             hodName: string | null;
         };
     } & {
@@ -343,6 +349,7 @@ export declare class AcademicsService {
                 officeLocation: string | null;
                 establishedYear: number | null;
                 hodId: string | null;
+                hodUserId: string | null;
                 hodName: string | null;
             };
             program: {
@@ -410,6 +417,7 @@ export declare class AcademicsService {
             officeLocation: string | null;
             establishedYear: number | null;
             hodId: string | null;
+            hodUserId: string | null;
             hodName: string | null;
         };
         program: {
@@ -772,6 +780,7 @@ export declare class AcademicsService {
                 officeLocation: string | null;
                 establishedYear: number | null;
                 hodId: string | null;
+                hodUserId: string | null;
                 hodName: string | null;
             };
             program: {
@@ -855,6 +864,7 @@ export declare class AcademicsService {
             officeLocation: string | null;
             establishedYear: number | null;
             hodId: string | null;
+            hodUserId: string | null;
             hodName: string | null;
         };
         program: {
@@ -971,6 +981,7 @@ export declare class AcademicsService {
                 officeLocation: string | null;
                 establishedYear: number | null;
                 hodId: string | null;
+                hodUserId: string | null;
                 hodName: string | null;
             };
             program: {
@@ -1091,6 +1102,7 @@ export declare class AcademicsService {
             officeLocation: string | null;
             establishedYear: number | null;
             hodId: string | null;
+            hodUserId: string | null;
             hodName: string | null;
         };
         program: {

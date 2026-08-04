@@ -298,6 +298,7 @@ export declare class UsersService {
                 officeLocation: string | null;
                 establishedYear: number | null;
                 hodId: string | null;
+                hodUserId: string | null;
                 hodName: string | null;
             };
         } & {

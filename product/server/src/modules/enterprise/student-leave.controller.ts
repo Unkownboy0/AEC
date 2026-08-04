@@ -61,6 +61,10 @@ export class StudentLeaveController {
    */
   async mentorReview(req: Request, res: Response, next: NextFunction) {
     try {
+      if (req.baseUrl.includes('/hod')) {
+        return this.hodReview(req, res, next);
+      }
+
       const userId = (req as any).user.id;
       const { id } = req.params;
       const { decision, remarks } = req.body;

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { useDelegationContext } from '../../modules/delegation/context/DelegationContext';
 import * as LucideIcons from 'lucide-react';
 import { cn } from '../../lib/utils';
 import api from '../../lib/axios';
@@ -13,6 +14,7 @@ interface SidebarProps {
 const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed }) => {
   const location = useLocation();
   const { user, logout } = useAuth();
+  const { principalStatus, delegationStatus } = useDelegationContext();
   const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false);
   const [pendingWfCount, setPendingWfCount] = useState(0);
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({
@@ -208,7 +210,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed }) => {
 
           return (
             <>
-              {(user?.role === 'Principal' || user?.role === 'Vice Principal') && (
+              {(String(typeof user?.role === 'object' ? (user?.role as any)?.name : user?.role || '').toLowerCase().includes('principal') && !String(typeof user?.role === 'object' ? (user?.role as any)?.name : user?.role || '').toLowerCase().includes('vice')) && (
                 <NavLink
                   to="/approval-center"
                   className={cn(
@@ -224,9 +226,27 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed }) => {
                   {!isCollapsed && <span className="truncate font-bold">Approval Center</span>}
                 </NavLink>
               )}
-              {user?.role === 'HOD' && (
+
+              {/* Vice Principal Delegated Approvals Link (Only visible when active delegation permits) */}
+              {(String(typeof user?.role === 'object' ? (user?.role as any)?.name : user?.role || '').toLowerCase().includes('vice') && delegationStatus === 'ACTIVE' && (principalStatus === 'BUSY' || principalStatus === 'OFFLINE')) && (
+                <NavLink
+                  to="/vp/acting-principal/approvals"
+                  className={cn(
+                    'relative flex items-center gap-3 py-2 px-3 text-xs font-semibold transition-all duration-200 ease-in-out mb-1',
+                    location.pathname.startsWith('/vp/acting-principal')
+                      ? 'bg-amber-600/15 text-amber-500 font-bold border-l-[3px] border-amber-500 pl-[9px] rounded-r-lg rounded-l-none'
+                      : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground pl-3 rounded-lg'
+                  )}
+                >
+                  <div className="relative">
+                    <LucideIcons.ShieldAlert className={cn('h-4.5 w-4.5 flex-shrink-0 transition-colors duration-200', location.pathname.startsWith('/vp/acting-principal') ? 'text-amber-500' : 'text-muted-foreground')} />
+                  </div>
+                  {!isCollapsed && <span className="truncate font-bold text-amber-400">Delegated Approvals</span>}
+                </NavLink>
+              )}
+              {(user?.activeWorkspace === 'HOD' || (user?.role === 'HOD' && (!user?.activeWorkspace || user?.activeWorkspace === 'HOD'))) && (
                 <div className="space-y-0.5 my-1 border-b border-border/50 pb-2">
-                  <div className="px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">HOD Portal</div>
+                  <div className="px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">HOD Workspace</div>
                   {[
                     { name: 'Dashboard', path: '/hod/dashboard', icon: LucideIcons.LayoutDashboard },
                     { name: 'Approvals', path: '/hod/leave-approvals', icon: LucideIcons.FileCheck, badge: pendingWfCount },
@@ -238,9 +258,9 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed }) => {
                     { name: 'Timetable', path: '/hod/timetable', icon: LucideIcons.Calendar },
                     { name: 'Tasks Workspace', path: '/hod/tasks', icon: LucideIcons.CheckSquare },
                     { name: 'Circulars', path: '/hod/circulars', icon: LucideIcons.Megaphone },
+                    { name: 'Department Board', path: '/hod/board', icon: LucideIcons.Calendar },
                     { name: 'Complaints', path: '/hod/complaints', icon: LucideIcons.AlertTriangle },
                     { name: 'Department Activities', path: '/hod/activities', icon: LucideIcons.Activity },
-                    { name: 'Reports', path: '/hod/reports', icon: LucideIcons.Download },
                     { name: 'Profile', path: '/hod/profile', icon: LucideIcons.User },
                   ].map((hodItem) => {
                     const HodIcon = hodItem.icon || LucideIcons.Layers;
@@ -270,7 +290,47 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed }) => {
                   })}
                 </div>
               )}
-              {menus.map((item: any) => {
+
+              {(user?.activeWorkspace === 'Faculty' || (user?.role === 'Faculty' && (!user?.activeWorkspace || user?.activeWorkspace === 'Faculty'))) && (
+                <div className="space-y-0.5 my-1 border-b border-border/50 pb-2">
+                  <div className="px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                    Faculty Workspace
+                  </div>
+                  {[
+                    { name: 'Dashboard', path: '/faculty/dashboard', icon: LucideIcons.LayoutDashboard },
+                    { name: 'My Timetable', path: '/faculty/timetable', icon: LucideIcons.Clock },
+                    { name: 'My Subjects', path: '/faculty/subjects', icon: LucideIcons.BookOpen },
+                    { name: 'Period Attendance', path: '/faculty/attendance', icon: LucideIcons.CheckSquare },
+                    { name: 'Assignments', path: '/faculty/assignments', icon: LucideIcons.FileText },
+                    { name: 'Internal Marks', path: '/faculty/internal-marks', icon: LucideIcons.Award },
+                    { name: 'Mentor Module', path: '/faculty/mentor', icon: LucideIcons.Heart },
+                    { name: 'Department Board', path: '/faculty/availability', icon: LucideIcons.Calendar },
+                  ].map((facItem) => {
+                    const FacIcon = facItem.icon || LucideIcons.Layers;
+                    const isFacActive = checkIsActive(facItem.path);
+                    return (
+                      <NavLink
+                        key={facItem.path}
+                        to={facItem.path}
+                        className={cn(
+                          'relative flex items-center gap-3 py-2 px-3 text-xs font-semibold transition-all duration-200 ease-in-out',
+                          isFacActive
+                            ? 'bg-primary/15 text-primary font-bold border-l-[3px] border-primary pl-[9px] rounded-r-lg rounded-l-none'
+                            : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground pl-3 rounded-lg'
+                        )}
+                      >
+                        <div className="relative">
+                          <FacIcon className={cn('h-4.5 w-4.5 flex-shrink-0 transition-colors duration-200', isFacActive ? 'text-primary' : 'text-muted-foreground')} />
+                        </div>
+                        {!isCollapsed && <span className="truncate">{facItem.name}</span>}
+                      </NavLink>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Dynamic backend menus rendered ONLY for roles without dedicated workspace panels */}
+              {!['HOD', 'Faculty'].includes(user?.activeWorkspace || user?.role || '') && menus.map((item: any) => {
                 const Icon = (LucideIcons as any)[item.icon] || LucideIcons.Layers;
                 const isActive = checkIsActive(item.path);
                 return (

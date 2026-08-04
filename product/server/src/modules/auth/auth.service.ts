@@ -144,10 +144,37 @@ export class AuthService {
     const menus = await SecurityHelper.getPermittedMenus(permissions, user.role.name);
 
     const workspaces = [user.role.name];
-    const faculty = await prisma.faculty.findFirst({ where: { userId: user.id } });
-    if (user.role.name === 'Faculty' || user.role.name === 'Mentor') {
+
+    // Query UserWorkspace relational table
+    const dbWorkspaces = await prisma.userWorkspace.findMany({
+      where: { userId: user.id, status: 'ACTIVE' }
+    });
+    dbWorkspaces.forEach(w => {
+      if (!workspaces.includes(w.roleName)) workspaces.push(w.roleName);
+    });
+
+    // Check assigned secondary roles in UserRole
+    const userRoles = await prisma.userRole.findMany({
+      where: { userId: user.id },
+      include: { role: true },
+    });
+    userRoles.forEach(ur => {
+      if (ur.role && !workspaces.includes(ur.role.name)) {
+        workspaces.push(ur.role.name);
+      }
+    });
+
+    // Role hierarchy workspace derivations
+    if (['HOD', 'Head of Department'].includes(user.role.name)) {
+      if (!workspaces.includes('HOD')) workspaces.push('HOD');
+      if (!workspaces.includes('Faculty')) workspaces.push('Faculty');
+    }
+    if (['Faculty', 'Mentor'].includes(user.role.name)) {
       if (!workspaces.includes('Faculty')) workspaces.push('Faculty');
       if (!workspaces.includes('Mentor')) workspaces.push('Mentor');
+    }
+    if (['Academic Dean', 'Admission Dean', 'IQAC Dean', 'Examination Cell'].includes(user.role.name)) {
+      if (!workspaces.includes('Faculty')) workspaces.push('Faculty');
     }
 
     return {
@@ -286,9 +313,16 @@ export class AuthService {
       if (!allowedRoles.includes(w.roleName)) allowedRoles.push(w.roleName);
     });
 
-    if (user.role.name === 'Faculty' || user.role.name === 'Mentor') {
+    if (['HOD', 'Head of Department'].includes(user.role.name)) {
+      if (!allowedRoles.includes('HOD')) allowedRoles.push('HOD');
+      if (!allowedRoles.includes('Faculty')) allowedRoles.push('Faculty');
+    }
+    if (['Faculty', 'Mentor'].includes(user.role.name)) {
       if (!allowedRoles.includes('Faculty')) allowedRoles.push('Faculty');
       if (!allowedRoles.includes('Mentor')) allowedRoles.push('Mentor');
+    }
+    if (['Academic Dean', 'Admission Dean', 'IQAC Dean', 'Examination Cell'].includes(user.role.name)) {
+      if (!allowedRoles.includes('Faculty')) allowedRoles.push('Faculty');
     }
 
     // Also check assigned secondary roles in UserRole
@@ -416,8 +450,14 @@ export class AuthService {
       workspacesSet.add('Admission Dean');
       workspacesSet.add('Faculty');
       workspacesSet.add('Administration');
+    } else if (user.role.name === 'Academic Dean') {
+      workspacesSet.add('Academic Dean');
+      workspacesSet.add('Faculty');
     } else if (user.role.name === 'IQAC Dean') {
       workspacesSet.add('IQAC Dean');
+      workspacesSet.add('Faculty');
+    } else if (user.role.name === 'Vice Principal') {
+      workspacesSet.add('Vice Principal');
       workspacesSet.add('Faculty');
     } else if (user.role.name === 'HOD') {
       workspacesSet.add('HOD');

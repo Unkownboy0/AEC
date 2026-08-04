@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { EnterpriseService } from './enterprise.service';
+import { DigitalIdService } from './digital-id.service';
 import { auditRequest, UserPayload, SecurityHelper } from '../../utils/security';
 import { prisma } from '../../lib/prisma';
 import { buildStudentIDCardPDF } from '../../utils/idcard.pdf';

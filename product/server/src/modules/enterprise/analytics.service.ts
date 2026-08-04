@@ -226,4 +226,106 @@ export class AnalyticsService {
       children: parent?.students.map((s) => s.student) || [],
     };
   }
+
+  /**
+   * Live Department Daily Availability Board
+   * Returns active approved Student and Faculty Leave and OD for today
+   */
+  async getDepartmentAvailability(departmentId?: string) {
+    const today = new Date();
+    const todayStart = new Date(today.setHours(0, 0, 0, 0));
+    const todayEnd = new Date(today.setHours(23, 59, 59, 999));
+
+    const studentWhere: any = {
+      status: 'APPROVED',
+      startDate: { lte: todayEnd },
+      endDate: { gte: todayStart },
+    };
+    if (departmentId) studentWhere.departmentId = departmentId;
+
+    const facultyWhere: any = {
+      status: { in: ['APPROVED_HOD', 'APPROVED_PRINCIPAL'] },
+      startDate: { lte: todayEnd },
+      endDate: { gte: todayStart },
+    };
+    if (departmentId) facultyWhere.departmentId = departmentId;
+
+    const [studentRequests, facultyRequests] = await Promise.all([
+      prisma.studentLeaveRequest.findMany({
+        where: studentWhere,
+        include: { student: { select: { firstName: true, lastName: true, admissionNo: true } } },
+      }),
+      prisma.facultyLeaveRequest.findMany({
+        where: facultyWhere,
+        include: { faculty: { select: { firstName: true, lastName: true, employeeId: true } } },
+      }),
+    ]);
+
+    const studentsOnLeaveToday = studentRequests
+      .filter((r) => r.type === 'LEAVE')
+      .map((r) => ({
+        id: r.id,
+        name: `${r.student.firstName} ${r.student.lastName}`,
+        registerOrEmpId: r.student.admissionNo,
+        userType: 'STUDENT' as const,
+        type: 'LEAVE' as const,
+        category: r.requestCategory || 'Leave',
+        startDate: r.startDate.toISOString(),
+        endDate: r.endDate.toISOString(),
+        status: r.status,
+        reasonPublic: r.reason ? (r.reason.length > 30 ? `${r.reason.slice(0, 30)}...` : r.reason) : 'Approved Leave',
+      }));
+
+    const studentsOnOdToday = studentRequests
+      .filter((r) => r.type === 'ON_DUTY')
+      .map((r) => ({
+        id: r.id,
+        name: `${r.student.firstName} ${r.student.lastName}`,
+        registerOrEmpId: r.student.admissionNo,
+        userType: 'STUDENT' as const,
+        type: 'ON_DUTY' as const,
+        category: r.requestCategory || 'On Duty',
+        startDate: r.startDate.toISOString(),
+        endDate: r.endDate.toISOString(),
+        status: r.status,
+        reasonPublic: r.eventName || 'Approved On Duty',
+      }));
+
+    const facultyOnLeaveToday = facultyRequests
+      .filter((r) => r.leaveType !== 'ON_DUTY')
+      .map((r) => ({
+        id: r.id,
+        name: `${r.faculty.firstName} ${r.faculty.lastName}`,
+        registerOrEmpId: r.faculty.employeeId,
+        userType: 'FACULTY' as const,
+        type: 'LEAVE' as const,
+        category: r.leaveType,
+        startDate: r.startDate.toISOString(),
+        endDate: r.endDate.toISOString(),
+        status: r.status,
+        reasonPublic: 'Approved Faculty Leave',
+      }));
+
+    const facultyOnOdToday = facultyRequests
+      .filter((r) => r.leaveType === 'ON_DUTY')
+      .map((r) => ({
+        id: r.id,
+        name: `${r.faculty.firstName} ${r.faculty.lastName}`,
+        registerOrEmpId: r.faculty.employeeId,
+        userType: 'FACULTY' as const,
+        type: 'ON_DUTY' as const,
+        category: 'ON_DUTY',
+        startDate: r.startDate.toISOString(),
+        endDate: r.endDate.toISOString(),
+        status: r.status,
+        reasonPublic: 'Approved Academic Duty',
+      }));
+
+    return {
+      studentsOnLeaveToday,
+      studentsOnOdToday,
+      facultyOnLeaveToday,
+      facultyOnOdToday,
+    };
+  }
 }

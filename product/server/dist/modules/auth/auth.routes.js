@@ -14,6 +14,7 @@ router.post('/forgot-password', controller.forgotPassword);
 router.post('/reset-password', controller.resetPassword);
 // Protected routes
 router.get('/me', auth_middleware_1.requireAuth, controller.getMe);
+router.post('/switch-workspace', auth_middleware_1.requireAuth, controller.switchWorkspace);
 router.post('/change-password', auth_middleware_1.requireAuth, controller.changePassword);
 router.post('/logout-all', auth_middleware_1.requireAuth, controller.logoutAll);
 // Self-service profile update — available to ALL authenticated roles

@@ -34,14 +34,19 @@ export const StudentIdCard: React.FC = () => {
   }, []);
 
   const handleDownload = async () => {
-    if (!studentInfo) return;
     try {
-      const res = await api.get(`/enterprise/students/${studentInfo.id}/id-card/pdf`, { responseType: 'blob' });
+      const targetId = studentInfo?.id || 'me';
+      let res;
+      try {
+        res = await api.get(`/enterprise/students/${targetId}/id-card/pdf`, { responseType: 'blob' });
+      } catch (_) {
+        res = await api.get(`/enterprise/id-cards/student/${targetId}`, { responseType: 'blob' });
+      }
       const blob = new Blob([res.data], { type: 'application/pdf' });
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.setAttribute('download', `${studentInfo.firstName}_IDCard.pdf`);
+      link.setAttribute('download', `${studentInfo?.firstName || 'Student'}_IDCard.pdf`);
       document.body.appendChild(link);
       link.click();
       link.parentNode?.removeChild(link);

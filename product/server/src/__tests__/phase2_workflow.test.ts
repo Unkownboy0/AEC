@@ -60,7 +60,7 @@ async function runPhase2Tests() {
       'APPROVE',
       'Mentor approved request'
     );
-    assert.strictEqual(mentorAction.currentStep, 'HOD', 'Step advances to HOD after Mentor approval');
+    assert.strictEqual((mentorAction as any).currentStep, 'HOD', 'Step advances to HOD after Mentor approval');
 
     // Action 2: HOD approves
     const hodAction = await workflowService.takeAction(

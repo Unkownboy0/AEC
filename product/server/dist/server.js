@@ -7,7 +7,7 @@ const app_1 = __importDefault(require("./app"));
 const env_1 = require("./config/env");
 const logger_1 = require("./utils/logger");
 const prisma_1 = require("./lib/prisma");
-const server = app_1.default.listen(env_1.env.PORT, () => {
+const server = app_1.default.listen(env_1.env.PORT, '0.0.0.0', () => {
     logger_1.logger.info(`🚀 GEETORUS CAMPUSOS Engine running in ${env_1.env.NODE_ENV} mode on port ${env_1.env.PORT}`);
 });
 const gracefulShutdown = async (signal) => {

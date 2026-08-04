@@ -7,6 +7,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { api } from '../../lib/api';
 import { useToast } from '../../components/ui/Toast';
+import { DepartmentAvailabilityBoard } from '../../components/department/DepartmentAvailabilityBoard';
 
 export const HodDashboardWorkspace: React.FC = () => {
   const navigate = useNavigate();
@@ -218,6 +219,14 @@ export const HodDashboardWorkspace: React.FC = () => {
             View Low Attendance Shortage Roster
           </button>
         </div>
+      </div>
+
+      {/* Realtime Department Availability Board */}
+      <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-6 shadow-sm">
+        <h3 className="text-base font-bold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
+          <Calendar className="w-5 h-5 text-indigo-600" /> Realtime Department Availability Board
+        </h3>
+        <DepartmentAvailabilityBoard />
       </div>
     </div>
   );

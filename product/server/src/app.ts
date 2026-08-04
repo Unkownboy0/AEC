@@ -134,8 +134,12 @@ import admissionDeanRoutes from './modules/enterprise/admission-dean.routes';
 app.use('/api/enterprise/student-leave', studentLeaveRoutes);
 app.use('/api/student/leave-od', studentLeaveRoutes);
 app.use('/api/mentor/leave-od', studentLeaveRoutes);
+app.use('/api/hod/leave-od', studentLeaveRoutes);
+app.use('/api/hod', academicDeanHodRoutes);
 app.use('/api/hod', hodPortalRoutes);
 app.use('/api/enterprise/faculty-leave', facultyLeaveRoutes);
+app.use('/api/faculty/leave', facultyLeaveRoutes);
+app.use('/api/faculty-leave', facultyLeaveRoutes);
 app.use('/api/enterprise/principal-failover', principalFailoverRoutes);
 app.use('/api/enterprise/circulars', circularEngineRoutes);
 app.use('/api/enterprise/profile', profileDrilldownRoutes);
@@ -145,13 +149,35 @@ app.use('/api/enterprise', phase8ExportRoutes);
 app.use('/api', phase10ProductionRoutes);
 app.use('/api/tasks', taskRoutes);
 
+import parentRoutes from './modules/parent/parent.routes';
+import facultyRoutes from './modules/faculty/faculty.routes';
+import mentorRoutes from './modules/mentor/mentor.routes';
+import delegationRoutes from './modules/principal-delegation/delegation.routes';
+import principalAvailabilityRouter from './modules/principal-availability/availability.routes';
+import customCircularRoutes from './modules/circulars/circular.routes';
+import approvalRoutes from './modules/approvals/approval.routes';
+
 app.use('/api/academic-dean', academicDeanRoutes);
 app.use('/api/admission-dean', admissionDeanRoutes);
+app.use('/api/parent', parentRoutes);
+app.use('/api/faculty', facultyRoutes);
+app.use('/api/mentor', mentorRoutes);
+app.use('/api', principalAvailabilityRouter);
+app.use('/api', delegationRoutes);
+app.use('/api', customCircularRoutes);
+app.use('/api', approvalRoutes);
 
+import { PrincipalDataRepairScript } from './modules/principal-availability/repair-principal-availability';
+import { DelegationExpiryJob } from './modules/principal-availability/delegation-expiry.job';
 
+PrincipalDataRepairScript.runCleanup()
+  .then(res => logger.info(`⚡ Principal Availability Cleanup completed: ${res.revokedInvalidDelegations} revoked, ${res.expiredDelegations} expired`))
+  .catch(err => logger.warn('Principal Availability cleanup failed:', err));
 
-// Fallback Route
-app.use('*', (req, res, next) => {
+DelegationExpiryJob.startCron();
+
+// Fallback Route for API endpoints
+app.use('/api/*', (req, res) => {
   res.status(404).json({
     status: 'error',
     message: `Cannot ${req.method} ${req.baseUrl}`,

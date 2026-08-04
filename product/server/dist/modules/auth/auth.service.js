@@ -112,12 +112,40 @@ class AuthService {
         });
         const menus = await security_1.SecurityHelper.getPermittedMenus(permissions, user.role.name);
         const workspaces = [user.role.name];
-        const faculty = await prisma_1.prisma.faculty.findFirst({ where: { userId: user.id } });
-        if (faculty || ['Faculty', 'HOD', 'Academic Dean', 'Vice Principal', 'Principal'].includes(user.role.name)) {
+        // Query UserWorkspace relational table
+        const dbWorkspaces = await prisma_1.prisma.userWorkspace.findMany({
+            where: { userId: user.id, status: 'ACTIVE' }
+        });
+        dbWorkspaces.forEach(w => {
+            if (!workspaces.includes(w.roleName))
+                workspaces.push(w.roleName);
+        });
+        // Check assigned secondary roles in UserRole
+        const userRoles = await prisma_1.prisma.userRole.findMany({
+            where: { userId: user.id },
+            include: { role: true },
+        });
+        userRoles.forEach(ur => {
+            if (ur.role && !workspaces.includes(ur.role.name)) {
+                workspaces.push(ur.role.name);
+            }
+        });
+        // Role hierarchy workspace derivations
+        if (['HOD', 'Head of Department'].includes(user.role.name)) {
+            if (!workspaces.includes('HOD'))
+                workspaces.push('HOD');
+            if (!workspaces.includes('Faculty'))
+                workspaces.push('Faculty');
+        }
+        if (['Faculty', 'Mentor'].includes(user.role.name)) {
             if (!workspaces.includes('Faculty'))
                 workspaces.push('Faculty');
             if (!workspaces.includes('Mentor'))
                 workspaces.push('Mentor');
+        }
+        if (['Academic Dean', 'Admission Dean', 'IQAC Dean', 'Examination Cell'].includes(user.role.name)) {
+            if (!workspaces.includes('Faculty'))
+                workspaces.push('Faculty');
         }
         return {
             accessToken,
@@ -216,6 +244,94 @@ class AuthService {
         await this.repo.updateLastLogoutTime(userId);
     }
     /**
+     * Dynamic Multi-Workspace Context Switcher
+     * Swaps active role context without re-authentication
+     */
+    async switchWorkspace(userId, targetRole) {
+        const user = await this.repo.findById(userId);
+        if (!user || user.status !== 'ACTIVE') {
+            throw new exceptions_1.NotFoundException('User account not found');
+        }
+        // Determine allowed workspaces for this user
+        const allowedRoles = [user.role.name];
+        // Query UserWorkspace relational table
+        const dbWorkspaces = await prisma_1.prisma.userWorkspace.findMany({
+            where: { userId, status: 'ACTIVE' }
+        });
+        dbWorkspaces.forEach(w => {
+            if (!allowedRoles.includes(w.roleName))
+                allowedRoles.push(w.roleName);
+        });
+        if (['HOD', 'Head of Department'].includes(user.role.name)) {
+            if (!allowedRoles.includes('HOD'))
+                allowedRoles.push('HOD');
+            if (!allowedRoles.includes('Faculty'))
+                allowedRoles.push('Faculty');
+        }
+        if (['Faculty', 'Mentor'].includes(user.role.name)) {
+            if (!allowedRoles.includes('Faculty'))
+                allowedRoles.push('Faculty');
+            if (!allowedRoles.includes('Mentor'))
+                allowedRoles.push('Mentor');
+        }
+        if (['Academic Dean', 'Admission Dean', 'IQAC Dean', 'Examination Cell'].includes(user.role.name)) {
+            if (!allowedRoles.includes('Faculty'))
+                allowedRoles.push('Faculty');
+        }
+        // Also check assigned secondary roles in UserRole
+        const userRoles = await prisma_1.prisma.userRole.findMany({
+            where: { userId },
+            include: { role: true },
+        });
+        userRoles.forEach(ur => {
+            if (ur.role && !allowedRoles.includes(ur.role.name)) {
+                allowedRoles.push(ur.role.name);
+            }
+        });
+        if (!allowedRoles.includes(targetRole)) {
+            throw new exceptions_1.BadRequestException(`Workspace '${targetRole}' is not authorized for your account`);
+        }
+        // Fetch target role definition and permissions
+        const roleData = await prisma_1.prisma.role.findFirst({
+            where: { name: targetRole },
+            include: { permissions: { include: { permission: true } } }
+        });
+        const roleName = roleData ? roleData.name : targetRole;
+        const permissions = roleData ? roleData.permissions.map(p => p.permission.name) : user.role.permissions.map(rp => rp.permission.name);
+        // Update activeWorkspace in database
+        await prisma_1.prisma.user.update({
+            where: { id: userId },
+            data: { activeWorkspace: roleName },
+        });
+        // Issue updated Access Token with activeRole context
+        const accessPayload = {
+            id: user.id,
+            email: user.email,
+            role: roleName,
+            permissions,
+        };
+        const accessToken = jsonwebtoken_1.default.sign(accessPayload, env_1.env.JWT_SECRET, {
+            expiresIn: '15m',
+        });
+        const menus = await security_1.SecurityHelper.getPermittedMenus(permissions, roleName);
+        return {
+            accessToken,
+            activeWorkspace: roleName,
+            user: {
+                id: user.id,
+                email: user.email,
+                firstName: user.firstName,
+                lastName: user.lastName,
+                role: roleName,
+                profilePhoto: user.profilePhoto,
+                permissions,
+                menus,
+                workspaces: allowedRoles,
+                activeWorkspace: roleName,
+            },
+        };
+    }
+    /**
      * Get currently logged-in user profile (full — includes faculty/department for HOD/Faculty roles)
      */
     async getMe(userId, activeRole) {
@@ -227,7 +343,14 @@ class AuthService {
         let permissions = user.role.permissions.map((rp) => rp.permission.name);
         if (activeRole && activeRole !== user.role.name) {
             const allowedRoles = [user.role.name];
-            if (['Faculty', 'HOD', 'Academic Dean', 'Vice Principal', 'Principal'].includes(user.role.name)) {
+            const dbWorkspaces = await prisma_1.prisma.userWorkspace.findMany({
+                where: { userId, status: 'ACTIVE' }
+            });
+            dbWorkspaces.forEach(w => {
+                if (!allowedRoles.includes(w.roleName))
+                    allowedRoles.push(w.roleName);
+            });
+            if (['Faculty', 'HOD', 'Academic Dean', 'Vice Principal', 'Principal', 'Admission Dean', 'IQAC Dean'].includes(user.role.name)) {
                 allowedRoles.push('Faculty', 'Mentor');
             }
             if (allowedRoles.includes(activeRole)) {
@@ -242,7 +365,7 @@ class AuthService {
             }
         }
         const menus = await security_1.SecurityHelper.getPermittedMenus(permissions, roleName);
-        // Fetch faculty record with department (non-blocking — profile loads even if this fails)
+        // Fetch faculty record with department
         let faculty = null;
         try {
             faculty = await prisma_1.prisma.faculty.findFirst({
@@ -251,16 +374,41 @@ class AuthService {
             });
         }
         catch (_) {
-            // Silently ignore — faculty data is supplementary
+            // Silently ignore
         }
-        // Resolve workspaces
-        const workspaces = [user.role.name];
-        if (faculty || ['Faculty', 'HOD', 'Academic Dean', 'Vice Principal', 'Principal'].includes(user.role.name)) {
-            if (!workspaces.includes('Faculty'))
-                workspaces.push('Faculty');
-            if (!workspaces.includes('Mentor'))
-                workspaces.push('Mentor');
+        // Resolve workspaces from UserWorkspace table
+        const dbWorkspaces = await prisma_1.prisma.userWorkspace.findMany({
+            where: { userId, status: 'ACTIVE' }
+        });
+        const workspacesSet = new Set();
+        workspacesSet.add(user.role.name);
+        dbWorkspaces.forEach(w => workspacesSet.add(w.roleName));
+        if (user.role.name === 'Admission Dean') {
+            workspacesSet.add('Admission Dean');
+            workspacesSet.add('Faculty');
+            workspacesSet.add('Administration');
         }
+        else if (user.role.name === 'Academic Dean') {
+            workspacesSet.add('Academic Dean');
+            workspacesSet.add('Faculty');
+        }
+        else if (user.role.name === 'IQAC Dean') {
+            workspacesSet.add('IQAC Dean');
+            workspacesSet.add('Faculty');
+        }
+        else if (user.role.name === 'Vice Principal') {
+            workspacesSet.add('Vice Principal');
+            workspacesSet.add('Faculty');
+        }
+        else if (user.role.name === 'HOD') {
+            workspacesSet.add('HOD');
+            workspacesSet.add('Faculty');
+        }
+        else if (user.role.name === 'Faculty') {
+            workspacesSet.add('Faculty');
+            workspacesSet.add('Mentor');
+        }
+        const workspaces = Array.from(workspacesSet);
         return {
             id: user.id,
             email: user.email,

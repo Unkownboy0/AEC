@@ -10,6 +10,9 @@ import { AcademicTaskWorkspace } from '../../components/academic-dean/AcademicTa
 
 import { useAuth } from '../../context/AuthContext';
 
+import { ExecutiveLeaveOdModal } from '../../components/shared/ExecutiveLeaveOdModal';
+import { Calendar as CalendarIcon } from 'lucide-react';
+
 interface AcademicDeanPortalProps {
   user?: any;
 }
@@ -42,6 +45,7 @@ export const AcademicDeanPortal: React.FC<AcademicDeanPortalProps> = ({ user: pr
   const user = propUser || authUser;
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const [isLeaveModalOpen, setIsLeaveModalOpen] = useState(false);
 
   const rawTab = searchParams.get('tab') as AcademicTab | null;
   const activeTab: AcademicTab = rawTab && (VALID_TABS as readonly string[]).includes(rawTab) ? rawTab : 'dashboard';
@@ -75,11 +79,19 @@ export const AcademicDeanPortal: React.FC<AcademicDeanPortalProps> = ({ user: pr
     <div className="flex h-full min-h-[calc(100vh-4rem)] bg-background text-foreground">
       {/* Sidebar Navigation */}
       <aside className="w-64 border-r bg-card p-3 space-y-1 shrink-0 hidden md:block">
-        <div className="px-3 py-2 border-b mb-2">
-          <h3 className="text-xs font-extrabold uppercase tracking-wider text-muted-foreground">
-            Academic Dean Portal
-          </h3>
+        <div className="px-3 py-2 border-b mb-2 space-y-2">
+          <div className="flex items-center justify-between">
+            <h3 className="text-xs font-extrabold uppercase tracking-wider text-muted-foreground">
+              Academic Dean Portal
+            </h3>
+          </div>
           <p className="text-[11px] text-primary font-bold mt-0.5">{user?.firstName} {user?.lastName}</p>
+          <button
+            onClick={() => setIsLeaveModalOpen(true)}
+            className="w-full py-1.5 px-2 bg-primary/10 hover:bg-primary/20 text-primary border border-primary/30 rounded-lg text-xs font-extrabold flex items-center justify-center gap-1.5 transition-colors"
+          >
+            <CalendarIcon className="h-3.5 w-3.5" /> Apply Leave / OD
+          </button>
         </div>
 
         <nav className="space-y-1">
@@ -135,6 +147,12 @@ export const AcademicDeanPortal: React.FC<AcademicDeanPortalProps> = ({ user: pr
           </div>
         )}
       </main>
+
+      <ExecutiveLeaveOdModal
+        isOpen={isLeaveModalOpen}
+        onClose={() => setIsLeaveModalOpen(false)}
+        userRole="Academic Dean"
+      />
     </div>
   );
 };

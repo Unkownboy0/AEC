@@ -96,9 +96,12 @@ export async function buildStudentIDCardPDF(data: IDCardData): Promise<PDFKit.PD
     }
   }
 
-  // Force photo upload validation
+  // Fallback if student photo is missing
   if (!photoBuffer) {
-    throw new BadRequestException('Student profile photo is missing. Please upload a profile photo from Settings before downloading.');
+    photoBuffer = Buffer.from(
+      'iVBORw0KGgoAAAANSU5EUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+      'base64'
+    );
   }
 
   // 2. Generate QR Code

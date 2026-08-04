@@ -14,6 +14,7 @@ import { toast } from '../ui/Toast';
 import api from '../../lib/axios';
 import { GlobalSearch } from './GlobalSearch';
 import { WorkspaceSwitcher } from './WorkspaceSwitcher';
+import { PrincipalStatusControl } from '../../modules/principal-availability/components/PrincipalStatusControl';
 
 const passwordStrengthRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
 
@@ -211,37 +212,9 @@ const Header: React.FC<HeaderProps> = ({ onOpenPalette }) => {
           </div>
         )}
 
-        {/* Principal Offline Mode Toggle */}
-        {user?.role === 'Principal' && (
-          <button
-            onClick={() => {
-              const current = localStorage.getItem('principal_offline_mode') === 'true';
-              const nextState = !current;
-              localStorage.setItem('principal_offline_mode', String(nextState));
-              api.post('/settings', { key: 'PRINCIPAL_OFFLINE_MODE', value: String(nextState) }).catch(() => {});
-              toast.success(
-                nextState ? 'Principal is now OFFLINE. Approvals delegated to Vice Principal (Acting Principal).' : 'Principal is now ONLINE. Delegation deactivated.',
-                nextState ? 'Offline Mode Active' : 'Online Mode Restored'
-              );
-              window.location.reload();
-            }}
-            className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-extrabold border transition-all ${
-              localStorage.getItem('principal_offline_mode') === 'true'
-                ? 'bg-rose-500/10 border-rose-500/30 text-rose-600'
-                : 'bg-emerald-500/10 border-emerald-500/30 text-emerald-600'
-            }`}
-          >
-            <span className={`h-2 w-2 rounded-full ${localStorage.getItem('principal_offline_mode') === 'true' ? 'bg-rose-500 animate-pulse' : 'bg-emerald-500'}`} />
-            <span>{localStorage.getItem('principal_offline_mode') === 'true' ? 'OFFLINE (Delegated)' : 'ONLINE'}</span>
-          </button>
-        )}
-
-        {/* Acting Principal Badge for Vice Principal */}
-        {user?.role === 'Vice Principal' && localStorage.getItem('principal_offline_mode') === 'true' && (
-          <div className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-extrabold bg-amber-500/15 border border-amber-500/40 text-amber-700 animate-pulse">
-            <Sparkles className="h-3.5 w-3.5" />
-            <span>Acting Principal Mode</span>
-          </div>
+        {/* Principal Availability Status Control */}
+        {(String(typeof user?.role === 'object' ? (user?.role as any)?.name : user?.role || '').toLowerCase().includes('principal')) && (
+          <PrincipalStatusControl />
         )}
 
         {/* Universal Executive Search */}

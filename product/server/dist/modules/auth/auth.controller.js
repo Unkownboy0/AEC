@@ -133,6 +133,27 @@ class AuthController {
             next(error);
         }
     };
+    switchWorkspace = async (req, res, next) => {
+        try {
+            if (!req.user) {
+                res.status(401).json({ status: 'error', message: 'Unauthorized' });
+                return;
+            }
+            const { targetRole } = req.body;
+            if (!targetRole) {
+                res.status(400).json({ status: 'error', message: 'targetRole parameter is required' });
+                return;
+            }
+            const result = await this.service.switchWorkspace(req.user.id, targetRole);
+            res.status(200).json({
+                status: 'success',
+                data: result,
+            });
+        }
+        catch (error) {
+            next(error);
+        }
+    };
 }
 exports.AuthController = AuthController;
 //# sourceMappingURL=auth.controller.js.map

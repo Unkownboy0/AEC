@@ -1,5 +1,7 @@
 import { prisma } from '../../lib/prisma';
 import { BadRequestException, NotFoundException, UnauthorizedException } from '../../utils/exceptions';
+import { PrincipalDelegationResolverService } from '../principal-delegation/principal-delegation-resolver.service';
+import { PrincipalRequestRoutingService } from '../principal-availability/request-routing.service';
 
 export class WorkflowService {
   /**
@@ -49,8 +51,13 @@ export class WorkflowService {
       const endDate = endDateStr ? new Date(endDateStr) : null;
 
       // Determine initial step and target based on role
-      const isDeanOrVP = ['Vice Principal', 'Academic Dean', 'Admission Dean', 'IQAC Dean'].includes(faculty.user?.role?.name || '');
-      const initialStep = isDeanOrVP ? 'PRINCIPAL' : 'HOD';
+      const requesterRole = faculty.user?.role?.name || '';
+      const isExecutiveRequester = 
+        ['HOD', 'Head of Department', 'Vice Principal', 'Academic Dean', 'Admission Dean', 'IQAC Dean'].includes(requesterRole) ||
+        requesterRole.toLowerCase().includes('dean') ||
+        requesterRole.toLowerCase().includes('hod') ||
+        requesterRole.toLowerCase().includes('principal');
+      const initialStep = isExecutiveRequester ? 'PRINCIPAL' : 'HOD';
 
       const request = await prisma.workflowRequest.create({
         data: {
@@ -98,31 +105,41 @@ export class WorkflowService {
           );
         }
       } else if (initialStep === 'PRINCIPAL') {
-        // Check if Principal is Offline
-        const offlineSetting = await prisma.systemSetting.findUnique({ where: { key: 'PRINCIPAL_OFFLINE_MODE' } });
-        const isPrincipalOffline = offlineSetting?.value === 'true';
+        // Create dynamic ApprovalAssignment record targeting Principal or Vice Principal (Acting Principal)
+        const isOd = (type || '').toUpperCase().includes('OD');
+        const reqType = isOd ? 'FACULTY_OD' : 'FACULTY_LEAVE';
+        await PrincipalRequestRoutingService.createApprovalAssignment({
+          requestId: request.id,
+          requestType: reqType,
+          title: `[${requesterRole || 'Executive'}] ${type}: ${title}`,
+          applicantName: `${faculty.firstName} ${faculty.lastName}`,
+          departmentName: 'Academic Department',
+        });
+
+        // Use authoritative resolver to determine routing
+        const delegationContext = await PrincipalDelegationResolverService.resolveStatus();
+        const isPrincipalOffline = delegationContext.principalStatus !== 'ONLINE';
 
         const principalRole = await prisma.role.findFirst({ where: { name: 'Principal' } });
-        const principalUser = principalRole ? await prisma.user.findFirst({ where: { roleId: principalRole.id } }) : null;
+        const principalUsers = principalRole ? await prisma.user.findMany({ where: { roleId: principalRole.id } }) : [];
 
-        if (isPrincipalOffline) {
-          const vpRole = await prisma.role.findFirst({ where: { name: 'Vice Principal' } });
-          const vpUser = vpRole ? await prisma.user.findFirst({ where: { roleId: vpRole.id } }) : null;
-          if (vpUser) {
+        if (isPrincipalOffline && delegationContext.delegationStatus === 'ACTIVE' && delegationContext.actingPrincipalUserId) {
+          // Route to VP (Acting Principal)
+          await this.sendNotification(
+            `⚡ Acting Principal: Executive ${type} Request (${faculty.firstName} ${faculty.lastName})`,
+            `Principal is ${delegationContext.principalStatus}. Acting Principal mode active: ${type} request "${title}" from ${faculty.firstName} ${faculty.lastName} (${requesterRole || 'Executive'}) requires your authorization.`,
+            'EMAIL',
+            delegationContext.actingPrincipalUserId
+          );
+        } else {
+          for (const principalUser of principalUsers) {
             await this.sendNotification(
-              `Acting Principal: Executive Leave Request (${faculty.firstName} ${faculty.lastName})`,
-              `Principal is Offline. Acting Principal mode activated: Request "${title}" from ${faculty.firstName} ${faculty.lastName} requires your authorization.`,
+              `Executive ${type} Request: ${faculty.firstName} ${faculty.lastName}`,
+              `${type} request "${title}" from ${faculty.firstName} ${faculty.lastName} (${requesterRole || 'Executive'}) requires your approval.`,
               'EMAIL',
-              vpUser.id
+              principalUser.id
             );
           }
-        } else if (principalUser) {
-          await this.sendNotification(
-            `Executive Leave Request: ${faculty.firstName} ${faculty.lastName}`,
-            `Request "${title}" from ${faculty.firstName} ${faculty.lastName} requires your approval.`,
-            'EMAIL',
-            principalUser.id
-          );
         }
       }
 
@@ -362,26 +379,136 @@ export class WorkflowService {
       });
     }
 
-    if (userRole === 'Principal' || userRole === 'Academic Dean' || userRole === 'Admission Dean' || userRole === 'Super Admin') {
-      // Principal/Dean/Super Admin can see everything or what is at their steps
-      if (userRole === 'Academic Dean') {
-        filters.currentStep = 'DEAN';
-        filters.facultyRequesterId = null;
-      } else if (userRole === 'Admission Dean') {
-        filters.currentStep = 'DEAN';
-        filters.facultyRequesterId = { not: null };
-      } else if (userRole === 'Principal') {
-        filters.currentStep = 'PRINCIPAL';
+    if (userRole === 'Principal' || userRole === 'Vice Principal' || userRole.includes('Dean') || userRole === 'Super Admin') {
+      const wfFilters: any = { ...filters };
+      if (userRole === 'Academic Dean' || userRole === 'Admission Dean' || userRole.includes('Dean')) {
+        wfFilters.OR = [{ currentStep: 'DEAN' }, { currentStep: 'PRINCIPAL' }];
+      } else {
+        wfFilters.currentStep = 'PRINCIPAL';
       }
-      return prisma.workflowRequest.findMany({
-        where: filters,
-        include: { 
-          student: studentInclude, 
-          facultyRequester: { include: { department: true } },
-          history: true 
+
+      const workflowReqs = await prisma.workflowRequest.findMany({
+        where: wfFilters,
+        include: {
+          student: studentInclude,
+          facultyRequester: { include: { department: true, user: { include: { role: true } } } },
+          history: true
         },
         orderBy: { createdAt: 'desc' }
       });
+
+      const facultyLeaveReqs = await prisma.facultyLeaveRequest.findMany({
+        include: {
+          faculty: { include: { department: true, user: { include: { role: true } } } },
+          department: true,
+        },
+        orderBy: { createdAt: 'desc' }
+      });
+
+      const studentLeaveReqs = await prisma.studentLeaveRequest.findMany({
+        include: {
+          student: { include: { department: true, user: { include: { role: true } } } },
+        },
+        orderBy: { createdAt: 'desc' }
+      });
+
+      const mappedWf = workflowReqs.map((r: any) => {
+        const isFaculty = Boolean(r.facultyRequester);
+        const reqRole = isFaculty ? (r.facultyRequester?.user?.role?.name || 'Faculty') : 'Student';
+        const isOd = (r.type || '').toUpperCase().includes('OD');
+
+        return {
+          ...r,
+          requestNumber: r.requestNumber || r.id.substring(0, 8),
+          requestType: isFaculty ? (isOd ? 'FACULTY_OD' : 'FACULTY_LEAVE') : (isOd ? 'STUDENT_OD' : 'STUDENT_LEAVE'),
+          requesterRole: reqRole,
+          requester: {
+            id: isFaculty ? r.facultyRequester?.id : r.student?.id,
+            firstName: isFaculty ? (r.facultyRequester?.firstName || 'Faculty') : (r.student?.firstName || 'Student'),
+            lastName: isFaculty ? (r.facultyRequester?.lastName || '') : (r.student?.lastName || ''),
+            email: isFaculty ? r.facultyRequester?.email : r.student?.email,
+          },
+          department: r.departmentId ? { id: r.departmentId, name: r.facultyRequester?.department?.name || r.student?.department?.name || 'Academic Department' } : (r.facultyRequester?.department || r.student?.department),
+          sourceTable: 'WORKFLOW'
+        };
+      });
+
+      const mappedFaculty = facultyLeaveReqs.map((r: any) => {
+        const isOd = r.leaveType === 'ON_DUTY' || (r as any).type === 'ON_DUTY';
+        const reqRole = r.faculty?.user?.role?.name || (r.faculty?.designation?.includes('Head') ? 'HOD' : 'Faculty');
+        const isDean = reqRole.toLowerCase().includes('dean');
+        const isVp = reqRole.toLowerCase().includes('vice principal') || reqRole === 'VP';
+
+        let reqType = isOd ? 'FACULTY_OD' : 'FACULTY_LEAVE';
+        if (isDean) reqType = isOd ? 'FACULTY_OD' : 'DEAN_LEAVE';
+        if (isVp) reqType = isOd ? 'FACULTY_OD' : 'VP_LEAVE';
+
+        let normalizedStatus = 'PENDING';
+        if (r.status === 'APPROVED_PRINCIPAL' || r.status === 'APPROVED') normalizedStatus = 'APPROVED';
+        else if (r.status === 'REJECTED_PRINCIPAL' || r.status === 'REJECTED') normalizedStatus = 'REJECTED';
+
+        return {
+          id: r.id,
+          requestNumber: r.requestNumber || r.id.substring(0, 8),
+          type: r.leaveType,
+          requestType: reqType,
+          title: `Faculty ${r.leaveType ? r.leaveType.replace('_', ' ') : 'Leave'} Request`,
+          reason: r.reason || 'Faculty leave request',
+          status: normalizedStatus,
+          rawStatus: r.status,
+          currentStep: 'PRINCIPAL',
+          startDate: r.startDate,
+          endDate: r.endDate,
+          totalDays: r.totalDays,
+          createdAt: r.createdAt,
+          requesterRole: reqRole,
+          requester: {
+            id: r.faculty?.id,
+            firstName: r.faculty?.firstName || r.faculty?.user?.firstName || 'Faculty',
+            lastName: r.faculty?.lastName || r.faculty?.user?.lastName || '',
+            email: r.faculty?.email || r.faculty?.user?.email,
+          },
+          department: r.department || r.faculty?.department,
+          sourceTable: 'FACULTY_LEAVE'
+        };
+      });
+
+      const mappedStudent = studentLeaveReqs.map((r: any) => {
+        const isOd = r.type === 'ON_DUTY' || (r.requestCategory || '').includes('OD') || r.requestCategory === 'SPORTS';
+        const reqType = isOd ? 'STUDENT_OD' : 'STUDENT_LEAVE';
+
+        let normalizedStatus = 'PENDING';
+        if (r.status === 'APPROVED_PRINCIPAL' || r.status === 'APPROVED') normalizedStatus = 'APPROVED';
+        else if (r.status === 'REJECTED_PRINCIPAL' || r.status === 'REJECTED') normalizedStatus = 'REJECTED';
+
+        return {
+          id: r.id,
+          requestNumber: r.requestNumber || r.id.substring(0, 8),
+          type: r.type,
+          requestType: reqType,
+          title: `Student ${r.type} Request (${r.requestCategory || 'General'})`,
+          reason: r.reason || 'Student leave request',
+          status: normalizedStatus,
+          rawStatus: r.status,
+          currentStep: 'PRINCIPAL',
+          startDate: r.startDate,
+          endDate: r.endDate,
+          createdAt: r.createdAt,
+          requesterRole: 'Student',
+          requester: {
+            id: r.student?.id,
+            firstName: r.student?.firstName || r.student?.user?.firstName || 'Student',
+            lastName: r.student?.lastName || r.student?.user?.lastName || '',
+            email: r.student?.email || r.student?.user?.email,
+          },
+          department: r.department || r.student?.department,
+          sourceTable: 'STUDENT_LEAVE'
+        };
+      });
+
+      const combined = [...mappedWf, ...mappedFaculty, ...mappedStudent];
+      combined.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      return combined;
     }
 
     return [];
@@ -398,6 +525,36 @@ export class WorkflowService {
     comment?: string
   ) {
     const userRole = typeof rawRole === 'object' && rawRole !== null ? rawRole.name : String(rawRole || '');
+
+    // Check FacultyLeaveRequest
+    const facReq = await prisma.facultyLeaveRequest.findUnique({ where: { id: requestId }, include: { faculty: true } });
+    if (facReq) {
+      const newStatus = action === 'APPROVE' ? 'APPROVED_PRINCIPAL' : (action === 'REJECT' ? 'REJECTED_PRINCIPAL' : facReq.status);
+      const updated = await prisma.facultyLeaveRequest.update({
+        where: { id: requestId },
+        data: {
+          status: newStatus,
+          principalRemarks: comment || `Action ${action} taken by ${userRole}`
+        }
+      });
+      return updated;
+    }
+
+    // Check StudentLeaveRequest
+    const studReq = await prisma.studentLeaveRequest.findUnique({ where: { id: requestId }, include: { student: true } });
+    if (studReq) {
+      const newStatus = action === 'APPROVE' ? 'APPROVED' : (action === 'REJECT' ? 'REJECTED_BY_HOD' : studReq.status);
+      const updated = await prisma.studentLeaveRequest.update({
+        where: { id: requestId },
+        data: {
+          status: newStatus,
+          hodRemarks: comment || `Action ${action} taken by ${userRole}`
+        }
+      });
+      return updated;
+    }
+
+    // Check WorkflowRequest
     const request = await prisma.workflowRequest.findUnique({
       where: { id: requestId },
       include: { 
@@ -418,9 +575,10 @@ export class WorkflowService {
         throw new UnauthorizedException('Only the Department HOD or Executive Authority can action this request');
       }
       if (request.currentStep === 'PRINCIPAL') {
-        const offlineSetting = await prisma.systemSetting.findUnique({ where: { key: 'PRINCIPAL_OFFLINE_MODE' } });
-        const isOffline = offlineSetting?.value === 'true';
-        if (isOffline) {
+        // Use authoritative resolver for Principal availability
+        const delegationCtx = await PrincipalDelegationResolverService.resolveStatus();
+        const isOffline = delegationCtx.principalStatus !== 'ONLINE';
+        if (isOffline && delegationCtx.delegationStatus === 'ACTIVE') {
           if (userRole !== 'Vice Principal' && userRole !== 'Principal' && userRole !== 'Super Admin') {
             throw new UnauthorizedException('Principal is offline. Acting Principal (Vice Principal) authorization required.');
           }
@@ -577,22 +735,27 @@ export class WorkflowService {
       );
 
     } else if (nextStatus === 'HOD_APPROVED' && request.facultyRequesterId) {
-      // Notify Admission Dean
-      const deanRole = await prisma.role.findFirst({ where: { name: 'Admission Dean' } });
-      const deanUsers = deanRole ? await prisma.user.findMany({ where: { roleId: deanRole.id } }) : [];
-      for (const deanUser of deanUsers) {
+      // Use authoritative resolver for Principal availability
+      const hodCtx = await PrincipalDelegationResolverService.resolveStatus();
+      const isPrincipalOffline = hodCtx.principalStatus !== 'ONLINE' && hodCtx.delegationStatus === 'ACTIVE';
+
+      const targetRoleName = isPrincipalOffline ? 'Vice Principal' : 'Principal';
+      const targetRole = await prisma.role.findFirst({ where: { name: targetRoleName } });
+      const targetUsers = targetRole ? await prisma.user.findMany({ where: { roleId: targetRole.id } }) : [];
+
+      for (const targetUser of targetUsers) {
         await this.sendNotification(
-          `🔔 HOD Approved Faculty Leave/OD Request`,
-          `Faculty Leave/OD request from ${request.facultyRequester?.firstName} ${request.facultyRequester?.lastName} has been approved by HOD and is pending your final approval.`,
+          `🔔 ${isPrincipalOffline ? '⚡ Acting Principal (VP): ' : ''}HOD Approved Faculty Leave/OD Request`,
+          `Faculty Leave/OD request from ${request.facultyRequester?.firstName} ${request.facultyRequester?.lastName} has been approved by HOD and is pending your ${isPrincipalOffline ? 'Acting Principal ' : ''}final approval.`,
           'EMAIL',
-          deanUser.id || undefined
+          targetUser.id || undefined
         );
       }
 
       // Notify Faculty
       await this.sendNotification(
         `🔔 HOD Approved`,
-        `Your Leave/OD request has been approved by HOD and forwarded to Admission Dean.`,
+        `Your Leave/OD request has been approved by HOD and forwarded to ${targetRoleName} for final approval.`,
         'EMAIL',
         request.facultyRequester?.userId || undefined
       );

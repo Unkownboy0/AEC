@@ -24,7 +24,7 @@ export declare class WorkflowService {
     /**
      * List requests filtered by user role and context
      */
-    listRequests(userEmail: string, userRole: string, status?: string): Promise<({
+    listRequests(userEmail: string, rawRole: any, status?: string): Promise<({
         student: ({
             department: {
                 code: string;
@@ -51,6 +51,7 @@ export declare class WorkflowService {
                 officeLocation: string | null;
                 establishedYear: number | null;
                 hodId: string | null;
+                hodUserId: string | null;
                 hodName: string | null;
             };
             semester: {
@@ -188,7 +189,7 @@ export declare class WorkflowService {
     /**
      * Action a request (APPROVE, REJECT, FORWARD, CLARIFICATION)
      */
-    takeAction(requestId: string, userEmail: string, userRole: string, action: 'APPROVE' | 'REJECT' | 'CLARIFICATION' | 'FORWARD', comment?: string): Promise<{
+    takeAction(requestId: string, userEmail: string, rawRole: any, action: 'APPROVE' | 'REJECT' | 'CLARIFICATION' | 'FORWARD', comment?: string): Promise<{
         type: string;
         status: string;
         id: string;

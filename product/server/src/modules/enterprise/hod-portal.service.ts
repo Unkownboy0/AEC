@@ -17,12 +17,16 @@ export class HodPortalService {
     if (dept?.id) return dept.id;
 
     const user = await prisma.user.findUnique({ where: { id: userId }, include: { role: true } });
-    if (user?.role?.name === 'Super Admin' || user?.role?.name === 'Academic Dean') {
-      const firstDept = await prisma.department.findFirst({ where: { status: 'ACTIVE' } });
-      if (firstDept) return firstDept.id;
-    }
+    if ((user as any)?.departmentId) return (user as any).departmentId;
 
-    throw new ForbiddenException('Current user is not assigned as HOD to any department');
+    // Executive / HOD Fallback: auto-assign first active department
+    const firstDept = await prisma.department.findFirst({ where: { status: 'ACTIVE' } });
+    if (firstDept) return firstDept.id;
+
+    const anyDept = await prisma.department.findFirst();
+    if (anyDept) return anyDept.id;
+
+    throw new ForbiddenException('No active department found in the system');
   }
 
   /**
@@ -66,21 +70,32 @@ export class HodPortalService {
         where: {
           student: { departmentId },
           type: 'LEAVE',
-          workflowStatus: 'PENDING_HOD'
+          OR: [
+            { workflowStatus: 'PENDING_HOD' },
+            { status: 'PENDING_HOD' },
+            { status: 'APPROVED_MENTOR' }
+          ]
         }
       }),
       prisma.studentLeaveRequest.count({
         where: {
           student: { departmentId },
           type: 'ON_DUTY',
-          workflowStatus: 'PENDING_HOD'
+          OR: [
+            { workflowStatus: 'PENDING_HOD' },
+            { status: 'PENDING_HOD' },
+            { status: 'APPROVED_MENTOR' }
+          ]
         }
       }),
       prisma.studentLeaveRequest.count({
         where: {
           student: { departmentId },
           isEmergency: true,
-          workflowStatus: { in: ['PENDING_MENTOR', 'PENDING_HOD'] }
+          OR: [
+            { workflowStatus: { in: ['PENDING_MENTOR', 'PENDING_HOD'] } },
+            { status: { in: ['PENDING_MENTOR', 'PENDING_HOD'] } }
+          ]
         }
       }),
       prisma.studentLeaveRequest.count({

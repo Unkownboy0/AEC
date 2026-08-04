@@ -11,13 +11,7 @@ export class DigitalIdService {
   static async getStudentDigitalId(userId: string, targetStudentId?: string): Promise<{ buffer: Buffer; filename: string }> {
     let studentId = targetStudentId;
 
-    if (!studentId) {
-      const student = await prisma.student.findFirst({ where: { userId } });
-      if (!student) throw new NotFoundException('Student profile not found');
-      studentId = student.id;
-    }
-
-    const student = await prisma.student.findUnique({
+    let student = studentId && studentId !== 'me' ? await prisma.student.findUnique({
       where: { id: studentId },
       include: {
         department: true,
@@ -25,8 +19,38 @@ export class DigitalIdService {
         course: true,
         semester: true,
         section: true,
+        user: true,
       },
-    });
+    }) : null;
+
+    if (!student && studentId && studentId !== 'me') {
+      student = await prisma.student.findFirst({
+        where: { OR: [{ userId: studentId }, { email: studentId }, { admissionNo: studentId }] },
+        include: {
+          department: true,
+          program: true,
+          course: true,
+          semester: true,
+          section: true,
+          user: true,
+        },
+      });
+    }
+
+    if (!student) {
+      const user = await prisma.user.findUnique({ where: { id: userId } });
+      student = await prisma.student.findFirst({
+        where: { OR: [{ userId }, { user: { id: userId } }, { email: user?.email || '' }] },
+        include: {
+          department: true,
+          program: true,
+          course: true,
+          semester: true,
+          section: true,
+          user: true,
+        },
+      });
+    }
 
     if (!student) throw new NotFoundException('Student record not found');
 

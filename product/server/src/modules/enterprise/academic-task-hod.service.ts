@@ -28,10 +28,23 @@ export class AcademicTaskHodService {
     const limit = Math.min(100, Math.max(1, Number(filters.limit) || 20));
     const skip = (page - 1) * limit;
 
+    const user = await prisma.user.findUnique({
+      where: { id: hodUserId },
+      select: { departmentId: true },
+    });
+
     const where: any = {
-      assignedHodUserId: hodUserId,
       status: { not: 'DRAFT' }, // HOD never sees Academic Dean draft tasks
     };
+
+    if (user?.departmentId) {
+      where.OR = [
+        { assignedHodUserId: hodUserId },
+        { departmentId: user.departmentId },
+      ];
+    } else {
+      where.assignedHodUserId = hodUserId;
+    }
 
     if (filters.status) {
       where.status = filters.status;

@@ -46,6 +46,7 @@ export declare class RolesService {
                 action: string;
                 module: string;
                 description: string | null;
+                groupId: string | null;
             };
         } & {
             roleId: string;
@@ -177,6 +178,7 @@ export declare class RolesService {
         action: string;
         module: string;
         description: string | null;
+        groupId: string | null;
     }[]>;
     /**
      * Sync permission list for a role
@@ -272,6 +274,7 @@ export declare class RolesService {
                 action: string;
                 module: string;
                 description: string | null;
+                groupId: string | null;
             };
         } & {
             permissionId: string;
@@ -294,6 +297,7 @@ export declare class RolesService {
                 action: string;
                 module: string;
                 description: string | null;
+                groupId: string | null;
             };
         } & {
             permissionId: string;
@@ -316,6 +320,7 @@ export declare class RolesService {
                 action: string;
                 module: string;
                 description: string | null;
+                groupId: string | null;
             };
         } & {
             permissionId: string;

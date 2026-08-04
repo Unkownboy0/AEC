@@ -22,15 +22,28 @@ export class CircularEngineService {
 
     if (!user) throw new UnauthorizedException('User account not found');
 
-    // Scoping Rule: HODs can only publish DEPARTMENT_SPECIFIC circulars for their assigned department
-    if (user.role.name === 'HOD') {
-      const faculty = await prisma.faculty.findFirst({ where: { userId } });
-      if (!faculty) throw new ForbiddenException('Faculty record not found for HOD');
+    // Scoping Rule: HODs can ONLY publish DEPARTMENT_SPECIFIC circulars for their assigned department
+    const roleName = user.role?.name || '';
+    const isHod = roleName === 'HOD' || roleName === 'Head of Department' || roleName.toLowerCase().includes('hod');
 
-      if (input.broadcastLevel !== 'DEPARTMENT_SPECIFIC') {
-        input.broadcastLevel = 'DEPARTMENT_SPECIFIC';
+    if (isHod) {
+      const faculty = await prisma.faculty.findFirst({ where: { userId } });
+      let deptId = faculty?.departmentId || (user as any).departmentId;
+      if (!deptId) {
+        const membership = await prisma.departmentMembership.findFirst({ where: { userId } });
+        deptId = membership?.departmentId;
       }
-      input.departmentId = faculty.departmentId;
+      if (!deptId) {
+        const dept = await prisma.department.findFirst({ where: { hodUserId: userId } });
+        deptId = dept?.id;
+      }
+
+      if (!deptId) {
+        throw new ForbiddenException('Faculty/HOD record not associated with any active department');
+      }
+
+      input.broadcastLevel = 'DEPARTMENT_SPECIFIC';
+      input.departmentId = deptId;
     }
 
     if (input.broadcastLevel === 'DEPARTMENT_SPECIFIC' && !input.departmentId) {

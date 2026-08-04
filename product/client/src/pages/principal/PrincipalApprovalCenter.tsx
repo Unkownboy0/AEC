@@ -8,6 +8,9 @@ import {
 import api from '../../lib/axios';
 import { toast } from '../../components/ui/Toast';
 import { Loading } from '../../components/ui/Loading';
+import { PrincipalHeaderStatusControl } from '../../modules/delegation/PrincipalHeaderStatusControl';
+import { PrincipalStatusBadge } from '../../modules/delegation/components/PrincipalStatusBadge';
+import { HandoverSummaryCard } from '../../modules/delegation/components/HandoverSummaryCard';
 
 export const PrincipalApprovalCenter: React.FC = () => {
   const [activeTab, setActiveTab] = useState<string>('ALL');
@@ -97,34 +100,60 @@ export const PrincipalApprovalCenter: React.FC = () => {
     window.print();
   };
 
+  // Helper status checkers
+  const isPendingStatus = (s: string) => !s || s === 'PENDING' || s.startsWith('PENDING');
+  const isApprovedStatus = (s: string) => s === 'APPROVED' || s === 'APPROVED_PRINCIPAL';
+  const isRejectedStatus = (s: string) => s === 'REJECTED' || s === 'REJECTED_PRINCIPAL';
+
   // Category filtering
   const filteredRequests = requests.filter((r) => {
     // Search matching
     const searchLower = searchQuery.toLowerCase();
-    const nameMatch = (r.requester?.firstName + ' ' + r.requester?.lastName).toLowerCase().includes(searchLower);
-    const titleMatch = (r.title || '').toLowerCase().includes(searchLower);
-    const idMatch = (r.id || '').toLowerCase().includes(searchLower);
+    const firstName = r.requester?.firstName || r.faculty?.firstName || r.student?.firstName || '';
+    const lastName = r.requester?.lastName || r.faculty?.lastName || r.student?.lastName || '';
+    const nameMatch = `${firstName} ${lastName}`.toLowerCase().includes(searchLower);
+    const titleMatch = (r.title || r.reason || '').toLowerCase().includes(searchLower);
+    const idMatch = (r.id || r.requestNumber || '').toLowerCase().includes(searchLower);
     if (searchQuery && !nameMatch && !titleMatch && !idMatch) return false;
 
     // Sub-tab matching
-    if (activeTab === 'STUDENT_LEAVE' && (r.requestType !== 'STUDENT_LEAVE' && r.type !== 'LEAVE')) return false;
-    if (activeTab === 'STUDENT_OD' && (r.requestType !== 'STUDENT_OD' && r.type !== 'OD')) return false;
-    if (activeTab === 'FACULTY_LEAVE' && r.requestType !== 'FACULTY_LEAVE') return false;
-    if (activeTab === 'FACULTY_OD' && r.requestType !== 'FACULTY_OD') return false;
-    if (activeTab === 'DEAN_LEAVE' && r.requestType !== 'DEAN_LEAVE') return false;
-    if (activeTab === 'VP_LEAVE' && r.requestType !== 'VP_LEAVE') return false;
+    const rType = (r.requestType || r.type || '').toUpperCase();
+    if (activeTab === 'STUDENT_LEAVE' && rType !== 'STUDENT_LEAVE' && rType !== 'LEAVE') return false;
+    if (activeTab === 'STUDENT_OD' && rType !== 'STUDENT_OD' && rType !== 'ON_DUTY' && rType !== 'OD') return false;
+    if (activeTab === 'FACULTY_LEAVE' && rType !== 'FACULTY_LEAVE' && !rType.includes('LEAVE')) return false;
+    if (activeTab === 'FACULTY_OD' && rType !== 'FACULTY_OD' && !rType.includes('OD')) return false;
+    if (activeTab === 'DEAN_LEAVE' && rType !== 'DEAN_LEAVE') return false;
+    if (activeTab === 'VP_LEAVE' && rType !== 'VP_LEAVE') return false;
 
-    // Filters
-    if (filterStatus !== 'ALL' && r.status !== filterStatus) return false;
-    if (filterRole !== 'ALL' && r.requesterRole !== filterRole) return false;
+    // Status filter
+    const statusVal = r.status || 'PENDING';
+    if (filterStatus !== 'ALL') {
+      if (filterStatus === 'PENDING' && !isPendingStatus(statusVal)) return false;
+      if (filterStatus === 'APPROVED' && !isApprovedStatus(statusVal)) return false;
+      if (filterStatus === 'REJECTED' && !isRejectedStatus(statusVal)) return false;
+    }
+
+    // Role filter
+    if (filterRole !== 'ALL') {
+      const roleVal = (r.requesterRole || r.role || '').toLowerCase();
+      if (!roleVal.includes(filterRole.toLowerCase())) return false;
+    }
+
+    // Department filter
+    if (filterDept !== 'ALL') {
+      const deptCode = (r.department?.code || r.department?.name || '').toUpperCase();
+      if (!deptCode.includes(filterDept.toUpperCase())) return false;
+    }
 
     return true;
   });
 
-  // KPI Calculations
-  const pendingCount = requests.filter((r) => r.status === 'PENDING').length;
-  const approvedCount = requests.filter((r) => r.status === 'APPROVED').length;
-  const rejectedCount = requests.filter((r) => r.status === 'REJECTED').length;
+  // Dynamic KPI Calculations
+  const pendingLeaveCount = requests.filter((r) => isPendingStatus(r.status) && ((r.requestType || r.type || '').toUpperCase().includes('LEAVE'))).length;
+  const pendingOdCount = requests.filter((r) => isPendingStatus(r.status) && ((r.requestType || r.type || '').toUpperCase().includes('OD') || r.type === 'ON_DUTY')).length;
+  const pendingCount = requests.filter((r) => isPendingStatus(r.status)).length;
+  const approvedCount = requests.filter((r) => isApprovedStatus(r.status)).length;
+  const rejectedCount = requests.filter((r) => isRejectedStatus(r.status)).length;
 
   if (loading) {
     return <Loading text="Loading Principal Approval Center..." />;
@@ -141,22 +170,27 @@ export const PrincipalApprovalCenter: React.FC = () => {
           <h1 className="text-2xl font-extrabold text-white mt-1">Principal Executive Approval Center</h1>
           <p className="text-xs text-slate-400 mt-0.5">Centralized authorization engine for Student, Faculty, Dean & Leadership Requests</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex items-center gap-2">
+          <PrincipalStatusBadge />
+          <PrincipalHeaderStatusControl />
           <span className="px-3.5 py-1.5 bg-amber-500/20 text-amber-300 border border-amber-500/40 rounded-xl text-xs font-extrabold flex items-center gap-1.5">
             <Clock className="w-4 h-4" /> {pendingCount} Pending Authorization
           </span>
         </div>
       </div>
 
+      {/* Handover Summary - shown when Principal returns to Online */}
+      <HandoverSummaryCard />
+
       {/* Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 text-xs font-medium">
         <div className="bg-slate-800/60 p-4 rounded-xl border border-slate-700 space-y-1">
           <span className="text-slate-400">Pending Leave Requests</span>
-          <h3 className="text-2xl font-bold text-amber-400">{pendingCount} Requests</h3>
+          <h3 className="text-2xl font-bold text-amber-400">{pendingLeaveCount} Requests</h3>
         </div>
         <div className="bg-slate-800/60 p-4 rounded-xl border border-slate-700 space-y-1">
           <span className="text-slate-400">Pending OD Requests</span>
-          <h3 className="text-2xl font-bold text-indigo-400">2 Requests</h3>
+          <h3 className="text-2xl font-bold text-indigo-400">{pendingOdCount} Requests</h3>
         </div>
         <div className="bg-slate-800/60 p-4 rounded-xl border border-slate-700 space-y-1">
           <span className="text-slate-400">Approved Today</span>
@@ -268,36 +302,48 @@ export const PrincipalApprovalCenter: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800">
-              {filteredRequests.map((r) => (
-                <tr key={r.id} className="hover:bg-slate-800/60 transition-colors">
-                  <td className="p-3 font-mono text-violet-400 font-bold">{r.id.substring(0, 8)}</td>
-                  <td className="p-3 font-bold text-white flex items-center gap-2">
-                    <div className="w-6 h-6 rounded-full bg-violet-600/30 text-violet-300 flex items-center justify-center text-[10px] font-bold">
-                      {r.requester?.firstName?.[0] || 'U'}
-                    </div>
-                    {r.requester?.firstName} {r.requester?.lastName}
-                  </td>
-                  <td className="p-3 font-semibold text-slate-300">{r.requesterRole || 'Faculty'}</td>
-                  <td className="p-3 font-semibold text-indigo-400">Computer Science</td>
-                  <td className="p-3 font-bold text-amber-400">{r.requestType || r.type}</td>
-                  <td className="p-3 truncate max-w-[180px] text-slate-400">{r.reason || r.title}</td>
-                  <td className="p-3 text-slate-300">{new Date(r.createdAt).toLocaleDateString()}</td>
-                  <td className="p-3 font-mono text-[11px] text-emerald-400 font-bold">Principal Pending</td>
-                  <td className="p-3">
-                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
-                      {r.status}
-                    </span>
-                  </td>
-                  <td className="p-3 text-right">
-                    <button
-                      onClick={() => handleOpenDetail(r)}
-                      className="px-3 py-1.5 bg-violet-600 hover:bg-violet-500 text-white font-bold rounded-lg transition-all"
-                    >
-                      View & Process
-                    </button>
-                  </td>
-                </tr>
-              ))}
+              {filteredRequests.map((r) => {
+                const reqName = `${r.requester?.firstName || r.faculty?.firstName || r.student?.firstName || 'User'} ${r.requester?.lastName || r.faculty?.lastName || r.student?.lastName || ''}`.trim();
+                const deptName = r.department?.name || r.department?.code || r.faculty?.department?.name || r.student?.department?.name || 'Academic Department';
+                const dateStr = r.startDate && r.endDate 
+                  ? `${new Date(r.startDate).toLocaleDateString()} - ${new Date(r.endDate).toLocaleDateString()}` 
+                  : new Date(r.createdAt).toLocaleDateString();
+
+                return (
+                  <tr key={r.id} className="hover:bg-slate-800/60 transition-colors">
+                    <td className="p-3 font-mono text-violet-400 font-bold">{r.requestNumber || r.id.substring(0, 8)}</td>
+                    <td className="p-3 font-bold text-white flex items-center gap-2">
+                      <div className="w-6 h-6 rounded-full bg-violet-600/30 text-violet-300 flex items-center justify-center text-[10px] font-bold">
+                        {reqName[0] || 'U'}
+                      </div>
+                      {reqName}
+                    </td>
+                    <td className="p-3 font-semibold text-slate-300">{r.requesterRole || 'Faculty'}</td>
+                    <td className="p-3 font-semibold text-indigo-400">{deptName}</td>
+                    <td className="p-3 font-bold text-amber-400">{(r.requestType || r.type || 'LEAVE').replace(/_/g, ' ')}</td>
+                    <td className="p-3 truncate max-w-[180px] text-slate-400">{r.reason || r.title}</td>
+                    <td className="p-3 text-slate-300 text-[11px] font-medium">{dateStr}</td>
+                    <td className="p-3 font-mono text-[11px] text-emerald-400 font-bold">Principal Level</td>
+                    <td className="p-3">
+                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
+                        r.status === 'APPROVED' || r.status === 'APPROVED_PRINCIPAL' ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' :
+                        r.status === 'REJECTED' || r.status === 'REJECTED_PRINCIPAL' ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30' :
+                        'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                      }`}>
+                        {r.status}
+                      </span>
+                    </td>
+                    <td className="p-3 text-right">
+                      <button
+                        onClick={() => handleOpenDetail(r)}
+                        className="px-3 py-1.5 bg-violet-600 hover:bg-violet-500 text-white font-bold rounded-lg transition-all"
+                      >
+                        View & Process
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
               {filteredRequests.length === 0 && (
                 <tr>
                   <td colSpan={10} className="p-8 text-center text-slate-500">

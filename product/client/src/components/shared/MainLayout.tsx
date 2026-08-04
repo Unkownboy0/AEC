@@ -11,6 +11,8 @@ import { toast } from '../ui/Toast';
 import api from '../../lib/axios';
 import BottomNav from './BottomNav';
 import { OnboardingTour } from './OnboardingTour';
+import { PrincipalDelegationBanner } from '../../modules/principal-availability/components/PrincipalDelegationBanner';
+import { VpActingPrincipalBanner } from '../../modules/principal-availability/components/VpActingPrincipalBanner';
 
 const MainLayout: React.FC = () => {
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -238,6 +240,18 @@ const MainLayout: React.FC = () => {
           </div>
           <Header onOpenPalette={() => setIsPaletteOpen(true)} />
         </header>
+
+        {/* Role-Specific Banners */}
+        {(() => {
+          const userRole = (typeof user?.role === 'object' ? (user?.role as any)?.name : String(user?.role || '')).toUpperCase();
+          if (userRole.includes('PRINCIPAL') && !userRole.includes('VICE') && !userRole.includes('VP')) {
+            return <PrincipalDelegationBanner />;
+          }
+          if (userRole.includes('VICE') || userRole.includes('VP')) {
+            return <VpActingPrincipalBanner />;
+          }
+          return null;
+        })()}
 
         {/* Content canvas */}
         <main className="flex-1 overflow-y-auto bg-background/50 p-4 md:p-6 lg:p-8">

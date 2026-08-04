@@ -86,6 +86,7 @@ export declare class EnterpriseService {
                 officeLocation: string | null;
                 establishedYear: number | null;
                 hodId: string | null;
+                hodUserId: string | null;
                 hodName: string | null;
             };
             program: {
@@ -186,6 +187,7 @@ export declare class EnterpriseService {
                 officeLocation: string | null;
                 establishedYear: number | null;
                 hodId: string | null;
+                hodUserId: string | null;
                 hodName: string | null;
             } | null;
         } & {
@@ -341,6 +343,7 @@ export declare class EnterpriseService {
             officeLocation: string | null;
             establishedYear: number | null;
             hodId: string | null;
+            hodUserId: string | null;
             hodName: string | null;
         };
         program: {
@@ -469,6 +472,7 @@ export declare class EnterpriseService {
             officeLocation: string | null;
             establishedYear: number | null;
             hodId: string | null;
+            hodUserId: string | null;
             hodName: string | null;
         } | null;
     } & {
@@ -702,6 +706,7 @@ export declare class EnterpriseService {
                 officeLocation: string | null;
                 establishedYear: number | null;
                 hodId: string | null;
+                hodUserId: string | null;
                 hodName: string | null;
             };
         } & {
@@ -799,6 +804,7 @@ export declare class EnterpriseService {
             officeLocation: string | null;
             establishedYear: number | null;
             hodId: string | null;
+            hodUserId: string | null;
             hodName: string | null;
         };
     } & {

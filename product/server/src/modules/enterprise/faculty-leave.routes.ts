@@ -8,8 +8,8 @@ const controller = new FacultyLeaveController();
 
 router.use(requireAuth);
 
-router.post('/', requirePermissionGuard('leave', 'create'), controller.submitRequest);
-router.get('/my-requests', requirePermissionGuard('leave', 'view'), controller.getMyRequests);
+router.post('/', controller.submitRequest);
+router.get('/my-requests', controller.getMyRequests);
 
 router.get('/hod-pending', requirePermissionGuard('leave', 'approve'), controller.getHodPending);
 router.post('/:id/hod-review', requirePermissionGuard('leave', 'approve'), controller.hodReview);

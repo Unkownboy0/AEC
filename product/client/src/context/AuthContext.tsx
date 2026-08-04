@@ -12,6 +12,7 @@ export interface User {
   profilePhoto?: string;
   forcePasswordChange?: boolean;
   workspaces?: string[];
+  activeWorkspace?: string;
 }
 
 interface AuthContextProps {

@@ -68,4 +68,17 @@ export class AnalyticsController {
       next(err);
     }
   }
+
+  /**
+   * GET /api/enterprise/analytics/department-availability
+   */
+  async getDepartmentAvailability(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { departmentId } = req.query;
+      const data = await analyticsService.getDepartmentAvailability(departmentId as string | undefined);
+      res.status(200).json({ status: 'success', data });
+    } catch (err) {
+      next(err);
+    }
+  }
 }

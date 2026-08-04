@@ -276,3 +276,177 @@ Unknown argument `timestamp`. Available options are marked with ?.
     at l (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:130:9633)
     at ProfileDrilldownService.getUser360Profile (D:\company work\crm\product\server\src\modules\enterprise\profile-drilldown.service.ts:190:9)
     at getUser360 (D:\company work\crm\product\server\src\modules\enterprise\profile-drilldown.controller.ts:10:20)
+[2026-08-03 20:04:55] [ERROR]: PrismaClientValidationError: 
+Invalid `any).facultyLeaveRequest.create()` invocation in
+D:\company work\crm\product\server\src\modules\faculty\faculty.service.ts:576:61
+
+  573 if (!faculty) throw new NotFoundException('Faculty profile not found');
+  574 
+  575 const requestNumber = `FLEAVE-${Date.now()}`;
+→ 576 const leave = await (prisma as any).facultyLeaveRequest.create({
+        data: {
+          requestNumber: "FLEAVE-1785767695248",
+          facultyId: "873eb495-bee7-475d-bca1-520348788b17",
+          departmentId: "df3f2867-2445-4964-a2a3-15056a191cdd",
+          leaveCategory: "CASUAL",
+          startDate: new Date("2026-08-06T00:00:00.000Z"),
+          endDate: new Date("2026-08-05T00:00:00.000Z"),
+          reason: "fever",
+          status: "PENDING_HOD",
+      +   leaveType: String
+        }
+      })
+
+Argument `leaveType` is missing.
+    at wn (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:29:1363)
+    at $n.handleRequestError (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6958)
+    at $n.handleAndLogRequestError (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6623)
+    at $n.request (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6307)
+    at l (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:130:9633)
+    at FacultyService.createFacultyLeave (D:\company work\crm\product\server\src\modules\faculty\faculty.service.ts:576:19)
+    at createFacultyLeave (D:\company work\crm\product\server\src\modules\faculty\faculty.controller.ts:93:20)
+[2026-08-03 20:05:28] [ERROR]: PrismaClientValidationError: 
+Invalid `any).facultyLeaveRequest.create()` invocation in
+D:\company work\crm\product\server\src\modules\faculty\faculty.service.ts:576:61
+
+  573 if (!faculty) throw new NotFoundException('Faculty profile not found');
+  574 
+  575 const requestNumber = `FLEAVE-${Date.now()}`;
+→ 576 const leave = await (prisma as any).facultyLeaveRequest.create({
+        data: {
+          requestNumber: "FLEAVE-1785767728437",
+          facultyId: "873eb495-bee7-475d-bca1-520348788b17",
+          departmentId: "df3f2867-2445-4964-a2a3-15056a191cdd",
+          leaveCategory: "CASUAL",
+          startDate: new Date("2026-08-05T00:00:00.000Z"),
+          endDate: new Date("2026-08-05T00:00:00.000Z"),
+          reason: "leave",
+          status: "PENDING_HOD",
+      +   leaveType: String
+        }
+      })
+
+Argument `leaveType` is missing.
+    at wn (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:29:1363)
+    at $n.handleRequestError (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6958)
+    at $n.handleAndLogRequestError (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6623)
+    at $n.request (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6307)
+    at l (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:130:9633)
+    at FacultyService.createFacultyLeave (D:\company work\crm\product\server\src\modules\faculty\faculty.service.ts:576:19)
+    at createFacultyLeave (D:\company work\crm\product\server\src\modules\faculty\faculty.controller.ts:93:20)
+[2026-08-03 20:05:35] [ERROR]: PrismaClientValidationError: 
+Invalid `any).facultyLeaveRequest.create()` invocation in
+D:\company work\crm\product\server\src\modules\faculty\faculty.service.ts:576:61
+
+  573 if (!faculty) throw new NotFoundException('Faculty profile not found');
+  574 
+  575 const requestNumber = `FLEAVE-${Date.now()}`;
+→ 576 const leave = await (prisma as any).facultyLeaveRequest.create({
+        data: {
+          requestNumber: "FLEAVE-1785767735531",
+          facultyId: "873eb495-bee7-475d-bca1-520348788b17",
+          departmentId: "df3f2867-2445-4964-a2a3-15056a191cdd",
+          leaveCategory: "CASUAL",
+          startDate: new Date("2026-08-05T00:00:00.000Z"),
+          endDate: new Date("2026-08-05T00:00:00.000Z"),
+          reason: "leave",
+          status: "PENDING_HOD",
+      +   leaveType: String
+        }
+      })
+
+Argument `leaveType` is missing.
+    at wn (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:29:1363)
+    at $n.handleRequestError (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6958)
+    at $n.handleAndLogRequestError (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6623)
+    at $n.request (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6307)
+    at l (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:130:9633)
+    at FacultyService.createFacultyLeave (D:\company work\crm\product\server\src\modules\faculty\faculty.service.ts:576:19)
+    at createFacultyLeave (D:\company work\crm\product\server\src\modules\faculty\faculty.controller.ts:93:20)
+[2026-08-03 20:11:23] [ERROR]: PrismaClientValidationError: 
+Invalid `any).facultyLeaveRequest.create()` invocation in
+D:\company work\crm\product\server\src\modules\faculty\faculty.service.ts:576:61
+
+  573 if (!faculty) throw new NotFoundException('Faculty profile not found');
+  574 
+  575 const requestNumber = `FLEAVE-${Date.now()}`;
+→ 576 const leave = await (prisma as any).facultyLeaveRequest.create({
+        data: {
+          requestNumber: "FLEAVE-1785768083732",
+          facultyId: "873eb495-bee7-475d-bca1-520348788b17",
+          departmentId: "df3f2867-2445-4964-a2a3-15056a191cdd",
+          leaveCategory: "CASUAL",
+          startDate: new Date("2026-08-06T00:00:00.000Z"),
+          endDate: new Date("2026-08-06T00:00:00.000Z"),
+          reason: "leave venum",
+          status: "PENDING_HOD",
+      +   leaveType: String
+        }
+      })
+
+Argument `leaveType` is missing.
+    at wn (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:29:1363)
+    at $n.handleRequestError (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6958)
+    at $n.handleAndLogRequestError (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6623)
+    at $n.request (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6307)
+    at l (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:130:9633)
+    at FacultyService.createFacultyLeave (D:\company work\crm\product\server\src\modules\faculty\faculty.service.ts:576:19)
+    at createFacultyLeave (D:\company work\crm\product\server\src\modules\faculty\faculty.controller.ts:93:20)
+[2026-08-03 20:11:50] [ERROR]: PrismaClientValidationError: 
+Invalid `any).facultyLeaveRequest.create()` invocation in
+D:\company work\crm\product\server\src\modules\faculty\faculty.service.ts:576:61
+
+  573 if (!faculty) throw new NotFoundException('Faculty profile not found');
+  574 
+  575 const requestNumber = `FLEAVE-${Date.now()}`;
+→ 576 const leave = await (prisma as any).facultyLeaveRequest.create({
+        data: {
+          requestNumber: "FLEAVE-1785768110996",
+          facultyId: "873eb495-bee7-475d-bca1-520348788b17",
+          departmentId: "df3f2867-2445-4964-a2a3-15056a191cdd",
+          leaveCategory: "CASUAL",
+          startDate: new Date("2026-08-06T00:00:00.000Z"),
+          endDate: new Date("2026-08-06T00:00:00.000Z"),
+          reason: "leave venum",
+          status: "PENDING_HOD",
+      +   leaveType: String
+        }
+      })
+
+Argument `leaveType` is missing.
+    at wn (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:29:1363)
+    at $n.handleRequestError (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6958)
+    at $n.handleAndLogRequestError (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6623)
+    at $n.request (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6307)
+    at l (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:130:9633)
+    at FacultyService.createFacultyLeave (D:\company work\crm\product\server\src\modules\faculty\faculty.service.ts:576:19)
+    at createFacultyLeave (D:\company work\crm\product\server\src\modules\faculty\faculty.controller.ts:93:20)
+[2026-08-03 20:11:57] [ERROR]: PrismaClientValidationError: 
+Invalid `any).facultyLeaveRequest.create()` invocation in
+D:\company work\crm\product\server\src\modules\faculty\faculty.service.ts:576:61
+
+  573 if (!faculty) throw new NotFoundException('Faculty profile not found');
+  574 
+  575 const requestNumber = `FLEAVE-${Date.now()}`;
+→ 576 const leave = await (prisma as any).facultyLeaveRequest.create({
+        data: {
+          requestNumber: "FLEAVE-1785768117197",
+          facultyId: "873eb495-bee7-475d-bca1-520348788b17",
+          departmentId: "df3f2867-2445-4964-a2a3-15056a191cdd",
+          leaveCategory: "CASUAL",
+          startDate: new Date("2026-08-06T00:00:00.000Z"),
+          endDate: new Date("2026-08-06T00:00:00.000Z"),
+          reason: "leave venum",
+          status: "PENDING_HOD",
+      +   leaveType: String
+        }
+      })
+
+Argument `leaveType` is missing.
+    at wn (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:29:1363)
+    at $n.handleRequestError (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6958)
+    at $n.handleAndLogRequestError (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6623)
+    at $n.request (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6307)
+    at l (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:130:9633)
+    at FacultyService.createFacultyLeave (D:\company work\crm\product\server\src\modules\faculty\faculty.service.ts:576:19)
+    at createFacultyLeave (D:\company work\crm\product\server\src\modules\faculty\faculty.controller.ts:93:20)

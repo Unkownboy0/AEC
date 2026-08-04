@@ -1254,10 +1254,19 @@ class EnterpriseController {
             };
             const token = jsonwebtoken_1.default.sign(qrPayload, env_1.env.JWT_SECRET, { expiresIn: '365d' });
             // Upsert DigitalIdCard record
+            const expiry = new Date();
+            expiry.setFullYear(expiry.getFullYear() + 4);
             await prisma_1.prisma.digitalIdCard.upsert({
-                where: { id: student.id }, // Use student ID as primary identifier
-                update: { qrCode: token, isActive: true },
-                create: { id: student.id, type: 'STUDENT', entityId: student.id, qrCode: token, isActive: true }
+                where: { verificationToken: token },
+                update: { status: 'ACTIVE' },
+                create: {
+                    ownerType: 'STUDENT',
+                    ownerId: student.id,
+                    userId: student.userId || student.id,
+                    verificationToken: token,
+                    status: 'ACTIVE',
+                    expiryDate: expiry
+                }
             });
             res.status(200).json({
                 status: 'success',
@@ -1306,11 +1315,20 @@ class EnterpriseController {
                 role: 'Faculty'
             };
             const token = jsonwebtoken_1.default.sign(qrPayload, env_1.env.JWT_SECRET, { expiresIn: '365d' });
+            const expiry = new Date();
+            expiry.setFullYear(expiry.getFullYear() + 5);
             // Upsert DigitalIdCard record
             await prisma_1.prisma.digitalIdCard.upsert({
-                where: { id: faculty.id },
-                update: { qrCode: token, isActive: true },
-                create: { id: faculty.id, type: 'FACULTY', entityId: faculty.id, qrCode: token, isActive: true }
+                where: { verificationToken: token },
+                update: { status: 'ACTIVE' },
+                create: {
+                    ownerType: 'FACULTY',
+                    ownerId: faculty.id,
+                    userId: faculty.userId || faculty.id,
+                    verificationToken: token,
+                    status: 'ACTIVE',
+                    expiryDate: expiry
+                }
             });
             res.status(200).json({
                 status: 'success',
@@ -1349,7 +1367,7 @@ class EnterpriseController {
             }
             // Check if identity card is active in database
             const idCardRecord = await prisma_1.prisma.digitalIdCard.findFirst({
-                where: { entityId: decoded.id, isActive: true }
+                where: { ownerId: decoded.id, status: 'ACTIVE' }
             });
             if (!idCardRecord) {
                 return res.status(404).json({

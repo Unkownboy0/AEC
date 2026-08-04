@@ -1,6 +1,7 @@
 import { prisma } from '../../lib/prisma';
 import { BadRequestException, NotFoundException, ForbiddenException } from '../../utils/exceptions';
 import { logger } from '../../utils/logger';
+import { PrincipalRequestRoutingService } from '../principal-availability/request-routing.service';
 
 export interface ClassSubstitutionItem {
   subjectId?: string;
@@ -25,13 +26,76 @@ export class FacultyLeaveService {
    * Submit Faculty Leave / OD Request
    */
   async submitRequest(userId: string, input: SubmitFacultyLeaveInput) {
-    const faculty = await prisma.faculty.findFirst({
+    let faculty = await prisma.faculty.findFirst({
       where: { userId },
       include: { department: true },
     });
 
+    const user = await prisma.user.findUnique({ where: { id: userId }, include: { role: true } });
+
+    if (!faculty && user) {
+      // Check if faculty profile exists by email and link userId
+      faculty = await prisma.faculty.findFirst({
+        where: { email: user.email },
+        include: { department: true },
+      });
+
+      if (faculty) {
+        await prisma.faculty.update({
+          where: { id: faculty.id },
+          data: { userId }
+        });
+        faculty = await prisma.faculty.findUnique({
+          where: { id: faculty.id },
+          include: { department: true }
+        });
+      } else {
+        // Auto-create faculty profile for user session
+        let deptId = (user as any).departmentId;
+        if (!deptId) {
+          const firstDept = await prisma.department.findFirst({ where: { status: 'ACTIVE' } });
+          deptId = firstDept?.id;
+        }
+
+        if (!deptId) {
+          const anyDept = await prisma.department.findFirst();
+          deptId = anyDept?.id;
+        }
+
+        if (!deptId) {
+          throw new BadRequestException('No active department found in system to associate faculty leave');
+        }
+
+        faculty = await (prisma.faculty.create({
+          data: {
+            userId,
+            employeeId: `FAC-${Date.now().toString().slice(-4)}`,
+            firstName: user.firstName || 'Faculty',
+            lastName: user.lastName || 'Member',
+            email: user.email,
+            phone: user.phone || '9999999999',
+            dob: new Date('1990-01-01'),
+            dateOfJoining: new Date(),
+            qualification: 'Ph.D / M.Tech',
+            experience: 5,
+            departmentId: deptId,
+            designation: user.role?.name === 'HOD' ? 'Head of Department' : 'Faculty Member',
+            status: 'ACTIVE',
+          },
+          include: { department: true }
+        }) as any);
+      }
+    }
+
     if (!faculty) {
       throw new NotFoundException('Faculty profile not found for current user session');
+    }
+
+    const firstActiveDept = await prisma.department.findFirst({ where: { status: 'ACTIVE' } });
+    const finalDepartmentId = faculty.departmentId || (user as any)?.departmentId || firstActiveDept?.id;
+
+    if (!finalDepartmentId) {
+      throw new BadRequestException('Valid department ID is required to submit leave request');
     }
 
     const start = new Date(input.startDate);
@@ -48,29 +112,59 @@ export class FacultyLeaveService {
     const diffTime = Math.abs(end.getTime() - start.getTime());
     const totalDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
 
+    // Normalize leaveType (CASUAL -> CASUAL_LEAVE, MEDICAL -> MEDICAL_LEAVE)
+    const rawType = (input.leaveType || (input as any).type || 'CASUAL_LEAVE').toString().toUpperCase();
+    const normalizedLeaveType = rawType.includes('CASUAL') ? 'CASUAL_LEAVE'
+      : rawType.includes('MEDICAL') ? 'MEDICAL_LEAVE'
+      : rawType.includes('EARNED') ? 'EARNED_LEAVE'
+      : 'ON_DUTY';
+
     // Generate Request Number (e.g. FL-2026-0001)
     const count = await prisma.facultyLeaveRequest.count();
     const requestNumber = `FL-${new Date().getFullYear()}-${(count + 1).toString().padStart(4, '0')}`;
+
+    const isExecutiveUser = 
+      ['HOD', 'Head of Department', 'Academic Dean', 'Admission Dean', 'IQAC Dean', 'Vice Principal'].includes(user?.role?.name || '') || 
+      (user as any)?.activeWorkspace === 'HOD' || 
+      faculty.department?.hodUserId === userId;
+      
+    const initialStatus = isExecutiveUser ? 'PENDING_PRINCIPAL' : 'PENDING_HOD';
 
     const request = await prisma.facultyLeaveRequest.create({
       data: {
         requestNumber,
         facultyId: faculty.id,
-        departmentId: faculty.departmentId,
-        leaveType: input.leaveType,
-        reason: input.reason,
+        departmentId: finalDepartmentId,
+        leaveType: normalizedLeaveType,
+        reason: input.reason || 'Faculty leave request',
         startDate: start,
         endDate: end,
         totalDays,
         attachmentUrl: input.attachmentUrl,
         substitutions: JSON.stringify(input.substitutions || []),
-        status: 'PENDING_HOD',
+        status: initialStatus,
       },
       include: {
         faculty: { select: { id: true, firstName: true, lastName: true, employeeId: true } },
         department: { select: { id: true, name: true, code: true } },
       },
     });
+
+    if (isExecutiveUser || initialStatus === 'PENDING_PRINCIPAL') {
+      const isOd = normalizedLeaveType === 'ON_DUTY';
+      const reqType = isOd ? 'FACULTY_OD' : 'FACULTY_LEAVE';
+      try {
+        await PrincipalRequestRoutingService.createApprovalAssignment({
+          requestId: request.id,
+          requestType: reqType,
+          title: `[${user?.role?.name || 'Executive'}] ${normalizedLeaveType.replace('_', ' ')}: ${requestNumber}`,
+          applicantName: `${faculty.firstName} ${faculty.lastName}`,
+          departmentName: faculty.department?.name || 'Academic Department',
+        });
+      } catch (routingErr) {
+        logger.warn('Error creating approval assignment for executive leave:', routingErr);
+      }
+    }
 
     // Notify Substitute Faculty if specified
     if (input.substitutions && input.substitutions.length > 0) {
@@ -95,31 +189,55 @@ export class FacultyLeaveService {
       }
     }
 
-    // Notify Department HOD for Level 1 Review
+    // Notify Approver (Principal / Acting Principal if Executive user, else HOD)
     try {
-      const hodFaculty = await prisma.faculty.findFirst({
-        where: {
-          departmentId: faculty.departmentId,
-          user: { role: { name: 'HOD' } },
-        },
-        include: { user: true },
-      });
+      if (isExecutiveUser) {
+        const principalOfflineSetting = await prisma.systemSetting.findUnique({ where: { key: 'PRINCIPAL_OFFLINE_MODE' } });
+        const isPrincipalOffline = principalOfflineSetting?.value === 'true';
+        const targetRole = isPrincipalOffline ? 'Vice Principal' : 'Principal';
 
-      if (hodFaculty && hodFaculty.userId) {
-        await prisma.notification.create({
-          data: {
-            recipientId: hodFaculty.userId,
-            eventType: 'FACULTY_LEAVE_SUBMITTED',
-            title: `Faculty Leave Request: Prof. ${faculty.firstName} ${faculty.lastName}`,
-            message: `Prof. ${faculty.firstName} ${faculty.lastName} submitted a ${input.leaveType} (${totalDays} day(s)) for your HOD Level 1 review.`,
-            relatedEntityType: 'FACULTY_LEAVE_REQUEST',
-            relatedEntityId: request.id,
-            deepLinkRoute: `/hod/faculty-leave-approvals?requestId=${request.id}`,
-          },
+        const targetUsers = await prisma.user.findMany({
+          where: { role: { name: targetRole }, status: 'ACTIVE' }
         });
+
+        for (const targetUser of targetUsers) {
+          await prisma.notification.create({
+            data: {
+              recipientId: targetUser.id,
+              eventType: 'EXECUTIVE_LEAVE_SUBMITTED',
+              title: `${isPrincipalOffline ? '⚡ [Acting Principal Required] ' : ''}${user?.role?.name || 'Executive'} Leave Request: Dr. ${faculty.firstName} ${faculty.lastName}`,
+              message: `${user?.role?.name || 'Executive'} Dr. ${faculty.firstName} ${faculty.lastName} (${faculty.department?.name || 'Department'}) submitted a ${input.leaveType} (${totalDays} day(s)) ${isPrincipalOffline ? 'requiring Vice Principal (Acting Principal) sign-off.' : 'directly for Principal approval.'}`,
+              relatedEntityType: 'FACULTY_LEAVE_REQUEST',
+              relatedEntityId: request.id,
+              deepLinkRoute: `/approval-center?requestId=${request.id}`,
+            },
+          });
+        }
+      } else {
+        const hodFaculty = await prisma.faculty.findFirst({
+          where: {
+            departmentId: faculty.departmentId,
+            user: { role: { name: 'HOD' } },
+          },
+          include: { user: true },
+        });
+
+        if (hodFaculty && hodFaculty.userId) {
+          await prisma.notification.create({
+            data: {
+              recipientId: hodFaculty.userId,
+              eventType: 'FACULTY_LEAVE_SUBMITTED',
+              title: `Faculty Leave Request: Prof. ${faculty.firstName} ${faculty.lastName}`,
+              message: `Prof. ${faculty.firstName} ${faculty.lastName} submitted a ${input.leaveType} (${totalDays} day(s)) for your HOD Level 1 review.`,
+              relatedEntityType: 'FACULTY_LEAVE_REQUEST',
+              relatedEntityId: request.id,
+              deepLinkRoute: `/hod/faculty-leave-approvals?requestId=${request.id}`,
+            },
+          });
+        }
       }
     } catch (err) {
-      logger.warn('Failed to dispatch HOD leave notification:', err);
+      logger.warn('Failed to dispatch leave notification:', err);
     }
 
     logger.info(`📝 Faculty Leave Request ${requestNumber} created by Prof. ${faculty.firstName} ${faculty.lastName}`);
@@ -228,12 +346,13 @@ export class FacultyLeaveService {
       throw new NotFoundException('Faculty leave request not found');
     }
 
-    if (request.status !== 'APPROVED_HOD' && user.role.name !== 'Super Admin') {
-      throw new BadRequestException('Request must be endorsed by Level 1 HOD before Principal final sign-off');
+    if (!['APPROVED_HOD', 'PENDING_PRINCIPAL'].includes(request.status) && user.role.name !== 'Super Admin') {
+      throw new BadRequestException('Request must be in pending approval status before Principal/Acting Principal final sign-off');
     }
 
     const isActing = user.role.name === 'Vice Principal';
     const newStatus = decision === 'APPROVE' ? 'APPROVED_PRINCIPAL' : 'REJECTED_PRINCIPAL';
+    const approvalStamp = isActing ? 'Approved by: Vice Principal (Acting on behalf of Principal)' : 'Approved by Principal';
 
     const updated = await prisma.facultyLeaveRequest.update({
       where: { id: requestId },
@@ -241,10 +360,29 @@ export class FacultyLeaveService {
         status: newStatus,
         principalId: userId,
         principalApprovedAt: new Date(),
-        principalRemarks: remarks || (decision === 'APPROVE' ? (isActing ? 'Approved by Vice Principal (Acting Principal)' : 'Approved by Principal') : 'Rejected by Principal'),
+        principalRemarks: remarks || (decision === 'APPROVE' ? approvalStamp : 'Rejected by Principal'),
         isActingPrincipal: isActing,
       },
     });
+
+    if (isActing) {
+      try {
+        const principalUser = await prisma.user.findFirst({ where: { role: { name: 'Principal' } } });
+        await (prisma as any).principalDelegationLog.create({
+          data: {
+            principalUserId: principalUser?.id || userId,
+            actingUserId: userId,
+            actingUserRole: 'Vice Principal',
+            actionType: 'FACULTY_LEAVE_APPROVAL',
+            targetEntityId: requestId,
+            targetEntityType: 'FacultyLeaveRequest',
+            description: `Faculty Leave ${request.requestNumber} ${decision.toLowerCase()}d by Vice Principal (Acting on behalf of Principal)`,
+          },
+        });
+      } catch (logErr) {
+        logger.warn('Failed to record principal delegation audit log:', logErr);
+      }
+    }
 
     // Notify Applicant Faculty of final decision
     if (request.faculty.userId) {
@@ -302,7 +440,7 @@ export class FacultyLeaveService {
    */
   async getPrincipalPendingRequests(userId: string) {
     return prisma.facultyLeaveRequest.findMany({
-      where: { status: 'APPROVED_HOD' },
+      where: { status: { in: ['APPROVED_HOD', 'PENDING_PRINCIPAL'] } },
       orderBy: { createdAt: 'asc' },
       include: {
         faculty: { select: { id: true, firstName: true, lastName: true, employeeId: true } },

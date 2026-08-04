@@ -13,10 +13,26 @@ export class HodRepository {
       wfOd,
     ] = await Promise.all([
       prisma.studentLeaveRequest.count({
-        where: { student: { departmentId }, type: 'LEAVE', workflowStatus: 'PENDING_HOD' },
+        where: {
+          student: { departmentId },
+          type: 'LEAVE',
+          OR: [
+            { workflowStatus: 'PENDING_HOD' },
+            { status: 'PENDING_HOD' },
+            { status: 'APPROVED_MENTOR' }
+          ]
+        },
       }),
       prisma.studentLeaveRequest.count({
-        where: { student: { departmentId }, type: 'ON_DUTY', workflowStatus: 'PENDING_HOD' },
+        where: {
+          student: { departmentId },
+          type: 'ON_DUTY',
+          OR: [
+            { workflowStatus: 'PENDING_HOD' },
+            { status: 'PENDING_HOD' },
+            { status: 'APPROVED_MENTOR' }
+          ]
+        },
       }),
       prisma.workflowRequest.count({
         where: {
