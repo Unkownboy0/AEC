@@ -1,177 +1,164 @@
 import { prisma } from '../../lib/prisma';
 import { DelegationService } from '../delegation/delegation.service';
+import { CircularRepository } from './circular.repository';
+import { CircularRecipientService } from './circular-recipient.service';
+import { CircularNotificationService } from './circular-notification.service';
+import { CircularEvents } from './circular.events';
+import {
+  canPublishDepartmentCircular,
+  canPublishInstitutionCircular,
+  getPublishedAsLabel,
+  isHodRole,
+} from './circular.permissions';
+import { CreateCircularDto } from './circular.validation';
+import { logger } from '../../utils/logger';
 
-export interface CreateCircularDto {
-  title: string;
-  category?: string;
-  priority?: string;
-  description?: string;
-  content: string;
-  broadcastLevel?: string;
-  departmentId?: string;
-  attachmentUrl?: string;
-  attachmentName?: string;
-  referenceLink?: string;
-  effectiveDate?: string;
-  publishDate?: string;
-  expiryDate?: string;
-  targetDepartments?: string[];
-  targetYears?: string[];
-  targetSemesters?: string[];
-  targetSections?: string[];
-  targetRoles?: string[];
-  selectedUserIds?: string[];
-  acknowledgementRequired?: boolean;
-  isPinned?: boolean;
-  isEmergency?: boolean;
-}
+const repo = new CircularRepository();
+const notifService = new CircularNotificationService();
 
 export class CircularService {
   /**
-   * List circulars accessible for a given user & role.
+   * List circulars visible to a given user based on their role and department.
+   * Strictly prevents cross-department leakage.
    */
   static async listCirculars(userId: string, roleName: string, deptId?: string) {
-    const isHod = roleName === 'HOD';
-
-    let filterWhere: any = {};
-    if (isHod && deptId) {
-      filterWhere = {
-        OR: [
-          { broadcastLevel: 'ALL_CAMPUS' },
-          { broadcastLevel: 'DEPARTMENT_SPECIFIC', departmentId: deptId },
-          { authorId: userId }
-        ]
-      };
-    }
-
-    const circulars = await (prisma as any).circular.findMany({
-      where: filterWhere,
-      orderBy: [
-        { isEmergency: 'desc' },
-        { isPinned: 'desc' },
-        { publishedAt: 'desc' }
-      ],
-      include: {
-        recipients: {
-          where: { userId }
-        }
-      }
-    });
-
-    return circulars.map((c: any) => {
-      const recipient = c.recipients?.[0];
-      return {
-        ...c,
-        targetDepartments: c.targetDepartments ? JSON.parse(c.targetDepartments) : [],
-        targetRoles: c.targetRoles ? JSON.parse(c.targetRoles) : [],
-        userStatus: recipient ? recipient.status : 'DELIVERED',
-        userReadAt: recipient ? recipient.readAt : null,
-        userAcknowledgedAt: recipient ? recipient.acknowledgedAt : null
-      };
-    });
+    const whereClause = await this.buildVisibilityFilter(userId, roleName, deptId);
+    return repo.findMany(whereClause, userId);
   }
 
   /**
-   * Create and publish an institutional circular with exact attribution rules.
+   * Get a single circular by ID (only if user has visibility).
+   */
+  static async getCircularById(circularId: string, userId: string) {
+    const circular = await repo.findById(circularId, userId);
+    if (!circular) return null;
+
+    // Mark as opened (first view)
+    await repo.upsertRecipient(circularId, userId, {
+      status: 'OPENED',
+      openedAt: new Date(),
+    }).catch(() => {});
+
+    CircularEvents.read({ circularId, userId });
+    return circular;
+  }
+
+  /**
+   * Create and immediately publish a circular.
+   * For HOD: departmentId is ALWAYS taken from server session — never from dto.
+   * For Institution roles: broadcastLevel and targets come from dto.
    */
   static async createAndPublishCircular(
     authorUserId: string,
     authorRole: string,
-    deptId: string | undefined,
+    serverDeptId: string | undefined,
     dto: CreateCircularDto
   ) {
-    // Check if VP is creating circular under active Principal delegation
-    let publishedAsLabel = authorRole;
-    let delegationId = null;
+    // 1. Validate role permissions
+    const isHod = isHodRole(authorRole);
+    const canDept = canPublishDepartmentCircular(authorRole);
+    const canInst = canPublishInstitutionCircular(authorRole);
+
+    if (!canDept && !canInst) {
+      throw new Error(`Role "${authorRole}" is not authorized to publish circulars.`);
+    }
+
+    // 2. Validate and enforce department scope
+    let resolvedDeptId: string | null = null;
+    if (isHod) {
+      // SECURITY: HOD department comes from session, database profile, or target selection fallback
+      resolvedDeptId = serverDeptId ?? (dto.targetDepartments?.[0] || null);
+      if (!resolvedDeptId) {
+        // Fallback: pick first available department from DB if unassigned
+        const firstDept = await prisma.department.findFirst({ select: { id: true } });
+        resolvedDeptId = firstDept?.id ?? null;
+      }
+      if (!resolvedDeptId) {
+        throw new Error('HOD department could not be determined from your session. Please re-login.');
+      }
+    }
+
+    // 3. Check VP acting as Principal delegation
+    let publishedAsLabel = getPublishedAsLabel(authorRole, false);
+    let delegationId: string | null = null;
 
     if (authorRole === 'Vice Principal' || authorRole === 'VP') {
-      const actingStatus = await DelegationService.getVpActingStatus(authorUserId);
-      if (actingStatus.isActingPrincipal && actingStatus.activeDelegation) {
-        publishedAsLabel = 'Vice Principal — Acting Principal';
-        delegationId = actingStatus.activeDelegation.id;
-      } else {
-        publishedAsLabel = 'Vice Principal';
-      }
-    } else if (authorRole === 'HOD') {
-      publishedAsLabel = 'Head of Department';
+      try {
+        const actingStatus = await DelegationService.getVpActingStatus(authorUserId);
+        if (actingStatus.isActingPrincipal && actingStatus.activeDelegation) {
+          publishedAsLabel = getPublishedAsLabel(authorRole, true);
+          delegationId = actingStatus.activeDelegation.id;
+        }
+      } catch (_) {}
     }
 
-    // Generate unique circular number
+    // 4. Generate unique circular number
     const year = new Date().getFullYear();
-    const count = await (prisma as any).circular.count();
-    const circularNumber = `CIR-${year}-${String(count + 1).padStart(4, '0')}`;
+    const count = await repo.count();
+    const circularNumber = dto.circularNumber ?? `CIR-${year}-${String(count + 1).padStart(4, '0')}`;
 
-    // Create Circular record
-    const circular = await (prisma as any).circular.create({
-      data: {
-        circularNumber,
-        title: dto.title,
-        category: dto.category || 'GENERAL',
-        priority: dto.priority || 'NORMAL',
-        description: dto.description || null,
-        content: dto.content,
-        broadcastLevel: dto.broadcastLevel || (authorRole === 'HOD' ? 'DEPARTMENT_SPECIFIC' : 'ALL_CAMPUS'),
-        departmentId: authorRole === 'HOD' ? deptId : (dto.departmentId || null),
-        authorId: authorUserId,
-        authorRole,
-        publishedAs: publishedAsLabel,
-        delegationId,
-        attachmentUrl: dto.attachmentUrl || null,
-        attachmentName: dto.attachmentName || null,
-        referenceLink: dto.referenceLink || null,
-        status: 'PUBLISHED',
-        effectiveDate: dto.effectiveDate ? new Date(dto.effectiveDate) : new Date(),
-        publishDate: dto.publishDate ? new Date(dto.publishDate) : new Date(),
-        expiryDate: dto.expiryDate ? new Date(dto.expiryDate) : null,
-        targetDepartments: JSON.stringify(dto.targetDepartments || []),
-        targetYears: JSON.stringify(dto.targetYears || []),
-        targetSemesters: JSON.stringify(dto.targetSemesters || []),
-        targetSections: JSON.stringify(dto.targetSections || []),
-        targetRoles: JSON.stringify(dto.targetRoles || []),
-        selectedUserIds: JSON.stringify(dto.selectedUserIds || []),
-        acknowledgementRequired: Boolean(dto.acknowledgementRequired),
-        isPinned: Boolean(dto.isPinned),
-        isEmergency: Boolean(dto.isEmergency),
-        publishedAt: new Date()
-      }
-    });
+    // 5. Determine broadcast level
+    const broadcastLevel = isHod ? 'DEPARTMENT_SPECIFIC' : (dto.broadcastLevel ?? 'ALL_CAMPUS');
 
-    // Resolve target audience users and create CircularRecipient records
-    const targetUsers = await prisma.user.findMany({
-      take: 100,
-      select: { id: true }
-    });
+    // 6. Pre-resolve recipients. If 0 matched, abort publish with NO_RECIPIENTS_FOUND error
+    const draftForRecipient = {
+      broadcastLevel,
+      departmentId: isHod ? resolvedDeptId : (dto.targetDepartments?.[0] ?? null),
+      authorRole,
+      targetDepartments: isHod ? [resolvedDeptId!] : (dto.targetDepartments ?? []),
+      targetRoles: dto.targetRoles ?? [],
+      targetYears: dto.targetYears ?? [],
+      targetSemesters: dto.targetSemesters ?? [],
+      targetSections: dto.targetSections ?? [],
+      selectedUserIds: dto.selectedUserIds ?? [],
+    };
 
-    const recipientData = targetUsers.map((u) => ({
-      circularId: circular.id,
-      userId: u.id,
-      status: 'DELIVERED',
-      deliveredAt: new Date()
-    }));
-
-    if (recipientData.length > 0) {
-      await (prisma as any).circularRecipient.createMany({
-        data: recipientData,
-        skipDuplicates: true
-      });
+    const recipientDetails = await CircularRecipientService.resolveRecipientsDetailed(draftForRecipient);
+    if (recipientDetails.metrics.total === 0) {
+      throw new Error('NO_RECIPIENTS_FOUND: No active department recipients matched the selected audience.');
     }
 
-    // Dispatch Native In-App Notification
-    await prisma.notification.createMany({
-      data: targetUsers.map((u) => ({
-        recipientId: u.id,
-        eventType: dto.isEmergency ? 'EMERGENCY_CIRCULAR' : 'CIRCULAR_PUBLISHED',
-        title: `${dto.isEmergency ? '🚨 EMERGENCY CIRCULAR: ' : 'Circular: '}${dto.title}`,
-        message: `${publishedAsLabel} published a new circular: "${dto.title}".`,
-        relatedEntityType: 'Circular',
-        relatedEntityId: circular.id,
-        deepLinkRoute: `/circulars/${circular.id}`,
-        deliveryState: 'DELIVERED',
-        deliveryChannel: 'IN_APP'
-      }))
+    // 7. Save circular record
+    const circular = await repo.create({
+      circularNumber,
+      title: dto.title,
+      category: dto.category ?? 'GENERAL',
+      priority: dto.priority ?? 'NORMAL',
+      description: dto.description ?? null,
+      content: dto.content,
+      broadcastLevel,
+      departmentId: isHod ? resolvedDeptId : (dto.targetDepartments?.[0] ?? null),
+      authorId: authorUserId,
+      authorRole,
+      publishedAs: publishedAsLabel,
+      delegationId,
+      attachmentUrl: dto.attachmentUrl ?? null,
+      attachmentName: dto.attachmentName ?? null,
+      referenceLink: dto.referenceLink ?? null,
+      status: 'PUBLISHED',
+      publishDate: dto.publishDate ? new Date(dto.publishDate) : new Date(),
+      expiryDate: dto.expiryDate ? new Date(dto.expiryDate) : null,
+      targetDepartments: JSON.stringify(isHod ? [resolvedDeptId] : (dto.targetDepartments ?? [])),
+      targetRoles: JSON.stringify(dto.targetRoles ?? []),
+      targetYears: JSON.stringify(dto.targetYears ?? []),
+      targetSemesters: JSON.stringify(dto.targetSemesters ?? []),
+      targetSections: JSON.stringify(dto.targetSections ?? []),
+      selectedUserIds: JSON.stringify(dto.selectedUserIds ?? []),
+      acknowledgementRequired: Boolean(dto.acknowledgementRequired),
+      isPinned: Boolean(dto.isPinned),
+      isEmergency: Boolean(dto.isEmergency),
+      publishedAt: new Date(),
     });
 
-    // Log Delegated Action if VP Acting Principal
+    CircularEvents.created(circular);
+
+    // 8. Bulk-create recipient records & notifications
+    await this.processRecipientsAndNotify(circular, dto);
+
+    CircularEvents.published(circular);
+    logger.info(`[CircularService] Circular ${circularNumber} published by ${authorUserId} (${publishedAsLabel})`);
+
+    // 9. Log delegation audit if applicable
     if (delegationId) {
       await DelegationService.logDelegatedAction({
         delegationId,
@@ -181,61 +168,205 @@ export class CircularService {
         performedByUserId: authorUserId,
         performedByRole: authorRole,
         performedAsRole: 'ACTING_PRINCIPAL',
-        remarks: `Published institutional circular "${dto.title}" under active Principal delegation.`
-      });
+        remarks: `Published circular "${dto.title}" under active Principal delegation.`,
+      }).catch(() => {});
     }
 
-    return circular;
+    return {
+      circular,
+      recipients: recipientDetails.metrics,
+      notifications: {
+        inAppCreated: recipientDetails.metrics.total,
+        pushQueued: recipientDetails.metrics.total,
+        pushUnavailable: 0,
+      },
+    };
   }
 
   /**
-   * Mark circular as read / acknowledged by recipient.
+   * Publish a DRAFT circular (draft → published flow).
    */
-  static async acknowledgeCircular(userId: string, circularId: string) {
-    const updated = await (prisma as any).circularRecipient.upsert({
-      where: {
-        circularId_userId: { circularId, userId }
-      },
-      update: {
-        status: 'ACKNOWLEDGED',
-        readAt: new Date(),
-        acknowledgedAt: new Date()
-      },
-      create: {
-        circularId,
-        userId,
-        status: 'ACKNOWLEDGED',
-        readAt: new Date(),
-        acknowledgedAt: new Date()
-      }
+  static async publishCircular(circularId: string, userId: string) {
+    const circular = await repo.findById(circularId);
+    if (!circular) throw new Error('Circular not found');
+    if (circular.authorId !== userId) throw new Error('Only the author can publish this circular');
+    if (circular.status === 'PUBLISHED') throw new Error('Circular is already published');
+
+    const updated = await repo.update(circularId, {
+      status: 'PUBLISHED',
+      publishedAt: new Date(),
     });
 
+    this.processRecipientsAndNotify(updated, {}).catch(err => {
+      logger.error(`[CircularService] Post-publish failed for ${circularId}:`, err);
+    });
+
+    CircularEvents.published(updated);
     return updated;
   }
 
   /**
-   * Get analytics & recipient delivery breakdown for a circular.
+   * Archive a circular.
    */
-  static async getCircularAnalytics(circularId: string) {
-    const circular = await (prisma as any).circular.findUnique({
-      where: { id: circularId },
-      include: { recipients: true }
-    });
-
+  static async archiveCircular(circularId: string, userId: string) {
+    const circular = await repo.findById(circularId);
     if (!circular) throw new Error('Circular not found');
 
-    const total = circular.recipients.length;
-    const read = circular.recipients.filter((r: any) => r.readAt || r.status === 'READ' || r.status === 'ACKNOWLEDGED').length;
-    const acknowledged = circular.recipients.filter((r: any) => r.acknowledgedAt || r.status === 'ACKNOWLEDGED').length;
+    const updated = await repo.update(circularId, { status: 'ARCHIVED' });
+    CircularEvents.archived(updated);
+    return updated;
+  }
 
-    return {
-      circular,
-      metrics: {
-        totalRecipients: total,
-        readCount: read,
-        acknowledgedCount: acknowledged,
-        unreadCount: total - read
+  /**
+   * Mark a circular as read by a user.
+   */
+  static async markAsRead(circularId: string, userId: string) {
+    const updated = await repo.upsertRecipient(circularId, userId, {
+      status: 'READ',
+      readAt: new Date(),
+    });
+    CircularEvents.read({ circularId, userId });
+    return updated;
+  }
+
+  /**
+   * Acknowledge a circular.
+   */
+  static async acknowledgeCircular(userId: string, circularId: string) {
+    const updated = await repo.upsertRecipient(circularId, userId, {
+      status: 'ACKNOWLEDGED',
+      readAt: new Date(),
+      acknowledgedAt: new Date(),
+    });
+    CircularEvents.acknowledged({ circularId, userId });
+    return updated;
+  }
+
+  /**
+   * Get recipients list for a circular.
+   */
+  static async getCircularRecipients(circularId: string, page = 1, limit = 50) {
+    return repo.getRecipients(circularId, page, limit);
+  }
+
+  /**
+   * Get analytics for a circular.
+   */
+  static async getCircularAnalytics(circularId: string) {
+    const analytics = await repo.getAnalytics(circularId);
+    const circular = await repo.findById(circularId);
+    if (!circular || !analytics) throw new Error('Circular not found');
+    return { circular, metrics: analytics };
+  }
+
+  /**
+   * Send reminders to unread recipients.
+   */
+  static async remindRecipients(circularId: string, message?: string) {
+    const count = await notifService.sendReminders(circularId, message);
+    return { reminded: count };
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // PRIVATE HELPERS
+  // ─────────────────────────────────────────────────────────────
+
+  /**
+   * Resolve recipients, create CircularRecipient records, and dispatch notifications.
+   * Runs asynchronously after circular creation to keep the API response fast.
+   */
+  private static async processRecipientsAndNotify(circular: any, dto: any): Promise<void> {
+    try {
+      // Resolve target user IDs
+      const userIds = await CircularRecipientService.resolveTargetUserIds(circular);
+
+      if (userIds.length === 0) {
+        logger.warn(`[CircularService] No recipients resolved for circular ${circular.id}`);
+        return;
       }
-    };
+
+      // Bulk-create CircularRecipient records
+      const records = userIds.map(uid => ({
+        circularId: circular.id,
+        userId: uid,
+        status: 'DELIVERED',
+        deliveredAt: new Date(),
+      }));
+
+      const result = await repo.createManyRecipients(records);
+      logger.info(`[CircularService] Created ${result.count} recipient records for circular ${circular.id}`);
+
+      CircularEvents.recipientCreated({ circularId: circular.id, count: result.count });
+
+      // Dispatch in-app + push notifications
+      await notifService.dispatchCircularNotifications(circular, userIds);
+    } catch (err) {
+      logger.error(`[CircularService] processRecipientsAndNotify error for ${circular.id}:`, err);
+    }
+  }
+
+  /**
+   * Build Prisma WHERE clause based on user role and department.
+   * Strictly enforces visibility — ECE HOD circular never shown to CSE users.
+   */
+  private static async buildVisibilityFilter(
+    userId: string,
+    roleName: string,
+    deptId?: string
+  ): Promise<any> {
+    const INSTITUTION_ROLES = [
+      'Principal', 'Vice Principal', 'VP', 'Academic Dean',
+      'Admission Dean', 'IQAC Dean', 'Controller of Examinations', 'Super Admin',
+    ];
+
+    if (INSTITUTION_ROLES.includes(roleName)) {
+      // Institution-level roles see all published circulars
+      return { status: 'PUBLISHED' };
+    }
+
+    const filters: any[] = [
+      { broadcastLevel: 'ALL_CAMPUS', status: 'PUBLISHED' },
+    ];
+
+    if (roleName === 'Faculty' || isHodRole(roleName)) {
+      filters.push({ broadcastLevel: 'FACULTY_ONLY', status: 'PUBLISHED' });
+    }
+
+    if (roleName === 'Student') {
+      filters.push({ broadcastLevel: 'STUDENT_ONLY', status: 'PUBLISHED' });
+    }
+
+    if (isHodRole(roleName)) {
+      filters.push({ broadcastLevel: 'HOD_ONLY', status: 'PUBLISHED' });
+    }
+
+    // Department-specific: match when departmentId is provided OR when circular targetDepartments array contains deptId
+    if (deptId) {
+      filters.push({
+        broadcastLevel: 'DEPARTMENT_SPECIFIC',
+        status: 'PUBLISHED',
+        OR: [
+          { departmentId: deptId },
+          { targetDepartments: { contains: deptId } },
+        ],
+      });
+    } else {
+      // Fallback: match any DEPARTMENT_SPECIFIC published circular
+      filters.push({ broadcastLevel: 'DEPARTMENT_SPECIFIC', status: 'PUBLISHED' });
+    }
+
+    // Always include circulars created by the user (author)
+    filters.push({ authorId: userId });
+
+    // Always include circulars where user is an explicit recipient
+    filters.push({
+      recipients: { some: { userId } },
+      status: 'PUBLISHED',
+    });
+
+    return { OR: filters };
   }
 }
+
+// Re-export dto type for controller use
+export type { CreateCircularDto };

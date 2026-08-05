@@ -525,50 +525,219 @@ export class WorkflowService {
     comment?: string
   ) {
     const userRole = typeof rawRole === 'object' && rawRole !== null ? rawRole.name : String(rawRole || '');
+    const userRoleLower = userRole.toLowerCase();
 
-    // Check FacultyLeaveRequest
-    const facReq = await prisma.facultyLeaveRequest.findUnique({ where: { id: requestId }, include: { faculty: true } });
+    const isExecutiveOrHod = 
+      ['HOD', 'Academic Dean', 'Admission Dean', 'IQAC Dean', 'Vice Principal', 'Principal', 'Super Admin', 'College Admin'].includes(userRole) || 
+      userRoleLower.includes('principal') || 
+      userRoleLower.includes('dean') || 
+      userRoleLower.includes('admin') ||
+      userRoleLower.includes('hod');
+
+    // 1. Check FacultyLeaveRequest
+    let facReq: any = null;
+    try {
+      facReq = await prisma.facultyLeaveRequest.findFirst({
+        where: {
+          OR: [
+            { id: requestId },
+            { requestNumber: requestId }
+          ]
+        },
+        include: { faculty: true }
+      });
+    } catch (e) {}
+
     if (facReq) {
+      const user = await prisma.user.findFirst({
+        where: { OR: [{ email: userEmail }, { id: userEmail }] }
+      });
       const newStatus = action === 'APPROVE' ? 'APPROVED_PRINCIPAL' : (action === 'REJECT' ? 'REJECTED_PRINCIPAL' : facReq.status);
       const updated = await prisma.facultyLeaveRequest.update({
-        where: { id: requestId },
+        where: { id: facReq.id },
         data: {
           status: newStatus,
+          ...(user ? { principalId: user.id } : {}),
+          principalApprovedAt: action === 'APPROVE' ? new Date() : undefined,
           principalRemarks: comment || `Action ${action} taken by ${userRole}`
         }
       });
+
+      // Sync matching WorkflowRequest if exists
+      if (facReq.facultyId) {
+        await prisma.workflowRequest.updateMany({
+          where: {
+            OR: [
+              { id: facReq.id },
+              { facultyRequesterId: facReq.facultyId }
+            ],
+            status: { in: ['PENDING', 'HOD_APPROVED', 'PENDING_PRINCIPAL'] }
+          },
+          data: {
+            status: action === 'APPROVE' ? 'APPROVED' : 'REJECTED',
+            currentStep: 'COMPLETED'
+          }
+        }).catch(() => {});
+      }
+
+      // Auto-update attendance for approved leave/OD
+      if (action === 'APPROVE' && facReq.facultyId && facReq.startDate && facReq.endDate) {
+        try {
+          const isOD = facReq.leaveType === 'ON_DUTY';
+          const attStatus = isOD ? 'PRESENT' : 'ABSENT';
+          const attRemarks = isOD ? 'On Duty (Approved)' : 'Authorized Leave (Approved)';
+
+          let cur = new Date(facReq.startDate);
+          const end = new Date(facReq.endDate);
+          while (cur <= end) {
+            const dateOnly = new Date(cur.getFullYear(), cur.getMonth(), cur.getDate());
+            const existing = await prisma.attendance.findFirst({
+              where: { facultyId: facReq.facultyId, date: dateOnly }
+            });
+            if (existing) {
+              await prisma.attendance.update({
+                where: { id: existing.id },
+                data: { status: attStatus, remarks: attRemarks }
+              });
+            } else {
+              await prisma.attendance.create({
+                data: {
+                  facultyId: facReq.facultyId,
+                  date: dateOnly,
+                  status: attStatus,
+                  remarks: attRemarks,
+                  type: 'DAILY'
+                }
+              });
+            }
+            cur.setDate(cur.getDate() + 1);
+          }
+        } catch (attErr) {
+          console.error('Attendance error:', attErr);
+        }
+      }
+
+      if (facReq.faculty?.userId) {
+        await this.sendNotification(
+          `🔔 Leave Request ${action === 'APPROVE' ? 'Approved' : 'Rejected'} by ${userRole}`,
+          `Your leave request (${facReq.requestNumber}) was ${action === 'APPROVE' ? 'approved' : 'rejected'} by ${userRole}.`,
+          'EMAIL',
+          facReq.faculty.userId
+        ).catch(() => {});
+      }
+
       return updated;
     }
 
-    // Check StudentLeaveRequest
-    const studReq = await prisma.studentLeaveRequest.findUnique({ where: { id: requestId }, include: { student: true } });
+    // 2. Check StudentLeaveRequest
+    let studReq: any = null;
+    try {
+      studReq = await prisma.studentLeaveRequest.findFirst({
+        where: {
+          OR: [
+            { id: requestId },
+            { requestNumber: requestId }
+          ]
+        },
+        include: { student: true }
+      });
+    } catch (e) {}
+
     if (studReq) {
+      const user = await prisma.user.findFirst({
+        where: { OR: [{ email: userEmail }, { id: userEmail }] }
+      });
       const newStatus = action === 'APPROVE' ? 'APPROVED' : (action === 'REJECT' ? 'REJECTED_BY_HOD' : studReq.status);
       const updated = await prisma.studentLeaveRequest.update({
-        where: { id: requestId },
+        where: { id: studReq.id },
         data: {
           status: newStatus,
+          approvedAt: action === 'APPROVE' ? new Date() : undefined,
           hodRemarks: comment || `Action ${action} taken by ${userRole}`
         }
       });
+
+      // Sync matching WorkflowRequest if exists
+      if (studReq.studentId) {
+        await prisma.workflowRequest.updateMany({
+          where: {
+            OR: [
+              { id: studReq.id },
+              { studentId: studReq.studentId }
+            ],
+            status: { in: ['PENDING', 'MENTOR_APPROVED', 'HOD_APPROVED'] }
+          },
+          data: {
+            status: action === 'APPROVE' ? 'APPROVED' : 'REJECTED',
+            currentStep: 'COMPLETED'
+          }
+        }).catch(() => {});
+      }
+
+      // Auto-update attendance for approved student leave/OD
+      if (action === 'APPROVE' && studReq.studentId && studReq.startDate && studReq.endDate) {
+        try {
+          const isOD = studReq.type === 'ON_DUTY';
+          const attStatus = isOD ? 'ON_DUTY' : 'EXCUSED_LEAVE';
+          const attRemarks = isOD ? 'On Duty (Approved)' : 'Excused Leave (Approved)';
+
+          let cur = new Date(studReq.startDate);
+          const end = new Date(studReq.endDate);
+          while (cur <= end) {
+            const dateOnly = new Date(cur.getFullYear(), cur.getMonth(), cur.getDate());
+            const existing = await prisma.attendance.findFirst({
+              where: { studentId: studReq.studentId, date: dateOnly }
+            });
+            if (existing) {
+              await prisma.attendance.update({
+                where: { id: existing.id },
+                data: { status: attStatus, remarks: attRemarks }
+              });
+            } else {
+              await prisma.attendance.create({
+                data: {
+                  studentId: studReq.studentId,
+                  date: dateOnly,
+                  status: attStatus,
+                  remarks: attRemarks,
+                  type: 'DAILY'
+                }
+              });
+            }
+            cur.setDate(cur.getDate() + 1);
+          }
+        } catch (attErr) {
+          console.error('Student attendance error:', attErr);
+        }
+      }
+
+      if (studReq.student?.userId) {
+        await this.sendNotification(
+          `🔔 Request ${action === 'APPROVE' ? 'Approved' : 'Rejected'} by ${userRole}`,
+          `Your ${studReq.type} request was ${action === 'APPROVE' ? 'approved' : 'rejected'} by ${userRole}.`,
+          'EMAIL',
+          studReq.student.userId
+        ).catch(() => {});
+      }
+
       return updated;
     }
 
-    // Check WorkflowRequest
-    const request = await prisma.workflowRequest.findUnique({
-      where: { id: requestId },
-      include: { 
-        student: { include: { department: true } },
-        facultyRequester: { include: { department: true } }
-      }
-    });
+    // 3. Check WorkflowRequest
+    let request: any = null;
+    try {
+      request = await prisma.workflowRequest.findFirst({
+        where: { id: requestId },
+        include: { 
+          student: { include: { department: true } },
+          facultyRequester: { include: { department: true } }
+        }
+      });
+    } catch (e) {}
 
     if (!request) {
-      throw new NotFoundException('Workflow request not found');
+      throw new NotFoundException(`Leave/Workflow request '${requestId}' not found`);
     }
-
-    // Verify auth role matches step
-    const isExecutiveOrHod = ['HOD', 'Academic Dean', 'Admission Dean', 'IQAC Dean', 'Vice Principal', 'Principal', 'Super Admin'].includes(userRole);
 
     if (request.facultyRequesterId) {
       if (request.currentStep === 'HOD' && !isExecutiveOrHod) {
@@ -578,12 +747,14 @@ export class WorkflowService {
         // Use authoritative resolver for Principal availability
         const delegationCtx = await PrincipalDelegationResolverService.resolveStatus();
         const isOffline = delegationCtx.principalStatus !== 'ONLINE';
+        const isPrincipalRole = userRoleLower.includes('principal') || userRoleLower.includes('admin') || isExecutiveOrHod;
+
         if (isOffline && delegationCtx.delegationStatus === 'ACTIVE') {
-          if (userRole !== 'Vice Principal' && userRole !== 'Principal' && userRole !== 'Super Admin') {
+          if (!isPrincipalRole) {
             throw new UnauthorizedException('Principal is offline. Acting Principal (Vice Principal) authorization required.');
           }
-        } else if (userRole !== 'Principal' && userRole !== 'Super Admin') {
-          throw new UnauthorizedException('Only the Principal can action this faculty leave request');
+        } else if (!isPrincipalRole) {
+          throw new UnauthorizedException('Only the Principal or Executive Authority can action this faculty leave request');
         }
       }
     } else {
@@ -644,12 +815,13 @@ export class WorkflowService {
         nextStatus = 'REJECTED_BY_HOD';
         nextStep = 'COMPLETED';
       } else if (request.currentStep === 'PRINCIPAL') {
-        nextStatus = 'REJECTED_BY_PRINCIPAL';
+        nextStatus = 'REJECTED';
         nextStep = 'COMPLETED';
       } else {
         nextStatus = 'REJECTED';
         nextStep = 'COMPLETED';
       }
+
     } else if (action === 'CLARIFICATION') {
       nextStatus = 'CLARIFICATION_REQUESTED';
     } else if (action === 'FORWARD' || action === 'APPROVE') {
@@ -789,6 +961,20 @@ export class WorkflowService {
 
     } else if (nextStatus === 'APPROVED') {
       if (request.facultyRequesterId) {
+        // Cross-update FacultyLeaveRequest table
+        await prisma.facultyLeaveRequest.updateMany({
+          where: {
+            facultyId: request.facultyRequesterId,
+            status: { in: ['PENDING_HOD', 'APPROVED_HOD', 'PENDING_PRINCIPAL', 'PENDING'] }
+          },
+          data: {
+            status: 'APPROVED_PRINCIPAL',
+            principalId: actorId,
+            principalApprovedAt: new Date(),
+            principalRemarks: comment || `Approved by ${userRole}`
+          }
+        }).catch(() => {});
+
         await this.sendNotification(
           `🔔 Final Approved`,
           `Your Leave/OD request has been fully approved.`,
@@ -837,6 +1023,21 @@ export class WorkflowService {
           }
         }
       } else {
+        if (request.studentId) {
+          // Cross-update StudentLeaveRequest table
+          await prisma.studentLeaveRequest.updateMany({
+            where: {
+              studentId: request.studentId,
+              status: { in: ['PENDING_HOD', 'PENDING_MENTOR', 'APPROVED_MENTOR', 'PENDING'] }
+            },
+            data: {
+              status: 'APPROVED',
+              approvedAt: new Date(),
+              hodRemarks: comment || `Approved by ${userRole}`
+            }
+          }).catch(() => {});
+        }
+
         const actorLabel = userRole === 'HOD' ? 'HOD' : 'your Faculty Advisor / Class Advisor';
         await this.sendNotification(
           `Request Status Update: Approved`,

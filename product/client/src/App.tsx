@@ -18,7 +18,15 @@ const queryClient = new QueryClient({
   },
 });
 
+import { useEffect } from 'react';
+import { CapacitorNativeService } from './lib/capacitor-native';
+
 function App() {
+  useEffect(() => {
+    CapacitorNativeService.initNativeAppUI();
+    CapacitorNativeService.registerPushNotifications();
+  }, []);
+
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>

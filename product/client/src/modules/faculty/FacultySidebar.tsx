@@ -130,10 +130,9 @@ export const FacultySidebar: React.FC<FacultySidebarProps> = ({ isMentor = false
       groupName: 'Work',
       items: [
         { label: 'My Tasks', path: '/faculty/tasks', icon: Briefcase },
-        { label: 'Tasks Assigned by Me', path: '/faculty/assigned-tasks', icon: ListTodo },
-        { label: 'Leave / OD Request', path: '/faculty/leave-request', icon: UserMinus },
+        { label: 'My Leave / OD', path: '/faculty/leave-od', icon: UserMinus },
         { label: 'Substitute Classes', path: '/faculty/substitutions', icon: CalendarCheck },
-        { label: 'Exam Duties', path: '/faculty/exam-duties', icon: Award },
+        { label: 'Examination Duties', path: '/faculty/exam-duties', icon: Award },
         { label: 'Department Activities', path: '/faculty/dept-activities', icon: Layers }
       ]
     },

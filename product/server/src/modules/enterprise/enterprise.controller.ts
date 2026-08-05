@@ -3,6 +3,7 @@ import { EnterpriseService } from './enterprise.service';
 import { DigitalIdService } from './digital-id.service';
 import { auditRequest, UserPayload, SecurityHelper } from '../../utils/security';
 import { prisma } from '../../lib/prisma';
+import { CircularService } from '../circulars/circular.service';
 import { buildStudentIDCardPDF } from '../../utils/idcard.pdf';
 import { generateAttendanceReportPdf } from '../../utils/attendance.pdf';
 import jwt from 'jsonwebtoken';
@@ -133,33 +134,49 @@ export class EnterpriseController {
       const placementsEligible = cgpa >= 7.0 ? 'ELIGIBLE' : 'NOT_ELIGIBLE';
       const internshipStatus = student.internships.length > 0 ? student.internships[0].status : 'NO_APPLICATIONS';
 
-      // 11. Recent Circulars
-      const circulars = await prisma.hodCircular.findMany({
-        where: { departmentId: student.departmentId, status: 'PUBLISHED' },
-        orderBy: { createdAt: 'desc' },
-        take: 5
-      });
+      // 11. Recent Circulars (Unified Circular Model)
+      let circulars: any[] = [];
+      try {
+        circulars = await CircularService.listCirculars(user.id, 'Student', student.departmentId);
+      } catch (e) {
+        console.error('[StudentDashboard] Circulars fetch error:', e);
+      }
 
       // 12. Recent Notifications
-      const notifications = await prisma.systemNotification.findMany({
-        where: { status: 'SENT' },
-        orderBy: { createdAt: 'desc' },
-        take: 5
-      });
+      let notifications: any[] = [];
+      try {
+        notifications = await (prisma as any).systemNotification?.findMany?.({
+          where: { status: 'SENT' },
+          orderBy: { createdAt: 'desc' },
+          take: 5
+        }) ?? [];
+      } catch (e) {
+        console.error('[StudentDashboard] SystemNotification fetch error:', e);
+      }
 
       // 13. Academic Calendar Events
-      const calendarEvents = await prisma.exam.findMany({
-        where: { semesterId: student.semesterId, status: 'SCHEDULED' },
-        select: { name: true, startDate: true, type: true },
-        take: 5
-      });
+      let calendarEvents: any[] = [];
+      try {
+        calendarEvents = await prisma.exam.findMany({
+          where: { semesterId: student.semesterId, status: 'SCHEDULED' },
+          select: { name: true, startDate: true, type: true },
+          take: 5
+        });
+      } catch (e) {
+        console.error('[StudentDashboard] CalendarEvents fetch error:', e);
+      }
 
       // 14. Mentor Messages
-      const mentorMessages = await prisma.chatMessage.findMany({
-        where: { studentId: student.id, senderRole: 'Faculty' },
-        orderBy: { sentTime: 'desc' },
-        take: 3
-      });
+      let mentorMessages: any[] = [];
+      try {
+        mentorMessages = await (prisma as any).chatMessage?.findMany?.({
+          where: { studentId: student.id, senderRole: 'Faculty' },
+          orderBy: { sentTime: 'desc' },
+          take: 3
+        }) ?? [];
+      } catch (e) {
+        console.error('[StudentDashboard] MentorMessages fetch error:', e);
+      }
 
       res.status(200).json({
         status: 'success',

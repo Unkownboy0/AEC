@@ -4,15 +4,6 @@ import { toast } from '../../components/ui/Toast';
 import { Loading } from '../../components/ui/Loading';
 import api from '../../lib/axios';
 
-const DEMO_CIRCULARS = [
-  { id: 'CIR-2026-041', title: 'Semester End Examination Time Table – November 2026', content: 'The Examination Cell hereby notifies that the Semester End Examinations for all UG/PG programs will commence from November 3, 2026. Students are advised to report to their respective halls 30 minutes prior to the scheduled time. Hall tickets must be collected from the department office between October 25–30, 2026.', category: 'EXAMINATION', priority: 'HIGH', issuedBy: 'Principal Office', createdAt: '2026-07-22', pinned: true },
-  { id: 'CIR-2026-040', title: 'Campus Recruitment Drive – TCS & Cognizant (August 2026)', content: 'The Placement Cell invites all eligible final year students to register for the upcoming TCS and Cognizant recruitment drives scheduled for August 12–14, 2026. Students must ensure their resumes are uploaded on the placement portal before August 5, 2026. Mandatory pre-placement talk on August 10.', category: 'PLACEMENT', priority: 'HIGH', issuedBy: 'Placement Cell', createdAt: '2026-07-20', pinned: true },
-  { id: 'CIR-2026-039', title: 'Anti-Ragging Committee Awareness Session – Mandatory Attendance', content: 'An awareness session on the Prevention of Ragging Act will be conducted on July 28, 2026 at 10:00 AM in the Main Auditorium. Attendance is compulsory for all students. Absentees will be noted and reported to the disciplinary committee.', category: 'GENERAL', priority: 'MEDIUM', issuedBy: 'Student Welfare Committee', createdAt: '2026-07-18', pinned: false },
-  { id: 'CIR-2026-038', title: 'Library Automation System Upgrade – Temporary Disruption', content: 'The library RFID tracking system will undergo maintenance on July 26–27, 2026. During this period, book issue and return services will be available only between 9:00 AM and 12:00 PM. E-library access will remain unaffected.', category: 'GENERAL', priority: 'LOW', issuedBy: 'Library Department', createdAt: '2026-07-15', pinned: false },
-  { id: 'CIR-2026-037', title: 'Annual Sports Day – Registration Open', content: 'The Department of Physical Education invites all students to participate in the Annual Sports Day 2026 scheduled for August 20, 2026. Events include athletics, basketball, volleyball, chess, and table tennis. Register through the Sports Department office or the campus portal before August 10.', category: 'SPORTS', priority: 'LOW', issuedBy: 'Physical Education Dept.', createdAt: '2026-07-12', pinned: false },
-  { id: 'CIR-2026-036', title: 'Fee Payment – Last Date Reminder', content: 'Students who have not cleared their pending fees for the academic year 2026-2027 are reminded that the last date for payment is August 1, 2026. Failure to pay before the deadline will result in withholding of hall tickets and academic records.', category: 'FEES', priority: 'HIGH', issuedBy: 'Accounts Department', createdAt: '2026-07-10', pinned: false },
-];
-
 // Map backend priority values to display config
 const PRIORITY_CONFIG: Record<string, { label: string; className: string }> = {
   HIGH:    { label: 'High Priority', className: 'bg-rose-50 text-rose-700 border-rose-100 dark:bg-rose-900/30 dark:text-rose-400' },
@@ -68,7 +59,7 @@ function resolvePriority(raw: string | undefined): string {
 }
 
 export const StudentCirculars: React.FC = () => {
-  const [circulars, setCirculars] = useState<any[]>(DEMO_CIRCULARS);
+  const [circulars, setCirculars] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('ALL');
@@ -77,9 +68,11 @@ export const StudentCirculars: React.FC = () => {
   useEffect(() => {
     const fetchCirculars = async () => {
       try {
+        setIsLoading(true);
         const res = await api.get('/circulars');
-        if (res.data?.status === 'success' && Array.isArray(res.data.data) && res.data.data.length > 0) {
-          const mapped = res.data.data.map((c: any) => ({
+        const list = res.data?.data ?? res.data?.circulars ?? (Array.isArray(res.data) ? res.data : []);
+        if (Array.isArray(list)) {
+          const mapped = list.map((c: any) => ({
             id: c.id,
             title: c.title || 'Untitled Circular',
             content: (typeof c.content === 'string' ? c.content : '') || (typeof c.description === 'string' ? c.description : '') || '',
@@ -89,14 +82,10 @@ export const StudentCirculars: React.FC = () => {
             createdAt: c.createdAt || c.publishedAt || new Date().toISOString(),
             pinned: c.isPinned === true || c.pinned === true,
           }));
-          // Merge: demo circulars first, then live ones with distinct IDs
-          setCirculars([
-            ...DEMO_CIRCULARS,
-            ...mapped.filter((c: any) => !DEMO_CIRCULARS.find(d => d.id === c.id)),
-          ]);
+          setCirculars(mapped);
         }
-      } catch {
-        // API failed or student has no department — demo data already loaded
+      } catch (err) {
+        console.error('Error loading student circulars:', err);
       } finally {
         setIsLoading(false);
       }

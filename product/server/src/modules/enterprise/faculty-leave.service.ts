@@ -365,22 +365,52 @@ export class FacultyLeaveService {
       },
     });
 
-    if (isActing) {
+    // Cross-sync matching WorkflowRequest if exists
+    await prisma.workflowRequest.updateMany({
+      where: {
+        facultyRequesterId: request.facultyId,
+        status: { in: ['PENDING', 'HOD_APPROVED'] }
+      },
+      data: {
+        status: decision === 'APPROVE' ? 'APPROVED' : 'REJECTED',
+        currentStep: 'COMPLETED'
+      }
+    }).catch(() => {});
+
+    // Auto-adjust attendance if approved
+    if (decision === 'APPROVE' && request.facultyId && request.startDate && request.endDate) {
       try {
-        const principalUser = await prisma.user.findFirst({ where: { role: { name: 'Principal' } } });
-        await (prisma as any).principalDelegationLog.create({
-          data: {
-            principalUserId: principalUser?.id || userId,
-            actingUserId: userId,
-            actingUserRole: 'Vice Principal',
-            actionType: 'FACULTY_LEAVE_APPROVAL',
-            targetEntityId: requestId,
-            targetEntityType: 'FacultyLeaveRequest',
-            description: `Faculty Leave ${request.requestNumber} ${decision.toLowerCase()}d by Vice Principal (Acting on behalf of Principal)`,
-          },
-        });
-      } catch (logErr) {
-        logger.warn('Failed to record principal delegation audit log:', logErr);
+        const isOD = request.leaveType === 'ON_DUTY';
+        const attStatus = isOD ? 'PRESENT' : 'ABSENT';
+        const attRemarks = isOD ? 'On Duty (Approved)' : 'Authorized Leave (Approved)';
+
+        let cur = new Date(request.startDate);
+        const end = new Date(request.endDate);
+        while (cur <= end) {
+          const dateOnly = new Date(cur.getFullYear(), cur.getMonth(), cur.getDate());
+          const existing = await prisma.attendance.findFirst({
+            where: { facultyId: request.facultyId, date: dateOnly }
+          });
+          if (existing) {
+            await prisma.attendance.update({
+              where: { id: existing.id },
+              data: { status: attStatus, remarks: attRemarks }
+            });
+          } else {
+            await prisma.attendance.create({
+              data: {
+                facultyId: request.facultyId,
+                date: dateOnly,
+                status: attStatus,
+                remarks: attRemarks,
+                type: 'DAILY'
+              }
+            });
+          }
+          cur.setDate(cur.getDate() + 1);
+        }
+      } catch (attErr) {
+        logger.warn('Failed to auto-update faculty attendance upon principal approval:', attErr);
       }
     }
 

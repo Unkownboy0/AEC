@@ -3,6 +3,8 @@ import { AuthenticatedHodRequest } from './hod.middleware';
 import { HodService } from './hod.service';
 import { HodRepository } from './hod.repository';
 import { prisma } from '../../lib/prisma';
+import { CircularService } from '../circulars/circular.service';
+import { CreateCircularSchema } from '../circulars/circular.validation';
 
 export class HodController {
   private service = new HodService();
@@ -168,12 +170,62 @@ export class HodController {
     }
   };
 
-  createCircular = async (req: AuthenticatedHodRequest, res: Response) => {
+  listCirculars = async (req: AuthenticatedHodRequest, res: Response) => {
     try {
       const deptId = req.hodContext?.departmentId!;
       const userId = req.hodContext?.userId!;
-      const circular = await this.service.createDepartmentCircular(deptId, userId, req.body);
+      const circulars = await CircularService.listCirculars(userId, 'HOD', deptId);
+      return res.json({ success: true, data: circulars });
+    } catch (error: any) {
+      return res.status(500).json({ success: false, error: error.message });
+    }
+  };
+
+  getCircularById = async (req: AuthenticatedHodRequest, res: Response) => {
+    try {
+      const userId = req.hodContext?.userId!;
+      const { id } = req.params;
+      const circular = await CircularService.getCircularById(id, userId);
+      if (!circular) return res.status(404).json({ success: false, error: 'Circular not found' });
+      return res.json({ success: true, data: circular });
+    } catch (error: any) {
+      return res.status(500).json({ success: false, error: error.message });
+    }
+  };
+
+  createCircular = async (req: AuthenticatedHodRequest, res: Response) => {
+    try {
+      // Department ALWAYS from server session — NEVER from client body
+      const deptId = req.hodContext?.departmentId!;
+      const userId = req.hodContext?.userId!;
+
+      const parseResult = CreateCircularSchema.safeParse(req.body);
+      if (!parseResult.success) {
+        return res.status(400).json({
+          success: false,
+          error: 'Validation failed',
+          details: parseResult.error.flatten().fieldErrors,
+        });
+      }
+
+      const circular = await CircularService.createAndPublishCircular(
+        userId,
+        'HOD',
+        deptId,  // server-side department — ignores any dto.departmentId
+        parseResult.data
+      );
       return res.json({ success: true, message: 'Circular published successfully', data: circular });
+    } catch (error: any) {
+      return res.status(400).json({ success: false, error: error.message });
+    }
+  };
+
+  publishCircular = async (req: AuthenticatedHodRequest, res: Response) => {
+    try {
+      const userId = req.hodContext?.userId!;
+      const { id } = req.params;
+      const circular = await CircularService.publishCircular(id, userId);
+      return res.json({ success: true, data: circular });
     } catch (error: any) {
       return res.status(400).json({ success: false, error: error.message });
     }

@@ -41,16 +41,19 @@ export const AcademicTaskWorkspace: React.FC<AcademicTaskWorkspaceProps> = ({ us
       if (priorityFilter) params.append('priority', priorityFilter);
 
       const res = await api.get(`/academic-dean/tasks?${params.toString()}`);
-      setTasks(res.data.data || []);
-      if (res.data.meta) {
+      const rawTasks = res.data?.data || res.data?.queue || res.data?.tasks || [];
+      setTasks(Array.isArray(rawTasks) ? rawTasks : []);
+
+      if (res.data?.meta) {
         setPagination((prev) => ({
           ...prev,
-          total: res.data.meta.total,
-          totalPages: res.data.meta.totalPages,
+          total: res.data.meta.total || rawTasks.length,
+          totalPages: res.data.meta.totalPages || 1,
         }));
       }
     } catch (err: any) {
-      toast.error('Failed to fetch tasks');
+      toast.error('Failed to fetch academic tasks');
+      setTasks([]);
     } finally {
       setIsLoading(false);
     }
@@ -60,6 +63,16 @@ export const AcademicTaskWorkspace: React.FC<AcademicTaskWorkspaceProps> = ({ us
     e.preventDefault();
     setPagination((prev) => ({ ...prev, page: 1 }));
     fetchTasks();
+  };
+
+  const formatDate = (dateStr: any, fallback = 'N/A') => {
+    if (!dateStr) return fallback;
+    try {
+      const d = new Date(dateStr);
+      return isNaN(d.getTime()) ? fallback : d.toLocaleDateString();
+    } catch (_) {
+      return fallback;
+    }
   };
 
   if (selectedTaskId) {
@@ -179,13 +192,13 @@ export const AcademicTaskWorkspace: React.FC<AcademicTaskWorkspaceProps> = ({ us
                 ) : (
                   tasks.map((task) => (
                     <tr
-                      key={task.id}
+                      key={task.id || Math.random()}
                       onClick={() => setSelectedTaskId(task.id)}
                       className="hover:bg-muted/40 cursor-pointer transition-all"
                     >
-                      <td className="p-3 font-mono font-bold text-primary">{task.taskCode}</td>
-                      <td className="p-3 font-bold text-foreground max-w-xs truncate">{task.title}</td>
-                      <td className="p-3 font-semibold text-muted-foreground">{task.assignmentMode}</td>
+                      <td className="p-3 font-mono font-bold text-primary">{task.taskCode || task.id?.substring(0, 8)}</td>
+                      <td className="p-3 font-bold text-foreground max-w-xs truncate">{task.title || 'Untitled Task'}</td>
+                      <td className="p-3 font-semibold text-muted-foreground">{task.assignmentMode || 'ALL_DEPARTMENTS'}</td>
                       <td className="p-3 font-bold">
                         <span className={`px-2 py-0.5 rounded text-[10px] ${
                           task.priority === 'URGENT'
@@ -194,24 +207,24 @@ export const AcademicTaskWorkspace: React.FC<AcademicTaskWorkspaceProps> = ({ us
                             ? 'bg-amber-500/10 text-amber-600'
                             : 'bg-muted text-muted-foreground'
                         }`}>
-                          {task.priority}
+                          {task.priority || 'MEDIUM'}
                         </span>
                       </td>
                       <td className="p-3 text-muted-foreground font-mono">
-                        {new Date(task.startAt).toLocaleDateString()}
+                        {formatDate(task.startAt || task.createdAt)}
                       </td>
                       <td className="p-3 font-mono font-bold text-red-600">
-                        {new Date(task.dueAt).toLocaleDateString()}
+                        {formatDate(task.dueAt, 'No Deadline')}
                       </td>
                       <td className="p-3 font-bold">
                         <span className={`px-2 py-0.5 rounded text-[10px] uppercase ${
-                          task.computedStatus === 'COMPLETED'
+                          (task.computedStatus || task.status) === 'COMPLETED'
                             ? 'bg-green-500/10 text-green-600'
-                            : task.computedStatus === 'OVERDUE'
+                            : (task.computedStatus || task.status) === 'OVERDUE'
                             ? 'bg-red-500/10 text-red-600'
                             : 'bg-blue-500/10 text-blue-600'
                         }`}>
-                          {task.computedStatus}
+                          {task.computedStatus || task.status || 'PUBLISHED'}
                         </span>
                       </td>
                       <td className="p-3 text-center font-bold">

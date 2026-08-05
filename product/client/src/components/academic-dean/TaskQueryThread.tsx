@@ -12,7 +12,7 @@ interface QueryItem {
   status: string;
   visibility: string;
   isPinned: boolean;
-  createdBy: { id: string; firstName: string; lastName: string; role: string };
+  createdBy?: any;
   createdAt: string;
   replies?: QueryItem[];
 }
@@ -28,7 +28,7 @@ interface TaskQueryThreadProps {
 export const TaskQueryThread: React.FC<TaskQueryThreadProps> = ({
   taskId,
   assignmentId,
-  queries,
+  queries = [],
   currentUserRole,
   onQueryPosted,
 }) => {
@@ -38,6 +38,30 @@ export const TaskQueryThread: React.FC<TaskQueryThreadProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const isDean = ['Academic Dean', 'Super Admin', 'College Admin', 'Principal'].includes(currentUserRole);
+
+  const getUserName = (createdBy: any) => {
+    if (!createdBy) return 'User';
+    if (typeof createdBy === 'string') return createdBy;
+    const name = `${createdBy.firstName || ''} ${createdBy.lastName || ''}`.trim();
+    return name || createdBy.email || 'User';
+  };
+
+  const getUserRole = (createdBy: any) => {
+    if (!createdBy) return 'User';
+    if (typeof createdBy.role === 'string') return createdBy.role;
+    if (createdBy.role?.name) return createdBy.role.name;
+    return 'User';
+  };
+
+  const formatDateStr = (dateStr: any) => {
+    if (!dateStr) return '';
+    try {
+      const d = new Date(dateStr);
+      return isNaN(d.getTime()) ? '' : d.toLocaleString();
+    } catch (_) {
+      return '';
+    }
+  };
 
   const handlePostQuery = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -67,6 +91,8 @@ export const TaskQueryThread: React.FC<TaskQueryThreadProps> = ({
       setIsSubmitting(false);
     }
   };
+
+  const safeQueries = Array.isArray(queries) ? queries : [];
 
   return (
     <div className="space-y-4">
@@ -141,14 +167,14 @@ export const TaskQueryThread: React.FC<TaskQueryThreadProps> = ({
 
       {/* Query List */}
       <div className="space-y-3 pt-2">
-        {queries.length === 0 ? (
+        {safeQueries.length === 0 ? (
           <div className="text-center py-8 border border-dashed rounded-xl text-xs text-muted-foreground">
             No queries raised yet for this task assignment.
           </div>
         ) : (
-          queries.map((q) => (
+          safeQueries.map((q) => (
             <div
-              key={q.id}
+              key={q.id || Math.random()}
               className={`border rounded-xl p-3.5 shadow-2xs space-y-2 ${
                 q.visibility === 'COMMON_TO_ALL_RECIPIENTS' ? 'bg-amber-500/5 border-amber-500/20' : 'bg-card'
               }`}
@@ -156,10 +182,10 @@ export const TaskQueryThread: React.FC<TaskQueryThreadProps> = ({
               <div className="flex items-center justify-between text-xs">
                 <div className="flex items-center gap-2">
                   <span className="font-bold text-foreground">
-                    {q.createdBy.firstName} {q.createdBy.lastName}
+                    {getUserName(q.createdBy)}
                   </span>
                   <span className="px-1.5 py-0.5 rounded bg-primary/10 text-primary text-[10px] uppercase font-bold">
-                    {q.createdBy.role}
+                    {getUserRole(q.createdBy)}
                   </span>
                   {q.visibility === 'COMMON_TO_ALL_RECIPIENTS' && (
                     <span className="px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-700 text-[10px] font-bold flex items-center gap-1">
@@ -168,14 +194,15 @@ export const TaskQueryThread: React.FC<TaskQueryThreadProps> = ({
                   )}
                 </div>
                 <span className="text-[10px] text-muted-foreground font-mono">
-                  {new Date(q.createdAt).toLocaleString()}
+                  {formatDateStr(q.createdAt)}
                 </span>
               </div>
 
-              <p className="text-xs text-foreground leading-relaxed whitespace-pre-wrap">{q.message}</p>
+              <p className="text-xs text-foreground leading-relaxed whitespace-pre-wrap">{q.message || ''}</p>
 
               <div className="flex items-center justify-between pt-1 text-[11px]">
                 <button
+                  type="button"
                   onClick={() => setReplyParentId(q.id)}
                   className="text-primary font-bold hover:underline flex items-center gap-1 cursor-pointer"
                 >
@@ -184,27 +211,27 @@ export const TaskQueryThread: React.FC<TaskQueryThreadProps> = ({
                 <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
                   q.status === 'RESOLVED' ? 'bg-green-500/10 text-green-600' : 'bg-blue-500/10 text-blue-600'
                 }`}>
-                  {q.status}
+                  {q.status || 'OPEN'}
                 </span>
               </div>
 
               {/* Thread Replies */}
-              {q.replies && q.replies.length > 0 && (
+              {Array.isArray(q.replies) && q.replies.length > 0 && (
                 <div className="pl-4 border-l-2 border-primary/20 space-y-2 pt-2 mt-2">
                   {q.replies.map((reply) => (
-                    <div key={reply.id} className="bg-muted/40 p-2.5 rounded-lg text-xs space-y-1">
+                    <div key={reply.id || Math.random()} className="bg-muted/40 p-2.5 rounded-lg text-xs space-y-1">
                       <div className="flex items-center justify-between text-[11px]">
                         <span className="font-bold text-foreground">
-                          {reply.createdBy.firstName} {reply.createdBy.lastName}
+                          {getUserName(reply.createdBy)}
                           <span className="ml-1.5 px-1 py-0.2 rounded bg-primary/10 text-primary text-[9px] uppercase font-bold">
-                            {reply.createdBy.role}
+                            {getUserRole(reply.createdBy)}
                           </span>
                         </span>
                         <span className="text-[10px] text-muted-foreground font-mono">
-                          {new Date(reply.createdAt).toLocaleTimeString()}
+                          {formatDateStr(reply.createdAt)}
                         </span>
                       </div>
-                      <p className="text-xs text-foreground/90">{reply.message}</p>
+                      <p className="text-xs text-foreground/90">{reply.message || ''}</p>
                     </div>
                   ))}
                 </div>

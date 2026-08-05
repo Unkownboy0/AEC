@@ -450,3 +450,464 @@ Argument `leaveType` is missing.
     at l (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:130:9633)
     at FacultyService.createFacultyLeave (D:\company work\crm\product\server\src\modules\faculty\faculty.service.ts:576:19)
     at createFacultyLeave (D:\company work\crm\product\server\src\modules\faculty\faculty.controller.ts:93:20)
+[2026-08-04 23:26:21] [ERROR]: PrismaClientInitializationError: 
+Invalid `prisma.userSession.findUnique()` invocation in
+D:\company work\crm\product\server\src\modules\auth\auth.repository.ts:110:31
+
+  107  * Find user session by refresh token
+  108  */
+  109 async findSession(refreshToken: string) {
+→ 110   return prisma.userSession.findUnique(
+Database `campusos` does not exist on the database server at `localhost:5432`.
+    at $n.handleRequestError (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:7615)
+    at $n.handleAndLogRequestError (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6623)
+    at $n.request (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6307)
+    at l (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:130:9633)
+    at AuthService.refresh (D:\company work\crm\product\server\src\modules\auth\auth.service.ts:212:21)
+    at refresh (D:\company work\crm\product\server\src\modules\auth\auth.controller.ts:44:22)
+[2026-08-04 23:26:38] [ERROR]: PrismaClientInitializationError: 
+Invalid `prisma.user.findFirst()` invocation in
+D:\company work\crm\product\server\src\modules\principal-availability\availability.resolver.ts:33:47
+
+  30 }
+  31 
+  32 if (!principalUserId) {
+→ 33   const principalUser = await prisma.user.findFirst(
+Database `campusos` does not exist on the database server at `localhost:5432`.
+    at $n.handleRequestError (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:7615)
+    at $n.handleAndLogRequestError (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6623)
+    at $n.request (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6307)
+    at l (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:130:9633)
+    at Function.resolveContext (D:\company work\crm\product\server\src\modules\principal-availability\availability.resolver.ts:33:29)
+    at Function.checkExpiry (D:\company work\crm\product\server\src\modules\principal-availability\delegation-expiry.job.ts:10:23)
+[2026-08-04 23:27:38] [ERROR]: PrismaClientInitializationError: 
+Invalid `prisma.user.findFirst()` invocation in
+D:\company work\crm\product\server\src\modules\principal-availability\availability.resolver.ts:33:47
+
+  30 }
+  31 
+  32 if (!principalUserId) {
+→ 33   const principalUser = await prisma.user.findFirst(
+Database `campusos` does not exist on the database server at `localhost:5432`.
+    at $n.handleRequestError (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:7615)
+    at $n.handleAndLogRequestError (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6623)
+    at $n.request (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6307)
+    at l (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:130:9633)
+    at Function.resolveContext (D:\company work\crm\product\server\src\modules\principal-availability\availability.resolver.ts:33:29)
+    at Function.checkExpiry (D:\company work\crm\product\server\src\modules\principal-availability\delegation-expiry.job.ts:10:23)
+[2026-08-04 23:28:38] [ERROR]: PrismaClientInitializationError: 
+Invalid `prisma.user.findFirst()` invocation in
+D:\company work\crm\product\server\src\modules\principal-availability\availability.resolver.ts:33:47
+
+  30 }
+  31 
+  32 if (!principalUserId) {
+→ 33   const principalUser = await prisma.user.findFirst(
+Database `campusos` does not exist on the database server at `localhost:5432`.
+    at $n.handleRequestError (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:7615)
+    at $n.handleAndLogRequestError (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6623)
+    at $n.request (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6307)
+    at l (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:130:9633)
+    at Function.resolveContext (D:\company work\crm\product\server\src\modules\principal-availability\availability.resolver.ts:33:29)
+    at Function.checkExpiry (D:\company work\crm\product\server\src\modules\principal-availability\delegation-expiry.job.ts:10:23)
+[2026-08-04 23:29:38] [ERROR]: PrismaClientInitializationError: 
+Invalid `prisma.user.findFirst()` invocation in
+D:\company work\crm\product\server\src\modules\principal-availability\availability.resolver.ts:33:47
+
+  30 }
+  31 
+  32 if (!principalUserId) {
+→ 33   const principalUser = await prisma.user.findFirst(
+Database `campusos` does not exist on the database server at `localhost:5432`.
+    at $n.handleRequestError (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:7615)
+    at $n.handleAndLogRequestError (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6623)
+    at $n.request (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6307)
+    at l (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:130:9633)
+    at Function.resolveContext (D:\company work\crm\product\server\src\modules\principal-availability\availability.resolver.ts:33:29)
+    at Function.checkExpiry (D:\company work\crm\product\server\src\modules\principal-availability\delegation-expiry.job.ts:10:23)
+[2026-08-04 23:30:38] [ERROR]: PrismaClientInitializationError: 
+Invalid `prisma.user.findFirst()` invocation in
+D:\company work\crm\product\server\src\modules\principal-availability\availability.resolver.ts:33:47
+
+  30 }
+  31 
+  32 if (!principalUserId) {
+→ 33   const principalUser = await prisma.user.findFirst(
+Database `campusos` does not exist on the database server at `localhost:5432`.
+    at $n.handleRequestError (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:7615)
+    at $n.handleAndLogRequestError (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6623)
+    at $n.request (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6307)
+    at l (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:130:9633)
+    at Function.resolveContext (D:\company work\crm\product\server\src\modules\principal-availability\availability.resolver.ts:33:29)
+    at Function.checkExpiry (D:\company work\crm\product\server\src\modules\principal-availability\delegation-expiry.job.ts:10:23)
+[2026-08-04 23:30:52] [ERROR]: PrismaClientInitializationError: 
+Invalid `prisma.user.findFirst()` invocation in
+D:\company work\crm\product\server\src\modules\auth\auth.repository.ts:10:24
+
+   7 async findByEmail(email: string) {
+   8   const clean = (email || '').trim();
+   9   const lower = clean.toLowerCase();
+→ 10   return prisma.user.findFirst(
+Database `campusos` does not exist on the database server at `localhost:5432`.
+    at $n.handleRequestError (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:7615)
+    at $n.handleAndLogRequestError (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6623)
+    at $n.request (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6307)
+    at l (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:130:9633)
+    at AuthService.login (D:\company work\crm\product\server\src\modules\auth\auth.service.ts:33:18)
+    at login (D:\company work\crm\product\server\src\modules\auth\auth.controller.ts:19:22)
+[2026-08-04 23:30:55] [ERROR]: PrismaClientInitializationError: 
+Invalid `prisma.user.findFirst()` invocation in
+D:\company work\crm\product\server\src\modules\auth\auth.repository.ts:10:24
+
+   7 async findByEmail(email: string) {
+   8   const clean = (email || '').trim();
+   9   const lower = clean.toLowerCase();
+→ 10   return prisma.user.findFirst(
+Database `campusos` does not exist on the database server at `localhost:5432`.
+    at $n.handleRequestError (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:7615)
+    at $n.handleAndLogRequestError (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6623)
+    at $n.request (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6307)
+    at l (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:130:9633)
+    at AuthService.login (D:\company work\crm\product\server\src\modules\auth\auth.service.ts:33:18)
+    at login (D:\company work\crm\product\server\src\modules\auth\auth.controller.ts:19:22)
+[2026-08-04 23:31:38] [ERROR]: PrismaClientInitializationError: 
+Invalid `prisma.user.findFirst()` invocation in
+D:\company work\crm\product\server\src\modules\principal-availability\availability.resolver.ts:33:47
+
+  30 }
+  31 
+  32 if (!principalUserId) {
+→ 33   const principalUser = await prisma.user.findFirst(
+Database `campusos` does not exist on the database server at `localhost:5432`.
+    at $n.handleRequestError (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:7615)
+    at $n.handleAndLogRequestError (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6623)
+    at $n.request (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6307)
+    at l (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:130:9633)
+    at Function.resolveContext (D:\company work\crm\product\server\src\modules\principal-availability\availability.resolver.ts:33:29)
+    at Function.checkExpiry (D:\company work\crm\product\server\src\modules\principal-availability\delegation-expiry.job.ts:10:23)
+[2026-08-04 23:32:20] [ERROR]: PrismaClientInitializationError: 
+Invalid `prisma.user.findFirst()` invocation in
+D:\company work\crm\product\server\src\modules\auth\auth.repository.ts:10:24
+
+   7 async findByEmail(email: string) {
+   8   const clean = (email || '').trim();
+   9   const lower = clean.toLowerCase();
+→ 10   return prisma.user.findFirst(
+Database `campusos` does not exist on the database server at `localhost:5432`.
+    at $n.handleRequestError (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:7615)
+    at $n.handleAndLogRequestError (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6623)
+    at $n.request (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6307)
+    at l (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:130:9633)
+    at AuthService.login (D:\company work\crm\product\server\src\modules\auth\auth.service.ts:33:18)
+    at login (D:\company work\crm\product\server\src\modules\auth\auth.controller.ts:19:22)
+[2026-08-04 23:32:38] [ERROR]: PrismaClientInitializationError: 
+Invalid `prisma.user.findFirst()` invocation in
+D:\company work\crm\product\server\src\modules\principal-availability\availability.resolver.ts:33:47
+
+  30 }
+  31 
+  32 if (!principalUserId) {
+→ 33   const principalUser = await prisma.user.findFirst(
+Database `campusos` does not exist on the database server at `localhost:5432`.
+    at $n.handleRequestError (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:7615)
+    at $n.handleAndLogRequestError (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6623)
+    at $n.request (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6307)
+    at l (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:130:9633)
+    at Function.resolveContext (D:\company work\crm\product\server\src\modules\principal-availability\availability.resolver.ts:33:29)
+    at Function.checkExpiry (D:\company work\crm\product\server\src\modules\principal-availability\delegation-expiry.job.ts:10:23)
+[2026-08-04 23:33:38] [ERROR]: PrismaClientInitializationError: 
+Invalid `prisma.user.findFirst()` invocation in
+D:\company work\crm\product\server\src\modules\principal-availability\availability.resolver.ts:33:47
+
+  30 }
+  31 
+  32 if (!principalUserId) {
+→ 33   const principalUser = await prisma.user.findFirst(
+Database `campusos` does not exist on the database server at `localhost:5432`.
+    at $n.handleRequestError (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:7615)
+    at $n.handleAndLogRequestError (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6623)
+    at $n.request (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6307)
+    at l (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:130:9633)
+    at Function.resolveContext (D:\company work\crm\product\server\src\modules\principal-availability\availability.resolver.ts:33:29)
+    at Function.checkExpiry (D:\company work\crm\product\server\src\modules\principal-availability\delegation-expiry.job.ts:10:23)
+[2026-08-04 23:33:39] [ERROR]: PrismaClientInitializationError: 
+Invalid `prisma.user.findFirst()` invocation in
+D:\company work\crm\product\server\src\modules\auth\auth.repository.ts:10:24
+
+   7 async findByEmail(email: string) {
+   8   const clean = (email || '').trim();
+   9   const lower = clean.toLowerCase();
+→ 10   return prisma.user.findFirst(
+Database `campusos` does not exist on the database server at `localhost:5432`.
+    at $n.handleRequestError (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:7615)
+    at $n.handleAndLogRequestError (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6623)
+    at $n.request (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6307)
+    at l (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:130:9633)
+    at AuthService.login (D:\company work\crm\product\server\src\modules\auth\auth.service.ts:33:18)
+    at login (D:\company work\crm\product\server\src\modules\auth\auth.controller.ts:19:22)
+[2026-08-04 23:34:38] [ERROR]: PrismaClientInitializationError: 
+Invalid `prisma.user.findFirst()` invocation in
+D:\company work\crm\product\server\src\modules\principal-availability\availability.resolver.ts:33:47
+
+  30 }
+  31 
+  32 if (!principalUserId) {
+→ 33   const principalUser = await prisma.user.findFirst(
+Database `campusos` does not exist on the database server at `localhost:5432`.
+    at $n.handleRequestError (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:7615)
+    at $n.handleAndLogRequestError (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6623)
+    at $n.request (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6307)
+    at l (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:130:9633)
+    at Function.resolveContext (D:\company work\crm\product\server\src\modules\principal-availability\availability.resolver.ts:33:29)
+    at Function.checkExpiry (D:\company work\crm\product\server\src\modules\principal-availability\delegation-expiry.job.ts:10:23)
+[2026-08-04 23:35:29] [ERROR]: PrismaClientInitializationError: 
+Invalid `prisma.user.findFirst()` invocation in
+D:\company work\crm\product\server\src\modules\auth\auth.repository.ts:10:24
+
+   7 async findByEmail(email: string) {
+   8   const clean = (email || '').trim();
+   9   const lower = clean.toLowerCase();
+→ 10   return prisma.user.findFirst(
+Database `campusos` does not exist on the database server at `localhost:5432`.
+    at $n.handleRequestError (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:7615)
+    at $n.handleAndLogRequestError (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6623)
+    at $n.request (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6307)
+    at l (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:130:9633)
+    at AuthService.login (D:\company work\crm\product\server\src\modules\auth\auth.service.ts:33:18)
+    at login (D:\company work\crm\product\server\src\modules\auth\auth.controller.ts:19:22)
+[2026-08-04 23:35:30] [ERROR]: PrismaClientInitializationError: 
+Invalid `prisma.user.findFirst()` invocation in
+D:\company work\crm\product\server\src\modules\auth\auth.repository.ts:10:24
+
+   7 async findByEmail(email: string) {
+   8   const clean = (email || '').trim();
+   9   const lower = clean.toLowerCase();
+→ 10   return prisma.user.findFirst(
+Database `campusos` does not exist on the database server at `localhost:5432`.
+    at $n.handleRequestError (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:7615)
+    at $n.handleAndLogRequestError (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6623)
+    at $n.request (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6307)
+    at l (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:130:9633)
+    at AuthService.login (D:\company work\crm\product\server\src\modules\auth\auth.service.ts:33:18)
+    at login (D:\company work\crm\product\server\src\modules\auth\auth.controller.ts:19:22)
+[2026-08-04 23:35:30] [ERROR]: PrismaClientInitializationError: 
+Invalid `prisma.user.findFirst()` invocation in
+D:\company work\crm\product\server\src\modules\auth\auth.repository.ts:10:24
+
+   7 async findByEmail(email: string) {
+   8   const clean = (email || '').trim();
+   9   const lower = clean.toLowerCase();
+→ 10   return prisma.user.findFirst(
+Database `campusos` does not exist on the database server at `localhost:5432`.
+    at $n.handleRequestError (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:7615)
+    at $n.handleAndLogRequestError (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6623)
+    at $n.request (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6307)
+    at l (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:130:9633)
+    at AuthService.login (D:\company work\crm\product\server\src\modules\auth\auth.service.ts:33:18)
+    at login (D:\company work\crm\product\server\src\modules\auth\auth.controller.ts:19:22)
+[2026-08-05 09:54:12] [ERROR]: PrismaClientValidationError: 
+Invalid `any).circular.findMany()` invocation in
+D:\company work\crm\product\server\src\modules\circulars\circular.repository.ts:9:54
+
+  6  * List circulars with recipient status for a specific user.
+  7  */
+  8 async findMany(whereClause: any, userId: string) {
+→ 9   const circulars = await (prisma as any).circular.findMany({
+        where: {
+          OR: [
+            {
+              broadcastLevel: "ALL_CAMPUS",
+              status: "PUBLISHED"
+            },
+            {
+              broadcastLevel: "STUDENT_ONLY",
+              status: "PUBLISHED"
+            },
+            {
+              broadcastLevel: "DEPARTMENT_SPECIFIC",
+              status: "PUBLISHED",
+              OR: [
+                {
+                  departmentId: "fbba81de-d773-4656-b1ff-065f19c1db75"
+                },
+                {
+                  targetDepartments: {
+                    contains: "fbba81de-d773-4656-b1ff-065f19c1db75"
+                  }
+                }
+              ]
+            },
+            {
+              authorId: "6547ab9e-30b5-4a63-bc24-56e564be1768"
+            },
+            {
+              recipients: {
+                some: {
+                  userId: "6547ab9e-30b5-4a63-bc24-56e564be1768"
+                }
+              },
+              status: "PUBLISHED"
+            }
+          ]
+        },
+        orderBy: [
+          {
+            isEmergency: "desc"
+          },
+          {
+            isPinned: "desc"
+          },
+          {
+            publishedAt: "desc"
+          }
+        ],
+        include: {
+          author: {
+          ~~~~~~
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+              avatar: true
+            }
+          },
+          department: {
+            select: {
+              id: true,
+              name: true,
+              code: true
+            }
+          },
+          recipients: {
+            where: {
+              userId: "6547ab9e-30b5-4a63-bc24-56e564be1768"
+            },
+            select: {
+              id: true,
+              status: true,
+              deliveredAt: true,
+              openedAt: true,
+              readAt: true,
+              acknowledgedAt: true
+            }
+          },
+          _count: {
+            select: {
+              recipients: true
+            }
+          }
+        }
+      })
+
+Unknown field `author` for include statement on model `Circular`. Available options are marked with ?.
+    at wn (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:29:1363)
+    at $n.handleRequestError (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6958)
+    at $n.handleAndLogRequestError (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6623)
+    at $n.request (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6307)
+    at l (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:130:9633)
+    at CircularRepository.findMany (D:\company work\crm\product\server\src\modules\circulars\circular.repository.ts:9:23)
+    at getStudentDashboardSummary (D:\company work\crm\product\server\src\modules\enterprise\enterprise.controller.ts:138:25)
+[2026-08-05 09:54:12] [ERROR]: PrismaClientValidationError: 
+Invalid `any).circular.findMany()` invocation in
+D:\company work\crm\product\server\src\modules\circulars\circular.repository.ts:9:54
+
+  6  * List circulars with recipient status for a specific user.
+  7  */
+  8 async findMany(whereClause: any, userId: string) {
+→ 9   const circulars = await (prisma as any).circular.findMany({
+        where: {
+          OR: [
+            {
+              broadcastLevel: "ALL_CAMPUS",
+              status: "PUBLISHED"
+            },
+            {
+              broadcastLevel: "STUDENT_ONLY",
+              status: "PUBLISHED"
+            },
+            {
+              broadcastLevel: "DEPARTMENT_SPECIFIC",
+              status: "PUBLISHED",
+              OR: [
+                {
+                  departmentId: "fbba81de-d773-4656-b1ff-065f19c1db75"
+                },
+                {
+                  targetDepartments: {
+                    contains: "fbba81de-d773-4656-b1ff-065f19c1db75"
+                  }
+                }
+              ]
+            },
+            {
+              authorId: "6547ab9e-30b5-4a63-bc24-56e564be1768"
+            },
+            {
+              recipients: {
+                some: {
+                  userId: "6547ab9e-30b5-4a63-bc24-56e564be1768"
+                }
+              },
+              status: "PUBLISHED"
+            }
+          ]
+        },
+        orderBy: [
+          {
+            isEmergency: "desc"
+          },
+          {
+            isPinned: "desc"
+          },
+          {
+            publishedAt: "desc"
+          }
+        ],
+        include: {
+          author: {
+          ~~~~~~
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+              avatar: true
+            }
+          },
+          department: {
+            select: {
+              id: true,
+              name: true,
+              code: true
+            }
+          },
+          recipients: {
+            where: {
+              userId: "6547ab9e-30b5-4a63-bc24-56e564be1768"
+            },
+            select: {
+              id: true,
+              status: true,
+              deliveredAt: true,
+              openedAt: true,
+              readAt: true,
+              acknowledgedAt: true
+            }
+          },
+          _count: {
+            select: {
+              recipients: true
+            }
+          }
+        }
+      })
+
+Unknown field `author` for include statement on model `Circular`. Available options are marked with ?.
+    at wn (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:29:1363)
+    at $n.handleRequestError (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6958)
+    at $n.handleAndLogRequestError (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6623)
+    at $n.request (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6307)
+    at l (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:130:9633)
+    at CircularRepository.findMany (D:\company work\crm\product\server\src\modules\circulars\circular.repository.ts:9:23)
+    at getStudentDashboardSummary (D:\company work\crm\product\server\src\modules\enterprise\enterprise.controller.ts:138:25)

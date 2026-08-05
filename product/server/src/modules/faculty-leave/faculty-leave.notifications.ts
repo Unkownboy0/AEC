@@ -1,0 +1,106 @@
+import { prisma } from '../../lib/prisma';
+import { logger } from '../../utils/logger';
+import { PushDispatchService } from '../notifications/push-dispatch.service';
+import { EventEmitter } from 'events';
+
+class FacultyLeaveEventBus extends EventEmitter {}
+export const facultyLeaveEvents = new FacultyLeaveEventBus();
+facultyLeaveEvents.setMaxListeners(50);
+
+export class FacultyLeaveNotificationService {
+  /**
+   * Send notification to HOD when Faculty submits a request.
+   */
+  static async notifyHodOnSubmission(request: any, facultyName: string, hodUserId: string) {
+    const title = `New Faculty ${request.type === 'LEAVE' ? 'Leave' : 'OD'} Request`;
+    const startDateStr = new Date(request.startDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
+    const endDateStr = new Date(request.endDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
+    const body = `${facultyName} submitted a ${request.title || request.reason} from ${startDateStr} to ${endDateStr}.`;
+    const deepLink = `/hod/faculty-requests/${request.id}`;
+
+    // 1. In-app notification
+    await prisma.notification.create({
+      data: {
+        recipientId: hodUserId,
+        eventType: 'FACULTY_LEAVE_SUBMITTED',
+        title,
+        message: body,
+        relatedEntityType: 'WorkflowRequest',
+        relatedEntityId: request.id,
+        deepLinkRoute: deepLink,
+        deliveryChannel: 'IN_APP',
+        deliveryState: 'DELIVERED',
+      },
+    }).catch(err => logger.warn('[FacultyLeaveNotif] Failed in-app notification:', err));
+
+    // 2. Native push notification
+    await PushDispatchService.sendToUsers([hodUserId], {
+      title,
+      body,
+      sound: 'default',
+      priority: request.isEmergency ? 'high' : 'default',
+      data: {
+        type: 'FACULTY_LEAVE_SUBMITTED',
+        requestId: request.id,
+        deepLink,
+        nativeDeepLink: `campusos://hod/faculty-requests/${request.id}`,
+      },
+    });
+
+    // 3. Emit realtime event
+    facultyLeaveEvents.emit('hod.faculty-request.received', { requestId: request.id, hodUserId });
+  }
+
+  /**
+   * Send notification to Faculty when HOD updates their request status.
+   */
+  static async notifyFacultyOnHodAction(
+    request: any,
+    facultyUserId: string,
+    action: 'RECOMMENDED' | 'REJECTED' | 'RETURNED',
+    remarks?: string
+  ) {
+    let title = '';
+    let body = '';
+
+    if (action === 'RECOMMENDED') {
+      title = 'Leave/OD Recommended';
+      body = 'Your request was recommended by the HOD and forwarded for final approval.';
+    } else if (action === 'REJECTED') {
+      title = 'Leave/OD Request Rejected';
+      body = `Your request was rejected by the HOD.${remarks ? ` Reason: ${remarks}` : ''}`;
+    } else if (action === 'RETURNED') {
+      title = 'Leave/OD Returned for Clarification';
+      body = `Your request was returned by the HOD for update.${remarks ? ` Remarks: ${remarks}` : ''}`;
+    }
+
+    const deepLink = `/faculty/leave-od/${request.id}`;
+
+    await prisma.notification.create({
+      data: {
+        recipientId: facultyUserId,
+        eventType: `FACULTY_LEAVE_${action}`,
+        title,
+        message: body,
+        relatedEntityType: 'WorkflowRequest',
+        relatedEntityId: request.id,
+        deepLinkRoute: deepLink,
+        deliveryChannel: 'IN_APP',
+        deliveryState: 'DELIVERED',
+      },
+    }).catch(() => {});
+
+    await PushDispatchService.sendToUsers([facultyUserId], {
+      title,
+      body,
+      data: {
+        type: `FACULTY_LEAVE_${action}`,
+        requestId: request.id,
+        deepLink,
+        nativeDeepLink: `campusos://faculty/leave-od/${request.id}`,
+      },
+    });
+
+    facultyLeaveEvents.emit(`faculty.request.${action.toLowerCase()}`, { requestId: request.id, facultyUserId });
+  }
+}

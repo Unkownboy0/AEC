@@ -41,7 +41,6 @@ import { AcademicPerformance } from '../pages/hod/AcademicPerformance';
 import { FacultyPerformance } from '../pages/hod/FacultyPerformance';
 import { DepartmentReports } from '../pages/hod/DepartmentReports';
 import { CircularManagement } from '../pages/hod/CircularManagement';
-import { FacultyCircularsPage } from '../pages/FacultyCircularsPage';
 import { TimetableEngine } from '../pages/hod/TimetableEngine';
 import { PlacementEngine } from '../pages/admin/PlacementEngine';
 import { MasterTimetableManagement } from '../pages/admin/MasterTimetableManagement';
@@ -60,6 +59,24 @@ import { GovernanceSuite } from '../pages/enterprise/GovernanceSuite';
 
 import Profile from '../pages/Profile';
 import UniversalProfilePage from '../pages/profile/UniversalProfilePage';
+
+// ─── Circulars Module ───────────────────────────────────────────
+import { HodCircularPage } from '../modules/circulars/pages/HodCircularPage';
+import { FacultyCircularsPage } from '../modules/circulars/pages/FacultyCircularsPage';
+import { DeanCircularsPage } from '../modules/circulars/pages/DeanCircularsPage';
+import { VpCircularsPage } from '../modules/circulars/pages/VpCircularsPage';
+import { PrincipalCircularsPage } from '../modules/circulars/pages/PrincipalCircularsPage';
+import { CircularDetailPage } from '../modules/circulars/pages/CircularDetailPage';
+
+// ─── New Workflow Modules ───────────────────────────────────────
+import { FacultyLeaveOdPage } from '../modules/faculty/leave-od/pages/FacultyLeaveOdPage';
+import { FacultyLeaveDetailPage } from '../modules/faculty/leave-od/pages/FacultyLeaveDetailPage';
+import { HodFacultyRequestsPage } from '../modules/hod/faculty-requests/pages/HodFacultyRequestsPage';
+import { HodTasksPage } from '../modules/hod/tasks/pages/HodTasksPage';
+
+// ─── Shared Pages ───────────────────────────────────────────────
+import { NotificationsPage } from '../pages/shared/NotificationsPage';
+import { AccessDenied } from '../pages/AccessDenied';
 
 // Student Pages Imports (Lazy Loaded)
 const StudentDashboard = React.lazy(() => import('../pages/student/StudentDashboard'));
@@ -268,11 +285,12 @@ export const AppRouter: React.FC = () => {
           <Route path="governance-suite" element={<GovernanceSuite />} />
           <Route path="governance" element={<GovernanceSuite />} />
           <Route path="approval-center" element={<PrincipalApprovalCenter />} />
-          <Route path="academic-dean" element={<AcademicDeanPortal user={user} />} />
-          <Route path="admission-dean" element={<AdmissionDeanPortal user={user} />} />
-          <Route path="iqac-dean" element={<IQACDeanPortal user={user} />} />
-          <Route path="iqac-executive" element={<IQACExecutivePortal user={user} />} />
-          <Route path="iqac-documentation" element={<IQACDocumentationPortal user={user} />} />
+
+          {/* ─── Global Circulars ─────────────────────────── */}
+          <Route path="circulars" element={<CircularCenter />} />
+          <Route path="circulars/:id" element={<CircularDetailPage />} />
+
+          {/* ─── Faculty Routes ───────────────────────────── */}
           <Route path="faculty" element={<FacultyDashboard />} />
           <Route path="faculty/dashboard" element={<FacultyDashboard />} />
           <Route path="faculty/timetable" element={<FacultyWorkspacePortal />} />
@@ -282,21 +300,40 @@ export const AppRouter: React.FC = () => {
           <Route path="faculty/internal-marks" element={<FacultyWorkspacePortal />} />
           <Route path="faculty/marks" element={<FacultyWorkspacePortal />} />
           <Route path="faculty/students" element={<FacultyWorkspacePortal />} />
-          <Route path="faculty/leave" element={<FacultyWorkspacePortal />} />
+          <Route path="faculty/leave" element={<FacultyLeaveOdPage />} />
+          <Route path="faculty/leave-request" element={<FacultyLeaveOdPage />} />
+          <Route path="faculty/leave-od" element={<FacultyLeaveOdPage />} />
+          <Route path="faculty/leave-od/:id" element={<FacultyLeaveDetailPage />} />
           <Route path="faculty/tasks" element={<FacultyWorkspacePortal />} />
           <Route path="faculty/availability" element={<FacultyWorkspacePortal />} />
           <Route path="faculty/ai_assistant" element={<FacultyWorkspacePortal />} />
           <Route path="faculty/profile" element={<FacultyWorkspacePortal />} />
           <Route path="faculty/mentor" element={<MentorWorkspacePortal />} />
-          <Route path="circulars" element={<CircularCenter />} />
-          <Route path="circulars/:id" element={<CircularCenter />} />
+          {/* Faculty Circulars — was MISSING, now registered */}
+          <Route path="faculty/circulars" element={<FacultyCircularsPage />} />
+          <Route path="faculty/circulars/:id" element={<CircularDetailPage />} />
+          {/* Faculty Notifications — was MISSING */}
+          <Route path="faculty/notifications" element={<NotificationsPage />} />
+
+          {/* ─── Mentor Route ─────────────────────────────── */}
           <Route path="mentor" element={<MentorWorkspacePortal />} />
-          {/* Principal Workspace Routes */}
+
+          {/* ─── Principal Workspace Routes ───────────────── */}
           <Route path="principal" element={<Navigate to="/principal/dashboard" replace />} />
           <Route path="principal/dashboard" element={<PrincipalDashboardPage />} />
           <Route path="principal/approval-center" element={<PrincipalApprovalCenter />} />
+          {/* Principal sub-routes — were ALL MISSING */}
+          <Route path="principal/departments" element={<PrincipalDashboardPage />} />
+          <Route path="principal/faculty" element={<PrincipalDashboardPage />} />
+          <Route path="principal/students" element={<PrincipalDashboardPage />} />
+          <Route path="principal/academics" element={<PrincipalDashboardPage />} />
+          <Route path="principal/circulars" element={<PrincipalCircularsPage />} />
+          <Route path="principal/circulars/:id" element={<CircularDetailPage />} />
+          <Route path="principal/reports" element={<PrincipalDashboardPage />} />
+          <Route path="principal/notifications" element={<NotificationsPage />} />
+          <Route path="principal/delegation" element={<PrincipalDashboardPage />} />
 
-          {/* Vice Principal Workspace Routes */}
+          {/* ─── Vice Principal Workspace Routes ──────────── */}
           <Route path="vp" element={<Navigate to="/vp/dashboard" replace />} />
           <Route path="vp/dashboard" element={<VpDashboardPage />} />
           <Route path="vp/operations" element={<VpDashboardPage />} />
@@ -311,7 +348,10 @@ export const AppRouter: React.FC = () => {
           <Route path="vp/activities" element={<VpDashboardPage />} />
           <Route path="vp/reports" element={<VpDashboardPage />} />
           <Route path="vp/audit" element={<VpDashboardPage />} />
-          <Route path="vp/notifications" element={<VpDashboardPage />} />
+          {/* VP Circulars & Notifications — were MISSING */}
+          <Route path="vp/circulars" element={<VpCircularsPage />} />
+          <Route path="vp/circulars/:id" element={<CircularDetailPage />} />
+          <Route path="vp/notifications" element={<NotificationsPage />} />
 
           {/* VP Acting Principal Delegated Approvals */}
           <Route
@@ -339,42 +379,106 @@ export const AppRouter: React.FC = () => {
             }
           />
 
-          {/* HOD Portal Direct Routes */}
+          {/* ─── Academic Dean Routes ─────────────────────── */}
+          {/* Previously only /academic-dean was registered — all sub-routes were 404 */}
+          <Route path="academic-dean" element={<Navigate to="/academic-dean/dashboard" replace />} />
+          <Route path="academic-dean/dashboard" element={<AcademicDeanPortal user={user} />} />
+          <Route path="academic-dean/academics" element={<AcademicDeanPortal user={user} />} />
+          <Route path="academic-dean/tasks" element={<AcademicDeanPortal user={user} />} />
+          <Route path="academic-dean/circulars" element={<DeanCircularsPage />} />
+          <Route path="academic-dean/circulars/:id" element={<CircularDetailPage />} />
+          <Route path="academic-dean/reports" element={<AcademicDeanPortal user={user} />} />
+          <Route path="academic-dean/notifications" element={<NotificationsPage />} />
+
+          {/* ─── Admission Dean Routes ────────────────────── */}
+          <Route path="admission-dean" element={<Navigate to="/admission-dean/dashboard" replace />} />
+          <Route path="admission-dean/dashboard" element={<AdmissionDeanPortal user={user} />} />
+          <Route path="admission-dean/admissions" element={<AdmissionDeanPortal user={user} />} />
+          <Route path="admission-dean/tasks" element={<AdmissionDeanPortal user={user} />} />
+          <Route path="admission-dean/circulars" element={<DeanCircularsPage />} />
+          <Route path="admission-dean/circulars/:id" element={<CircularDetailPage />} />
+          <Route path="admission-dean/reports" element={<AdmissionDeanPortal user={user} />} />
+          <Route path="admission-dean/notifications" element={<NotificationsPage />} />
+
+          {/* ─── IQAC Dean Routes ─────────────────────────── */}
+          {/* Previously only /iqac-dean, /iqac-executive, /iqac-documentation existed */}
+          <Route path="iqac-dean" element={<IQACDeanPortal user={user} />} />
+          <Route path="iqac-executive" element={<IQACExecutivePortal user={user} />} />
+          <Route path="iqac-documentation" element={<IQACDocumentationPortal user={user} />} />
+          {/* New IQAC sub-routes using /iqac prefix */}
+          <Route path="iqac" element={<Navigate to="/iqac/dashboard" replace />} />
+          <Route path="iqac/dashboard" element={<IQACDeanPortal user={user} />} />
+          <Route path="iqac/accreditation" element={<IQACDeanPortal user={user} />} />
+          <Route path="iqac/tasks" element={<IQACDeanPortal user={user} />} />
+          <Route path="iqac/circulars" element={<DeanCircularsPage />} />
+          <Route path="iqac/circulars/:id" element={<CircularDetailPage />} />
+          <Route path="iqac/reports" element={<IQACDeanPortal user={user} />} />
+          <Route path="iqac/notifications" element={<NotificationsPage />} />
+
+          {/* ─── HOD Portal Direct Routes ─────────────────── */}
+          <Route path="hod" element={<Navigate to="/hod/dashboard" replace />} />
           <Route path="hod/dashboard" element={<HodDashboardWorkspace />} />
+          <Route path="hod/approvals" element={<HodLeaveOdApprovalDesk />} />
           <Route path="hod/leave-approvals" element={<HodLeaveOdApprovalDesk />} />
           <Route path="hod/leave-od" element={<HodLeaveOdApprovalDesk />} />
+          <Route path="hod/faculty-requests" element={<HodFacultyRequestsPage />} />
+          <Route path="hod/faculty-requests/:id" element={<FacultyLeaveDetailPage />} />
           <Route path="hod/students" element={<HodStudentWorkspace />} />
           <Route path="hod/faculty" element={<HodFacultyWorkspace />} />
           <Route path="hod/mentors" element={<HodStudentWorkspace />} />
           <Route path="hod/academics" element={<AcademicPerformance />} />
           <Route path="hod/attendance" element={<HodAttendanceWorkspace />} />
           <Route path="hod/timetable" element={<TimetableEngine />} />
-          <Route path="hod/tasks" element={<HodTaskWorkspace />} />
-          <Route path="hod/circulars" element={<CircularManagement />} />
+          <Route path="hod/tasks" element={<HodTasksPage />} />
+          <Route path="hod/tasks/:id" element={<HodTasksPage />} />
+          {/* HOD Circulars — now uses 5-step wizard page */}
+          <Route path="hod/circulars" element={<HodCircularPage />} />
+          <Route path="hod/circulars/:id" element={<CircularDetailPage />} />
           <Route path="hod/board" element={<DepartmentAvailabilityBoard />} />
           <Route path="hod/complaints" element={<HodLeaveOdApprovalDesk />} />
           <Route path="hod/activities" element={<HodReportsWorkspace />} />
           <Route path="hod/reports" element={<HodReportsWorkspace />} />
           <Route path="hod/profile" element={<HODProfile />} />
+          {/* HOD Notifications — was MISSING */}
+          <Route path="hod/notifications" element={<NotificationsPage />} />
 
+          {/* ─── Faculty Portal Direct Routes ─────────────────── */}
+          <Route path="faculty/leave-od" element={<FacultyLeaveOdPage />} />
+          <Route path="faculty/leave-od/:id" element={<FacultyLeaveDetailPage />} />
+          <Route path="faculty/leave" element={<FacultyLeaveOdPage />} />
 
-          {/* Dynamically register other admin routes if permitted (excluding HOD and Faculty paths to prevent blank screen overrides) */}
-          {user?.menus?.filter((m: any) => 
-            m.componentKey !== 'dashboard' && 
-            m.componentKey !== 'profile' && 
-            !m.path?.startsWith('/hod') && 
+          {/* Access Denied — shown for unauthorized routes, not 404 */}
+
+          <Route path="access-denied" element={<AccessDenied />} />
+
+          {/* Dynamically register other admin routes if permitted
+              (excluding HOD and Faculty paths to prevent blank screen overrides) */}
+          {user?.menus?.filter((m: any) =>
+            m.componentKey !== 'dashboard' &&
+            m.componentKey !== 'profile' &&
+            !m.path?.startsWith('/hod') &&
             !m.path?.startsWith('hod') &&
-            !m.path?.startsWith('/faculty') && 
-            !m.path?.startsWith('faculty')
+            !m.path?.startsWith('/faculty') &&
+            !m.path?.startsWith('faculty') &&
+            !m.path?.startsWith('/principal') &&
+            !m.path?.startsWith('principal') &&
+            !m.path?.startsWith('/vp') &&
+            !m.path?.startsWith('vp') &&
+            !m.path?.startsWith('/academic-dean') &&
+            !m.path?.startsWith('academic-dean') &&
+            !m.path?.startsWith('/admission-dean') &&
+            !m.path?.startsWith('admission-dean') &&
+            !m.path?.startsWith('/iqac') &&
+            !m.path?.startsWith('iqac')
           ).map((m: any) => {
             const PageComp = COMPONENT_MAP[m.componentKey];
             if (!PageComp) return null;
             // Clean leading slashes for sub-routes
             const cleanPath = m.path.startsWith('/') ? m.path.slice(1) : m.path;
-            
+
             // Check if this is a student route
             const isStudentRoute = m.componentKey.startsWith('student_');
-            
+
             const element = isStudentRoute ? (
               <StudentRouteGuard>
                 <React.Suspense fallback={

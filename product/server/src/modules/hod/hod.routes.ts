@@ -61,7 +61,10 @@ router.get('/tasks', controller.getTasks);
 router.post('/tasks', controller.createTask);
 
 // 7. Circulars & Announcements
+router.get('/circulars', controller.listCirculars);
 router.post('/circulars', controller.createCircular);
+router.get('/circulars/:id', controller.getCircularById);
+router.post('/circulars/:id/publish', controller.publishCircular);
 
 // 8. Reports & Profile
 router.get('/reports/export', controller.exportReports);

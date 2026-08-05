@@ -9,7 +9,9 @@ import { useAuth } from '../../context/AuthContext';
 import { useDevice } from '../../context/DeviceContext';
 import { toast } from '../ui/Toast';
 import api from '../../lib/axios';
-import BottomNav from './BottomNav';
+import { RoleMobileBottomNav } from './RoleMobileBottomNav';
+import { OfflineBanner } from './OfflineBanner';
+import { useNativeBackButton } from '../../hooks/useNativeBackButton';
 import { OnboardingTour } from './OnboardingTour';
 import { PrincipalDelegationBanner } from '../../modules/principal-availability/components/PrincipalDelegationBanner';
 import { VpActingPrincipalBanner } from '../../modules/principal-availability/components/VpActingPrincipalBanner';
@@ -21,6 +23,8 @@ const MainLayout: React.FC = () => {
   const [isMobileLogoutConfirmOpen, setIsMobileLogoutConfirmOpen] = useState(false);
   const { user, refreshUser, logout } = useAuth();
   const { isMobile, isTablet } = useDevice();
+
+  useNativeBackButton(isMobileMenuOpen, () => setIsMobileMenuOpen(false));
 
   // Force Password Change Form State
   const [passwordForm, setPasswordForm] = useState({
@@ -416,8 +420,11 @@ const MainLayout: React.FC = () => {
           </div>
         </div>
       )}
-      {/* Mobile Bottom Navigation for Student role */}
-      {user?.role === 'Student' && <BottomNav />}
+      {/* Offline Connection Alert Banner */}
+      <OfflineBanner />
+
+      {/* Role-Based Mobile Bottom Navigation */}
+      <RoleMobileBottomNav />
     </div>
   );
 };

@@ -154,8 +154,11 @@ import facultyRoutes from './modules/faculty/faculty.routes';
 import mentorRoutes from './modules/mentor/mentor.routes';
 import delegationRoutes from './modules/principal-delegation/delegation.routes';
 import principalAvailabilityRouter from './modules/principal-availability/availability.routes';
-import customCircularRoutes from './modules/circulars/circular.routes';
-import approvalRoutes from './modules/approvals/approval.routes';
+import customFacultyLeaveRoutes from './modules/faculty-leave/faculty-leave.routes';
+import hodTaskRoutes from './modules/hod-tasks/hod-task.routes';
+
+app.use('/api', customFacultyLeaveRoutes);
+app.use('/api', hodTaskRoutes);
 
 app.use('/api/academic-dean', academicDeanRoutes);
 app.use('/api/admission-dean', admissionDeanRoutes);
@@ -164,8 +167,6 @@ app.use('/api/faculty', facultyRoutes);
 app.use('/api/mentor', mentorRoutes);
 app.use('/api', principalAvailabilityRouter);
 app.use('/api', delegationRoutes);
-app.use('/api', customCircularRoutes);
-app.use('/api', approvalRoutes);
 
 import { PrincipalDataRepairScript } from './modules/principal-availability/repair-principal-availability';
 import { DelegationExpiryJob } from './modules/principal-availability/delegation-expiry.job';
@@ -183,6 +184,22 @@ app.use('/api/*', (req, res) => {
     message: `Cannot ${req.method} ${req.baseUrl}`,
   });
 });
+
+// ─── SPA Fallback ─────────────────────────────────────────────────────────
+// For production: serve the React client build for all non-API routes.
+// This ensures browser refresh on /faculty/circulars, /hod/circulars, etc.
+// does NOT return 404 — the React Router handles it client-side.
+import fs from 'fs';
+const clientBuildPath = path.join(__dirname, '../../client/dist');
+if (fs.existsSync(path.join(clientBuildPath, 'index.html'))) {
+  app.use(express.static(clientBuildPath));
+  app.get('*', (_req, res) => {
+    res.sendFile(path.join(clientBuildPath, 'index.html'));
+  });
+  logger.info('✅ SPA static fallback enabled');
+} else {
+  logger.info('ℹ️  SPA fallback skipped (client/dist not found — dev mode)');
+}
 
 // Centralized error boundary
 app.use(errorHandler);
