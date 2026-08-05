@@ -3,7 +3,7 @@ import { EnterpriseController } from './enterprise.controller';
 import { HODController } from './hod.controller';
 import { DeanController } from './dean.controller';
 import { SearchController } from './search.controller';
-import { requireAuth } from '../../core/middlewares/auth.middleware';
+import { requireAuth, requireRole } from '../../core/middlewares/auth.middleware';
 import { enforceDepartmentScope } from '../../core/middlewares/departmentScope';
 
 const router = Router();
@@ -242,6 +242,14 @@ router.get('/executive/ai-insights', executiveController.getAIExecutiveInsights)
 router.get('/executive/inbox', executiveController.getExecutiveInbox);
 router.post('/executive/presence', executiveController.updatePresenceStatus);
 router.post('/executive/command-action', executiveController.executeCommandAction);
+
+// Realtime Department Availability Board for HOD, Dean, VP, Principal
+import { availabilityBoardController } from './availability-board.controller';
+router.get(
+  '/availability-board',
+  requireRole(['HOD', 'DEAN', 'VICE_PRINCIPAL', 'VP', 'PRINCIPAL', 'ADMIN', 'SUPER_ADMIN']),
+  availabilityBoardController.getAvailabilityBoard
+);
 
 export default router;
 

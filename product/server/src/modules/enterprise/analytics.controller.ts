@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { AnalyticsService } from './analytics.service';
 import { ReportBuilderService } from './report-builder.service';
 import { ReportScopeResolver } from './report-scope.service';
+import { prisma } from '../../lib/prisma';
 
 const analyticsService = new AnalyticsService();
 const reportBuilderService = new ReportBuilderService();
@@ -74,7 +75,19 @@ export class AnalyticsController {
    */
   async getDepartmentAvailability(req: Request, res: Response, next: NextFunction) {
     try {
-      const { departmentId } = req.query;
+      let { departmentId } = req.query;
+      const user = (req as any).user;
+
+      if (!departmentId && user && (user.role === 'HOD' || user.role?.name === 'HOD')) {
+        const hodUser = await prisma.user.findUnique({
+          where: { id: user.id },
+          select: { departmentId: true }
+        });
+        if (hodUser?.departmentId) {
+          departmentId = hodUser.departmentId;
+        }
+      }
+
       const data = await analyticsService.getDepartmentAvailability(departmentId as string | undefined);
       res.status(200).json({ status: 'success', data });
     } catch (err) {

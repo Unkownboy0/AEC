@@ -1,6 +1,7 @@
 import { prisma } from '../../lib/prisma';
 import { NotFoundException, ForbiddenException, BadRequestException } from '../../utils/exceptions';
 import { logger } from '../../utils/logger';
+import { analyticsService } from './analytics.service';
 
 export class HodPortalService {
   /**
@@ -48,9 +49,8 @@ export class HodPortalService {
       pendingLeaveRequests,
       pendingOdRequests,
       emergencyRequests,
-      approvedTodayCount,
+      availabilityData,
       rejectedTodayCount,
-      facultyOnLeaveCount,
       allDepartmentStudents,
       recentRequests,
       activeTasksCount,
@@ -98,26 +98,12 @@ export class HodPortalService {
           ]
         }
       }),
-      prisma.studentLeaveRequest.count({
-        where: {
-          student: { departmentId },
-          workflowStatus: 'APPROVED',
-          approvedAt: { gte: new Date(new Date().setHours(0, 0, 0, 0)) }
-        }
-      }),
+      analyticsService.getDepartmentAvailability(departmentId),
       prisma.studentLeaveRequest.count({
         where: {
           student: { departmentId },
           workflowStatus: { in: ['REJECTED_BY_HOD', 'REJECTED_BY_MENTOR'] },
           updatedAt: { gte: new Date(new Date().setHours(0, 0, 0, 0)) }
-        }
-      }),
-      prisma.facultyLeaveRequest.count({
-        where: {
-          departmentId,
-          status: 'APPROVED_HOD',
-          startDate: { lte: new Date() },
-          endDate: { gte: new Date() }
         }
       }),
       prisma.student.findMany({
@@ -148,15 +134,19 @@ export class HodPortalService {
     let totalAttendancePctSum = 0;
     let lowAttendanceCount = 0;
 
-    allDepartmentStudents.forEach(st => {
-      const recs = st.attendanceRecords;
+    allDepartmentStudents.forEach((st: any) => {
+      const recs = st.attendanceRecords || [];
       if (recs.length > 0) {
-        const presentCount = recs.filter(r => r.status === 'PRESENT' || r.status === 'ON_DUTY' || r.status === 'EXCUSED_LEAVE').length;
+        const presentCount = recs.filter((r: any) => r.status === 'PRESENT' || r.status === 'ON_DUTY' || r.status === 'EXCUSED_LEAVE').length;
         const pct = (presentCount / recs.length) * 100;
         totalAttendancePctSum += pct;
         if (pct < 75) lowAttendanceCount++;
       }
     });
+
+    const avail = availabilityData as any;
+    const studentApprovedTodayCount = (avail?.studentsOnLeaveToday?.length || 0) + (avail?.studentsOnOdToday?.length || 0);
+    const facultyOnLeaveTodayCount = (avail?.facultyOnLeaveToday?.length || 0) + (avail?.facultyOnOdToday?.length || 0);
 
     const averageAttendancePct = allDepartmentStudents.length > 0
       ? Math.round(totalAttendancePctSum / allDepartmentStudents.length)
@@ -169,7 +159,7 @@ export class HodPortalService {
       { month: 'Mar', leaves: 9, ods: 14, approved: 20, rejected: 3 },
       { month: 'Apr', leaves: 18, ods: 22, approved: 35, rejected: 5 },
       { month: 'May', leaves: 14, ods: 19, approved: 30, rejected: 3 },
-      { month: 'Jun', leaves: pendingLeaveRequests, ods: pendingOdRequests, approved: approvedTodayCount, rejected: rejectedTodayCount },
+      { month: 'Jun', leaves: pendingLeaveRequests, ods: pendingOdRequests, approved: studentApprovedTodayCount, rejected: rejectedTodayCount },
     ];
 
     return {
@@ -183,9 +173,9 @@ export class HodPortalService {
         pendingOdRequests,
         totalPendingApprovals: pendingLeaveRequests + pendingOdRequests,
         emergencyRequests,
-        approvedTodayCount,
+        approvedTodayCount: studentApprovedTodayCount,
         rejectedTodayCount,
-        facultyOnLeaveCount,
+        facultyOnLeaveCount: facultyOnLeaveTodayCount,
         averageAttendancePct,
         lowAttendanceCount,
         activeTasksCount,
@@ -193,7 +183,7 @@ export class HodPortalService {
       charts: {
         monthlyTrends,
         requestDistribution: [
-          { name: 'Approved', value: approvedTodayCount || 45, color: '#10B981' },
+          { name: 'Approved', value: studentApprovedTodayCount || 45, color: '#10B981' },
           { name: 'Pending HOD', value: pendingLeaveRequests + pendingOdRequests || 8, color: '#F59E0B' },
           { name: 'Pending Mentor', value: 12, color: '#3B82F6' },
           { name: 'Rejected', value: rejectedTodayCount || 4, color: '#EF4444' },

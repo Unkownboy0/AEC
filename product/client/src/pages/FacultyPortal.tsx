@@ -4,6 +4,7 @@ import {
 } from 'lucide-react';
 import { toast } from '../components/ui/Toast';
 import { Loading } from '../components/ui/Loading';
+import { DepartmentAvailabilityBoard } from '../components/availability/DepartmentAvailabilityBoard';
 import api from '../lib/axios';
 import { MentorPortal } from './RolePortals';
 import { Shield } from 'lucide-react';
@@ -1965,6 +1966,11 @@ export const FacultyPortal: React.FC<FacultyPortalProps> = ({ user }) => {
               </div>
             </div>
           </div>
+        )}
+
+        {/* AVAILABILITY BOARD TAB */}
+        {activeTab === 'availability_board' && (
+          <DepartmentAvailabilityBoard />
         )}
 
         {/* LEAVE REQUESTS TAB */}

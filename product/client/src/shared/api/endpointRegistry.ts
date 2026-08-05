@@ -50,4 +50,7 @@ export const ENDPOINTS = {
     chat: '/ai/chat',
     history: '/ai/history',
   },
+  enterprise: {
+    availabilityBoard: '/enterprise/availability-board',
+  },
 } as const;

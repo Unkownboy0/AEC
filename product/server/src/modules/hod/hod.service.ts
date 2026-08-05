@@ -79,15 +79,20 @@ export class HodService {
       where: { id: payload.requestId },
     });
 
+    const normAction = (payload.action || '').toUpperCase().replace(/-/g, '_');
+
     if (wfRequest) {
       const user = await prisma.user.findUnique({ where: { id: hodUserId } });
       const userEmail = user?.email || 'hod@geetorus.com';
-      const action = payload.action === 'APPROVE' ? 'APPROVE' : payload.action === 'REJECT' ? 'REJECT' : 'CLARIFICATION';
+      let actionForWf = 'APPROVE';
+      if (normAction.includes('REJECT')) actionForWf = 'REJECT';
+      else if (normAction.includes('RETURN') || normAction.includes('CLARIFICATION')) actionForWf = 'CLARIFICATION';
+
       return this.workflowService.takeAction(
         payload.requestId,
         userEmail,
         'HOD',
-        action as any,
+        actionForWf as any,
         payload.remarks || payload.rejectionReason
       );
     }
@@ -101,32 +106,26 @@ export class HodService {
     let nextWorkflowStatus = request.workflowStatus;
     let status = request.status;
 
-    switch (payload.action) {
-      case 'APPROVE':
-        nextWorkflowStatus = 'APPROVED_BY_HOD';
-        status = 'APPROVED';
-        break;
-      case 'REJECT':
-        if (!payload.rejectionReason && !payload.remarks) {
-          throw new Error('Rejection reason or remarks are mandatory.');
-        }
-        nextWorkflowStatus = 'REJECTED_BY_HOD';
-        status = 'REJECTED';
-        break;
-      case 'RETURN_TO_MENTOR':
-        nextWorkflowStatus = 'RETURNED_TO_MENTOR';
-        status = 'RETURNED';
-        break;
-      case 'RETURN_TO_STUDENT':
-        nextWorkflowStatus = 'RETURNED_TO_STUDENT';
-        status = 'RETURNED';
-        break;
-      case 'ESCALATE':
-        nextWorkflowStatus = 'ESCALATED_TO_DEAN';
-        status = 'ESCALATED';
-        break;
-      default:
-        throw new Error('Invalid HOD action specified.');
+    if (normAction === 'APPROVE') {
+      nextWorkflowStatus = 'APPROVED_BY_HOD';
+      status = 'APPROVED';
+    } else if (normAction === 'REJECT' || normAction === 'REJECTED') {
+      if (!payload.rejectionReason && !payload.remarks) {
+        throw new Error('Rejection reason or remarks are mandatory.');
+      }
+      nextWorkflowStatus = 'REJECTED_BY_HOD';
+      status = 'REJECTED';
+    } else if (normAction === 'RETURN_TO_MENTOR' || normAction === 'RETURN_MENTOR') {
+      nextWorkflowStatus = 'RETURNED_TO_MENTOR';
+      status = 'RETURNED';
+    } else if (normAction === 'RETURN_TO_STUDENT' || normAction === 'RETURN_STUDENT' || normAction === 'CLARIFICATION' || normAction === 'RETURN') {
+      nextWorkflowStatus = 'RETURNED_TO_STUDENT';
+      status = 'RETURNED';
+    } else if (normAction === 'ESCALATE') {
+      nextWorkflowStatus = 'ESCALATED_TO_DEAN';
+      status = 'ESCALATED';
+    } else {
+      throw new Error(`Invalid HOD action specified: ${payload.action}`);
     }
 
     const updated = await prisma.studentLeaveRequest.update({
@@ -134,8 +133,8 @@ export class HodService {
       data: {
         workflowStatus: nextWorkflowStatus,
         status,
-        hodStatus: payload.action === 'APPROVE' ? 'APPROVED' : payload.action === 'REJECT' ? 'REJECTED' : 'RETURNED',
-        hodApprovedAt: new Date(),
+        hodStatus: normAction === 'APPROVE' ? 'APPROVED' : (normAction.includes('REJECT') ? 'REJECTED' : 'RETURNED'),
+        hodApprovedAt: normAction === 'APPROVE' ? new Date() : undefined,
         hodRemarks: payload.remarks || payload.rejectionReason || '',
       },
     });

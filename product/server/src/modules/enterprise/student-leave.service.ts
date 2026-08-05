@@ -536,8 +536,23 @@ export class StudentLeaveService {
       });
 
       if (wfReq) {
-        const wfNextStep = action === 'APPROVE' ? (wfReq.facultyRequesterId ? 'PRINCIPAL' : 'COMPLETED') : wfReq.currentStep;
-        const wfNextStatus = action === 'APPROVE' ? 'APPROVED' : action === 'REJECT' ? 'REJECTED_BY_HOD' : 'CLARIFICATION_REQUESTED';
+        const normAction = (action || '').toUpperCase().replace(/-/g, '_');
+        let wfNextStep = wfReq.currentStep;
+        let wfNextStatus = wfReq.status;
+
+        if (normAction === 'APPROVE') {
+          wfNextStep = wfReq.facultyRequesterId ? 'PRINCIPAL' : 'COMPLETED';
+          wfNextStatus = 'APPROVED';
+        } else if (normAction === 'REJECT' || normAction === 'REJECTED') {
+          wfNextStep = 'COMPLETED';
+          wfNextStatus = 'REJECTED_BY_HOD';
+        } else if (normAction.includes('MENTOR')) {
+          wfNextStep = 'MENTOR';
+          wfNextStatus = 'RETURNED_TO_MENTOR';
+        } else {
+          wfNextStep = 'STUDENT';
+          wfNextStatus = 'RETURNED_TO_STUDENT';
+        }
 
         const updatedWf = await prisma.workflowRequest.update({
           where: { id: wfReq.id },
@@ -643,23 +658,25 @@ export class StudentLeaveService {
       throw new ForbiddenException('HOD cannot access or approve leave requests from another department');
     }
 
+    const normAction = (action || '').toUpperCase().replace(/-/g, '_');
+
     let newStatus = 'APPROVED';
     let newHodStatus = 'APPROVED';
     let finalStatus = 'APPROVED';
 
-    if (action === 'REJECT') {
+    if (normAction === 'REJECT' || normAction === 'REJECTED') {
       newStatus = 'REJECTED_BY_HOD';
       newHodStatus = 'REJECTED';
       finalStatus = 'REJECTED';
-    } else if (action === 'RETURN_MENTOR') {
+    } else if (normAction === 'RETURN_MENTOR' || normAction === 'RETURN_TO_MENTOR') {
       newStatus = 'RETURNED_TO_MENTOR';
       newHodStatus = 'RETURNED';
       finalStatus = 'PENDING';
-    } else if (action === 'RETURN_STUDENT') {
+    } else if (normAction === 'RETURN_STUDENT' || normAction === 'RETURN_TO_STUDENT' || normAction === 'CLARIFICATION' || normAction === 'RETURN') {
       newStatus = 'RETURNED_TO_STUDENT';
       newHodStatus = 'RETURNED';
       finalStatus = 'PENDING';
-    } else if (action === 'ESCALATE') {
+    } else if (normAction === 'ESCALATE' || normAction === 'ESCALATE_TO_DEAN') {
       newStatus = 'PENDING_DEAN';
       newHodStatus = 'ESCALATED';
       finalStatus = 'PENDING';
@@ -674,11 +691,11 @@ export class StudentLeaveService {
           hodStatus: newHodStatus,
           finalStatus: finalStatus,
           hodId: faculty?.id || request.hodId,
-          hodApprovedAt: action === 'APPROVE' ? new Date() : undefined,
-          approvedAt: action === 'APPROVE' ? new Date() : undefined,
-          rejectedAt: action === 'REJECT' ? new Date() : undefined,
-          hodRemarks: remarks || `HOD ${action}`,
-          studentActionRequired: action === 'RETURN_STUDENT',
+          hodApprovedAt: normAction === 'APPROVE' ? new Date() : undefined,
+          approvedAt: normAction === 'APPROVE' ? new Date() : undefined,
+          rejectedAt: (normAction === 'REJECT' || normAction === 'REJECTED') ? new Date() : undefined,
+          hodRemarks: remarks || `HOD ${normAction}`,
+          studentActionRequired: normAction.includes('STUDENT') || normAction === 'CLARIFICATION' || normAction === 'RETURN',
         },
         include: { student: true }
       });
