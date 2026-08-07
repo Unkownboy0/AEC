@@ -16,6 +16,18 @@ export class UsersController {
     }
   };
 
+  getById = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const result = await this.service.getUserById(req.params.id);
+      res.status(200).json({
+        status: 'success',
+        data: result,
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
   create = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const currentUserId = req.user!.id;

@@ -50,14 +50,13 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed }) => {
   // Permitted menus from DB
   const menus = user?.menus || [];
 
-  // Helper to determine active state including search parameters
+  // Helper to determine active state
   const checkIsActive = (path: string) => {
-    const currentSearch = location.search || '?tab=overview';
     if (path.includes('?')) {
-      const targetSearch = path.substring(path.indexOf('?'));
-      return location.pathname === '/' && currentSearch === targetSearch;
+      const basePath = path.split('?')[0];
+      return location.pathname === basePath;
     }
-    return location.pathname === path;
+    return location.pathname === path || (path !== '/' && location.pathname.startsWith(path));
   };
 
   return (
@@ -291,6 +290,45 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed }) => {
                 </div>
               )}
 
+              {(user?.activeWorkspace === 'Mentor' || (user?.role === 'Mentor' && (!user?.activeWorkspace || user?.activeWorkspace === 'Mentor'))) && (
+                <div className="space-y-0.5 my-1 border-b border-border/50 pb-2">
+                  <div className="px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-purple-400">
+                    Mentor Workspace
+                  </div>
+                  {[
+                    { name: 'Dashboard', path: '/faculty/mentor/dashboard', icon: LucideIcons.Heart },
+                    { name: 'Assigned Students', path: '/faculty/mentor/students', icon: LucideIcons.Users },
+                    { name: 'Leave & OD Approvals', path: '/faculty/mentor/leave-od', icon: LucideIcons.FileCheck },
+                    { name: 'Attendance Risk', path: '/faculty/mentor/attendance', icon: LucideIcons.Clock },
+                    { name: 'Academic Risk', path: '/faculty/mentor/academics', icon: LucideIcons.BookOpen },
+                    { name: 'Counselling Cases', path: '/faculty/mentor/counselling', icon: LucideIcons.MessageSquare },
+                    { name: 'Parent Communication', path: '/faculty/mentor/parents', icon: LucideIcons.UserCheck },
+                    { name: 'Meetings', path: '/faculty/mentor/meetings', icon: LucideIcons.Calendar },
+                    { name: 'Department Board', path: '/faculty/mentor/department-availability', icon: LucideIcons.Building2 },
+                  ].map((menItem) => {
+                    const MenIcon = menItem.icon || LucideIcons.Layers;
+                    const isMenActive = checkIsActive(menItem.path);
+                    return (
+                      <NavLink
+                        key={menItem.path}
+                        to={menItem.path}
+                        className={cn(
+                          'relative flex items-center gap-3 py-2 px-3 text-xs font-semibold transition-all duration-200 ease-in-out',
+                          isMenActive
+                            ? 'bg-purple-600/15 text-purple-500 font-bold border-l-[3px] border-purple-500 pl-[9px] rounded-r-lg rounded-l-none'
+                            : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground pl-3 rounded-lg'
+                        )}
+                      >
+                        <div className="relative">
+                          <MenIcon className={cn('h-4.5 w-4.5 flex-shrink-0 transition-colors duration-200', isMenActive ? 'text-purple-500' : 'text-muted-foreground')} />
+                        </div>
+                        {!isCollapsed && <span className="truncate">{menItem.name}</span>}
+                      </NavLink>
+                    );
+                  })}
+                </div>
+              )}
+
               {(user?.activeWorkspace === 'Faculty' || (user?.role === 'Faculty' && (!user?.activeWorkspace || user?.activeWorkspace === 'Faculty'))) && (
                 <div className="space-y-0.5 my-1 border-b border-border/50 pb-2">
                   <div className="px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
@@ -303,8 +341,10 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed }) => {
                     { name: 'Period Attendance', path: '/faculty/attendance', icon: LucideIcons.CheckSquare },
                     { name: 'Assignments', path: '/faculty/assignments', icon: LucideIcons.FileText },
                     { name: 'Internal Marks', path: '/faculty/internal-marks', icon: LucideIcons.Award },
-                    { name: 'Mentor Module', path: '/faculty/mentor', icon: LucideIcons.Heart },
-                    { name: 'Department Board', path: '/faculty/availability', icon: LucideIcons.Calendar },
+                    { name: 'Leave & OD', path: '/faculty/leave-od', icon: LucideIcons.FileCheck },
+                    { name: 'Tasks Workspace', path: '/faculty/tasks', icon: LucideIcons.CheckSquare },
+                    { name: 'Circulars', path: '/faculty/circulars', icon: LucideIcons.Megaphone },
+                    { name: 'Department Board', path: '/faculty/department-availability', icon: LucideIcons.Calendar },
                   ].map((facItem) => {
                     const FacIcon = facItem.icon || LucideIcons.Layers;
                     const isFacActive = checkIsActive(facItem.path);

@@ -137,18 +137,48 @@ app.use('/api/tasks', task_routes_1.default);
 const parent_routes_1 = __importDefault(require("./modules/parent/parent.routes"));
 const faculty_routes_1 = __importDefault(require("./modules/faculty/faculty.routes"));
 const mentor_routes_1 = __importDefault(require("./modules/mentor/mentor.routes"));
+const delegation_routes_1 = __importDefault(require("./modules/principal-delegation/delegation.routes"));
+const availability_routes_1 = __importDefault(require("./modules/principal-availability/availability.routes"));
+const faculty_leave_routes_2 = __importDefault(require("./modules/faculty-leave/faculty-leave.routes"));
+const hod_task_routes_1 = __importDefault(require("./modules/hod-tasks/hod-task.routes"));
+app.use('/api', faculty_leave_routes_2.default);
+app.use('/api', hod_task_routes_1.default);
 app.use('/api/academic-dean', academic_dean_routes_1.default);
 app.use('/api/admission-dean', admission_dean_routes_1.default);
 app.use('/api/parent', parent_routes_1.default);
 app.use('/api/faculty', faculty_routes_1.default);
 app.use('/api/mentor', mentor_routes_1.default);
-// Fallback Route
-app.use('*', (req, res, next) => {
+app.use('/api', availability_routes_1.default);
+app.use('/api', delegation_routes_1.default);
+const repair_principal_availability_1 = require("./modules/principal-availability/repair-principal-availability");
+const delegation_expiry_job_1 = require("./modules/principal-availability/delegation-expiry.job");
+repair_principal_availability_1.PrincipalDataRepairScript.runCleanup()
+    .then(res => logger_1.logger.info(`⚡ Principal Availability Cleanup completed: ${res.revokedInvalidDelegations} revoked, ${res.expiredDelegations} expired`))
+    .catch(err => logger_1.logger.warn('Principal Availability cleanup failed:', err));
+delegation_expiry_job_1.DelegationExpiryJob.startCron();
+// Fallback Route for API endpoints
+app.use('/api/*', (req, res) => {
     res.status(404).json({
         status: 'error',
         message: `Cannot ${req.method} ${req.baseUrl}`,
     });
 });
+// ─── SPA Fallback ─────────────────────────────────────────────────────────
+// For production: serve the React client build for all non-API routes.
+// This ensures browser refresh on /faculty/circulars, /hod/circulars, etc.
+// does NOT return 404 — the React Router handles it client-side.
+const fs_1 = __importDefault(require("fs"));
+const clientBuildPath = path_1.default.join(__dirname, '../../client/dist');
+if (fs_1.default.existsSync(path_1.default.join(clientBuildPath, 'index.html'))) {
+    app.use(express_1.default.static(clientBuildPath));
+    app.get('*', (_req, res) => {
+        res.sendFile(path_1.default.join(clientBuildPath, 'index.html'));
+    });
+    logger_1.logger.info('✅ SPA static fallback enabled');
+}
+else {
+    logger_1.logger.info('ℹ️  SPA fallback skipped (client/dist not found — dev mode)');
+}
 // Centralized error boundary
 app.use(error_middleware_1.errorHandler);
 exports.default = app;

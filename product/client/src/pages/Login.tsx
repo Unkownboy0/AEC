@@ -57,18 +57,50 @@ const Login: React.FC = () => {
     setIsLoading(true);
     try {
       const response = await api.post('/auth/login', data);
-      
+
       if (response.data?.status === 'success') {
         const { accessToken, refreshToken, user } = response.data.data;
         authLogin(accessToken, refreshToken, user);
         toast.success(`Logged in as ${user.role}`, `Welcome, ${user.firstName}!`);
-        
+
         const from = (location.state as any)?.from?.pathname || '/';
         navigate(from, { replace: true });
       }
     } catch (err: any) {
-      console.error(err);
-      toast.error(err.message || 'Check email or password', 'Authentication Failed');
+      console.warn('[Login] Authentication error:', err);
+
+      const enableDemo = import.meta.env.VITE_ENABLE_DEMO_MODE === 'true';
+      if (enableDemo) {
+        // Explicit opt-in development demo user fallback mapping
+        const emailLower = data.email.toLowerCase();
+        let fallbackUser: any = null;
+
+        if (emailLower.includes('john') || emailLower.includes('student')) {
+          fallbackUser = { id: 'usr-student-01', email: 'john.smith@gmail.com', firstName: 'John', lastName: 'Smith', role: 'STUDENT', permissions: ['student:read'] };
+        } else if (emailLower.includes('cse.head') || emailLower.includes('hod')) {
+          fallbackUser = { id: 'usr-hod-01', email: 'cse.head@geetorus.com', firstName: 'Dr. Rahul', lastName: 'Sharma', role: 'HOD', permissions: ['hod:all'] };
+        } else if (emailLower.includes('principal')) {
+          fallbackUser = { id: 'usr-principal-01', email: 'principal@geetorus.com', firstName: 'Dr. V.K.', lastName: 'Verma', role: 'PRINCIPAL', permissions: ['principal:all'] };
+        } else if (emailLower.includes('vp')) {
+          fallbackUser = { id: 'usr-vp-01', email: 'vp@geetorus.com', firstName: 'Dr. Anita', lastName: 'Deshmukh', role: 'VICE_PRINCIPAL', permissions: ['vp:all'] };
+        } else if (emailLower.includes('ada') || emailLower.includes('faculty')) {
+          fallbackUser = { id: 'usr-faculty-01', email: 'ada.lovelace@geetorus.com', firstName: 'Ada', lastName: 'Lovelace', role: 'FACULTY', permissions: ['faculty:all'] };
+        } else if (emailLower.includes('parent')) {
+          fallbackUser = { id: 'usr-parent-01', email: 'parent@gmail.com', firstName: 'Ramesh', lastName: 'Smith', role: 'PARENT', permissions: ['parent:all'] };
+        } else if (emailLower.includes('admin')) {
+          fallbackUser = { id: 'usr-admin-01', email: 'admin@geetorus.com', firstName: 'System', lastName: 'Administrator', role: 'SUPER_ADMIN', permissions: ['admin:all'] };
+        }
+
+        if (fallbackUser) {
+          authLogin('demo-access-token', 'demo-refresh-token', fallbackUser);
+          toast.success(`Logged in as ${fallbackUser.role} (Demo Mode)`, `Welcome, ${fallbackUser.firstName}!`);
+          const from = (location.state as any)?.from?.pathname || '/';
+          navigate(from, { replace: true });
+          return;
+        }
+      }
+
+      toast.error(err.response?.data?.message || err.message || 'Check email or password', 'Authentication Failed');
     } finally {
       setIsLoading(false);
     }
@@ -144,37 +176,43 @@ const Login: React.FC = () => {
             </Button>
           </form>
 
-          {/* Seed accounts notice */}
+          {/* 1-Tap Quick Demo Role Logins */}
           <div className="mt-6 border-t border-neutral-100 dark:border-neutral-800/60 pt-4">
-            <div className="flex justify-center mb-2">
-              <div className="inline-flex flex-wrap items-center gap-1.5 rounded-full bg-neutral-50 dark:bg-neutral-900/50 px-2.5 py-1 text-[10px] font-mono font-medium text-neutral-500 border border-neutral-200/50 dark:border-neutral-800/50">
-                <ShieldCheck className="h-3 w-3 text-emerald-500" />
-                <span>Dev Seeded Accounts</span>
+            <div className="flex justify-center mb-3">
+              <div className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 text-primary px-3 py-1 text-xs font-bold border border-primary/20">
+                <ShieldCheck className="h-3.5 w-3.5" />
+                <span>1-Tap Quick Demo Logins</span>
               </div>
             </div>
-            <div className="space-y-0.5 text-[10px] font-mono text-neutral-400 leading-relaxed">
+
+            <div className="grid grid-cols-2 gap-2">
               {[
-                { role: 'Super Admin',    email: 'admin@geetorus.com',          pwd: 'Admin@123'    },
-                { role: 'College Admin',  email: 'college.admin@geetorus.com',  pwd: 'ColAdmin@123' },
-                { role: 'Principal',      email: 'principal@geetorus.com',      pwd: 'Campus@123'   },
-                { role: 'Vice Principal', email: 'vp@geetorus.com',             pwd: 'VP@123456'    },
-                { role: 'Academic Dean',  email: 'academic.dean@geetorus.com',  pwd: 'AcaDean@123'  },
-                { role: 'Admission Dean', email: 'admission.dean@geetorus.com', pwd: 'AdmDean@123'  },
-                { role: 'HOD',            email: 'cse.head@geetorus.com',       pwd: 'Campus@123'   },
-                { role: 'Faculty',        email: 'ada.lovelace@geetorus.com',   pwd: 'Campus@123'   },
-                { role: 'Student',        email: 'john.smith@gmail.com',        pwd: 'Campus@123'   },
-                { role: 'Parent',         email: 'parent@gmail.com',            pwd: 'Campus@123'   },
-              ].map(a => (
-                <div key={a.email} className="flex flex-wrap justify-between gap-2 px-1">
-                  <span className="text-neutral-500 font-semibold w-24 shrink-0">{a.role}</span>
-                  <span className="truncate">{a.email}</span>
-                  <span className="text-emerald-600 font-bold shrink-0">{a.pwd}</span>
-                </div>
+                { role: 'Student', email: 'john.smith@gmail.com', pwd: 'Campus@123', color: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20' },
+                { role: 'Faculty', email: 'ada.lovelace@geetorus.com', pwd: 'Campus@123', color: 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20' },
+                { role: 'HOD', email: 'cse.head@geetorus.com', pwd: 'Campus@123', color: 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-indigo-500/20' },
+                { role: 'Principal', email: 'principal@geetorus.com', pwd: 'Campus@123', color: 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20' },
+                { role: 'Vice Principal', email: 'vp@geetorus.com', pwd: 'VP@123456', color: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20' },
+                { role: 'Academic Dean', email: 'academic.dean@geetorus.com', pwd: 'AcaDean@123', color: 'bg-teal-500/10 text-teal-600 dark:text-teal-400 border-teal-500/20' },
+                { role: 'Parent', email: 'parent@gmail.com', pwd: 'Campus@123', color: 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20' },
+                { role: 'Super Admin', email: 'admin@geetorus.com', pwd: 'Admin@123', color: 'bg-slate-500/10 text-slate-600 dark:text-slate-400 border-slate-500/20' },
+              ].map((account) => (
+                <button
+                  key={account.role}
+                  type="button"
+                  onClick={() => {
+                    onSubmit({ email: account.email, password: account.pwd, rememberMe: true });
+                  }}
+                  className={`flex flex-col items-start p-2 rounded-xl border transition-all text-left hover:scale-102 active:scale-98 cursor-pointer ${account.color}`}
+                >
+                  <span className="text-[11px] font-extrabold">{account.role}</span>
+                  <span className="text-[9px] opacity-80 truncate w-full">{account.email}</span>
+                </button>
               ))}
-              <p className="text-center text-[9px] text-neutral-400 pt-1 border-t border-neutral-100 dark:border-neutral-800/40 mt-1">
-                New users created via IAM: Username = Email · Password = Phone Number
-              </p>
             </div>
+
+            <p className="text-center text-[10px] text-neutral-400 pt-3 border-t border-neutral-100 dark:border-neutral-800/40 mt-3 font-medium">
+              Tap any role above for instant demo login with real data & workflows.
+            </p>
           </div>
 
         </div>

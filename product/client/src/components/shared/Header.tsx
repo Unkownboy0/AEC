@@ -43,7 +43,7 @@ interface HeaderProps {
 
 const Header: React.FC<HeaderProps> = ({ onOpenPalette }) => {
   const { user, logoutAll, switchWorkspace } = useAuth();
-  const { theme, setTheme } = useTheme();
+  const { preference: theme, setTheme } = useTheme();
   const { simulation, stopRoleSimulation } = usePermissions();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isWorkspaceDropdownOpen, setIsWorkspaceDropdownOpen] = useState(false);

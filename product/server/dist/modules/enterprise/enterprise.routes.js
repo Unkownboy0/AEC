@@ -212,5 +212,8 @@ router.get('/executive/ai-insights', executiveController.getAIExecutiveInsights)
 router.get('/executive/inbox', executiveController.getExecutiveInbox);
 router.post('/executive/presence', executiveController.updatePresenceStatus);
 router.post('/executive/command-action', executiveController.executeCommandAction);
+// Realtime Department Availability Board for HOD, Dean, VP, Principal
+const availability_board_controller_1 = require("./availability-board.controller");
+router.get('/availability-board', (0, auth_middleware_1.requireRole)(['HOD', 'DEAN', 'VICE_PRINCIPAL', 'VP', 'PRINCIPAL', 'ADMIN', 'SUPER_ADMIN']), availability_board_controller_1.availabilityBoardController.getAvailabilityBoard);
 exports.default = router;
 //# sourceMappingURL=enterprise.routes.js.map

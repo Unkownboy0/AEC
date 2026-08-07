@@ -12,7 +12,9 @@ router.post('/generate-credentials', requireAuth, controller.generateCredentials
 router.post('/assign-subjects', requireAuth, controller.assignSubjects);
 router.post('/assign-mentor', requireAuth, controller.assignMentor);
 
-router.get('/', requireAuth, requirePermission('users:read'), controller.list);
+router.get('/', requireAuth, controller.list);
+router.get('/directory', requireAuth, controller.list);
+router.get('/:id', requireAuth, controller.getById);
 router.post('/', requireAuth, requirePermission('users:write'), controller.create);
 router.put('/:id', requireAuth, requirePermission('users:write'), controller.update);
 router.delete('/:id', requireAuth, requirePermission('users:write'), controller.delete);

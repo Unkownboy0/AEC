@@ -25,7 +25,8 @@ export const StudentRouteGuard: React.FC<StudentRouteGuardProps> = ({ children }
   }
 
   // Ensure active status and Student role
-  if (user?.role !== 'Student' || (user as any).status === 'INACTIVE') {
+  const roleUpper = (user?.role || '').toUpperCase();
+  if (roleUpper !== 'STUDENT' || (user as any).status === 'INACTIVE') {
     return (
       <div className="flex min-h-[60vh] flex-col items-center justify-center px-4 text-center">
         <div className="rounded-full bg-destructive/10 p-4 text-destructive">

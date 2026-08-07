@@ -3,6 +3,7 @@ import { Bell, Send, ImagePlus, X, FileImage, RefreshCw, Trash2, Eye } from 'luc
 import { toast } from '../../components/ui/Toast';
 import { Button } from '../../components/ui/Button';
 import api from '../../lib/axios';
+import { env } from '../../shared/config/environment';
 
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/jpg'];
 const MAX_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB
@@ -145,7 +146,7 @@ export const NotificationCenter: React.FC = () => {
     }
   };
 
-  const serverBase = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:3000';
+  const serverBase = env.apiUrl.replace('/api', '');
 
   const resolveImage = (url: string) => {
     if (!url) return '';

@@ -471,6 +471,8 @@ class SecurityHelper {
                 }
                 // 14. Leave & OD Approvals
                 menuList.push({ name: 'Leave & OD Approvals', path: '/?tab=workflows', icon: 'ShieldAlert', componentKey: 'dashboard', order: 14 });
+                // 14b. Department Availability Board
+                menuList.push({ name: 'Availability Board', path: '/?tab=availability_board', icon: 'UserCheck', componentKey: 'dashboard', order: 14.5 });
                 // 15. Complaints Monitoring
                 if (permissions.some(p => p.startsWith('support:'))) {
                     menuList.push({ name: 'Complaints Monitoring', path: '/?tab=complaints_monitoring', icon: 'AlertTriangle', componentKey: 'dashboard', order: 15 });
@@ -531,6 +533,7 @@ class SecurityHelper {
                 { name: 'Faculty Management', path: '/?tab=faculty', icon: 'UserCheck', componentKey: 'dashboard', order: 4 },
                 { name: 'Student Affairs', path: '/?tab=students', icon: 'Users', componentKey: 'dashboard', order: 5 },
                 { name: 'Attendance Overview', path: '/?tab=attendance', icon: 'CalendarDays', componentKey: 'dashboard', order: 6 },
+                { name: 'Availability Board', path: '/?tab=availability_board', icon: 'UserCheck', componentKey: 'dashboard', order: 6.5 },
                 { name: 'Leave Approvals', path: '/?tab=leave_approvals', icon: 'ShieldAlert', componentKey: 'dashboard', order: 7 },
                 { name: 'Examination Control', path: '/?tab=exams', icon: 'FileSpreadsheet', componentKey: 'dashboard', order: 8 },
                 { name: 'Placements', path: '/?tab=placements', icon: 'Briefcase', componentKey: 'dashboard', order: 9 },
@@ -551,6 +554,7 @@ class SecurityHelper {
                 { name: 'Faculty Oversight', path: '/?tab=faculty', icon: 'UserCheck', componentKey: 'dashboard', order: 5 },
                 { name: 'Student Performance', path: '/?tab=students', icon: 'Users', componentKey: 'dashboard', order: 6 },
                 { name: 'Attendance Analytics', path: '/?tab=attendance', icon: 'CalendarDays', componentKey: 'dashboard', order: 7 },
+                { name: 'Availability Board', path: '/?tab=availability_board', icon: 'UserCheck', componentKey: 'dashboard', order: 7.5 },
                 { name: 'Timetable Engine', path: '/hod/timetable', icon: 'Clock', componentKey: 'timetable_engine', order: 8 },
                 { name: 'Examination Board', path: '/?tab=exams', icon: 'FileSpreadsheet', componentKey: 'dashboard', order: 9 },
                 { name: 'Research & Portfolio', path: '/?tab=research', icon: 'Trophy', componentKey: 'dashboard', order: 10 },

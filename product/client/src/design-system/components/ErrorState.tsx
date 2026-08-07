@@ -4,6 +4,7 @@ import { AlertTriangle, RefreshCw, ArrowLeft } from 'lucide-react';
 interface ErrorStateProps {
   title?: string;
   message?: string;
+  description?: string;
   onRetry?: () => void;
   onBack?: () => void;
   errorId?: string;
@@ -11,18 +12,20 @@ interface ErrorStateProps {
 
 export const ErrorState: React.FC<ErrorStateProps> = ({
   title = 'Unable to load data',
-  message = 'An unexpected error occurred while fetching information. Please try again.',
+  message,
+  description = 'An unexpected error occurred while fetching information. Please try again.',
   onRetry,
   onBack,
   errorId,
 }) => {
+  const displayMessage = message || description;
   return (
     <div className="flex flex-col items-center justify-center p-8 text-center bg-card rounded-xl border border-destructive/20 shadow-sm my-4">
       <div className="p-3 bg-destructive/10 text-destructive rounded-full mb-3">
         <AlertTriangle className="h-8 w-8" />
       </div>
       <h3 className="text-base font-semibold text-foreground">{title}</h3>
-      <p className="text-xs text-muted-foreground mt-1 max-w-md">{message}</p>
+      <p className="text-xs text-muted-foreground mt-1 max-w-md">{displayMessage}</p>
       {errorId && (
         <span className="text-[10px] font-mono text-muted-foreground/70 mt-2">
           Ref ID: {errorId}

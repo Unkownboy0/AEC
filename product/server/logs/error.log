@@ -911,3 +911,2297 @@ Unknown field `author` for include statement on model `Circular`. Available opti
     at l (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:130:9633)
     at CircularRepository.findMany (D:\company work\crm\product\server\src\modules\circulars\circular.repository.ts:9:23)
     at getStudentDashboardSummary (D:\company work\crm\product\server\src\modules\enterprise\enterprise.controller.ts:138:25)
+[2026-08-06 12:32:01] [ERROR]: PrismaClientValidationError: 
+Invalid `prisma.user.findMany()` invocation in
+D:\company work\crm\product\server\src\modules\users\users.repository.ts:39:19
+
+  36 }
+  37 
+  38 const [users, totalCount] = await Promise.all([
+→ 39   prisma.user.findMany({
+         where: {},
+         skip: 0,
+         take: 100,
+         orderBy: {
+           createdAt: "desc"
+         },
+         include: {
+           role: true,
+           department: true,
+           ~~~~~~~~~~
+       ?   assignedRoles?: true,
+       ?   userWorkspaces?: true,
+       ?   committees?: true,
+       ?   sessions?: true,
+       ?   resetTokens?: true,
+       ?   histories?: true,
+       ?   activities?: true,
+       ?   student?: true,
+       ?   faculty?: true,
+       ?   createdCirculars?: true,
+       ?   circularReadTrackers?: true,
+       ?   publishedTimetables?: true,
+       ?   departmentMemberships?: true,
+       ?   createdTasks?: true,
+       ?   assignedTasks?: true,
+       ?   taskStatusHistories?: true,
+       ?   taskComments?: true,
+       ?   commentMentions?: true,
+       ?   commentReadReceipts?: true,
+       ?   uploadedAttachments?: true,
+       ?   uploadedFileVersions?: true,
+       ?   receivedNotifications?: true,
+       ?   notificationPrefs?: true,
+       ?   deviceTokens?: true,
+       ?   conversationParticipants?: true,
+       ?   sentMessages?: true,
+       ?   messageReadReceipts?: true,
+       ?   presence?: true,
+       ?   auditLogs?: true,
+       ?   parentProfile?: true,
+       ?   authoredCirculars?: true,
+       ?   circularReadReceipts?: true,
+       ?   profileChangeRequests?: true,
+       ?   savedReports?: true,
+       ?   createdAcademicTasks?: true,
+       ?   assignedAcademicTasks?: true,
+       ?   createdAcademicAssignments?: true,
+       ?   uploadedAcademicFiles?: true,
+       ?   authoredAcademicQueries?: true,
+       ?   resolvedAcademicQueries?: true,
+       ?   submittedAcademicTasks?: true,
+       ?   reviewedAcademicTasks?: true,
+       ?   timelineAcademicEvents?: true,
+       ?   createdAcademicTemplates?: true,
+       ?   assignedAdmissionRequests?: true,
+       ?   reviewedAdmissionRequests?: true,
+       ?   createdAdmissionRequests?: true,
+       ?   hodAssignments?: true
+         }
+       })
+
+Unknown field `department` for include statement on model `User`. Available options are marked with ?.
+    at wn (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:29:1363)
+    at $n.handleRequestError (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6958)
+    at $n.handleAndLogRequestError (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6623)
+    at $n.request (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6307)
+    at l (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:130:9633)
+    at async Promise.all (index 0)
+    at UsersRepository.findAll (D:\company work\crm\product\server\src\modules\users\users.repository.ts:38:33)
+    at list (D:\company work\crm\product\server\src\modules\users\users.controller.ts:9:22)
+[2026-08-06 12:32:48] [ERROR]: PrismaClientValidationError: 
+Invalid `prisma.user.findMany()` invocation in
+D:\company work\crm\product\server\src\modules\users\users.repository.ts:39:19
+
+  36 }
+  37 
+  38 const [users, totalCount] = await Promise.all([
+→ 39   prisma.user.findMany({
+         where: {},
+         skip: 0,
+         take: 100,
+         orderBy: {
+           createdAt: "desc"
+         },
+         include: {
+           role: true,
+           department: true,
+           ~~~~~~~~~~
+       ?   assignedRoles?: true,
+       ?   userWorkspaces?: true,
+       ?   committees?: true,
+       ?   sessions?: true,
+       ?   resetTokens?: true,
+       ?   histories?: true,
+       ?   activities?: true,
+       ?   student?: true,
+       ?   faculty?: true,
+       ?   createdCirculars?: true,
+       ?   circularReadTrackers?: true,
+       ?   publishedTimetables?: true,
+       ?   departmentMemberships?: true,
+       ?   createdTasks?: true,
+       ?   assignedTasks?: true,
+       ?   taskStatusHistories?: true,
+       ?   taskComments?: true,
+       ?   commentMentions?: true,
+       ?   commentReadReceipts?: true,
+       ?   uploadedAttachments?: true,
+       ?   uploadedFileVersions?: true,
+       ?   receivedNotifications?: true,
+       ?   notificationPrefs?: true,
+       ?   deviceTokens?: true,
+       ?   conversationParticipants?: true,
+       ?   sentMessages?: true,
+       ?   messageReadReceipts?: true,
+       ?   presence?: true,
+       ?   auditLogs?: true,
+       ?   parentProfile?: true,
+       ?   authoredCirculars?: true,
+       ?   circularReadReceipts?: true,
+       ?   profileChangeRequests?: true,
+       ?   savedReports?: true,
+       ?   createdAcademicTasks?: true,
+       ?   assignedAcademicTasks?: true,
+       ?   createdAcademicAssignments?: true,
+       ?   uploadedAcademicFiles?: true,
+       ?   authoredAcademicQueries?: true,
+       ?   resolvedAcademicQueries?: true,
+       ?   submittedAcademicTasks?: true,
+       ?   reviewedAcademicTasks?: true,
+       ?   timelineAcademicEvents?: true,
+       ?   createdAcademicTemplates?: true,
+       ?   assignedAdmissionRequests?: true,
+       ?   reviewedAdmissionRequests?: true,
+       ?   createdAdmissionRequests?: true,
+       ?   hodAssignments?: true
+         }
+       })
+
+Unknown field `department` for include statement on model `User`. Available options are marked with ?.
+    at wn (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:29:1363)
+    at $n.handleRequestError (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6958)
+    at $n.handleAndLogRequestError (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6623)
+    at $n.request (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6307)
+    at l (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:130:9633)
+    at async Promise.all (index 0)
+    at UsersRepository.findAll (D:\company work\crm\product\server\src\modules\users\users.repository.ts:38:33)
+    at list (D:\company work\crm\product\server\src\modules\users\users.controller.ts:9:22)
+[2026-08-06 12:38:47] [ERROR]: PrismaClientValidationError: 
+Invalid `prisma.user.findMany()` invocation in
+D:\company work\crm\product\server\src\modules\users\users.repository.ts:39:19
+
+  36 }
+  37 
+  38 const [users, totalCount] = await Promise.all([
+→ 39   prisma.user.findMany({
+         where: {},
+         skip: 0,
+         take: 100,
+         orderBy: {
+           createdAt: "desc"
+         },
+         include: {
+           role: true,
+           department: true,
+           ~~~~~~~~~~
+       ?   assignedRoles?: true,
+       ?   userWorkspaces?: true,
+       ?   committees?: true,
+       ?   sessions?: true,
+       ?   resetTokens?: true,
+       ?   histories?: true,
+       ?   activities?: true,
+       ?   student?: true,
+       ?   faculty?: true,
+       ?   createdCirculars?: true,
+       ?   circularReadTrackers?: true,
+       ?   publishedTimetables?: true,
+       ?   departmentMemberships?: true,
+       ?   createdTasks?: true,
+       ?   assignedTasks?: true,
+       ?   taskStatusHistories?: true,
+       ?   taskComments?: true,
+       ?   commentMentions?: true,
+       ?   commentReadReceipts?: true,
+       ?   uploadedAttachments?: true,
+       ?   uploadedFileVersions?: true,
+       ?   receivedNotifications?: true,
+       ?   notificationPrefs?: true,
+       ?   deviceTokens?: true,
+       ?   conversationParticipants?: true,
+       ?   sentMessages?: true,
+       ?   messageReadReceipts?: true,
+       ?   presence?: true,
+       ?   auditLogs?: true,
+       ?   parentProfile?: true,
+       ?   authoredCirculars?: true,
+       ?   circularReadReceipts?: true,
+       ?   profileChangeRequests?: true,
+       ?   savedReports?: true,
+       ?   createdAcademicTasks?: true,
+       ?   assignedAcademicTasks?: true,
+       ?   createdAcademicAssignments?: true,
+       ?   uploadedAcademicFiles?: true,
+       ?   authoredAcademicQueries?: true,
+       ?   resolvedAcademicQueries?: true,
+       ?   submittedAcademicTasks?: true,
+       ?   reviewedAcademicTasks?: true,
+       ?   timelineAcademicEvents?: true,
+       ?   createdAcademicTemplates?: true,
+       ?   assignedAdmissionRequests?: true,
+       ?   reviewedAdmissionRequests?: true,
+       ?   createdAdmissionRequests?: true,
+       ?   hodAssignments?: true
+         }
+       })
+
+Unknown field `department` for include statement on model `User`. Available options are marked with ?.
+    at wn (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:29:1363)
+    at $n.handleRequestError (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6958)
+    at $n.handleAndLogRequestError (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6623)
+    at $n.request (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6307)
+    at l (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:130:9633)
+    at async Promise.all (index 0)
+    at UsersRepository.findAll (D:\company work\crm\product\server\src\modules\users\users.repository.ts:38:33)
+    at list (D:\company work\crm\product\server\src\modules\users\users.controller.ts:9:22)
+[2026-08-06 12:38:47] [ERROR]: PrismaClientValidationError: 
+Invalid `prisma.user.findMany()` invocation in
+D:\company work\crm\product\server\src\modules\users\users.repository.ts:39:19
+
+  36 }
+  37 
+  38 const [users, totalCount] = await Promise.all([
+→ 39   prisma.user.findMany({
+         where: {},
+         skip: 0,
+         take: 100,
+         orderBy: {
+           createdAt: "desc"
+         },
+         include: {
+           role: true,
+           department: true,
+           ~~~~~~~~~~
+       ?   assignedRoles?: true,
+       ?   userWorkspaces?: true,
+       ?   committees?: true,
+       ?   sessions?: true,
+       ?   resetTokens?: true,
+       ?   histories?: true,
+       ?   activities?: true,
+       ?   student?: true,
+       ?   faculty?: true,
+       ?   createdCirculars?: true,
+       ?   circularReadTrackers?: true,
+       ?   publishedTimetables?: true,
+       ?   departmentMemberships?: true,
+       ?   createdTasks?: true,
+       ?   assignedTasks?: true,
+       ?   taskStatusHistories?: true,
+       ?   taskComments?: true,
+       ?   commentMentions?: true,
+       ?   commentReadReceipts?: true,
+       ?   uploadedAttachments?: true,
+       ?   uploadedFileVersions?: true,
+       ?   receivedNotifications?: true,
+       ?   notificationPrefs?: true,
+       ?   deviceTokens?: true,
+       ?   conversationParticipants?: true,
+       ?   sentMessages?: true,
+       ?   messageReadReceipts?: true,
+       ?   presence?: true,
+       ?   auditLogs?: true,
+       ?   parentProfile?: true,
+       ?   authoredCirculars?: true,
+       ?   circularReadReceipts?: true,
+       ?   profileChangeRequests?: true,
+       ?   savedReports?: true,
+       ?   createdAcademicTasks?: true,
+       ?   assignedAcademicTasks?: true,
+       ?   createdAcademicAssignments?: true,
+       ?   uploadedAcademicFiles?: true,
+       ?   authoredAcademicQueries?: true,
+       ?   resolvedAcademicQueries?: true,
+       ?   submittedAcademicTasks?: true,
+       ?   reviewedAcademicTasks?: true,
+       ?   timelineAcademicEvents?: true,
+       ?   createdAcademicTemplates?: true,
+       ?   assignedAdmissionRequests?: true,
+       ?   reviewedAdmissionRequests?: true,
+       ?   createdAdmissionRequests?: true,
+       ?   hodAssignments?: true
+         }
+       })
+
+Unknown field `department` for include statement on model `User`. Available options are marked with ?.
+    at wn (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:29:1363)
+    at $n.handleRequestError (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6958)
+    at $n.handleAndLogRequestError (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6623)
+    at $n.request (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6307)
+    at l (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:130:9633)
+    at async Promise.all (index 0)
+    at UsersRepository.findAll (D:\company work\crm\product\server\src\modules\users\users.repository.ts:38:33)
+    at list (D:\company work\crm\product\server\src\modules\users\users.controller.ts:9:22)
+[2026-08-06 12:47:11] [ERROR]: PrismaClientValidationError: 
+Invalid `prisma.user.findMany()` invocation in
+D:\company work\crm\product\server\src\modules\users\users.repository.ts:39:19
+
+  36 }
+  37 
+  38 const [users, totalCount] = await Promise.all([
+→ 39   prisma.user.findMany({
+         where: {},
+         skip: 0,
+         take: 100,
+         orderBy: {
+           createdAt: "desc"
+         },
+         include: {
+           role: true,
+           department: true,
+           ~~~~~~~~~~
+       ?   assignedRoles?: true,
+       ?   userWorkspaces?: true,
+       ?   committees?: true,
+       ?   sessions?: true,
+       ?   resetTokens?: true,
+       ?   histories?: true,
+       ?   activities?: true,
+       ?   student?: true,
+       ?   faculty?: true,
+       ?   createdCirculars?: true,
+       ?   circularReadTrackers?: true,
+       ?   publishedTimetables?: true,
+       ?   departmentMemberships?: true,
+       ?   createdTasks?: true,
+       ?   assignedTasks?: true,
+       ?   taskStatusHistories?: true,
+       ?   taskComments?: true,
+       ?   commentMentions?: true,
+       ?   commentReadReceipts?: true,
+       ?   uploadedAttachments?: true,
+       ?   uploadedFileVersions?: true,
+       ?   receivedNotifications?: true,
+       ?   notificationPrefs?: true,
+       ?   deviceTokens?: true,
+       ?   conversationParticipants?: true,
+       ?   sentMessages?: true,
+       ?   messageReadReceipts?: true,
+       ?   presence?: true,
+       ?   auditLogs?: true,
+       ?   parentProfile?: true,
+       ?   authoredCirculars?: true,
+       ?   circularReadReceipts?: true,
+       ?   profileChangeRequests?: true,
+       ?   savedReports?: true,
+       ?   createdAcademicTasks?: true,
+       ?   assignedAcademicTasks?: true,
+       ?   createdAcademicAssignments?: true,
+       ?   uploadedAcademicFiles?: true,
+       ?   authoredAcademicQueries?: true,
+       ?   resolvedAcademicQueries?: true,
+       ?   submittedAcademicTasks?: true,
+       ?   reviewedAcademicTasks?: true,
+       ?   timelineAcademicEvents?: true,
+       ?   createdAcademicTemplates?: true,
+       ?   assignedAdmissionRequests?: true,
+       ?   reviewedAdmissionRequests?: true,
+       ?   createdAdmissionRequests?: true,
+       ?   hodAssignments?: true
+         }
+       })
+
+Unknown field `department` for include statement on model `User`. Available options are marked with ?.
+    at wn (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:29:1363)
+    at $n.handleRequestError (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6958)
+    at $n.handleAndLogRequestError (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6623)
+    at $n.request (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6307)
+    at l (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:130:9633)
+    at async Promise.all (index 0)
+    at UsersRepository.findAll (D:\company work\crm\product\server\src\modules\users\users.repository.ts:38:33)
+    at list (D:\company work\crm\product\server\src\modules\users\users.controller.ts:9:22)
+[2026-08-06 12:47:11] [ERROR]: PrismaClientValidationError: 
+Invalid `prisma.user.findMany()` invocation in
+D:\company work\crm\product\server\src\modules\users\users.repository.ts:39:19
+
+  36 }
+  37 
+  38 const [users, totalCount] = await Promise.all([
+→ 39   prisma.user.findMany({
+         where: {},
+         skip: 0,
+         take: 100,
+         orderBy: {
+           createdAt: "desc"
+         },
+         include: {
+           role: true,
+           department: true,
+           ~~~~~~~~~~
+       ?   assignedRoles?: true,
+       ?   userWorkspaces?: true,
+       ?   committees?: true,
+       ?   sessions?: true,
+       ?   resetTokens?: true,
+       ?   histories?: true,
+       ?   activities?: true,
+       ?   student?: true,
+       ?   faculty?: true,
+       ?   createdCirculars?: true,
+       ?   circularReadTrackers?: true,
+       ?   publishedTimetables?: true,
+       ?   departmentMemberships?: true,
+       ?   createdTasks?: true,
+       ?   assignedTasks?: true,
+       ?   taskStatusHistories?: true,
+       ?   taskComments?: true,
+       ?   commentMentions?: true,
+       ?   commentReadReceipts?: true,
+       ?   uploadedAttachments?: true,
+       ?   uploadedFileVersions?: true,
+       ?   receivedNotifications?: true,
+       ?   notificationPrefs?: true,
+       ?   deviceTokens?: true,
+       ?   conversationParticipants?: true,
+       ?   sentMessages?: true,
+       ?   messageReadReceipts?: true,
+       ?   presence?: true,
+       ?   auditLogs?: true,
+       ?   parentProfile?: true,
+       ?   authoredCirculars?: true,
+       ?   circularReadReceipts?: true,
+       ?   profileChangeRequests?: true,
+       ?   savedReports?: true,
+       ?   createdAcademicTasks?: true,
+       ?   assignedAcademicTasks?: true,
+       ?   createdAcademicAssignments?: true,
+       ?   uploadedAcademicFiles?: true,
+       ?   authoredAcademicQueries?: true,
+       ?   resolvedAcademicQueries?: true,
+       ?   submittedAcademicTasks?: true,
+       ?   reviewedAcademicTasks?: true,
+       ?   timelineAcademicEvents?: true,
+       ?   createdAcademicTemplates?: true,
+       ?   assignedAdmissionRequests?: true,
+       ?   reviewedAdmissionRequests?: true,
+       ?   createdAdmissionRequests?: true,
+       ?   hodAssignments?: true
+         }
+       })
+
+Unknown field `department` for include statement on model `User`. Available options are marked with ?.
+    at wn (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:29:1363)
+    at $n.handleRequestError (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6958)
+    at $n.handleAndLogRequestError (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6623)
+    at $n.request (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6307)
+    at l (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:130:9633)
+    at async Promise.all (index 0)
+    at UsersRepository.findAll (D:\company work\crm\product\server\src\modules\users\users.repository.ts:38:33)
+    at list (D:\company work\crm\product\server\src\modules\users\users.controller.ts:9:22)
+[2026-08-06 12:56:12] [ERROR]: PrismaClientValidationError: 
+Invalid `prisma.user.findMany()` invocation in
+D:\company work\crm\product\server\src\modules\users\users.repository.ts:39:19
+
+  36 }
+  37 
+  38 const [users, totalCount] = await Promise.all([
+→ 39   prisma.user.findMany({
+         where: {},
+         skip: 0,
+         take: 100,
+         orderBy: {
+           createdAt: "desc"
+         },
+         include: {
+           role: true,
+           department: true,
+           ~~~~~~~~~~
+       ?   assignedRoles?: true,
+       ?   userWorkspaces?: true,
+       ?   committees?: true,
+       ?   sessions?: true,
+       ?   resetTokens?: true,
+       ?   histories?: true,
+       ?   activities?: true,
+       ?   student?: true,
+       ?   faculty?: true,
+       ?   createdCirculars?: true,
+       ?   circularReadTrackers?: true,
+       ?   publishedTimetables?: true,
+       ?   departmentMemberships?: true,
+       ?   createdTasks?: true,
+       ?   assignedTasks?: true,
+       ?   taskStatusHistories?: true,
+       ?   taskComments?: true,
+       ?   commentMentions?: true,
+       ?   commentReadReceipts?: true,
+       ?   uploadedAttachments?: true,
+       ?   uploadedFileVersions?: true,
+       ?   receivedNotifications?: true,
+       ?   notificationPrefs?: true,
+       ?   deviceTokens?: true,
+       ?   conversationParticipants?: true,
+       ?   sentMessages?: true,
+       ?   messageReadReceipts?: true,
+       ?   presence?: true,
+       ?   auditLogs?: true,
+       ?   parentProfile?: true,
+       ?   authoredCirculars?: true,
+       ?   circularReadReceipts?: true,
+       ?   profileChangeRequests?: true,
+       ?   savedReports?: true,
+       ?   createdAcademicTasks?: true,
+       ?   assignedAcademicTasks?: true,
+       ?   createdAcademicAssignments?: true,
+       ?   uploadedAcademicFiles?: true,
+       ?   authoredAcademicQueries?: true,
+       ?   resolvedAcademicQueries?: true,
+       ?   submittedAcademicTasks?: true,
+       ?   reviewedAcademicTasks?: true,
+       ?   timelineAcademicEvents?: true,
+       ?   createdAcademicTemplates?: true,
+       ?   assignedAdmissionRequests?: true,
+       ?   reviewedAdmissionRequests?: true,
+       ?   createdAdmissionRequests?: true,
+       ?   hodAssignments?: true
+         }
+       })
+
+Unknown field `department` for include statement on model `User`. Available options are marked with ?.
+    at wn (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:29:1363)
+    at $n.handleRequestError (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6958)
+    at $n.handleAndLogRequestError (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6623)
+    at $n.request (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6307)
+    at l (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:130:9633)
+    at async Promise.all (index 0)
+    at UsersRepository.findAll (D:\company work\crm\product\server\src\modules\users\users.repository.ts:38:33)
+    at list (D:\company work\crm\product\server\src\modules\users\users.controller.ts:9:22)
+[2026-08-06 12:56:13] [ERROR]: PrismaClientValidationError: 
+Invalid `prisma.user.findMany()` invocation in
+D:\company work\crm\product\server\src\modules\users\users.repository.ts:39:19
+
+  36 }
+  37 
+  38 const [users, totalCount] = await Promise.all([
+→ 39   prisma.user.findMany({
+         where: {},
+         skip: 0,
+         take: 100,
+         orderBy: {
+           createdAt: "desc"
+         },
+         include: {
+           role: true,
+           department: true,
+           ~~~~~~~~~~
+       ?   assignedRoles?: true,
+       ?   userWorkspaces?: true,
+       ?   committees?: true,
+       ?   sessions?: true,
+       ?   resetTokens?: true,
+       ?   histories?: true,
+       ?   activities?: true,
+       ?   student?: true,
+       ?   faculty?: true,
+       ?   createdCirculars?: true,
+       ?   circularReadTrackers?: true,
+       ?   publishedTimetables?: true,
+       ?   departmentMemberships?: true,
+       ?   createdTasks?: true,
+       ?   assignedTasks?: true,
+       ?   taskStatusHistories?: true,
+       ?   taskComments?: true,
+       ?   commentMentions?: true,
+       ?   commentReadReceipts?: true,
+       ?   uploadedAttachments?: true,
+       ?   uploadedFileVersions?: true,
+       ?   receivedNotifications?: true,
+       ?   notificationPrefs?: true,
+       ?   deviceTokens?: true,
+       ?   conversationParticipants?: true,
+       ?   sentMessages?: true,
+       ?   messageReadReceipts?: true,
+       ?   presence?: true,
+       ?   auditLogs?: true,
+       ?   parentProfile?: true,
+       ?   authoredCirculars?: true,
+       ?   circularReadReceipts?: true,
+       ?   profileChangeRequests?: true,
+       ?   savedReports?: true,
+       ?   createdAcademicTasks?: true,
+       ?   assignedAcademicTasks?: true,
+       ?   createdAcademicAssignments?: true,
+       ?   uploadedAcademicFiles?: true,
+       ?   authoredAcademicQueries?: true,
+       ?   resolvedAcademicQueries?: true,
+       ?   submittedAcademicTasks?: true,
+       ?   reviewedAcademicTasks?: true,
+       ?   timelineAcademicEvents?: true,
+       ?   createdAcademicTemplates?: true,
+       ?   assignedAdmissionRequests?: true,
+       ?   reviewedAdmissionRequests?: true,
+       ?   createdAdmissionRequests?: true,
+       ?   hodAssignments?: true
+         }
+       })
+
+Unknown field `department` for include statement on model `User`. Available options are marked with ?.
+    at wn (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:29:1363)
+    at $n.handleRequestError (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6958)
+    at $n.handleAndLogRequestError (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6623)
+    at $n.request (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6307)
+    at l (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:130:9633)
+    at async Promise.all (index 0)
+    at UsersRepository.findAll (D:\company work\crm\product\server\src\modules\users\users.repository.ts:38:33)
+    at list (D:\company work\crm\product\server\src\modules\users\users.controller.ts:9:22)
+[2026-08-06 12:59:38] [ERROR]: PrismaClientValidationError: 
+Invalid `prisma.user.findMany()` invocation in
+D:\company work\crm\product\server\src\modules\users\users.repository.ts:39:19
+
+  36 }
+  37 
+  38 const [users, totalCount] = await Promise.all([
+→ 39   prisma.user.findMany({
+         where: {},
+         skip: 0,
+         take: 100,
+         orderBy: {
+           createdAt: "desc"
+         },
+         include: {
+           role: true,
+           department: true,
+           ~~~~~~~~~~
+       ?   assignedRoles?: true,
+       ?   userWorkspaces?: true,
+       ?   committees?: true,
+       ?   sessions?: true,
+       ?   resetTokens?: true,
+       ?   histories?: true,
+       ?   activities?: true,
+       ?   student?: true,
+       ?   faculty?: true,
+       ?   createdCirculars?: true,
+       ?   circularReadTrackers?: true,
+       ?   publishedTimetables?: true,
+       ?   departmentMemberships?: true,
+       ?   createdTasks?: true,
+       ?   assignedTasks?: true,
+       ?   taskStatusHistories?: true,
+       ?   taskComments?: true,
+       ?   commentMentions?: true,
+       ?   commentReadReceipts?: true,
+       ?   uploadedAttachments?: true,
+       ?   uploadedFileVersions?: true,
+       ?   receivedNotifications?: true,
+       ?   notificationPrefs?: true,
+       ?   deviceTokens?: true,
+       ?   conversationParticipants?: true,
+       ?   sentMessages?: true,
+       ?   messageReadReceipts?: true,
+       ?   presence?: true,
+       ?   auditLogs?: true,
+       ?   parentProfile?: true,
+       ?   authoredCirculars?: true,
+       ?   circularReadReceipts?: true,
+       ?   profileChangeRequests?: true,
+       ?   savedReports?: true,
+       ?   createdAcademicTasks?: true,
+       ?   assignedAcademicTasks?: true,
+       ?   createdAcademicAssignments?: true,
+       ?   uploadedAcademicFiles?: true,
+       ?   authoredAcademicQueries?: true,
+       ?   resolvedAcademicQueries?: true,
+       ?   submittedAcademicTasks?: true,
+       ?   reviewedAcademicTasks?: true,
+       ?   timelineAcademicEvents?: true,
+       ?   createdAcademicTemplates?: true,
+       ?   assignedAdmissionRequests?: true,
+       ?   reviewedAdmissionRequests?: true,
+       ?   createdAdmissionRequests?: true,
+       ?   hodAssignments?: true
+         }
+       })
+
+Unknown field `department` for include statement on model `User`. Available options are marked with ?.
+    at wn (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:29:1363)
+    at $n.handleRequestError (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6958)
+    at $n.handleAndLogRequestError (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6623)
+    at $n.request (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6307)
+    at l (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:130:9633)
+    at async Promise.all (index 0)
+    at UsersRepository.findAll (D:\company work\crm\product\server\src\modules\users\users.repository.ts:38:33)
+    at list (D:\company work\crm\product\server\src\modules\users\users.controller.ts:9:22)
+[2026-08-06 13:28:49] [ERROR]: PrismaClientValidationError: 
+Invalid `prisma.user.findMany()` invocation in
+D:\company work\crm\product\server\src\modules\users\users.repository.ts:39:19
+
+  36 }
+  37 
+  38 const [users, totalCount] = await Promise.all([
+→ 39   prisma.user.findMany({
+         where: {},
+         skip: 0,
+         take: 100,
+         orderBy: {
+           createdAt: "desc"
+         },
+         include: {
+           role: true,
+           department: true,
+           ~~~~~~~~~~
+       ?   assignedRoles?: true,
+       ?   userWorkspaces?: true,
+       ?   committees?: true,
+       ?   sessions?: true,
+       ?   resetTokens?: true,
+       ?   histories?: true,
+       ?   activities?: true,
+       ?   student?: true,
+       ?   faculty?: true,
+       ?   createdCirculars?: true,
+       ?   circularReadTrackers?: true,
+       ?   publishedTimetables?: true,
+       ?   departmentMemberships?: true,
+       ?   createdTasks?: true,
+       ?   assignedTasks?: true,
+       ?   taskStatusHistories?: true,
+       ?   taskComments?: true,
+       ?   commentMentions?: true,
+       ?   commentReadReceipts?: true,
+       ?   uploadedAttachments?: true,
+       ?   uploadedFileVersions?: true,
+       ?   receivedNotifications?: true,
+       ?   notificationPrefs?: true,
+       ?   deviceTokens?: true,
+       ?   conversationParticipants?: true,
+       ?   sentMessages?: true,
+       ?   messageReadReceipts?: true,
+       ?   presence?: true,
+       ?   auditLogs?: true,
+       ?   parentProfile?: true,
+       ?   authoredCirculars?: true,
+       ?   circularReadReceipts?: true,
+       ?   profileChangeRequests?: true,
+       ?   savedReports?: true,
+       ?   createdAcademicTasks?: true,
+       ?   assignedAcademicTasks?: true,
+       ?   createdAcademicAssignments?: true,
+       ?   uploadedAcademicFiles?: true,
+       ?   authoredAcademicQueries?: true,
+       ?   resolvedAcademicQueries?: true,
+       ?   submittedAcademicTasks?: true,
+       ?   reviewedAcademicTasks?: true,
+       ?   timelineAcademicEvents?: true,
+       ?   createdAcademicTemplates?: true,
+       ?   assignedAdmissionRequests?: true,
+       ?   reviewedAdmissionRequests?: true,
+       ?   createdAdmissionRequests?: true,
+       ?   hodAssignments?: true
+         }
+       })
+
+Unknown field `department` for include statement on model `User`. Available options are marked with ?.
+    at wn (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:29:1363)
+    at $n.handleRequestError (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6958)
+    at $n.handleAndLogRequestError (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6623)
+    at $n.request (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6307)
+    at l (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:130:9633)
+    at async Promise.all (index 0)
+    at UsersRepository.findAll (D:\company work\crm\product\server\src\modules\users\users.repository.ts:38:33)
+    at list (D:\company work\crm\product\server\src\modules\users\users.controller.ts:9:22)
+[2026-08-06 13:28:49] [ERROR]: PrismaClientValidationError: 
+Invalid `prisma.user.findMany()` invocation in
+D:\company work\crm\product\server\src\modules\users\users.repository.ts:39:19
+
+  36 }
+  37 
+  38 const [users, totalCount] = await Promise.all([
+→ 39   prisma.user.findMany({
+         where: {},
+         skip: 0,
+         take: 100,
+         orderBy: {
+           createdAt: "desc"
+         },
+         include: {
+           role: true,
+           department: true,
+           ~~~~~~~~~~
+       ?   assignedRoles?: true,
+       ?   userWorkspaces?: true,
+       ?   committees?: true,
+       ?   sessions?: true,
+       ?   resetTokens?: true,
+       ?   histories?: true,
+       ?   activities?: true,
+       ?   student?: true,
+       ?   faculty?: true,
+       ?   createdCirculars?: true,
+       ?   circularReadTrackers?: true,
+       ?   publishedTimetables?: true,
+       ?   departmentMemberships?: true,
+       ?   createdTasks?: true,
+       ?   assignedTasks?: true,
+       ?   taskStatusHistories?: true,
+       ?   taskComments?: true,
+       ?   commentMentions?: true,
+       ?   commentReadReceipts?: true,
+       ?   uploadedAttachments?: true,
+       ?   uploadedFileVersions?: true,
+       ?   receivedNotifications?: true,
+       ?   notificationPrefs?: true,
+       ?   deviceTokens?: true,
+       ?   conversationParticipants?: true,
+       ?   sentMessages?: true,
+       ?   messageReadReceipts?: true,
+       ?   presence?: true,
+       ?   auditLogs?: true,
+       ?   parentProfile?: true,
+       ?   authoredCirculars?: true,
+       ?   circularReadReceipts?: true,
+       ?   profileChangeRequests?: true,
+       ?   savedReports?: true,
+       ?   createdAcademicTasks?: true,
+       ?   assignedAcademicTasks?: true,
+       ?   createdAcademicAssignments?: true,
+       ?   uploadedAcademicFiles?: true,
+       ?   authoredAcademicQueries?: true,
+       ?   resolvedAcademicQueries?: true,
+       ?   submittedAcademicTasks?: true,
+       ?   reviewedAcademicTasks?: true,
+       ?   timelineAcademicEvents?: true,
+       ?   createdAcademicTemplates?: true,
+       ?   assignedAdmissionRequests?: true,
+       ?   reviewedAdmissionRequests?: true,
+       ?   createdAdmissionRequests?: true,
+       ?   hodAssignments?: true
+         }
+       })
+
+Unknown field `department` for include statement on model `User`. Available options are marked with ?.
+    at wn (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:29:1363)
+    at $n.handleRequestError (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6958)
+    at $n.handleAndLogRequestError (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6623)
+    at $n.request (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6307)
+    at l (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:130:9633)
+    at async Promise.all (index 0)
+    at UsersRepository.findAll (D:\company work\crm\product\server\src\modules\users\users.repository.ts:38:33)
+    at list (D:\company work\crm\product\server\src\modules\users\users.controller.ts:9:22)
+[2026-08-06 13:30:55] [ERROR]: PrismaClientValidationError: 
+Invalid `prisma.user.findMany()` invocation in
+D:\company work\crm\product\server\src\modules\users\users.repository.ts:39:19
+
+  36 }
+  37 
+  38 const [users, totalCount] = await Promise.all([
+→ 39   prisma.user.findMany({
+         where: {},
+         skip: 0,
+         take: 100,
+         orderBy: {
+           createdAt: "desc"
+         },
+         include: {
+           role: true,
+           department: true,
+           ~~~~~~~~~~
+       ?   assignedRoles?: true,
+       ?   userWorkspaces?: true,
+       ?   committees?: true,
+       ?   sessions?: true,
+       ?   resetTokens?: true,
+       ?   histories?: true,
+       ?   activities?: true,
+       ?   student?: true,
+       ?   faculty?: true,
+       ?   createdCirculars?: true,
+       ?   circularReadTrackers?: true,
+       ?   publishedTimetables?: true,
+       ?   departmentMemberships?: true,
+       ?   createdTasks?: true,
+       ?   assignedTasks?: true,
+       ?   taskStatusHistories?: true,
+       ?   taskComments?: true,
+       ?   commentMentions?: true,
+       ?   commentReadReceipts?: true,
+       ?   uploadedAttachments?: true,
+       ?   uploadedFileVersions?: true,
+       ?   receivedNotifications?: true,
+       ?   notificationPrefs?: true,
+       ?   deviceTokens?: true,
+       ?   conversationParticipants?: true,
+       ?   sentMessages?: true,
+       ?   messageReadReceipts?: true,
+       ?   presence?: true,
+       ?   auditLogs?: true,
+       ?   parentProfile?: true,
+       ?   authoredCirculars?: true,
+       ?   circularReadReceipts?: true,
+       ?   profileChangeRequests?: true,
+       ?   savedReports?: true,
+       ?   createdAcademicTasks?: true,
+       ?   assignedAcademicTasks?: true,
+       ?   createdAcademicAssignments?: true,
+       ?   uploadedAcademicFiles?: true,
+       ?   authoredAcademicQueries?: true,
+       ?   resolvedAcademicQueries?: true,
+       ?   submittedAcademicTasks?: true,
+       ?   reviewedAcademicTasks?: true,
+       ?   timelineAcademicEvents?: true,
+       ?   createdAcademicTemplates?: true,
+       ?   assignedAdmissionRequests?: true,
+       ?   reviewedAdmissionRequests?: true,
+       ?   createdAdmissionRequests?: true,
+       ?   hodAssignments?: true
+         }
+       })
+
+Unknown field `department` for include statement on model `User`. Available options are marked with ?.
+    at wn (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:29:1363)
+    at $n.handleRequestError (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6958)
+    at $n.handleAndLogRequestError (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6623)
+    at $n.request (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6307)
+    at l (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:130:9633)
+    at async Promise.all (index 0)
+    at UsersRepository.findAll (D:\company work\crm\product\server\src\modules\users\users.repository.ts:38:33)
+    at list (D:\company work\crm\product\server\src\modules\users\users.controller.ts:9:22)
+[2026-08-06 13:30:55] [ERROR]: PrismaClientValidationError: 
+Invalid `prisma.user.findMany()` invocation in
+D:\company work\crm\product\server\src\modules\users\users.repository.ts:39:19
+
+  36 }
+  37 
+  38 const [users, totalCount] = await Promise.all([
+→ 39   prisma.user.findMany({
+         where: {},
+         skip: 0,
+         take: 100,
+         orderBy: {
+           createdAt: "desc"
+         },
+         include: {
+           role: true,
+           department: true,
+           ~~~~~~~~~~
+       ?   assignedRoles?: true,
+       ?   userWorkspaces?: true,
+       ?   committees?: true,
+       ?   sessions?: true,
+       ?   resetTokens?: true,
+       ?   histories?: true,
+       ?   activities?: true,
+       ?   student?: true,
+       ?   faculty?: true,
+       ?   createdCirculars?: true,
+       ?   circularReadTrackers?: true,
+       ?   publishedTimetables?: true,
+       ?   departmentMemberships?: true,
+       ?   createdTasks?: true,
+       ?   assignedTasks?: true,
+       ?   taskStatusHistories?: true,
+       ?   taskComments?: true,
+       ?   commentMentions?: true,
+       ?   commentReadReceipts?: true,
+       ?   uploadedAttachments?: true,
+       ?   uploadedFileVersions?: true,
+       ?   receivedNotifications?: true,
+       ?   notificationPrefs?: true,
+       ?   deviceTokens?: true,
+       ?   conversationParticipants?: true,
+       ?   sentMessages?: true,
+       ?   messageReadReceipts?: true,
+       ?   presence?: true,
+       ?   auditLogs?: true,
+       ?   parentProfile?: true,
+       ?   authoredCirculars?: true,
+       ?   circularReadReceipts?: true,
+       ?   profileChangeRequests?: true,
+       ?   savedReports?: true,
+       ?   createdAcademicTasks?: true,
+       ?   assignedAcademicTasks?: true,
+       ?   createdAcademicAssignments?: true,
+       ?   uploadedAcademicFiles?: true,
+       ?   authoredAcademicQueries?: true,
+       ?   resolvedAcademicQueries?: true,
+       ?   submittedAcademicTasks?: true,
+       ?   reviewedAcademicTasks?: true,
+       ?   timelineAcademicEvents?: true,
+       ?   createdAcademicTemplates?: true,
+       ?   assignedAdmissionRequests?: true,
+       ?   reviewedAdmissionRequests?: true,
+       ?   createdAdmissionRequests?: true,
+       ?   hodAssignments?: true
+         }
+       })
+
+Unknown field `department` for include statement on model `User`. Available options are marked with ?.
+    at wn (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:29:1363)
+    at $n.handleRequestError (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6958)
+    at $n.handleAndLogRequestError (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6623)
+    at $n.request (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6307)
+    at l (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:130:9633)
+    at async Promise.all (index 0)
+    at UsersRepository.findAll (D:\company work\crm\product\server\src\modules\users\users.repository.ts:38:33)
+    at list (D:\company work\crm\product\server\src\modules\users\users.controller.ts:9:22)
+[2026-08-06 13:31:13] [ERROR]: PrismaClientValidationError: 
+Invalid `prisma.user.findMany()` invocation in
+D:\company work\crm\product\server\src\modules\users\users.repository.ts:39:19
+
+  36 }
+  37 
+  38 const [users, totalCount] = await Promise.all([
+→ 39   prisma.user.findMany({
+         where: {},
+         skip: 0,
+         take: 100,
+         orderBy: {
+           createdAt: "desc"
+         },
+         include: {
+           role: true,
+           department: true,
+           ~~~~~~~~~~
+       ?   assignedRoles?: true,
+       ?   userWorkspaces?: true,
+       ?   committees?: true,
+       ?   sessions?: true,
+       ?   resetTokens?: true,
+       ?   histories?: true,
+       ?   activities?: true,
+       ?   student?: true,
+       ?   faculty?: true,
+       ?   createdCirculars?: true,
+       ?   circularReadTrackers?: true,
+       ?   publishedTimetables?: true,
+       ?   departmentMemberships?: true,
+       ?   createdTasks?: true,
+       ?   assignedTasks?: true,
+       ?   taskStatusHistories?: true,
+       ?   taskComments?: true,
+       ?   commentMentions?: true,
+       ?   commentReadReceipts?: true,
+       ?   uploadedAttachments?: true,
+       ?   uploadedFileVersions?: true,
+       ?   receivedNotifications?: true,
+       ?   notificationPrefs?: true,
+       ?   deviceTokens?: true,
+       ?   conversationParticipants?: true,
+       ?   sentMessages?: true,
+       ?   messageReadReceipts?: true,
+       ?   presence?: true,
+       ?   auditLogs?: true,
+       ?   parentProfile?: true,
+       ?   authoredCirculars?: true,
+       ?   circularReadReceipts?: true,
+       ?   profileChangeRequests?: true,
+       ?   savedReports?: true,
+       ?   createdAcademicTasks?: true,
+       ?   assignedAcademicTasks?: true,
+       ?   createdAcademicAssignments?: true,
+       ?   uploadedAcademicFiles?: true,
+       ?   authoredAcademicQueries?: true,
+       ?   resolvedAcademicQueries?: true,
+       ?   submittedAcademicTasks?: true,
+       ?   reviewedAcademicTasks?: true,
+       ?   timelineAcademicEvents?: true,
+       ?   createdAcademicTemplates?: true,
+       ?   assignedAdmissionRequests?: true,
+       ?   reviewedAdmissionRequests?: true,
+       ?   createdAdmissionRequests?: true,
+       ?   hodAssignments?: true
+         }
+       })
+
+Unknown field `department` for include statement on model `User`. Available options are marked with ?.
+    at wn (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:29:1363)
+    at $n.handleRequestError (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6958)
+    at $n.handleAndLogRequestError (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6623)
+    at $n.request (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6307)
+    at l (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:130:9633)
+    at async Promise.all (index 0)
+    at UsersRepository.findAll (D:\company work\crm\product\server\src\modules\users\users.repository.ts:38:33)
+    at list (D:\company work\crm\product\server\src\modules\users\users.controller.ts:9:22)
+[2026-08-06 13:31:13] [ERROR]: PrismaClientValidationError: 
+Invalid `prisma.user.findMany()` invocation in
+D:\company work\crm\product\server\src\modules\users\users.repository.ts:39:19
+
+  36 }
+  37 
+  38 const [users, totalCount] = await Promise.all([
+→ 39   prisma.user.findMany({
+         where: {},
+         skip: 0,
+         take: 100,
+         orderBy: {
+           createdAt: "desc"
+         },
+         include: {
+           role: true,
+           department: true,
+           ~~~~~~~~~~
+       ?   assignedRoles?: true,
+       ?   userWorkspaces?: true,
+       ?   committees?: true,
+       ?   sessions?: true,
+       ?   resetTokens?: true,
+       ?   histories?: true,
+       ?   activities?: true,
+       ?   student?: true,
+       ?   faculty?: true,
+       ?   createdCirculars?: true,
+       ?   circularReadTrackers?: true,
+       ?   publishedTimetables?: true,
+       ?   departmentMemberships?: true,
+       ?   createdTasks?: true,
+       ?   assignedTasks?: true,
+       ?   taskStatusHistories?: true,
+       ?   taskComments?: true,
+       ?   commentMentions?: true,
+       ?   commentReadReceipts?: true,
+       ?   uploadedAttachments?: true,
+       ?   uploadedFileVersions?: true,
+       ?   receivedNotifications?: true,
+       ?   notificationPrefs?: true,
+       ?   deviceTokens?: true,
+       ?   conversationParticipants?: true,
+       ?   sentMessages?: true,
+       ?   messageReadReceipts?: true,
+       ?   presence?: true,
+       ?   auditLogs?: true,
+       ?   parentProfile?: true,
+       ?   authoredCirculars?: true,
+       ?   circularReadReceipts?: true,
+       ?   profileChangeRequests?: true,
+       ?   savedReports?: true,
+       ?   createdAcademicTasks?: true,
+       ?   assignedAcademicTasks?: true,
+       ?   createdAcademicAssignments?: true,
+       ?   uploadedAcademicFiles?: true,
+       ?   authoredAcademicQueries?: true,
+       ?   resolvedAcademicQueries?: true,
+       ?   submittedAcademicTasks?: true,
+       ?   reviewedAcademicTasks?: true,
+       ?   timelineAcademicEvents?: true,
+       ?   createdAcademicTemplates?: true,
+       ?   assignedAdmissionRequests?: true,
+       ?   reviewedAdmissionRequests?: true,
+       ?   createdAdmissionRequests?: true,
+       ?   hodAssignments?: true
+         }
+       })
+
+Unknown field `department` for include statement on model `User`. Available options are marked with ?.
+    at wn (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:29:1363)
+    at $n.handleRequestError (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6958)
+    at $n.handleAndLogRequestError (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6623)
+    at $n.request (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6307)
+    at l (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:130:9633)
+    at async Promise.all (index 0)
+    at UsersRepository.findAll (D:\company work\crm\product\server\src\modules\users\users.repository.ts:38:33)
+    at list (D:\company work\crm\product\server\src\modules\users\users.controller.ts:9:22)
+[2026-08-06 13:31:24] [ERROR]: PrismaClientValidationError: 
+Invalid `prisma.user.findMany()` invocation in
+D:\company work\crm\product\server\src\modules\users\users.repository.ts:39:19
+
+  36 }
+  37 
+  38 const [users, totalCount] = await Promise.all([
+→ 39   prisma.user.findMany({
+         where: {},
+         skip: 0,
+         take: 100,
+         orderBy: {
+           createdAt: "desc"
+         },
+         include: {
+           role: true,
+           department: true,
+           ~~~~~~~~~~
+       ?   assignedRoles?: true,
+       ?   userWorkspaces?: true,
+       ?   committees?: true,
+       ?   sessions?: true,
+       ?   resetTokens?: true,
+       ?   histories?: true,
+       ?   activities?: true,
+       ?   student?: true,
+       ?   faculty?: true,
+       ?   createdCirculars?: true,
+       ?   circularReadTrackers?: true,
+       ?   publishedTimetables?: true,
+       ?   departmentMemberships?: true,
+       ?   createdTasks?: true,
+       ?   assignedTasks?: true,
+       ?   taskStatusHistories?: true,
+       ?   taskComments?: true,
+       ?   commentMentions?: true,
+       ?   commentReadReceipts?: true,
+       ?   uploadedAttachments?: true,
+       ?   uploadedFileVersions?: true,
+       ?   receivedNotifications?: true,
+       ?   notificationPrefs?: true,
+       ?   deviceTokens?: true,
+       ?   conversationParticipants?: true,
+       ?   sentMessages?: true,
+       ?   messageReadReceipts?: true,
+       ?   presence?: true,
+       ?   auditLogs?: true,
+       ?   parentProfile?: true,
+       ?   authoredCirculars?: true,
+       ?   circularReadReceipts?: true,
+       ?   profileChangeRequests?: true,
+       ?   savedReports?: true,
+       ?   createdAcademicTasks?: true,
+       ?   assignedAcademicTasks?: true,
+       ?   createdAcademicAssignments?: true,
+       ?   uploadedAcademicFiles?: true,
+       ?   authoredAcademicQueries?: true,
+       ?   resolvedAcademicQueries?: true,
+       ?   submittedAcademicTasks?: true,
+       ?   reviewedAcademicTasks?: true,
+       ?   timelineAcademicEvents?: true,
+       ?   createdAcademicTemplates?: true,
+       ?   assignedAdmissionRequests?: true,
+       ?   reviewedAdmissionRequests?: true,
+       ?   createdAdmissionRequests?: true,
+       ?   hodAssignments?: true
+         }
+       })
+
+Unknown field `department` for include statement on model `User`. Available options are marked with ?.
+    at wn (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:29:1363)
+    at $n.handleRequestError (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6958)
+    at $n.handleAndLogRequestError (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6623)
+    at $n.request (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6307)
+    at l (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:130:9633)
+    at async Promise.all (index 0)
+    at UsersRepository.findAll (D:\company work\crm\product\server\src\modules\users\users.repository.ts:38:33)
+    at list (D:\company work\crm\product\server\src\modules\users\users.controller.ts:9:22)
+[2026-08-06 13:31:24] [ERROR]: PrismaClientValidationError: 
+Invalid `prisma.user.findMany()` invocation in
+D:\company work\crm\product\server\src\modules\users\users.repository.ts:39:19
+
+  36 }
+  37 
+  38 const [users, totalCount] = await Promise.all([
+→ 39   prisma.user.findMany({
+         where: {},
+         skip: 0,
+         take: 100,
+         orderBy: {
+           createdAt: "desc"
+         },
+         include: {
+           role: true,
+           department: true,
+           ~~~~~~~~~~
+       ?   assignedRoles?: true,
+       ?   userWorkspaces?: true,
+       ?   committees?: true,
+       ?   sessions?: true,
+       ?   resetTokens?: true,
+       ?   histories?: true,
+       ?   activities?: true,
+       ?   student?: true,
+       ?   faculty?: true,
+       ?   createdCirculars?: true,
+       ?   circularReadTrackers?: true,
+       ?   publishedTimetables?: true,
+       ?   departmentMemberships?: true,
+       ?   createdTasks?: true,
+       ?   assignedTasks?: true,
+       ?   taskStatusHistories?: true,
+       ?   taskComments?: true,
+       ?   commentMentions?: true,
+       ?   commentReadReceipts?: true,
+       ?   uploadedAttachments?: true,
+       ?   uploadedFileVersions?: true,
+       ?   receivedNotifications?: true,
+       ?   notificationPrefs?: true,
+       ?   deviceTokens?: true,
+       ?   conversationParticipants?: true,
+       ?   sentMessages?: true,
+       ?   messageReadReceipts?: true,
+       ?   presence?: true,
+       ?   auditLogs?: true,
+       ?   parentProfile?: true,
+       ?   authoredCirculars?: true,
+       ?   circularReadReceipts?: true,
+       ?   profileChangeRequests?: true,
+       ?   savedReports?: true,
+       ?   createdAcademicTasks?: true,
+       ?   assignedAcademicTasks?: true,
+       ?   createdAcademicAssignments?: true,
+       ?   uploadedAcademicFiles?: true,
+       ?   authoredAcademicQueries?: true,
+       ?   resolvedAcademicQueries?: true,
+       ?   submittedAcademicTasks?: true,
+       ?   reviewedAcademicTasks?: true,
+       ?   timelineAcademicEvents?: true,
+       ?   createdAcademicTemplates?: true,
+       ?   assignedAdmissionRequests?: true,
+       ?   reviewedAdmissionRequests?: true,
+       ?   createdAdmissionRequests?: true,
+       ?   hodAssignments?: true
+         }
+       })
+
+Unknown field `department` for include statement on model `User`. Available options are marked with ?.
+    at wn (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:29:1363)
+    at $n.handleRequestError (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6958)
+    at $n.handleAndLogRequestError (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6623)
+    at $n.request (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6307)
+    at l (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:130:9633)
+    at async Promise.all (index 0)
+    at UsersRepository.findAll (D:\company work\crm\product\server\src\modules\users\users.repository.ts:38:33)
+    at list (D:\company work\crm\product\server\src\modules\users\users.controller.ts:9:22)
+[2026-08-06 13:32:02] [ERROR]: PrismaClientValidationError: 
+Invalid `prisma.user.findMany()` invocation in
+D:\company work\crm\product\server\src\modules\users\users.repository.ts:39:19
+
+  36 }
+  37 
+  38 const [users, totalCount] = await Promise.all([
+→ 39   prisma.user.findMany({
+         where: {},
+         skip: 0,
+         take: 100,
+         orderBy: {
+           createdAt: "desc"
+         },
+         include: {
+           role: true,
+           department: true,
+           ~~~~~~~~~~
+       ?   assignedRoles?: true,
+       ?   userWorkspaces?: true,
+       ?   committees?: true,
+       ?   sessions?: true,
+       ?   resetTokens?: true,
+       ?   histories?: true,
+       ?   activities?: true,
+       ?   student?: true,
+       ?   faculty?: true,
+       ?   createdCirculars?: true,
+       ?   circularReadTrackers?: true,
+       ?   publishedTimetables?: true,
+       ?   departmentMemberships?: true,
+       ?   createdTasks?: true,
+       ?   assignedTasks?: true,
+       ?   taskStatusHistories?: true,
+       ?   taskComments?: true,
+       ?   commentMentions?: true,
+       ?   commentReadReceipts?: true,
+       ?   uploadedAttachments?: true,
+       ?   uploadedFileVersions?: true,
+       ?   receivedNotifications?: true,
+       ?   notificationPrefs?: true,
+       ?   deviceTokens?: true,
+       ?   conversationParticipants?: true,
+       ?   sentMessages?: true,
+       ?   messageReadReceipts?: true,
+       ?   presence?: true,
+       ?   auditLogs?: true,
+       ?   parentProfile?: true,
+       ?   authoredCirculars?: true,
+       ?   circularReadReceipts?: true,
+       ?   profileChangeRequests?: true,
+       ?   savedReports?: true,
+       ?   createdAcademicTasks?: true,
+       ?   assignedAcademicTasks?: true,
+       ?   createdAcademicAssignments?: true,
+       ?   uploadedAcademicFiles?: true,
+       ?   authoredAcademicQueries?: true,
+       ?   resolvedAcademicQueries?: true,
+       ?   submittedAcademicTasks?: true,
+       ?   reviewedAcademicTasks?: true,
+       ?   timelineAcademicEvents?: true,
+       ?   createdAcademicTemplates?: true,
+       ?   assignedAdmissionRequests?: true,
+       ?   reviewedAdmissionRequests?: true,
+       ?   createdAdmissionRequests?: true,
+       ?   hodAssignments?: true
+         }
+       })
+
+Unknown field `department` for include statement on model `User`. Available options are marked with ?.
+    at wn (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:29:1363)
+    at $n.handleRequestError (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6958)
+    at $n.handleAndLogRequestError (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6623)
+    at $n.request (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6307)
+    at l (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:130:9633)
+    at async Promise.all (index 0)
+    at UsersRepository.findAll (D:\company work\crm\product\server\src\modules\users\users.repository.ts:38:33)
+    at list (D:\company work\crm\product\server\src\modules\users\users.controller.ts:9:22)
+[2026-08-06 13:32:02] [ERROR]: PrismaClientValidationError: 
+Invalid `prisma.user.findMany()` invocation in
+D:\company work\crm\product\server\src\modules\users\users.repository.ts:39:19
+
+  36 }
+  37 
+  38 const [users, totalCount] = await Promise.all([
+→ 39   prisma.user.findMany({
+         where: {},
+         skip: 0,
+         take: 100,
+         orderBy: {
+           createdAt: "desc"
+         },
+         include: {
+           role: true,
+           department: true,
+           ~~~~~~~~~~
+       ?   assignedRoles?: true,
+       ?   userWorkspaces?: true,
+       ?   committees?: true,
+       ?   sessions?: true,
+       ?   resetTokens?: true,
+       ?   histories?: true,
+       ?   activities?: true,
+       ?   student?: true,
+       ?   faculty?: true,
+       ?   createdCirculars?: true,
+       ?   circularReadTrackers?: true,
+       ?   publishedTimetables?: true,
+       ?   departmentMemberships?: true,
+       ?   createdTasks?: true,
+       ?   assignedTasks?: true,
+       ?   taskStatusHistories?: true,
+       ?   taskComments?: true,
+       ?   commentMentions?: true,
+       ?   commentReadReceipts?: true,
+       ?   uploadedAttachments?: true,
+       ?   uploadedFileVersions?: true,
+       ?   receivedNotifications?: true,
+       ?   notificationPrefs?: true,
+       ?   deviceTokens?: true,
+       ?   conversationParticipants?: true,
+       ?   sentMessages?: true,
+       ?   messageReadReceipts?: true,
+       ?   presence?: true,
+       ?   auditLogs?: true,
+       ?   parentProfile?: true,
+       ?   authoredCirculars?: true,
+       ?   circularReadReceipts?: true,
+       ?   profileChangeRequests?: true,
+       ?   savedReports?: true,
+       ?   createdAcademicTasks?: true,
+       ?   assignedAcademicTasks?: true,
+       ?   createdAcademicAssignments?: true,
+       ?   uploadedAcademicFiles?: true,
+       ?   authoredAcademicQueries?: true,
+       ?   resolvedAcademicQueries?: true,
+       ?   submittedAcademicTasks?: true,
+       ?   reviewedAcademicTasks?: true,
+       ?   timelineAcademicEvents?: true,
+       ?   createdAcademicTemplates?: true,
+       ?   assignedAdmissionRequests?: true,
+       ?   reviewedAdmissionRequests?: true,
+       ?   createdAdmissionRequests?: true,
+       ?   hodAssignments?: true
+         }
+       })
+
+Unknown field `department` for include statement on model `User`. Available options are marked with ?.
+    at wn (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:29:1363)
+    at $n.handleRequestError (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6958)
+    at $n.handleAndLogRequestError (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6623)
+    at $n.request (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6307)
+    at l (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:130:9633)
+    at async Promise.all (index 0)
+    at UsersRepository.findAll (D:\company work\crm\product\server\src\modules\users\users.repository.ts:38:33)
+    at list (D:\company work\crm\product\server\src\modules\users\users.controller.ts:9:22)
+[2026-08-06 13:32:16] [ERROR]: PrismaClientValidationError: 
+Invalid `prisma.user.findMany()` invocation in
+D:\company work\crm\product\server\src\modules\users\users.repository.ts:39:19
+
+  36 }
+  37 
+  38 const [users, totalCount] = await Promise.all([
+→ 39   prisma.user.findMany({
+         where: {},
+         skip: 0,
+         take: 100,
+         orderBy: {
+           createdAt: "desc"
+         },
+         include: {
+           role: true,
+           department: true,
+           ~~~~~~~~~~
+       ?   assignedRoles?: true,
+       ?   userWorkspaces?: true,
+       ?   committees?: true,
+       ?   sessions?: true,
+       ?   resetTokens?: true,
+       ?   histories?: true,
+       ?   activities?: true,
+       ?   student?: true,
+       ?   faculty?: true,
+       ?   createdCirculars?: true,
+       ?   circularReadTrackers?: true,
+       ?   publishedTimetables?: true,
+       ?   departmentMemberships?: true,
+       ?   createdTasks?: true,
+       ?   assignedTasks?: true,
+       ?   taskStatusHistories?: true,
+       ?   taskComments?: true,
+       ?   commentMentions?: true,
+       ?   commentReadReceipts?: true,
+       ?   uploadedAttachments?: true,
+       ?   uploadedFileVersions?: true,
+       ?   receivedNotifications?: true,
+       ?   notificationPrefs?: true,
+       ?   deviceTokens?: true,
+       ?   conversationParticipants?: true,
+       ?   sentMessages?: true,
+       ?   messageReadReceipts?: true,
+       ?   presence?: true,
+       ?   auditLogs?: true,
+       ?   parentProfile?: true,
+       ?   authoredCirculars?: true,
+       ?   circularReadReceipts?: true,
+       ?   profileChangeRequests?: true,
+       ?   savedReports?: true,
+       ?   createdAcademicTasks?: true,
+       ?   assignedAcademicTasks?: true,
+       ?   createdAcademicAssignments?: true,
+       ?   uploadedAcademicFiles?: true,
+       ?   authoredAcademicQueries?: true,
+       ?   resolvedAcademicQueries?: true,
+       ?   submittedAcademicTasks?: true,
+       ?   reviewedAcademicTasks?: true,
+       ?   timelineAcademicEvents?: true,
+       ?   createdAcademicTemplates?: true,
+       ?   assignedAdmissionRequests?: true,
+       ?   reviewedAdmissionRequests?: true,
+       ?   createdAdmissionRequests?: true,
+       ?   hodAssignments?: true
+         }
+       })
+
+Unknown field `department` for include statement on model `User`. Available options are marked with ?.
+    at wn (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:29:1363)
+    at $n.handleRequestError (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6958)
+    at $n.handleAndLogRequestError (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6623)
+    at $n.request (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6307)
+    at l (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:130:9633)
+    at async Promise.all (index 0)
+    at UsersRepository.findAll (D:\company work\crm\product\server\src\modules\users\users.repository.ts:38:33)
+    at list (D:\company work\crm\product\server\src\modules\users\users.controller.ts:9:22)
+[2026-08-06 13:32:16] [ERROR]: PrismaClientValidationError: 
+Invalid `prisma.user.findMany()` invocation in
+D:\company work\crm\product\server\src\modules\users\users.repository.ts:39:19
+
+  36 }
+  37 
+  38 const [users, totalCount] = await Promise.all([
+→ 39   prisma.user.findMany({
+         where: {},
+         skip: 0,
+         take: 100,
+         orderBy: {
+           createdAt: "desc"
+         },
+         include: {
+           role: true,
+           department: true,
+           ~~~~~~~~~~
+       ?   assignedRoles?: true,
+       ?   userWorkspaces?: true,
+       ?   committees?: true,
+       ?   sessions?: true,
+       ?   resetTokens?: true,
+       ?   histories?: true,
+       ?   activities?: true,
+       ?   student?: true,
+       ?   faculty?: true,
+       ?   createdCirculars?: true,
+       ?   circularReadTrackers?: true,
+       ?   publishedTimetables?: true,
+       ?   departmentMemberships?: true,
+       ?   createdTasks?: true,
+       ?   assignedTasks?: true,
+       ?   taskStatusHistories?: true,
+       ?   taskComments?: true,
+       ?   commentMentions?: true,
+       ?   commentReadReceipts?: true,
+       ?   uploadedAttachments?: true,
+       ?   uploadedFileVersions?: true,
+       ?   receivedNotifications?: true,
+       ?   notificationPrefs?: true,
+       ?   deviceTokens?: true,
+       ?   conversationParticipants?: true,
+       ?   sentMessages?: true,
+       ?   messageReadReceipts?: true,
+       ?   presence?: true,
+       ?   auditLogs?: true,
+       ?   parentProfile?: true,
+       ?   authoredCirculars?: true,
+       ?   circularReadReceipts?: true,
+       ?   profileChangeRequests?: true,
+       ?   savedReports?: true,
+       ?   createdAcademicTasks?: true,
+       ?   assignedAcademicTasks?: true,
+       ?   createdAcademicAssignments?: true,
+       ?   uploadedAcademicFiles?: true,
+       ?   authoredAcademicQueries?: true,
+       ?   resolvedAcademicQueries?: true,
+       ?   submittedAcademicTasks?: true,
+       ?   reviewedAcademicTasks?: true,
+       ?   timelineAcademicEvents?: true,
+       ?   createdAcademicTemplates?: true,
+       ?   assignedAdmissionRequests?: true,
+       ?   reviewedAdmissionRequests?: true,
+       ?   createdAdmissionRequests?: true,
+       ?   hodAssignments?: true
+         }
+       })
+
+Unknown field `department` for include statement on model `User`. Available options are marked with ?.
+    at wn (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:29:1363)
+    at $n.handleRequestError (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6958)
+    at $n.handleAndLogRequestError (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6623)
+    at $n.request (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6307)
+    at l (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:130:9633)
+    at async Promise.all (index 0)
+    at UsersRepository.findAll (D:\company work\crm\product\server\src\modules\users\users.repository.ts:38:33)
+    at list (D:\company work\crm\product\server\src\modules\users\users.controller.ts:9:22)
+[2026-08-06 13:32:25] [ERROR]: PrismaClientValidationError: 
+Invalid `prisma.user.findMany()` invocation in
+D:\company work\crm\product\server\src\modules\users\users.repository.ts:39:19
+
+  36 }
+  37 
+  38 const [users, totalCount] = await Promise.all([
+→ 39   prisma.user.findMany({
+         where: {},
+         skip: 0,
+         take: 100,
+         orderBy: {
+           createdAt: "desc"
+         },
+         include: {
+           role: true,
+           department: true,
+           ~~~~~~~~~~
+       ?   assignedRoles?: true,
+       ?   userWorkspaces?: true,
+       ?   committees?: true,
+       ?   sessions?: true,
+       ?   resetTokens?: true,
+       ?   histories?: true,
+       ?   activities?: true,
+       ?   student?: true,
+       ?   faculty?: true,
+       ?   createdCirculars?: true,
+       ?   circularReadTrackers?: true,
+       ?   publishedTimetables?: true,
+       ?   departmentMemberships?: true,
+       ?   createdTasks?: true,
+       ?   assignedTasks?: true,
+       ?   taskStatusHistories?: true,
+       ?   taskComments?: true,
+       ?   commentMentions?: true,
+       ?   commentReadReceipts?: true,
+       ?   uploadedAttachments?: true,
+       ?   uploadedFileVersions?: true,
+       ?   receivedNotifications?: true,
+       ?   notificationPrefs?: true,
+       ?   deviceTokens?: true,
+       ?   conversationParticipants?: true,
+       ?   sentMessages?: true,
+       ?   messageReadReceipts?: true,
+       ?   presence?: true,
+       ?   auditLogs?: true,
+       ?   parentProfile?: true,
+       ?   authoredCirculars?: true,
+       ?   circularReadReceipts?: true,
+       ?   profileChangeRequests?: true,
+       ?   savedReports?: true,
+       ?   createdAcademicTasks?: true,
+       ?   assignedAcademicTasks?: true,
+       ?   createdAcademicAssignments?: true,
+       ?   uploadedAcademicFiles?: true,
+       ?   authoredAcademicQueries?: true,
+       ?   resolvedAcademicQueries?: true,
+       ?   submittedAcademicTasks?: true,
+       ?   reviewedAcademicTasks?: true,
+       ?   timelineAcademicEvents?: true,
+       ?   createdAcademicTemplates?: true,
+       ?   assignedAdmissionRequests?: true,
+       ?   reviewedAdmissionRequests?: true,
+       ?   createdAdmissionRequests?: true,
+       ?   hodAssignments?: true
+         }
+       })
+
+Unknown field `department` for include statement on model `User`. Available options are marked with ?.
+    at wn (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:29:1363)
+    at $n.handleRequestError (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6958)
+    at $n.handleAndLogRequestError (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6623)
+    at $n.request (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6307)
+    at l (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:130:9633)
+    at async Promise.all (index 0)
+    at UsersRepository.findAll (D:\company work\crm\product\server\src\modules\users\users.repository.ts:38:33)
+    at list (D:\company work\crm\product\server\src\modules\users\users.controller.ts:9:22)
+[2026-08-06 13:32:25] [ERROR]: PrismaClientValidationError: 
+Invalid `prisma.user.findMany()` invocation in
+D:\company work\crm\product\server\src\modules\users\users.repository.ts:39:19
+
+  36 }
+  37 
+  38 const [users, totalCount] = await Promise.all([
+→ 39   prisma.user.findMany({
+         where: {},
+         skip: 0,
+         take: 100,
+         orderBy: {
+           createdAt: "desc"
+         },
+         include: {
+           role: true,
+           department: true,
+           ~~~~~~~~~~
+       ?   assignedRoles?: true,
+       ?   userWorkspaces?: true,
+       ?   committees?: true,
+       ?   sessions?: true,
+       ?   resetTokens?: true,
+       ?   histories?: true,
+       ?   activities?: true,
+       ?   student?: true,
+       ?   faculty?: true,
+       ?   createdCirculars?: true,
+       ?   circularReadTrackers?: true,
+       ?   publishedTimetables?: true,
+       ?   departmentMemberships?: true,
+       ?   createdTasks?: true,
+       ?   assignedTasks?: true,
+       ?   taskStatusHistories?: true,
+       ?   taskComments?: true,
+       ?   commentMentions?: true,
+       ?   commentReadReceipts?: true,
+       ?   uploadedAttachments?: true,
+       ?   uploadedFileVersions?: true,
+       ?   receivedNotifications?: true,
+       ?   notificationPrefs?: true,
+       ?   deviceTokens?: true,
+       ?   conversationParticipants?: true,
+       ?   sentMessages?: true,
+       ?   messageReadReceipts?: true,
+       ?   presence?: true,
+       ?   auditLogs?: true,
+       ?   parentProfile?: true,
+       ?   authoredCirculars?: true,
+       ?   circularReadReceipts?: true,
+       ?   profileChangeRequests?: true,
+       ?   savedReports?: true,
+       ?   createdAcademicTasks?: true,
+       ?   assignedAcademicTasks?: true,
+       ?   createdAcademicAssignments?: true,
+       ?   uploadedAcademicFiles?: true,
+       ?   authoredAcademicQueries?: true,
+       ?   resolvedAcademicQueries?: true,
+       ?   submittedAcademicTasks?: true,
+       ?   reviewedAcademicTasks?: true,
+       ?   timelineAcademicEvents?: true,
+       ?   createdAcademicTemplates?: true,
+       ?   assignedAdmissionRequests?: true,
+       ?   reviewedAdmissionRequests?: true,
+       ?   createdAdmissionRequests?: true,
+       ?   hodAssignments?: true
+         }
+       })
+
+Unknown field `department` for include statement on model `User`. Available options are marked with ?.
+    at wn (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:29:1363)
+    at $n.handleRequestError (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6958)
+    at $n.handleAndLogRequestError (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6623)
+    at $n.request (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6307)
+    at l (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:130:9633)
+    at async Promise.all (index 0)
+    at UsersRepository.findAll (D:\company work\crm\product\server\src\modules\users\users.repository.ts:38:33)
+    at list (D:\company work\crm\product\server\src\modules\users\users.controller.ts:9:22)
+[2026-08-06 13:32:29] [ERROR]: PrismaClientValidationError: 
+Invalid `prisma.user.findMany()` invocation in
+D:\company work\crm\product\server\src\modules\users\users.repository.ts:39:19
+
+  36 }
+  37 
+  38 const [users, totalCount] = await Promise.all([
+→ 39   prisma.user.findMany({
+         where: {},
+         skip: 0,
+         take: 100,
+         orderBy: {
+           createdAt: "desc"
+         },
+         include: {
+           role: true,
+           department: true,
+           ~~~~~~~~~~
+       ?   assignedRoles?: true,
+       ?   userWorkspaces?: true,
+       ?   committees?: true,
+       ?   sessions?: true,
+       ?   resetTokens?: true,
+       ?   histories?: true,
+       ?   activities?: true,
+       ?   student?: true,
+       ?   faculty?: true,
+       ?   createdCirculars?: true,
+       ?   circularReadTrackers?: true,
+       ?   publishedTimetables?: true,
+       ?   departmentMemberships?: true,
+       ?   createdTasks?: true,
+       ?   assignedTasks?: true,
+       ?   taskStatusHistories?: true,
+       ?   taskComments?: true,
+       ?   commentMentions?: true,
+       ?   commentReadReceipts?: true,
+       ?   uploadedAttachments?: true,
+       ?   uploadedFileVersions?: true,
+       ?   receivedNotifications?: true,
+       ?   notificationPrefs?: true,
+       ?   deviceTokens?: true,
+       ?   conversationParticipants?: true,
+       ?   sentMessages?: true,
+       ?   messageReadReceipts?: true,
+       ?   presence?: true,
+       ?   auditLogs?: true,
+       ?   parentProfile?: true,
+       ?   authoredCirculars?: true,
+       ?   circularReadReceipts?: true,
+       ?   profileChangeRequests?: true,
+       ?   savedReports?: true,
+       ?   createdAcademicTasks?: true,
+       ?   assignedAcademicTasks?: true,
+       ?   createdAcademicAssignments?: true,
+       ?   uploadedAcademicFiles?: true,
+       ?   authoredAcademicQueries?: true,
+       ?   resolvedAcademicQueries?: true,
+       ?   submittedAcademicTasks?: true,
+       ?   reviewedAcademicTasks?: true,
+       ?   timelineAcademicEvents?: true,
+       ?   createdAcademicTemplates?: true,
+       ?   assignedAdmissionRequests?: true,
+       ?   reviewedAdmissionRequests?: true,
+       ?   createdAdmissionRequests?: true,
+       ?   hodAssignments?: true
+         }
+       })
+
+Unknown field `department` for include statement on model `User`. Available options are marked with ?.
+    at wn (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:29:1363)
+    at $n.handleRequestError (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6958)
+    at $n.handleAndLogRequestError (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6623)
+    at $n.request (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6307)
+    at l (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:130:9633)
+    at async Promise.all (index 0)
+    at UsersRepository.findAll (D:\company work\crm\product\server\src\modules\users\users.repository.ts:38:33)
+    at list (D:\company work\crm\product\server\src\modules\users\users.controller.ts:9:22)
+[2026-08-06 13:32:29] [ERROR]: PrismaClientValidationError: 
+Invalid `prisma.user.findMany()` invocation in
+D:\company work\crm\product\server\src\modules\users\users.repository.ts:39:19
+
+  36 }
+  37 
+  38 const [users, totalCount] = await Promise.all([
+→ 39   prisma.user.findMany({
+         where: {},
+         skip: 0,
+         take: 100,
+         orderBy: {
+           createdAt: "desc"
+         },
+         include: {
+           role: true,
+           department: true,
+           ~~~~~~~~~~
+       ?   assignedRoles?: true,
+       ?   userWorkspaces?: true,
+       ?   committees?: true,
+       ?   sessions?: true,
+       ?   resetTokens?: true,
+       ?   histories?: true,
+       ?   activities?: true,
+       ?   student?: true,
+       ?   faculty?: true,
+       ?   createdCirculars?: true,
+       ?   circularReadTrackers?: true,
+       ?   publishedTimetables?: true,
+       ?   departmentMemberships?: true,
+       ?   createdTasks?: true,
+       ?   assignedTasks?: true,
+       ?   taskStatusHistories?: true,
+       ?   taskComments?: true,
+       ?   commentMentions?: true,
+       ?   commentReadReceipts?: true,
+       ?   uploadedAttachments?: true,
+       ?   uploadedFileVersions?: true,
+       ?   receivedNotifications?: true,
+       ?   notificationPrefs?: true,
+       ?   deviceTokens?: true,
+       ?   conversationParticipants?: true,
+       ?   sentMessages?: true,
+       ?   messageReadReceipts?: true,
+       ?   presence?: true,
+       ?   auditLogs?: true,
+       ?   parentProfile?: true,
+       ?   authoredCirculars?: true,
+       ?   circularReadReceipts?: true,
+       ?   profileChangeRequests?: true,
+       ?   savedReports?: true,
+       ?   createdAcademicTasks?: true,
+       ?   assignedAcademicTasks?: true,
+       ?   createdAcademicAssignments?: true,
+       ?   uploadedAcademicFiles?: true,
+       ?   authoredAcademicQueries?: true,
+       ?   resolvedAcademicQueries?: true,
+       ?   submittedAcademicTasks?: true,
+       ?   reviewedAcademicTasks?: true,
+       ?   timelineAcademicEvents?: true,
+       ?   createdAcademicTemplates?: true,
+       ?   assignedAdmissionRequests?: true,
+       ?   reviewedAdmissionRequests?: true,
+       ?   createdAdmissionRequests?: true,
+       ?   hodAssignments?: true
+         }
+       })
+
+Unknown field `department` for include statement on model `User`. Available options are marked with ?.
+    at wn (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:29:1363)
+    at $n.handleRequestError (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6958)
+    at $n.handleAndLogRequestError (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6623)
+    at $n.request (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6307)
+    at l (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:130:9633)
+    at async Promise.all (index 0)
+    at UsersRepository.findAll (D:\company work\crm\product\server\src\modules\users\users.repository.ts:38:33)
+    at list (D:\company work\crm\product\server\src\modules\users\users.controller.ts:9:22)
+[2026-08-06 13:36:55] [ERROR]: PrismaClientValidationError: 
+Invalid `prisma.user.findMany()` invocation in
+D:\company work\crm\product\server\src\modules\users\users.repository.ts:39:19
+
+  36 }
+  37 
+  38 const [users, totalCount] = await Promise.all([
+→ 39   prisma.user.findMany({
+         where: {},
+         skip: 0,
+         take: 200,
+         orderBy: {
+           createdAt: "desc"
+         },
+         include: {
+           role: true,
+           department: true,
+           ~~~~~~~~~~
+       ?   assignedRoles?: true,
+       ?   userWorkspaces?: true,
+       ?   committees?: true,
+       ?   sessions?: true,
+       ?   resetTokens?: true,
+       ?   histories?: true,
+       ?   activities?: true,
+       ?   student?: true,
+       ?   faculty?: true,
+       ?   createdCirculars?: true,
+       ?   circularReadTrackers?: true,
+       ?   publishedTimetables?: true,
+       ?   departmentMemberships?: true,
+       ?   createdTasks?: true,
+       ?   assignedTasks?: true,
+       ?   taskStatusHistories?: true,
+       ?   taskComments?: true,
+       ?   commentMentions?: true,
+       ?   commentReadReceipts?: true,
+       ?   uploadedAttachments?: true,
+       ?   uploadedFileVersions?: true,
+       ?   receivedNotifications?: true,
+       ?   notificationPrefs?: true,
+       ?   deviceTokens?: true,
+       ?   conversationParticipants?: true,
+       ?   sentMessages?: true,
+       ?   messageReadReceipts?: true,
+       ?   presence?: true,
+       ?   auditLogs?: true,
+       ?   parentProfile?: true,
+       ?   authoredCirculars?: true,
+       ?   circularReadReceipts?: true,
+       ?   profileChangeRequests?: true,
+       ?   savedReports?: true,
+       ?   createdAcademicTasks?: true,
+       ?   assignedAcademicTasks?: true,
+       ?   createdAcademicAssignments?: true,
+       ?   uploadedAcademicFiles?: true,
+       ?   authoredAcademicQueries?: true,
+       ?   resolvedAcademicQueries?: true,
+       ?   submittedAcademicTasks?: true,
+       ?   reviewedAcademicTasks?: true,
+       ?   timelineAcademicEvents?: true,
+       ?   createdAcademicTemplates?: true,
+       ?   assignedAdmissionRequests?: true,
+       ?   reviewedAdmissionRequests?: true,
+       ?   createdAdmissionRequests?: true,
+       ?   hodAssignments?: true
+         }
+       })
+
+Unknown field `department` for include statement on model `User`. Available options are marked with ?.
+    at wn (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:29:1363)
+    at $n.handleRequestError (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6958)
+    at $n.handleAndLogRequestError (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6623)
+    at $n.request (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6307)
+    at l (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:130:9633)
+    at async Promise.all (index 0)
+    at UsersRepository.findAll (D:\company work\crm\product\server\src\modules\users\users.repository.ts:38:33)
+    at list (D:\company work\crm\product\server\src\modules\users\users.controller.ts:9:22)
+[2026-08-06 13:36:55] [ERROR]: PrismaClientValidationError: 
+Invalid `prisma.user.findMany()` invocation in
+D:\company work\crm\product\server\src\modules\users\users.repository.ts:39:19
+
+  36 }
+  37 
+  38 const [users, totalCount] = await Promise.all([
+→ 39   prisma.user.findMany({
+         where: {},
+         skip: 0,
+         take: 200,
+         orderBy: {
+           createdAt: "desc"
+         },
+         include: {
+           role: true,
+           department: true,
+           ~~~~~~~~~~
+       ?   assignedRoles?: true,
+       ?   userWorkspaces?: true,
+       ?   committees?: true,
+       ?   sessions?: true,
+       ?   resetTokens?: true,
+       ?   histories?: true,
+       ?   activities?: true,
+       ?   student?: true,
+       ?   faculty?: true,
+       ?   createdCirculars?: true,
+       ?   circularReadTrackers?: true,
+       ?   publishedTimetables?: true,
+       ?   departmentMemberships?: true,
+       ?   createdTasks?: true,
+       ?   assignedTasks?: true,
+       ?   taskStatusHistories?: true,
+       ?   taskComments?: true,
+       ?   commentMentions?: true,
+       ?   commentReadReceipts?: true,
+       ?   uploadedAttachments?: true,
+       ?   uploadedFileVersions?: true,
+       ?   receivedNotifications?: true,
+       ?   notificationPrefs?: true,
+       ?   deviceTokens?: true,
+       ?   conversationParticipants?: true,
+       ?   sentMessages?: true,
+       ?   messageReadReceipts?: true,
+       ?   presence?: true,
+       ?   auditLogs?: true,
+       ?   parentProfile?: true,
+       ?   authoredCirculars?: true,
+       ?   circularReadReceipts?: true,
+       ?   profileChangeRequests?: true,
+       ?   savedReports?: true,
+       ?   createdAcademicTasks?: true,
+       ?   assignedAcademicTasks?: true,
+       ?   createdAcademicAssignments?: true,
+       ?   uploadedAcademicFiles?: true,
+       ?   authoredAcademicQueries?: true,
+       ?   resolvedAcademicQueries?: true,
+       ?   submittedAcademicTasks?: true,
+       ?   reviewedAcademicTasks?: true,
+       ?   timelineAcademicEvents?: true,
+       ?   createdAcademicTemplates?: true,
+       ?   assignedAdmissionRequests?: true,
+       ?   reviewedAdmissionRequests?: true,
+       ?   createdAdmissionRequests?: true,
+       ?   hodAssignments?: true
+         }
+       })
+
+Unknown field `department` for include statement on model `User`. Available options are marked with ?.
+    at wn (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:29:1363)
+    at $n.handleRequestError (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6958)
+    at $n.handleAndLogRequestError (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6623)
+    at $n.request (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6307)
+    at l (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:130:9633)
+    at async Promise.all (index 0)
+    at UsersRepository.findAll (D:\company work\crm\product\server\src\modules\users\users.repository.ts:38:33)
+    at list (D:\company work\crm\product\server\src\modules\users\users.controller.ts:9:22)
+[2026-08-06 13:39:43] [ERROR]: PrismaClientValidationError: 
+Invalid `prisma.user.findFirst()` invocation in
+D:\company work\crm\product\server\src\modules\users\users.service.ts:34:36
+
+  31  * Get user by ID or Username
+  32  */
+  33 async getUserById(id: string) {
+→ 34   const user = await prisma.user.findFirst({
+         where: {
+           OR: [
+             {
+               id: "usr-st-01"
+             },
+             {
+               email: "usr-st-01"
+             },
+             {
+               username: "usr-st-01"
+             }
+           ]
+         },
+         include: {
+           role: true,
+           department: true,
+           ~~~~~~~~~~
+           studentProfile: {
+             include: {
+               department: true
+             }
+           },
+           facultyProfile: {
+             include: {
+               department: true
+             }
+           },
+       ?   assignedRoles?: true,
+       ?   userWorkspaces?: true,
+       ?   committees?: true,
+       ?   sessions?: true,
+       ?   resetTokens?: true,
+       ?   histories?: true,
+       ?   activities?: true,
+       ?   student?: true,
+       ?   faculty?: true,
+       ?   createdCirculars?: true,
+       ?   circularReadTrackers?: true,
+       ?   publishedTimetables?: true,
+       ?   departmentMemberships?: true,
+       ?   createdTasks?: true,
+       ?   assignedTasks?: true,
+       ?   taskStatusHistories?: true,
+       ?   taskComments?: true,
+       ?   commentMentions?: true,
+       ?   commentReadReceipts?: true,
+       ?   uploadedAttachments?: true,
+       ?   uploadedFileVersions?: true,
+       ?   receivedNotifications?: true,
+       ?   notificationPrefs?: true,
+       ?   deviceTokens?: true,
+       ?   conversationParticipants?: true,
+       ?   sentMessages?: true,
+       ?   messageReadReceipts?: true,
+       ?   presence?: true,
+       ?   auditLogs?: true,
+       ?   parentProfile?: true,
+       ?   authoredCirculars?: true,
+       ?   circularReadReceipts?: true,
+       ?   profileChangeRequests?: true,
+       ?   savedReports?: true,
+       ?   createdAcademicTasks?: true,
+       ?   assignedAcademicTasks?: true,
+       ?   createdAcademicAssignments?: true,
+       ?   uploadedAcademicFiles?: true,
+       ?   authoredAcademicQueries?: true,
+       ?   resolvedAcademicQueries?: true,
+       ?   submittedAcademicTasks?: true,
+       ?   reviewedAcademicTasks?: true,
+       ?   timelineAcademicEvents?: true,
+       ?   createdAcademicTemplates?: true,
+       ?   assignedAdmissionRequests?: true,
+       ?   reviewedAdmissionRequests?: true,
+       ?   createdAdmissionRequests?: true,
+       ?   hodAssignments?: true
+         }
+       })
+
+Unknown field `department` for include statement on model `User`. Available options are marked with ?.
+    at wn (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:29:1363)
+    at $n.handleRequestError (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6958)
+    at $n.handleAndLogRequestError (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6623)
+    at $n.request (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6307)
+    at l (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:130:9633)
+    at UsersService.getUserById (D:\company work\crm\product\server\src\modules\users\users.service.ts:34:18)
+    at getById (D:\company work\crm\product\server\src\modules\users\users.controller.ts:21:22)
+[2026-08-06 13:39:43] [ERROR]: PrismaClientValidationError: 
+Invalid `prisma.user.findFirst()` invocation in
+D:\company work\crm\product\server\src\modules\users\users.service.ts:34:36
+
+  31  * Get user by ID or Username
+  32  */
+  33 async getUserById(id: string) {
+→ 34   const user = await prisma.user.findFirst({
+         where: {
+           OR: [
+             {
+               id: "usr-st-01"
+             },
+             {
+               email: "usr-st-01"
+             },
+             {
+               username: "usr-st-01"
+             }
+           ]
+         },
+         include: {
+           role: true,
+           department: true,
+           ~~~~~~~~~~
+           studentProfile: {
+             include: {
+               department: true
+             }
+           },
+           facultyProfile: {
+             include: {
+               department: true
+             }
+           },
+       ?   assignedRoles?: true,
+       ?   userWorkspaces?: true,
+       ?   committees?: true,
+       ?   sessions?: true,
+       ?   resetTokens?: true,
+       ?   histories?: true,
+       ?   activities?: true,
+       ?   student?: true,
+       ?   faculty?: true,
+       ?   createdCirculars?: true,
+       ?   circularReadTrackers?: true,
+       ?   publishedTimetables?: true,
+       ?   departmentMemberships?: true,
+       ?   createdTasks?: true,
+       ?   assignedTasks?: true,
+       ?   taskStatusHistories?: true,
+       ?   taskComments?: true,
+       ?   commentMentions?: true,
+       ?   commentReadReceipts?: true,
+       ?   uploadedAttachments?: true,
+       ?   uploadedFileVersions?: true,
+       ?   receivedNotifications?: true,
+       ?   notificationPrefs?: true,
+       ?   deviceTokens?: true,
+       ?   conversationParticipants?: true,
+       ?   sentMessages?: true,
+       ?   messageReadReceipts?: true,
+       ?   presence?: true,
+       ?   auditLogs?: true,
+       ?   parentProfile?: true,
+       ?   authoredCirculars?: true,
+       ?   circularReadReceipts?: true,
+       ?   profileChangeRequests?: true,
+       ?   savedReports?: true,
+       ?   createdAcademicTasks?: true,
+       ?   assignedAcademicTasks?: true,
+       ?   createdAcademicAssignments?: true,
+       ?   uploadedAcademicFiles?: true,
+       ?   authoredAcademicQueries?: true,
+       ?   resolvedAcademicQueries?: true,
+       ?   submittedAcademicTasks?: true,
+       ?   reviewedAcademicTasks?: true,
+       ?   timelineAcademicEvents?: true,
+       ?   createdAcademicTemplates?: true,
+       ?   assignedAdmissionRequests?: true,
+       ?   reviewedAdmissionRequests?: true,
+       ?   createdAdmissionRequests?: true,
+       ?   hodAssignments?: true
+         }
+       })
+
+Unknown field `department` for include statement on model `User`. Available options are marked with ?.
+    at wn (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:29:1363)
+    at $n.handleRequestError (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6958)
+    at $n.handleAndLogRequestError (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6623)
+    at $n.request (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6307)
+    at l (D:\company work\crm\product\server\node_modules\@prisma\client\runtime\library.js:130:9633)
+    at UsersService.getUserById (D:\company work\crm\product\server\src\modules\users\users.service.ts:34:18)
+    at getById (D:\company work\crm\product\server\src\modules\users\users.controller.ts:21:22)

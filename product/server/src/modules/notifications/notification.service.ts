@@ -1,5 +1,6 @@
 import { prisma } from '../../lib/prisma';
 import { NotFoundException } from '../../utils/exceptions';
+import { PushDispatchService } from './push-dispatch.service';
 
 export interface SendNotificationDto {
   recipientId: string;
@@ -40,6 +41,17 @@ export class NotificationService {
           deliveryState: 'DELIVERED',
         },
       });
+
+      // Dispatch push notification to user's registered device tokens
+      PushDispatchService.sendToUsers([dto.recipientId], {
+        title: dto.title,
+        body: dto.message,
+        data: {
+          eventType: dto.eventType,
+          relatedEntityId: dto.relatedEntityId || '',
+          deepLinkRoute: dto.deepLinkRoute || '',
+        },
+      }).catch((err) => console.error('[PushDispatch] Push dispatch error:', err));
 
       return notification;
     } catch (error) {

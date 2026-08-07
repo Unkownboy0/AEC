@@ -35,7 +35,7 @@ export const HodStudentWorkspace: React.FC = () => {
         api.get(`/hod/students?search=${search}&attendanceFilter=${attendanceFilter}`),
         api.get('/hod/faculty'),
       ]);
-      setStudents(stRes.data?.data || []);
+      setStudents(stRes.data?.data?.students || stRes.data?.data || []);
       setMentors(mRes.data?.data || []);
     } catch (err: any) {
       showToast(err.response?.data?.message || err.message || 'Failed to load department student roster', 'error');

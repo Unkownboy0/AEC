@@ -189,10 +189,13 @@ export class CircularRecipientService {
 
     // --- ALL_CAMPUS ---
     if (circular.broadcastLevel === 'ALL_CAMPUS') {
-      const allActive = await prisma.user.findMany({
-        where: { status: 'ACTIVE' },
+      let allActive = await prisma.user.findMany({
+        where: { OR: [{ status: 'ACTIVE' }, { status: 'Active' }, { accountStatus: 'ACTIVE' }] },
         select: { id: true },
       });
+      if (allActive.length === 0) {
+        allActive = await prisma.user.findMany({ select: { id: true } });
+      }
       return allActive.map(u => u.id);
     }
 

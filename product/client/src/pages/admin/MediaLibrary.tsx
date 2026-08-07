@@ -3,6 +3,7 @@ import { toast } from '../../components/ui/Toast';
 import { Loading } from '../../components/ui/Loading';
 import { Folder, FileText, Search, Upload, Trash2, ExternalLink } from 'lucide-react';
 import api from '../../lib/axios';
+import { env } from '../../shared/config/environment';
 
 interface MediaFile {
   id: string;
@@ -173,7 +174,8 @@ const MediaLibrary: React.FC = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 md:grid-cols-4 gap-4">
                 {files.map((file) => {
                   const isImage = file.mimeType.startsWith('image/');
-                  const fullUrl = `http://localhost:5000${file.path}`;
+                  const serverOrigin = env.apiUrl.replace('/api', '');
+                  const fullUrl = file.path.startsWith('http') ? file.path : `${serverOrigin}${file.path}`;
 
                   return (
                     <div key={file.id} className="border bg-card rounded-xl p-3 flex flex-col justify-between hover:shadow-md transition-shadow relative group">

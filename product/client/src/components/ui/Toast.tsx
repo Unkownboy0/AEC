@@ -50,7 +50,18 @@ export const Toaster: React.FC = () => {
 
   useEffect(() => {
     const handleToast = (newToast: ToastMessage) => {
-      setToasts((prev) => [...prev, newToast]);
+      setToasts((prev) => {
+        // Deduplicate: ignore if an identical message is already active
+        const exists = prev.some((t) => t.description === newToast.description && t.type === newToast.type);
+        if (exists) return prev;
+
+        // Keep maximum 2 visible toasts
+        const nextToasts = [...prev, newToast];
+        if (nextToasts.length > 2) {
+          return nextToasts.slice(-2);
+        }
+        return nextToasts;
+      });
 
       if (newToast.duration !== 0) {
         setTimeout(() => {

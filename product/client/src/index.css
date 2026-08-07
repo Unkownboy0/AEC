@@ -2,65 +2,243 @@
 @tailwind components;
 @tailwind utilities;
 
+/*
+  CAMPUSOS DESIGN SYSTEM v2 - CSS CUSTOM PROPERTIES
+  Primary: #6547E8 (locked)
+  Font: Inter (locked)
+  HSL channels stored as "H S% L%" so Tailwind composes opacity via hsl(var(--token) / alpha)
+*/
+
 @layer base {
   :root {
-    --background: 220 33% 98%;      /* Soft premium warm/cool white */
-    --foreground: 224 71.4% 4.1%;
+    /* App Background */
+    --app-bg: 240 25% 97%;
+    --background: 240 25% 97%;
+
+    /* Surfaces */
+    --surface: 0 0% 100%;
+    --surface-soft: 240 18% 98%;
+    --surface-raised: 0 0% 100%;
+    --surface-foreground: 222 47% 11%;
+    --raised: 240 18% 98%;
+
+    /* Card (aliased) */
     --card: 0 0% 100%;
-    --card-foreground: 224 71.4% 4.1%;
+    --card-foreground: 222 47% 11%;
+
+    /* Popover */
     --popover: 0 0% 100%;
-    --popover-foreground: 224 71.4% 4.1%;
-    --primary: 263.4 70% 50.4%;     /* Premium Purple/Indigo */
-    --primary-foreground: 210 20% 98%;
-    --secondary: 220 14.3% 95.9%;
-    --secondary-foreground: 220.9 39.3% 11%;
-    --muted: 220 14.3% 95.9%;
-    --muted-foreground: 220 8.9% 46.1%;
-    --accent: 220 14.3% 95.9%;
-    --accent-foreground: 220.9 39.3% 11%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 20% 98%;
-    --border: 220 13% 91%;
-    --input: 220 13% 91%;
-    --ring: 262.1 83.3% 57.8%;
-    --radius: 0.75rem;
+    --popover-foreground: 222 47% 11%;
+
+    /* Sidebar and Header */
+    --sidebar-bg: 0 0% 100%;
+    --header-height: 56px;
+
+    /* Borders */
+    --border: 220 14% 91%;
+    --border-strong: 220 14% 85%;
+    --input: 220 14% 91%;
+
+    /* Foreground / Text */
+    --foreground: 222 47% 11%;
+    --text-primary: 222 47% 11%;
+    --text-secondary: 220 9% 46%;
+    --text-muted: 220 9% 60%;
+    --muted-foreground: 220 9% 46%;
+
+    /* Primary Brand - LOCKED #6547E8 */
+    --primary: 253 79% 59%;
+    --primary-hover: 253 79% 50%;
+    --primary-soft: 253 100% 97%;
+    --primary-foreground: 0 0% 100%;
+    --ring: 253 79% 59%;
+
+    /* Secondary / Muted */
+    --secondary: 220 14% 96%;
+    --secondary-foreground: 222 47% 11%;
+    --muted: 220 14% 96%;
+    --accent: 253 100% 97%;
+    --accent-foreground: 253 79% 59%;
+
+    /* Status - Success */
+    --success: 159 74% 30%;
+    --success-foreground: 0 0% 100%;
+    --success-light: 159 60% 93%;
+
+    /* Status - Warning */
+    --warning: 33 91% 44%;
+    --warning-foreground: 0 0% 100%;
+    --warning-light: 43 100% 92%;
+
+    /* Status - Danger */
+    --danger: 348 65% 55%;
+    --danger-foreground: 0 0% 100%;
+    --danger-light: 348 80% 95%;
+    --destructive: 348 65% 55%;
+    --destructive-foreground: 0 0% 100%;
+
+    /* Status - Info */
+    --info: 214 92% 58%;
+    --info-foreground: 0 0% 100%;
+    --info-light: 214 80% 94%;
+
+    /* Radius Scale */
+    --radius-sm: 6px;
+    --radius: 8px;
+    --radius-card: 10px;
+    --radius-drawer: 12px;
+    --radius-modal: 14px;
+    --radius-pill: 9999px;
+
+    /* Layout */
+    --sidebar-width: 260px;
+    --sidebar-collapsed-width: 68px;
+
+    /* Safe Area */
+    --safe-area-top: env(safe-area-inset-top, 0px);
+    --safe-area-bottom: env(safe-area-inset-bottom, 0px);
+    --safe-area-left: env(safe-area-inset-left, 0px);
+    --safe-area-right: env(safe-area-inset-right, 0px);
   }
 
+  /*
+    DARK MODE
+    Activated by .dark on <html>. Applied by theme-storage inline
+    script in index.html before React hydrates to prevent flash.
+  */
   .dark {
-    --background: 224 71.4% 4.1%;   /* Premium Sleek Dark Slate */
-    --foreground: 210 20% 98%;
-    --card: 224 71.4% 4.1%;
-    --card-foreground: 210 20% 98%;
-    --popover: 224 71.4% 4.1%;
-    --popover-foreground: 210 20% 98%;
-    --primary: 263.4 70% 50.4%;
-    --primary-foreground: 210 20% 98%;
-    --secondary: 215 27.9% 16.9%;
-    --secondary-foreground: 210 20% 98%;
-    --muted: 215 27.9% 16.9%;
-    --muted-foreground: 217.9 10.6% 64.9%;
-    --accent: 215 27.9% 16.9%;
-    --accent-foreground: 210 20% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 20% 98%;
-    --border: 215 27.9% 16.9%;
-    --input: 215 27.9% 16.9%;
-    --ring: 263.4 70% 50.4%;
-    --radius: 0.75rem;
+    /* App Background */
+    --app-bg: 223 27% 6%;
+    --background: 223 27% 6%;
+
+    /* Surfaces */
+    --surface: 223 22% 9%;
+    --surface-soft: 224 20% 10%;
+    --surface-raised: 224 19% 13%;
+    --surface-foreground: 216 20% 95%;
+    --raised: 224 19% 13%;
+
+    /* Card */
+    --card: 223 22% 9%;
+    --card-foreground: 216 20% 95%;
+
+    /* Popover */
+    --popover: 223 22% 9%;
+    --popover-foreground: 216 20% 95%;
+
+    /* Sidebar and Header */
+    --sidebar-bg: 222 25% 7%;
+
+    /* Borders */
+    --border: 220 15% 15%;
+    --border-strong: 218 13% 22%;
+    --input: 220 15% 15%;
+
+    /* Foreground / Text */
+    --foreground: 216 20% 95%;
+    --text-primary: 216 20% 95%;
+    --text-secondary: 215 12% 67%;
+    --text-muted: 216 8% 50%;
+    --muted-foreground: 215 12% 67%;
+
+    /* Primary Brand - LOCKED same in dark */
+    --primary: 253 79% 59%;
+    --primary-hover: 253 79% 50%;
+    --primary-soft: 253 60% 15%;
+    --primary-foreground: 0 0% 100%;
+    --ring: 253 79% 59%;
+
+    /* Secondary / Muted */
+    --secondary: 223 15% 12%;
+    --secondary-foreground: 216 20% 95%;
+    --muted: 223 15% 12%;
+    --muted-foreground: 216 8% 50%;
+    --accent: 253 60% 14%;
+    --accent-foreground: 253 100% 80%;
+
+    /* Status - Success (dark) */
+    --success: 159 74% 38%;
+    --success-foreground: 0 0% 100%;
+    --success-light: 159 40% 10%;
+
+    /* Status - Warning (dark) */
+    --warning: 33 91% 50%;
+    --warning-foreground: 0 0% 100%;
+    --warning-light: 33 50% 10%;
+
+    /* Status - Danger (dark) */
+    --danger: 348 65% 58%;
+    --danger-foreground: 0 0% 100%;
+    --danger-light: 348 40% 10%;
+    --destructive: 348 65% 58%;
+    --destructive-foreground: 0 0% 100%;
+
+    /* Status - Info (dark) */
+    --info: 214 92% 62%;
+    --info-foreground: 0 0% 100%;
+    --info-light: 214 50% 10%;
   }
 }
+
+/* BASE LAYER */
 
 @layer base {
-  * {
-    @apply border-border;
+  *,
+  *::before,
+  *::after {
+    border-color: hsl(var(--border));
   }
-  body {
-    @apply bg-background text-foreground;
+
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    scroll-behavior: smooth;
+  }
+
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+      Oxygen, Ubuntu, Cantarell, "Fira Sans", "Droid Sans", "Helvetica Neue",
+      sans-serif;
+    background-color: hsl(var(--app-bg));
+    color: hsl(var(--foreground));
+    line-height: 1.6;
+    padding-top: var(--safe-area-top);
+    padding-bottom: var(--safe-area-bottom);
+    padding-left: var(--safe-area-left);
+    padding-right: var(--safe-area-right);
+  }
+
+  :focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
+    border-radius: var(--radius-sm);
+  }
+
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Form Element Theme Adjustments (ensures high contrast in dark mode) */
+  input, select, textarea {
+    background-color: hsl(var(--surface));
+    color: hsl(var(--foreground));
+    border-color: hsl(var(--border));
+  }
+
+  input::placeholder, textarea::placeholder {
+    color: hsl(var(--text-muted));
+  }
+
+  select option {
+    background-color: hsl(var(--surface));
+    color: hsl(var(--foreground));
   }
 }
 
-/* Custom premium scrollbar styling */
+/* CUSTOM SCROLLBAR */
+
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -71,10 +249,218 @@
 }
 
 ::-webkit-scrollbar-thumb {
-  background: hsl(var(--muted-foreground) / 0.3);
+  background: hsl(var(--text-muted) / 0.25);
   border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: hsl(var(--muted-foreground) / 0.5);
+  background: hsl(var(--text-muted) / 0.45);
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: hsl(var(--text-muted) / 0.25) transparent;
+}
+
+/* REDUCED MOTION */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* UTILITY CLASSES */
+
+@layer utilities {
+  /* Text Hierarchy */
+  .text-primary-color {
+    color: hsl(var(--text-primary));
+  }
+  .text-secondary-color {
+    color: hsl(var(--text-secondary));
+  }
+  .text-muted-color {
+    color: hsl(var(--text-muted));
+  }
+
+  /* Surface Utilities */
+  .bg-surface {
+    background-color: hsl(var(--surface));
+  }
+  .bg-surface-soft {
+    background-color: hsl(var(--surface-soft));
+  }
+  .bg-raised {
+    background-color: hsl(var(--raised));
+  }
+  .bg-sidebar {
+    background-color: hsl(var(--sidebar-bg));
+  }
+
+  /* Status Background Utilities */
+  .bg-success-light {
+    background-color: hsl(var(--success-light));
+  }
+  .bg-warning-light {
+    background-color: hsl(var(--warning-light));
+  }
+  .bg-danger-light {
+    background-color: hsl(var(--danger-light));
+  }
+  .bg-info-light {
+    background-color: hsl(var(--info-light));
+  }
+  .bg-primary-soft {
+    background-color: hsl(var(--primary-soft));
+  }
+
+  /* Status Text Utilities */
+  .text-success {
+    color: hsl(var(--success));
+  }
+  .text-warning {
+    color: hsl(var(--warning));
+  }
+  .text-danger {
+    color: hsl(var(--danger));
+  }
+  .text-info {
+    color: hsl(var(--info));
+  }
+
+  /* Border Utilities */
+  .border-strong {
+    border-color: hsl(var(--border-strong));
+  }
+
+  /* Safe Area */
+  .pb-safe {
+    padding-bottom: max(var(--safe-area-bottom), 16px);
+  }
+  .pt-safe {
+    padding-top: max(var(--safe-area-top), 0px);
+  }
+
+  /* Mobile Touch Target (44px minimum per WCAG) */
+  .touch-target {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  /* Hide Scrollbar */
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  /* Module accent backgrounds for Quick Action icons (theme-aware) */
+  .module-accent-violet {
+    background-color: hsl(253 100% 97%);
+    color: hsl(253 79% 59%);
+  }
+  .dark .module-accent-violet {
+    background-color: hsl(253 60% 14%);
+    color: hsl(253 100% 80%);
+  }
+  .module-accent-green {
+    background-color: hsl(159 60% 93%);
+    color: hsl(159 74% 30%);
+  }
+  .dark .module-accent-green {
+    background-color: hsl(159 40% 10%);
+    color: hsl(159 74% 55%);
+  }
+  .module-accent-amber {
+    background-color: hsl(43 100% 92%);
+    color: hsl(33 91% 44%);
+  }
+  .dark .module-accent-amber {
+    background-color: hsl(33 50% 10%);
+    color: hsl(33 91% 65%);
+  }
+  .module-accent-red {
+    background-color: hsl(348 80% 95%);
+    color: hsl(348 65% 55%);
+  }
+  .dark .module-accent-red {
+    background-color: hsl(348 40% 10%);
+    color: hsl(348 65% 72%);
+  }
+  .module-accent-blue {
+    background-color: hsl(214 80% 94%);
+    color: hsl(214 92% 58%);
+  }
+  .dark .module-accent-blue {
+    background-color: hsl(214 50% 10%);
+    color: hsl(214 92% 72%);
+  }
+  .module-accent-cyan {
+    background-color: hsl(188 80% 93%);
+    color: hsl(188 70% 35%);
+  }
+  .dark .module-accent-cyan {
+    background-color: hsl(188 50% 10%);
+    color: hsl(188 70% 60%);
+  }
+  .module-accent-rose {
+    background-color: hsl(340 80% 95%);
+    color: hsl(340 65% 50%);
+  }
+  .dark .module-accent-rose {
+    background-color: hsl(340 40% 10%);
+    color: hsl(340 65% 72%);
+  }
+  .glass-panel {
+    background-color: hsl(var(--surface) / 0.85);
+    backdrop-filter: blur(12px);
+    border: 1px solid hsl(var(--border) / 0.8);
+  }
+  .dark .glass-panel {
+    background-color: hsl(var(--surface) / 0.8);
+    backdrop-filter: blur(12px);
+    border: 1px solid hsl(var(--border) / 0.6);
+  }
+
+  @keyframes pulse-subtle {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+  }
+
+  @keyframes shimmer {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+  }
+
+  .animate-shimmer {
+    background: linear-gradient(
+      90deg,
+      hsl(var(--surface-soft)) 0%,
+      hsl(var(--border) / 0.5) 50%,
+      hsl(var(--surface-soft)) 100%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 2s infinite ease-in-out;
+  }
+}
+
+/* INSTITUTIONAL WATERMARK THEME STYLING */
+.watermark-img,
+img[src*="al-ameen-logo"] {
+  opacity: var(--watermark-opacity-light, 0.045) !important;
+  filter: grayscale(100%) sepia(15%) hue-rotate(210deg) saturate(110%) contrast(105%);
+}
+
+.dark .watermark-img,
+.dark img[src*="al-ameen-logo"] {
+  opacity: var(--watermark-opacity-dark, 0.035) !important;
+  filter: brightness(0) invert(1) opacity(0.6) contrast(110%) !important;
 }

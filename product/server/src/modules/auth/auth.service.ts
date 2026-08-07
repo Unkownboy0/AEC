@@ -97,8 +97,8 @@ export class AuthService {
     // Flatten permissions
     const permissions = user.role.permissions.map((rp) => rp.permission.name);
 
-    // Create session duration
-    const sessionDays = rememberMe ? 30 : 7;
+    // Create session duration (Permanent login: 3650 days / 10 years)
+    const sessionDays = 3650;
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + sessionDays);
 
@@ -111,13 +111,13 @@ export class AuthService {
     };
 
     const accessToken = jwt.sign(accessPayload, env.JWT_SECRET, {
-      expiresIn: '15m',
+      expiresIn: '3650d',
     });
 
     const refreshToken = jwt.sign(
       { userId: user.id },
       env.JWT_SECRET,
-      { expiresIn: `${sessionDays}d` }
+      { expiresIn: '3650d' }
     );
 
     // Store Session
@@ -243,14 +243,15 @@ export class AuthService {
     const newRefreshToken = jwt.sign(
       { userId: user.id },
       env.JWT_SECRET,
-      { expiresIn: `${remainingDays}d` }
+      { expiresIn: '3650d' }
     );
 
     const ua = parseUserAgent(userAgent);
+    const newExpiresAt = new Date(Date.now() + 3650 * 24 * 60 * 60 * 1000);
     await this.repo.createSession({
       userId: user.id,
       refreshToken: newRefreshToken,
-      expiresAt: session.expiresAt, // Preserve original session expiry
+      expiresAt: newExpiresAt,
       ipAddress,
       userAgent,
       device: ua.device,
@@ -267,7 +268,7 @@ export class AuthService {
     };
 
     const accessToken = jwt.sign(accessPayload, env.JWT_SECRET, {
-      expiresIn: '15m',
+      expiresIn: '3650d',
     });
 
     return { accessToken, refreshToken: newRefreshToken };
@@ -364,7 +365,7 @@ export class AuthService {
     };
 
     const accessToken = jwt.sign(accessPayload, env.JWT_SECRET, {
-      expiresIn: '15m',
+      expiresIn: '3650d',
     });
 
     const menus = await SecurityHelper.getPermittedMenus(permissions, roleName);

@@ -37,20 +37,44 @@ export const availabilityApi = {
     return res.data.data;
   },
 
+  approveRequest: async (assignmentId: string, remarks?: string) => {
+    try {
+      const res = await api.post(`/principal/approval-center/requests/${assignmentId}/approve`, { remarks });
+      return res.data;
+    } catch (err) {
+      const res = await api.post(`/vp/acting-principal/approvals/${assignmentId}/approve`, { remarks });
+      return res.data;
+    }
+  },
+
+  rejectRequest: async (assignmentId: string, remarks?: string) => {
+    try {
+      const res = await api.post(`/principal/approval-center/requests/${assignmentId}/reject`, { remarks });
+      return res.data;
+    } catch (err) {
+      const res = await api.post(`/vp/acting-principal/approvals/${assignmentId}/reject`, { remarks });
+      return res.data;
+    }
+  },
+
   approveDelegatedRequest: async (assignmentId: string, remarks?: string) => {
-    const res = await api.post(
-      `/vp/acting-principal/approvals/${assignmentId}/approve`,
-      { remarks }
-    );
-    return res.data;
+    try {
+      const res = await api.post(`/principal/approval-center/requests/${assignmentId}/approve`, { remarks });
+      return res.data;
+    } catch (err) {
+      const res = await api.post(`/vp/acting-principal/approvals/${assignmentId}/approve`, { remarks });
+      return res.data;
+    }
   },
 
   rejectDelegatedRequest: async (assignmentId: string, remarks?: string) => {
-    const res = await api.post(
-      `/vp/acting-principal/approvals/${assignmentId}/reject`,
-      { remarks }
-    );
-    return res.data;
+    try {
+      const res = await api.post(`/principal/approval-center/requests/${assignmentId}/reject`, { remarks });
+      return res.data;
+    } catch (err) {
+      const res = await api.post(`/vp/acting-principal/approvals/${assignmentId}/reject`, { remarks });
+      return res.data;
+    }
   },
 
   getLatestHandover: async (): Promise<HandoverSummary | null> => {

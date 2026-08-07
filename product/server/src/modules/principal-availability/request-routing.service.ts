@@ -7,7 +7,7 @@ export interface RouteRequestResult {
   assignedRole: 'PRINCIPAL' | 'ACTING_PRINCIPAL';
   assignmentType: 'DIRECT' | 'DELEGATED';
   delegationId?: string | null;
-  principalStatus: 'AVAILABLE' | 'BUSY' | 'OFFLINE';
+  principalStatus: string;
 }
 
 export class PrincipalRequestRoutingService {

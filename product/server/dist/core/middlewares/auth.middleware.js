@@ -73,8 +73,9 @@ const requirePermission = (permission) => {
         if (!req.user) {
             throw new exceptions_1.UnauthorizedException('Authentication required');
         }
-        // Super Admin gets all privileges
-        if (req.user.role === 'Super Admin') {
+        // Super Admin & Principal get executive privilege access
+        const userRoleNorm = normalizeRoleStr(typeof req.user.role === 'object' ? req.user.role?.name : String(req.user.role || ''));
+        if (userRoleNorm === 'SUPERADMIN' || userRoleNorm === 'ADMIN' || userRoleNorm === 'PRINCIPAL') {
             return next();
         }
         const hasPermission = (0, exports.checkPermission)(req.user.permissions, permission);
@@ -85,18 +86,56 @@ const requirePermission = (permission) => {
     };
 };
 exports.requirePermission = requirePermission;
+const normalizeRoleStr = (r) => (r || '').toUpperCase().replace(/[\s_]+/g, '');
 const requireRole = (allowedRoles) => {
-    return (req, res, next) => {
+    return async (req, res, next) => {
         if (!req.user) {
-            throw new exceptions_1.UnauthorizedException('Authentication required');
+            return next(new exceptions_1.UnauthorizedException('Authentication required'));
         }
-        // Super Admin has bypass access
-        if (req.user.role === 'Super Admin') {
+        const userRoleRaw = typeof req.user.role === 'object' ? req.user.role?.name : String(req.user.role || '');
+        const userRoleNorm = normalizeRoleStr(userRoleRaw);
+        // 1. Super Admin and Principal have top-level executive access to all college ERP resources
+        if (userRoleNorm === 'SUPERADMIN' || userRoleNorm === 'ADMIN' || userRoleNorm === 'PRINCIPAL') {
             return next();
         }
-        const hasRole = allowedRoles.includes(req.user.role);
+        const normalizedAllowed = allowedRoles.map(normalizeRoleStr);
+        // 2. Direct normalized match
+        let hasRole = normalizedAllowed.includes(userRoleNorm);
+        // 3. Role alias & hierarchy matching
         if (!hasRole) {
-            throw new exceptions_1.ForbiddenException('Your role does not allow access to this resource');
+            if ((userRoleNorm === 'VICEPRINCIPAL' || userRoleNorm === 'VP') && normalizedAllowed.some(r => r === 'VP' || r === 'VICEPRINCIPAL' || r === 'PRINCIPAL')) {
+                hasRole = true;
+            }
+            else if (userRoleNorm.includes('DEAN') && normalizedAllowed.some(r => r.includes('DEAN'))) {
+                hasRole = true;
+            }
+            else if (userRoleNorm === 'HOD' && normalizedAllowed.some(r => r === 'HOD' || r === 'HEADOFDEPARTMENT')) {
+                hasRole = true;
+            }
+            else if (userRoleNorm === 'FACULTY' && normalizedAllowed.some(r => r === 'FACULTY' || r === 'TEACHER')) {
+                hasRole = true;
+            }
+        }
+        // 4. Active Principal delegation check for VP
+        if (!hasRole && (userRoleNorm === 'VICEPRINCIPAL' || userRoleNorm === 'VP')) {
+            try {
+                const activeDelegation = await prisma_1.prisma.principalDelegation.findFirst({
+                    where: {
+                        actingUserId: req.user.id,
+                        status: 'ACTIVE',
+                        endDate: { gte: new Date() }
+                    }
+                });
+                if (activeDelegation) {
+                    hasRole = true;
+                }
+            }
+            catch {
+                // Fallback
+            }
+        }
+        if (!hasRole) {
+            return next(new exceptions_1.ForbiddenException('Your role does not allow access to this resource'));
         }
         next();
     };

@@ -28,7 +28,7 @@ interface PrincipalExecutivePortalProps {
 
 export const PrincipalExecutivePortal: React.FC<PrincipalExecutivePortalProps> = ({ user }) => {
   const [activeTab, setActiveTab] = useState<string>('dashboard');
-  const [loading, setLoading] = useState<boolean>(true);
+  const [loading, setLoading] = useState<boolean>(false);
 
   // Master Data States
   const [stats, setStats] = useState<any>(null);
@@ -50,7 +50,6 @@ export const PrincipalExecutivePortal: React.FC<PrincipalExecutivePortalProps> =
 
   const fetchMasterData = async () => {
     try {
-      setLoading(true);
       const [statsRes, deptsRes, facultyRes, studentRes, wfRes] = await Promise.all([
         api.get('/dashboard/stats').catch(() => null),
         api.get('/academics/departments').catch(() => null),

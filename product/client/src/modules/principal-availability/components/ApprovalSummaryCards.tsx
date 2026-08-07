@@ -27,10 +27,9 @@ export const ApprovalSummaryCards: React.FC<ApprovalSummaryCardsProps> = ({
       helper: 'Needs your attention',
       count: summary.pendingCount,
       icon: Clock,
-      color: 'amber',
-      border: 'border-amber-500/30',
-      activeBg: 'bg-amber-500/10',
-      text: 'text-amber-400',
+      border: 'border-amber-500/40',
+      activeBg: 'bg-amber-50 dark:bg-amber-950/30',
+      text: 'text-amber-600 dark:text-amber-400',
     },
     {
       id: 'APPROVED',
@@ -38,10 +37,9 @@ export const ApprovalSummaryCards: React.FC<ApprovalSummaryCardsProps> = ({
       helper: 'Processed successfully',
       count: summary.approvedTodayCount,
       icon: CheckCircle2,
-      color: 'emerald',
-      border: 'border-emerald-500/30',
-      activeBg: 'bg-emerald-500/10',
-      text: 'text-emerald-400',
+      border: 'border-emerald-500/40',
+      activeBg: 'bg-emerald-50 dark:bg-emerald-950/30',
+      text: 'text-emerald-600 dark:text-emerald-400',
     },
     {
       id: 'REJECTED',
@@ -49,10 +47,9 @@ export const ApprovalSummaryCards: React.FC<ApprovalSummaryCardsProps> = ({
       helper: 'Declined applications',
       count: summary.rejectedTodayCount,
       icon: XCircle,
-      color: 'rose',
-      border: 'border-rose-500/30',
-      activeBg: 'bg-rose-500/10',
-      text: 'text-rose-400',
+      border: 'border-rose-500/40',
+      activeBg: 'bg-rose-50 dark:bg-rose-950/30',
+      text: 'text-rose-600 dark:text-rose-400',
     },
     {
       id: 'RETURNED',
@@ -60,10 +57,9 @@ export const ApprovalSummaryCards: React.FC<ApprovalSummaryCardsProps> = ({
       helper: 'Transferred back from VP',
       count: summary.returnedCount,
       icon: RotateCcw,
-      color: 'indigo',
-      border: 'border-indigo-500/30',
-      activeBg: 'bg-indigo-500/10',
-      text: 'text-indigo-400',
+      border: 'border-indigo-500/40',
+      activeBg: 'bg-indigo-50 dark:bg-indigo-950/30',
+      text: 'text-indigo-600 dark:text-indigo-400',
     },
     {
       id: 'URGENT',
@@ -71,10 +67,9 @@ export const ApprovalSummaryCards: React.FC<ApprovalSummaryCardsProps> = ({
       helper: 'Requires immediate action',
       count: summary.urgentCount,
       icon: AlertTriangle,
-      color: 'purple',
-      border: 'border-purple-500/30',
-      activeBg: 'bg-purple-500/10',
-      text: 'text-purple-400',
+      border: 'border-purple-500/40',
+      activeBg: 'bg-purple-50 dark:bg-purple-950/30',
+      text: 'text-purple-600 dark:text-purple-400',
     },
   ];
 
@@ -87,23 +82,24 @@ export const ApprovalSummaryCards: React.FC<ApprovalSummaryCardsProps> = ({
         return (
           <button
             key={card.id}
+            type="button"
             onClick={() => onSelectFilter && onSelectFilter(card.id)}
-            className={`p-4 rounded-2xl border text-left transition-all duration-200 shadow-md flex flex-col justify-between ${
+            className={`p-4 rounded-2xl border text-left transition-all duration-200 shadow-xs flex flex-col justify-between ${
               isSelected
-                ? `${card.activeBg} ${card.border} ring-2 ring-slate-700`
-                : 'bg-slate-900/60 border-slate-800 hover:border-slate-700 hover:bg-slate-900'
+                ? `${card.activeBg} ${card.border} ring-2 ring-primary/40`
+                : 'bg-surface border-border hover:border-primary/40 hover:bg-surface-soft'
             }`}
           >
             <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-extrabold text-slate-300">{card.title}</span>
-              <div className={`p-2 rounded-xl bg-slate-950 border border-slate-800 ${card.text}`}>
+              <span className="text-xs font-bold text-text-primary">{card.title}</span>
+              <div className={`p-2 rounded-xl bg-surface-soft border border-border/60 ${card.text}`}>
                 <Icon className="w-4 h-4" />
               </div>
             </div>
 
             <div>
               <div className={`text-2xl font-black ${card.text}`}>{card.count}</div>
-              <div className="text-[11px] font-medium text-slate-400 mt-0.5 line-clamp-1">
+              <div className="text-[11px] font-medium text-text-muted mt-0.5 line-clamp-1">
                 {card.helper}
               </div>
             </div>

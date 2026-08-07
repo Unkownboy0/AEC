@@ -1,4 +1,10 @@
-export type PrincipalStatusType = 'AVAILABLE' | 'BUSY' | 'OFFLINE';
+export type PrincipalStatusType =
+  | 'AVAILABLE'
+  | 'BUSY'
+  | 'LEAVE'
+  | 'OFFICIAL_DUTY'
+  | 'CUSTOM'
+  | 'OFFLINE';
 
 export type DelegationStatusType =
   | 'INACTIVE'
@@ -13,6 +19,15 @@ export interface ActingPrincipalUser {
   name: string;
   role: string;
   email?: string;
+}
+
+export interface EligibleDelegate {
+  id: string;
+  name: string;
+  role: string;
+  designation?: string;
+  email?: string;
+  priority: number;
 }
 
 export interface ActiveDelegationDetails {
@@ -36,6 +51,7 @@ export interface PrincipalAvailabilityContext {
   pendingPrincipalRequests?: number;
   pendingActingRequests?: number;
   latestHandoverId?: string | null;
+  eligibleDelegates?: EligibleDelegate[];
 }
 
 export interface UpdateAvailabilityDto {
@@ -46,6 +62,7 @@ export interface UpdateAvailabilityDto {
   actingUserId?: string;
   delegatedCategories?: string[];
   messageToVp?: string;
+  customReasonTag?: string;
 }
 
 export type ApprovalCategory =

@@ -32,23 +32,29 @@ const WORKSPACE_DETAILS: Record<string, WorkspaceMeta> = {
     icon: Briefcase,
     route: '/faculty/dashboard',
   },
+  'Mentor': {
+    title: 'Mentor Workspace',
+    sub: 'Student advisement, leave approvals and academic follow-ups',
+    icon: Users,
+    route: '/faculty/mentor/dashboard',
+  },
   'Academic Dean': {
     title: 'Academic Dean Workspace',
     sub: 'Curriculum, timetables and academic oversight',
     icon: GraduationCap,
-    route: '/academic-dean',
+    route: '/academic-dean/dashboard',
   },
   'Admission Dean': {
     title: 'Admission Dean Workspace',
     sub: 'Student leads, applications and seat intake',
     icon: Briefcase,
-    route: '/admission-dean',
+    route: '/admission-dean/dashboard',
   },
   'IQAC Dean': {
     title: 'IQAC Dean Workspace',
     sub: 'Quality assurance, NAAC/NBA and AQAR audits',
     icon: Award,
-    route: '/iqac-dean',
+    route: '/iqac-dean/dashboard',
   },
 };
 
@@ -79,22 +85,26 @@ export const WorkspaceSwitcher: React.FC = () => {
     ? user.workspaces
     : [];
 
+  const isMentorAssigned = (user as any)?.isMentor || (user as any)?.is_mentor || user.role === 'Mentor' || (user as any)?.mentor_id || (user as any)?.mentorAssignment;
+
   if (workspacesList.length === 0) {
     if (user.role === 'HOD') workspacesList = ['HOD', 'Faculty'];
-    else if (user.role === 'Faculty') workspacesList = ['Faculty'];
+    else if (user.role === 'Faculty') workspacesList = isMentorAssigned ? ['Faculty', 'Mentor'] : ['Faculty'];
+    else if (user.role === 'Mentor') workspacesList = ['Faculty', 'Mentor'];
     else if (user.role === 'Academic Dean') workspacesList = ['Academic Dean', 'Faculty'];
     else if (user.role === 'Admission Dean') workspacesList = ['Admission Dean', 'Faculty'];
     else if (user.role === 'IQAC Dean') workspacesList = ['IQAC Dean', 'Faculty'];
     else workspacesList = [user.role];
+  } else if (isMentorAssigned && !workspacesList.includes('Mentor')) {
+    workspacesList.push('Mentor');
   }
 
   const userRole = typeof user.role === 'object' ? (user.role as any)?.name : String(user.role || '');
   const isVp = userRole === 'Vice Principal' || userRole === 'VP';
 
-  // EXPLICIT DIRECTIVE: Filter out Mentor, and filter out Faculty for VP role alone
   const filteredWorkspaces = Array.from(
     new Set(workspacesList.filter((ws) => {
-      if (ws === 'Mentor') return false;
+      if (ws === 'Mentor' && !isMentorAssigned) return false;
       if (isVp && ws === 'Faculty') return false;
       return true;
     }))

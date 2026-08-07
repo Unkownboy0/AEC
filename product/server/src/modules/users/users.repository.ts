@@ -28,7 +28,7 @@ export class UsersRepository {
     }
 
     if (role) {
-      where.role = { name: role };
+      where.role = { name: { equals: role, mode: 'insensitive' } };
     }
 
     if (status) {

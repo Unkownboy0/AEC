@@ -18,6 +18,7 @@ export interface DelegationContextType {
   latestHandoverId: string | null;
   loading: boolean;
   refreshStatus: () => Promise<void>;
+  refetch: () => Promise<void>;
   updateStatus: (dto: {
     status: 'ONLINE' | 'BUSY' | 'OFFLINE';
     reason?: string;
@@ -57,8 +58,15 @@ export const DelegationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       return;
     }
 
+    const userRole = (typeof user.role === 'object' ? (user.role as any)?.name : String(user.role || '')).toUpperCase();
+    const isExecutive = userRole.includes('PRINCIPAL') || userRole.includes('VP') || userRole.includes('VICE') || userRole.includes('DEAN') || userRole.includes('HOD');
+    
+    if (!isExecutive) {
+      setLoading(false);
+      return;
+    }
+
     try {
-      const userRole = (typeof user.role === 'object' ? (user.role as any)?.name : String(user.role || '')).toUpperCase();
       const endpoint = userRole.includes('VP') || userRole.includes('VICE')
         ? '/vp/acting-principal/context'
         : '/principal/availability/context';
@@ -67,11 +75,14 @@ export const DelegationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
       if (res.data?.success && res.data?.data) {
         const d = res.data.data;
-        // Normalize legacy AVAILABLE → ONLINE
+        const rawRole = (typeof user?.role === 'object' ? (user?.role as any)?.name : String(user?.role || '')).toUpperCase();
+        const isVpRole = rawRole.includes('VP') || rawRole.includes('VICE');
+
+        // Normalize status
         const normalizedStatus = d.principalStatus === 'AVAILABLE' ? 'ONLINE' : d.principalStatus;
         setPrincipalStatus(normalizedStatus || 'ONLINE');
         setDelegationStatus(d.delegationStatus || 'INACTIVE');
-        setIsActingPrincipal(Boolean(d.isActingPrincipal));
+        setIsActingPrincipal(Boolean(d.canVpActAsPrincipal || d.isActingPrincipal || (isVpRole && d.delegationStatus === 'ACTIVE')));
         setActingPrincipalUserId(d.actingPrincipalUserId || null);
         setActingUser(d.actingUser || null);
         setDelegationId(d.delegationId || null);
@@ -150,6 +161,7 @@ export const DelegationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         latestHandoverId,
         loading,
         refreshStatus: fetchStatus,
+        refetch: fetchStatus,
         updateStatus,
         revokeDelegation
       }}

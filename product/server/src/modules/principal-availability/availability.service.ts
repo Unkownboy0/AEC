@@ -250,7 +250,7 @@ export class PrincipalAvailabilityService {
     // Emit events
     availabilityEvents.emitAvailabilityChanged({
       principalUserId,
-      principalStatus: dto.status,
+      principalStatus: dto.status as any,
       delegationStatus: 'ACTIVE',
       actingPrincipalUserId: dto.actingUserId,
       version: statusRecord.version,
@@ -275,5 +275,32 @@ export class PrincipalAvailabilityService {
     logger.info(`Successfully set Principal status to ${dto.status} with active delegation to VP (${dto.actingUserId})`);
 
     return await PrincipalAvailabilityResolver.resolveContext(principalUserId);
+  }
+
+  /**
+   * Fetch eligible delegation roles (Vice Principal ONLY)
+   */
+  static async getEligibleDelegates() {
+    const users = await prisma.user.findMany({
+      where: {
+        OR: [
+          { role: { name: { in: ['Vice Principal', 'VICE_PRINCIPAL', 'VP'] } } },
+          { designation: { contains: 'Vice Principal' } },
+          { email: { contains: 'vp' } },
+        ],
+      },
+      include: { role: true },
+    });
+
+    const mapped = users.map((u) => ({
+      id: u.id,
+      name: `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.username,
+      role: u.role?.name || 'Vice Principal',
+      designation: u.designation || 'Vice Principal',
+      email: u.email,
+      priority: 1,
+    }));
+
+    return mapped;
   }
 }

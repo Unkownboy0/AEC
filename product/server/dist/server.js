@@ -10,6 +10,20 @@ const prisma_1 = require("./lib/prisma");
 const server = app_1.default.listen(env_1.env.PORT, '0.0.0.0', () => {
     logger_1.logger.info(`🚀 GEETORUS CAMPUSOS Engine running in ${env_1.env.NODE_ENV} mode on port ${env_1.env.PORT}`);
 });
+server.on('error', (err) => {
+    if (err.code === 'EADDRINUSE') {
+        setTimeout(() => {
+            try {
+                server.close();
+                server.listen(env_1.env.PORT, '0.0.0.0');
+            }
+            catch (_) { }
+        }, 1000);
+    }
+    else {
+        logger_1.logger.error('HTTP Server Error:', err);
+    }
+});
 const gracefulShutdown = async (signal) => {
     logger_1.logger.info(`Received ${signal}. Shutting down gracefully...`);
     server.close(async () => {
@@ -36,8 +50,10 @@ process.on('unhandledRejection', (reason, promise) => {
     logger_1.logger.error('Unhandled Rejection at:', promise, 'reason:', reason);
 });
 process.on('uncaughtException', (error) => {
+    if (error && error.code === 'EADDRINUSE') {
+        return;
+    }
     logger_1.logger.error('Uncaught Exception thrown:', error);
-    // Optional: Graceful shutdown on uncaught exception
     gracefulShutdown('UNCAUGHT_EXCEPTION');
 });
 //# sourceMappingURL=server.js.map

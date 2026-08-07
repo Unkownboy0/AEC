@@ -3,8 +3,9 @@ import { Circular } from '../types/circular.types';
 import { PriorityBadge, CategoryBadge, StatusBadge, AcknowledgedBadge, EmergencyBadge } from './CircularBadge';
 import {
   X, Paperclip, ExternalLink, User, Calendar, Clock,
-  CheckCircle2, Users, Building2, FileText,
+  CheckCircle2, Users, Building2, FileText, Globe, ShieldCheck,
 } from 'lucide-react';
+import { clsx } from 'clsx';
 
 interface CircularDetailProps {
   circular: Circular;
@@ -21,6 +22,18 @@ function formatDate(dateStr?: string): string {
   });
 }
 
+function formatBroadcastLevel(level?: string): string {
+  switch (level) {
+    case 'ALL_CAMPUS': return 'Entire Institution';
+    case 'FACULTY_ONLY': return 'Faculty & Staff Only';
+    case 'STUDENT_ONLY': return 'All Students';
+    case 'HOD_ONLY': return 'HODs Only';
+    case 'DEPARTMENT_SPECIFIC': return 'Specific Departments';
+    case 'SELECTED_USERS': return 'Selected Recipients';
+    default: return level ? level.replace(/_/g, ' ') : 'Institution Notice';
+  }
+}
+
 export const CircularDetail: React.FC<CircularDetailProps> = ({
   circular,
   onClose,
@@ -35,24 +48,33 @@ export const CircularDetail: React.FC<CircularDetailProps> = ({
     setAckDone(true);
   };
 
+  const authorName = circular.author
+    ? `${circular.author.firstName || ''} ${circular.author.lastName || ''}`.trim()
+    : (circular.publishedAs || circular.authorRole || 'Principal Office');
+
   return (
-    <div className="flex flex-col h-full bg-white dark:bg-gray-900 rounded-2xl overflow-hidden">
+    <div className="flex flex-col h-full bg-surface rounded-2xl overflow-hidden border border-border shadow-modal">
       {/* Top Bar */}
-      <div className="flex items-start justify-between p-4 border-b border-gray-100 dark:border-gray-800">
+      <div className="flex items-start justify-between p-5 border-b border-border">
         <div className="flex-1 min-w-0 pr-3">
-          <div className="flex flex-wrap gap-2 mb-2">
+          <div className="flex flex-wrap gap-2 mb-2.5">
             {circular.isEmergency ? <EmergencyBadge /> : <CategoryBadge category={circular.category} />}
             <PriorityBadge priority={circular.priority} />
             <StatusBadge status={circular.status} />
-            {circular.isPinned && <span className="text-xs text-amber-600 font-medium">📌 Pinned</span>}
+            {circular.isPinned && <span className="text-xs text-amber-500 font-bold">📌 Pinned</span>}
           </div>
-          <h2 className="text-lg font-bold text-gray-900 dark:text-white leading-tight">{circular.title}</h2>
-          <p className="text-xs text-gray-400 font-mono mt-1">#{circular.circularNumber}</p>
+          <h2 className="text-lg font-bold text-text-primary leading-snug">{circular.title}</h2>
+          {circular.circularNumber && (
+            <p className="text-xs font-mono font-bold text-primary bg-primary-soft/50 inline-block px-2 py-0.5 rounded-md mt-1.5">
+              {circular.circularNumber}
+            </p>
+          )}
         </div>
         {onClose && (
           <button
             onClick={onClose}
-            className="p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400 hover:text-gray-600 transition-colors"
+            type="button"
+            className="p-2 rounded-xl hover:bg-surface-soft text-text-muted hover:text-text-primary transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
@@ -62,97 +84,90 @@ export const CircularDetail: React.FC<CircularDetailProps> = ({
       {/* Scrollable Content */}
       <div className="flex-1 overflow-y-auto">
         {/* Meta Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-4 bg-gray-50 dark:bg-gray-800/50">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 p-4 bg-surface-soft border-b border-border">
           {/* Publisher */}
-          <div className="flex items-start gap-2">
-            <User className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" />
+          <div className="flex items-start gap-2.5">
+            <User className="w-4 h-4 text-text-muted mt-0.5 shrink-0" />
             <div>
-              <p className="text-xs text-gray-400 mb-0.5">Published by</p>
-              <p className="text-sm font-semibold text-gray-800 dark:text-gray-100">
-                {circular.author ? `${circular.author.firstName} ${circular.author.lastName}` : 'Unknown'}
-              </p>
-              <p className="text-xs text-gray-500">{circular.publishedAs}</p>
+              <p className="text-[11px] text-text-muted uppercase font-bold tracking-wider mb-0.5">Published by</p>
+              <p className="text-xs font-bold text-text-primary">{authorName}</p>
+              <p className="text-[11px] text-text-muted">{circular.publishedAs || 'Executive Office'}</p>
             </div>
           </div>
 
-          {/* Department */}
-          {circular.department && (
-            <div className="flex items-start gap-2">
-              <Building2 className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" />
-              <div>
-                <p className="text-xs text-gray-400 mb-0.5">Department</p>
-                <p className="text-sm font-semibold text-gray-800 dark:text-gray-100">{circular.department.name}</p>
-                <p className="text-xs text-gray-500">{circular.department.code}</p>
-              </div>
+          {/* Scope / Department */}
+          <div className="flex items-start gap-2.5">
+            <Building2 className="w-4 h-4 text-text-muted mt-0.5 shrink-0" />
+            <div>
+              <p className="text-[11px] text-text-muted uppercase font-bold tracking-wider mb-0.5">Scope / Department</p>
+              <p className="text-xs font-bold text-text-primary">
+                {circular.broadcastLevel === 'DEPARTMENT_SPECIFIC' && circular.department?.name
+                  ? circular.department.name
+                  : 'Institution-wide'}
+              </p>
+              <p className="text-[11px] text-text-muted">
+                {circular.broadcastLevel === 'DEPARTMENT_SPECIFIC' && circular.department?.code
+                  ? circular.department.code
+                  : 'INST'}
+              </p>
             </div>
-          )}
+          </div>
 
           {/* Published At */}
-          <div className="flex items-start gap-2">
-            <Clock className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" />
+          <div className="flex items-start gap-2.5">
+            <Clock className="w-4 h-4 text-text-muted mt-0.5 shrink-0" />
             <div>
-              <p className="text-xs text-gray-400 mb-0.5">Published</p>
-              <p className="text-sm text-gray-700 dark:text-gray-200">{formatDate(circular.publishedAt)}</p>
+              <p className="text-[11px] text-text-muted uppercase font-bold tracking-wider mb-0.5">Published Date & Time</p>
+              <p className="text-xs text-text-secondary font-medium">
+                {formatDate(circular.publishedAt ?? circular.publishDate ?? circular.createdAt)}
+              </p>
             </div>
           </div>
 
-          {/* Expiry */}
-          {circular.expiryDate && (
-            <div className="flex items-start gap-2">
-              <Calendar className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" />
-              <div>
-                <p className="text-xs text-gray-400 mb-0.5">Expires</p>
-                <p className="text-sm text-gray-700 dark:text-gray-200">{formatDate(circular.expiryDate)}</p>
-              </div>
-            </div>
-          )}
-
           {/* Audience */}
-          <div className="flex items-start gap-2 sm:col-span-2">
-            <Users className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" />
+          <div className="flex items-start gap-2.5">
+            <Users className="w-4 h-4 text-text-muted mt-0.5 shrink-0" />
             <div>
-              <p className="text-xs text-gray-400 mb-0.5">Target Audience</p>
-              <p className="text-sm text-gray-700 dark:text-gray-200 capitalize">
-                {circular.broadcastLevel?.replace(/_/g, ' ').toLowerCase()}
-              </p>
+              <p className="text-[11px] text-text-muted uppercase font-bold tracking-wider mb-0.5">Target Audience</p>
+              <p className="text-xs font-bold text-primary">{formatBroadcastLevel(circular.broadcastLevel)}</p>
             </div>
           </div>
         </div>
 
         {/* Description */}
         {circular.description && (
-          <div className="px-4 pt-4">
-            <p className="text-sm text-gray-500 italic border-l-2 border-blue-200 pl-3 py-1">
+          <div className="px-5 pt-4">
+            <p className="text-xs text-text-secondary italic border-l-2 border-primary pl-3 py-1.5 bg-surface-soft/60 rounded-r-lg">
               {circular.description}
             </p>
           </div>
         )}
 
         {/* Main Content */}
-        <div className="p-4">
+        <div className="p-5">
           <div
-            className="prose prose-sm max-w-none text-gray-700 dark:text-gray-200 leading-relaxed"
+            className="prose prose-sm max-w-none text-text-primary leading-relaxed"
             dangerouslySetInnerHTML={{ __html: circular.content.replace(/\n/g, '<br/>') }}
           />
         </div>
 
         {/* Attachment */}
         {circular.attachmentUrl && (
-          <div className="mx-4 mb-4 p-3 rounded-xl border border-gray-200 dark:border-gray-700 flex items-center gap-3 bg-gray-50 dark:bg-gray-800">
-            <div className="w-9 h-9 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0">
-              <Paperclip className="w-4 h-4 text-blue-600" />
+          <div className="mx-5 mb-4 p-3.5 rounded-xl border border-border flex items-center gap-3 bg-surface-soft">
+            <div className="w-9 h-9 rounded-lg bg-primary-soft flex items-center justify-center shrink-0">
+              <Paperclip className="w-4 h-4 text-primary" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-gray-800 dark:text-gray-100 truncate">
-                {circular.attachmentName ?? 'Attachment'}
+              <p className="text-xs font-bold text-text-primary truncate">
+                {circular.attachmentName ?? 'Attachment Document'}
               </p>
-              <p className="text-xs text-gray-400">Document</p>
+              <p className="text-[11px] text-text-muted">Document</p>
             </div>
             <a
               href={circular.attachmentUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="p-2 rounded-lg hover:bg-blue-50 text-blue-600 transition-colors"
+              className="p-2 rounded-lg hover:bg-primary-soft text-primary transition-colors"
             >
               <ExternalLink className="w-4 h-4" />
             </a>
@@ -161,12 +176,12 @@ export const CircularDetail: React.FC<CircularDetailProps> = ({
 
         {/* Reference Link */}
         {circular.referenceLink && (
-          <div className="mx-4 mb-4">
+          <div className="mx-5 mb-4">
             <a
               href={circular.referenceLink}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-2 text-sm text-blue-600 hover:underline"
+              className="flex items-center gap-2 text-xs font-bold text-primary hover:underline"
             >
               <ExternalLink className="w-4 h-4" />
               Reference Link
@@ -175,14 +190,14 @@ export const CircularDetail: React.FC<CircularDetailProps> = ({
         )}
 
         {/* Read status */}
-        <div className="px-4 pb-2">
+        <div className="px-5 pb-3">
           {circular.userReadAt && (
-            <p className="text-xs text-gray-400">
+            <p className="text-xs text-text-muted font-medium">
               ✓ Read on {formatDate(circular.userReadAt)}
             </p>
           )}
           {ackDone && circular.userAcknowledgedAt && (
-            <p className="text-xs text-emerald-600 mt-0.5">
+            <p className="text-xs text-success font-bold mt-0.5">
               ✓ Acknowledged on {formatDate(circular.userAcknowledgedAt)}
             </p>
           )}
@@ -191,22 +206,23 @@ export const CircularDetail: React.FC<CircularDetailProps> = ({
 
       {/* Bottom Action Bar */}
       {circular.acknowledgementRequired && !ackDone && (
-        <div className="p-4 border-t border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900">
+        <div className="p-4 border-t border-border bg-surface">
           <button
             onClick={handleAck}
             disabled={acknowledging}
-            className="w-full py-3 rounded-xl bg-emerald-600 text-white font-semibold flex items-center justify-center gap-2 hover:bg-emerald-700 active:scale-[0.98] transition-all disabled:opacity-60"
+            type="button"
+            className="w-full py-3 rounded-xl bg-success text-white font-bold flex items-center justify-center gap-2 hover:bg-success/90 active:scale-[0.98] transition-all disabled:opacity-60"
           >
-            <CheckCircle2 className="w-5 h-5" />
+            <CheckCircle2 className="w-4 h-4" />
             {acknowledging ? 'Acknowledging...' : 'Acknowledge & Confirm Read'}
           </button>
         </div>
       )}
       {ackDone && (
-        <div className="p-4 border-t border-gray-100 dark:border-gray-800">
-          <div className="flex items-center justify-center gap-2 text-emerald-600">
-            <CheckCircle2 className="w-5 h-5" />
-            <span className="font-semibold text-sm">You have acknowledged this circular</span>
+        <div className="p-4 border-t border-border bg-surface">
+          <div className="flex items-center justify-center gap-2 text-success font-bold text-xs">
+            <CheckCircle2 className="w-4 h-4" />
+            <span>You have acknowledged this circular</span>
           </div>
         </div>
       )}

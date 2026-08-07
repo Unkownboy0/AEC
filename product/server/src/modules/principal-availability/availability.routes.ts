@@ -9,8 +9,13 @@ router.use(requireAuth);
 
 // Principal Routes
 router.get('/principal/availability/context', PrincipalAvailabilityController.getContext);
+router.get('/principal/availability/eligible-delegates', PrincipalAvailabilityController.getEligibleDelegates);
 router.post('/principal/availability', PrincipalAvailabilityController.updateAvailability);
 router.get('/principal/approval-center', PrincipalAvailabilityController.getPrincipalApprovalCenter);
+router.post('/principal/approval-center/requests/:id/approve', PrincipalAvailabilityController.approvePrincipalRequest);
+router.post('/principal/approval-center/requests/:id/reject', PrincipalAvailabilityController.rejectPrincipalRequest);
+router.post('/approval-requests/:id/approve', PrincipalAvailabilityController.approvePrincipalRequest);
+router.post('/approval-requests/:id/reject', PrincipalAvailabilityController.rejectPrincipalRequest);
 
 // Principal Handover Routes
 router.get('/principal/handover/latest', PrincipalAvailabilityController.getLatestHandover);

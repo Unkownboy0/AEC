@@ -10,6 +10,25 @@ import { logger } from '../../utils/logger';
 
 export class PrincipalAvailabilityController {
   /**
+   * GET /api/principal/availability/eligible-delegates
+   */
+  static async getEligibleDelegates(req: AuthenticatedRequest, res: Response) {
+    try {
+      const delegates = await PrincipalAvailabilityService.getEligibleDelegates();
+      return res.status(200).json({
+        success: true,
+        data: delegates,
+      });
+    } catch (error: any) {
+      logger.error('Error fetching eligible delegates:', error);
+      return res.status(500).json({
+        success: false,
+        error: error.message || 'Failed to fetch eligible delegates',
+      });
+    }
+  }
+
+  /**
    * GET /api/principal/availability/context & GET /api/vp/acting-principal/context
    */
   static async getContext(req: AuthenticatedRequest, res: Response) {
@@ -146,10 +165,30 @@ export class PrincipalAvailabilityController {
         include: { delegation: true },
       });
 
-      const pending = assignments.filter((a: any) => a.status === 'PENDING');
-      const approved = assignments.filter((a: any) => a.status === 'APPROVED');
-      const rejected = assignments.filter((a: any) => a.status === 'REJECTED');
-      const returned = assignments.filter((a: any) => a.assignmentType === 'RETURNED_TO_PRINCIPAL' || a.status === 'RETURNED');
+      // Enrich assignments with applicant's leave reason
+      const reqIds = assignments.map((a: any) => a.requestId);
+      const leaves = await (prisma as any).facultyLeaveRequest.findMany({
+        where: { OR: [{ id: { in: reqIds } }, { requestNumber: { in: reqIds } }] },
+      });
+      const leaveMap = new Map();
+      leaves.forEach((l: any) => {
+        leaveMap.set(l.id, l);
+        leaveMap.set(l.requestNumber, l);
+      });
+
+      const enrichedRequests = assignments.map((a: any) => {
+        const matchNo = (a.title || '').match(/([A-Z]+-\d{4}-\d+)/i);
+        const l = leaveMap.get(a.requestId) || (matchNo ? leaveMap.get(matchNo[1]) : null);
+        return {
+          ...a,
+          reason: l?.reason || a.actionRemarks || `Leave Application for ${a.title?.replace(/\[.*?\]\s*/g, '') || 'Official Authorization'}`,
+        };
+      });
+
+      const pending = enrichedRequests.filter((a: any) => a.status === 'PENDING');
+      const approved = enrichedRequests.filter((a: any) => a.status === 'APPROVED');
+      const rejected = enrichedRequests.filter((a: any) => a.status === 'REJECTED');
+      const returned = enrichedRequests.filter((a: any) => a.assignmentType === 'RETURNED_TO_PRINCIPAL' || a.status === 'RETURNED');
 
       return res.status(200).json({
         success: true,
@@ -162,7 +201,7 @@ export class PrincipalAvailabilityController {
             returnedCount: returned.length,
             urgentCount: pending.filter((p: any) => (p.title || '').toLowerCase().includes('urgent')).length,
           },
-          requests: assignments,
+          requests: enrichedRequests,
         },
       });
     } catch (error: any) {
@@ -200,10 +239,30 @@ export class PrincipalAvailabilityController {
         orderBy: { createdAt: 'desc' },
       });
 
-      const pending = assignments.filter((a: any) => a.status === 'PENDING');
-      const approvedToday = assignments.filter((a: any) => a.status === 'APPROVED');
-      const rejectedToday = assignments.filter((a: any) => a.status === 'REJECTED');
-      const returned = assignments.filter((a: any) => a.status === 'RETURNED' || a.status === 'NEEDS_INFORMATION');
+      // Enrich assignments with applicant's leave reason
+      const reqIds = assignments.map((a: any) => a.requestId);
+      const leaves = await (prisma as any).facultyLeaveRequest.findMany({
+        where: { OR: [{ id: { in: reqIds } }, { requestNumber: { in: reqIds } }] },
+      });
+      const leaveMap = new Map();
+      leaves.forEach((l: any) => {
+        leaveMap.set(l.id, l);
+        leaveMap.set(l.requestNumber, l);
+      });
+
+      const enrichedRequests = assignments.map((a: any) => {
+        const matchNo = (a.title || '').match(/([A-Z]+-\d{4}-\d+)/i);
+        const l = leaveMap.get(a.requestId) || (matchNo ? leaveMap.get(matchNo[1]) : null);
+        return {
+          ...a,
+          reason: l?.reason || a.actionRemarks || `Leave Application for ${a.title?.replace(/\[.*?\]\s*/g, '') || 'Official Authorization'}`,
+        };
+      });
+
+      const pending = enrichedRequests.filter((a: any) => a.status === 'PENDING');
+      const approvedToday = enrichedRequests.filter((a: any) => a.status === 'APPROVED');
+      const rejectedToday = enrichedRequests.filter((a: any) => a.status === 'REJECTED');
+      const returned = enrichedRequests.filter((a: any) => a.status === 'RETURNED' || a.status === 'NEEDS_INFORMATION');
       const urgent = pending.filter((p: any) => (p.title || '').toLowerCase().includes('urgent') || p.isUrgent);
 
       return res.status(200).json({
@@ -218,8 +277,8 @@ export class PrincipalAvailabilityController {
             returned: returned.length,
           },
           pendingRequests: pending,
-          processedRequests: assignments.filter((a: any) => a.status !== 'PENDING'),
-          requests: assignments,
+          processedRequests: enrichedRequests.filter((a: any) => a.status !== 'PENDING'),
+          requests: enrichedRequests,
         },
       });
     } catch (error: any) {
@@ -602,6 +661,197 @@ export class PrincipalAvailabilityController {
       return res.status(500).json({
         success: false,
         error: error.message || 'Failed to acknowledge handover',
+      });
+    }
+  }
+
+  /**
+   * POST /api/principal/approval-center/requests/:id/approve
+   */
+  static async approvePrincipalRequest(req: AuthenticatedRequest, res: Response) {
+    try {
+      const assignmentId = req.params.id;
+      const principalUserId = req.user?.id || 'SYSTEM_PRINCIPAL';
+      const principalName = req.user ? `${req.user.email}` : 'Principal Executive';
+      const remarks = req.body.remarks || 'Approved by Principal Executive';
+
+      const assignment = await (prisma as any).approvalAssignment.findFirst({
+        where: {
+          OR: [
+            { id: assignmentId },
+            { requestId: assignmentId },
+          ],
+        },
+      });
+
+      const targetReqId = assignment?.requestId || assignmentId;
+      const matchNo = (assignment?.title || assignmentId || '').match(/([A-Z]+-\d{4}-\d+)/i);
+      const reqNo = matchNo ? matchNo[1] : null;
+
+      if (assignment) {
+        await (prisma as any).approvalAssignment.update({
+          where: { id: assignment.id },
+          data: {
+            status: 'APPROVED',
+            completedAt: new Date(),
+            actionByUserId: principalUserId,
+            actionByRole: 'PRINCIPAL',
+            actionAsRole: 'PRINCIPAL',
+            actionRemarks: remarks,
+          },
+        });
+      }
+
+      try {
+        await (prisma as any).facultyLeaveRequest.updateMany({
+          where: {
+            OR: [
+              { id: targetReqId },
+              { requestNumber: targetReqId },
+              ...(reqNo ? [{ requestNumber: reqNo }, { id: reqNo }] : []),
+            ],
+          },
+          data: {
+            status: 'APPROVED_PRINCIPAL',
+            principalApprovedAt: new Date(),
+            principalRemarks: remarks,
+          },
+        });
+      } catch (err) {}
+
+      try {
+        await prisma.workflowRequest.updateMany({
+          where: {
+            OR: [
+              { id: targetReqId },
+              ...(reqNo ? [{ id: reqNo }] : []),
+            ],
+          },
+          data: {
+            status: 'APPROVED',
+          },
+        });
+      } catch (err) {}
+
+      await ApprovalTimelineService.recordEvent({
+        requestId: targetReqId,
+        eventType: 'APPROVED',
+        fromStage: 'PRINCIPAL',
+        toStage: 'APPROVED',
+        fromStatus: 'PENDING',
+        toStatus: 'APPROVED',
+        actorUserId: principalUserId,
+        actorNameSnapshot: principalName,
+        actorRole: 'PRINCIPAL',
+        actorDisplayRole: 'Principal Executive',
+        performedAsRole: 'PRINCIPAL',
+        remarks,
+        idempotencyKey: `${targetReqId}:APPROVED:${Date.now()}`,
+      });
+
+      return res.status(200).json({
+        success: true,
+        message: 'Request successfully approved by Principal',
+      });
+    } catch (error: any) {
+      return res.status(500).json({
+        success: false,
+        error: error.message || 'Failed to approve request',
+      });
+    }
+  }
+
+  /**
+   * POST /api/principal/approval-center/requests/:id/reject
+   */
+  static async rejectPrincipalRequest(req: AuthenticatedRequest, res: Response) {
+    try {
+      const assignmentId = req.params.id;
+      const principalUserId = req.user?.id || 'SYSTEM_PRINCIPAL';
+      const principalName = req.user ? `${req.user.email}` : 'Principal Executive';
+      const remarks = req.body.remarks || 'Rejected by Principal Executive';
+
+      const assignment = await (prisma as any).approvalAssignment.findFirst({
+        where: {
+          OR: [
+            { id: assignmentId },
+            { requestId: assignmentId },
+          ],
+        },
+      });
+
+      const targetReqId = assignment?.requestId || assignmentId;
+      const matchNo = (assignment?.title || assignmentId || '').match(/([A-Z]+-\d{4}-\d+)/i);
+      const reqNo = matchNo ? matchNo[1] : null;
+
+      if (assignment) {
+        await (prisma as any).approvalAssignment.update({
+          where: { id: assignment.id },
+          data: {
+            status: 'REJECTED',
+            completedAt: new Date(),
+            actionByUserId: principalUserId,
+            actionByRole: 'PRINCIPAL',
+            actionAsRole: 'PRINCIPAL',
+            actionRemarks: remarks,
+          },
+        });
+      }
+
+      try {
+        await (prisma as any).facultyLeaveRequest.updateMany({
+          where: {
+            OR: [
+              { id: targetReqId },
+              { requestNumber: targetReqId },
+              ...(reqNo ? [{ requestNumber: reqNo }, { id: reqNo }] : []),
+            ],
+          },
+          data: {
+            status: 'REJECTED_PRINCIPAL',
+            principalRemarks: remarks,
+          },
+        });
+      } catch (err) {}
+
+      try {
+        await prisma.workflowRequest.updateMany({
+          where: {
+            OR: [
+              { id: targetReqId },
+              ...(reqNo ? [{ id: reqNo }] : []),
+            ],
+          },
+          data: {
+            status: 'REJECTED',
+          },
+        });
+      } catch (err) {}
+
+      await ApprovalTimelineService.recordEvent({
+        requestId: targetReqId,
+        eventType: 'REJECTED',
+        fromStage: 'PRINCIPAL',
+        toStage: 'REJECTED',
+        fromStatus: 'PENDING',
+        toStatus: 'REJECTED',
+        actorUserId: principalUserId,
+        actorNameSnapshot: principalName,
+        actorRole: 'PRINCIPAL',
+        actorDisplayRole: 'Principal Executive',
+        performedAsRole: 'PRINCIPAL',
+        remarks,
+        idempotencyKey: `${targetReqId}:REJECTED:${Date.now()}`,
+      });
+
+      return res.status(200).json({
+        success: true,
+        message: 'Request rejected by Principal',
+      });
+    } catch (error: any) {
+      return res.status(500).json({
+        success: false,
+        error: error.message || 'Failed to reject request',
       });
     }
   }

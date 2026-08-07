@@ -96,9 +96,20 @@ export class ApprovalController {
 
       const actualRequestId = assignment?.requestId || requestId;
 
+      // Extract request number from title pattern (e.g. FL-2026-0008)
+      const titleMatch = (assignment?.title || requestId || '').match(/([A-Z]+-\d{4}-\d+)/i);
+      const extractedReqNo = titleMatch ? titleMatch[1] : null;
+
       // 2. Query FacultyLeaveRequest
       const leave = await (prisma as any).facultyLeaveRequest.findFirst({
-        where: { OR: [{ id: actualRequestId }, { requestNumber: actualRequestId }] },
+        where: {
+          OR: [
+            { id: actualRequestId },
+            { requestNumber: actualRequestId },
+            ...(extractedReqNo ? [{ requestNumber: extractedReqNo }, { id: extractedReqNo }] : []),
+            ...(requestId ? [{ id: requestId }, { requestNumber: requestId }] : []),
+          ],
+        },
         include: {
           faculty: {
             include: {
@@ -112,7 +123,12 @@ export class ApprovalController {
 
       // 3. Query WorkflowRequest
       const wf = await prisma.workflowRequest.findFirst({
-        where: { id: actualRequestId },
+        where: {
+          OR: [
+            { id: actualRequestId },
+            ...(extractedReqNo ? [{ id: extractedReqNo }] : []),
+          ],
+        },
         include: {
           facultyRequester: { include: { department: true, user: { include: { role: true } } } },
           student: { include: { department: true, section: true } },
@@ -141,7 +157,7 @@ export class ApprovalController {
           requestType: isOd ? 'FACULTY_OD' : 'FACULTY_LEAVE',
           title: `[${roleName}] ${leave.leaveType.replace(/_/g, ' ')}: ${leave.requestNumber}`,
           leaveType: leave.leaveType,
-          reason: leave.reason,
+          reason: leave.reason || `Casual Leave application for ${leave.totalDays || 1} day(s)`,
           startDate: leave.startDate ? new Date(leave.startDate).toISOString() : null,
           endDate: leave.endDate ? new Date(leave.endDate).toISOString() : null,
           totalDays: leave.totalDays || 1,
@@ -177,7 +193,7 @@ export class ApprovalController {
           requestNumber: wf.id.slice(0, 8),
           requestType: wf.type,
           title: wf.title || `Workflow Request (${wf.type})`,
-          reason: wf.reason,
+          reason: wf.reason || wf.title || 'Official authorization request submitted for review',
           startDate: wf.startDate ? new Date(wf.startDate).toISOString() : null,
           endDate: wf.endDate ? new Date(wf.endDate).toISOString() : null,
           status: assignment?.status || wf.status || 'PENDING',
@@ -198,6 +214,7 @@ export class ApprovalController {
           requestNumber: assignment.requestId?.slice(0, 8) || assignment.id.slice(0, 8),
           requestType: assignment.requestType,
           title: assignment.title,
+          reason: assignment.actionRemarks || (assignment.title ? `Official authorization request for ${assignment.title}` : 'Official leave authorization request submitted'),
           status: assignment.status,
           currentStage: assignment.assignedRole === 'ACTING_PRINCIPAL' ? 'Acting Principal Review' : 'Principal Review',
           assignedRole: assignment.assignedRole,

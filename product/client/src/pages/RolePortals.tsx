@@ -527,15 +527,12 @@ export const ParentPortal: React.FC<ParentPortalProps> = ({ user }) => {
   const [wards, setWards] = useState<any[]>([]);
   const [selectedWardIdx, setSelectedWardIdx] = useState<number>(0);
   const [loading, setLoading] = useState(true);
-
-  // Comms form
   const [commsText, setCommsText] = useState('');
 
   const fetchWards = async () => {
     try {
       const res = await api.get('/enterprise/students');
       if (res.data?.status === 'success' && res.data.data.length > 0) {
-        // Find matching wards where parent email matches parent user profile email
         const matchingWards = res.data.data.filter((s: any) => s.parentEmail === user.email);
         setWards(matchingWards.length ? matchingWards : [res.data.data[0]]);
       }
@@ -553,168 +550,113 @@ export const ParentPortal: React.FC<ParentPortalProps> = ({ user }) => {
   const handleSendToMentor = (e: React.FormEvent) => {
     e.preventDefault();
     if (!commsText.trim()) return;
-    toast.success('Message dispatched to Class Mentor.');
+    toast.success('Message sent to Class Mentor.');
     setCommsText('');
   };
 
   if (loading) {
-    return <div className="p-10 text-center text-xs font-bold">Loading Ward Information...</div>;
+    return <div className="p-10 text-center text-xs font-semibold text-slate-500">Loading student information...</div>;
   }
 
   const activeWard = wards[selectedWardIdx];
 
   return (
-    <div className="space-y-6 animate-in fade-in-50 duration-200">
-      {/* Banner */}
-      <div className="bg-gradient-to-r from-pink-600 via-rose-600 to-amber-600 p-6 rounded-2xl text-white shadow-lg relative overflow-hidden">
-        <div className="absolute right-0 bottom-0 opacity-10 transform translate-y-8 translate-x-8">
-          <User className="h-64 w-64" />
+    <div className="space-y-6 pb-12 animate-in fade-in duration-200">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
+            Welcome, {user?.firstName || 'Parent'} 👋
+          </h1>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+            Parent Companion Portal — Real-time updates on your child's college progress.
+          </p>
         </div>
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="space-y-2">
-            <div className="inline-flex flex-wrap items-center gap-1.5 bg-white/20 px-3 py-1 rounded-full text-xs font-bold backdrop-blur-md uppercase tracking-wider">
-              <User className="h-3.5 w-3.5" /> Guardian Ward Monitor
-            </div>
-            <h2 className="text-2xl md:text-3xl font-extrabold">Welcome, {user.firstName}</h2>
-            <p className="text-sm opacity-90 font-medium">
-              Monitoring Ward: {activeWard ? `${activeWard.firstName} ${activeWard.lastName}` : 'N/A'}
-            </p>
-          </div>
-
-          {/* Children switcher dropdown */}
-          {wards.length > 1 && (
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-xs font-bold text-white/95">Switch Ward:</span>
-              <select
-                value={selectedWardIdx}
-                onChange={e => setSelectedWardIdx(parseInt(e.target.value))}
-                className="bg-white/10 text-white border border-white/20 rounded-lg px-3 py-1.5 text-xs font-bold focus:outline-none"
-              >
-                {wards.map((w, idx) => (
-                  <option key={w.id} value={idx} className="text-foreground">
-                    {w.firstName} {w.lastName}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-        </div>
+        {wards.length > 1 && (
+          <select
+            value={selectedWardIdx}
+            onChange={(e) => setSelectedWardIdx(parseInt(e.target.value))}
+            className="px-3 py-1 bg-indigo-50 border border-indigo-200 text-indigo-700 font-semibold text-xs rounded-xl"
+          >
+            {wards.map((w, idx) => (
+              <option key={w.id} value={idx}>
+                {w.firstName} {w.lastName}
+              </option>
+            ))}
+          </select>
+        )}
       </div>
 
       {activeWard ? (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 text-xs font-semibold">
-          
-          {/* Left Panel: Ward Academic Details & Quick Stats */}
-          <div className="border bg-card p-5 rounded-xl shadow-sm space-y-5 lg:col-span-2">
-            <h3 className="text-sm font-extrabold uppercase border-b pb-2">Ward Academic Health Ledger</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 md:grid-cols-4 gap-4 text-center">
-              <div className="border p-4 rounded-xl bg-slate-50/50">
-                <span className="text-[9px] uppercase text-muted-foreground block">Overall Attendance</span>
-                <span className="text-xl font-extrabold text-emerald-600 block mt-1">94.2%</span>
-              </div>
-              <div className="border p-4 rounded-xl bg-slate-50/50">
-                <span className="text-[9px] uppercase text-muted-foreground block">Recent CGPA</span>
-                <span className="text-xl font-extrabold text-primary block mt-1">8.50</span>
-              </div>
-              <div className="border p-4 rounded-xl bg-slate-50/50">
-                <span className="text-[9px] uppercase text-muted-foreground block">Pending Tasks</span>
-                <span className="text-xl font-extrabold text-amber-500 block mt-1">1</span>
-              </div>
-              <div className="border p-4 rounded-xl bg-slate-50/50">
-                <span className="text-[9px] uppercase text-muted-foreground block">Dues Status</span>
-                <span className="text-xl font-extrabold text-rose-500 block mt-1">1 Bill</span>
-              </div>
+        <div className="space-y-6">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl">
+              <span className="text-[11px] font-semibold text-slate-400 block uppercase">Attendance Rate</span>
+              <span className="text-2xl font-extrabold text-emerald-600 block mt-1">94.2%</span>
+              <span className="text-[10px] text-slate-400">Requirement: &gt;75%</span>
             </div>
-
-            {/* Ward Details */}
-            <div className="border rounded-xl p-4 bg-slate-50/30 space-y-2">
-              <h4 className="font-extrabold uppercase text-[10px] text-muted-foreground tracking-wider pb-1.5 border-b border-dashed">Enrollment Registry Data</h4>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-[11px]">
-                <p><span className="text-muted-foreground font-bold">Admission Number:</span> {activeWard.admissionNo}</p>
-                <p><span className="text-muted-foreground font-bold">Department:</span> {activeWard.department?.name || 'Computer Science'}</p>
-                <p><span className="text-muted-foreground font-bold">Section:</span> {activeWard.section?.name || 'Section A'}</p>
-                <p><span className="text-muted-foreground font-bold">Academic Status:</span> <span className="text-emerald-600 font-bold uppercase">{activeWard.status}</span></p>
-              </div>
+            <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl">
+              <span className="text-[11px] font-semibold text-slate-400 block uppercase">Current CGPA</span>
+              <span className="text-2xl font-extrabold text-indigo-600 block mt-1">8.50</span>
+              <span className="text-[10px] text-slate-400">Academic Score</span>
             </div>
-
-            {/* Attendance Alerting */}
-            {parseFloat('94.2%') < 75.0 ? (
-              <div className="p-3 border border-rose-100 bg-rose-50 text-rose-700 rounded-lg flex flex-wrap gap-2.5">
-                <AlertCircle className="h-5 w-5 shrink-0" />
-                <div>
-                  <h4 className="font-bold">Low Attendance Alert!</h4>
-                  <p className="text-[10px] mt-0.5">Your ward's attendance rate is below 75%. Please contact the Class Mentor.</p>
-                </div>
-              </div>
-            ) : (
-              <div className="p-3 border border-emerald-100 bg-emerald-50 text-emerald-700 rounded-lg flex flex-wrap gap-2.5">
-                <CheckCircle className="h-5 w-5 shrink-0" />
-                <div>
-                  <h4 className="font-bold">Attendance Satisfactory</h4>
-                  <p className="text-[10px] mt-0.5">Your ward's attendance satisfies the compliance standards of the institute.</p>
-                </div>
-              </div>
-            )}
+            <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl">
+              <span className="text-[11px] font-semibold text-slate-400 block uppercase">Pending Homework</span>
+              <span className="text-2xl font-extrabold text-amber-500 block mt-1">1</span>
+              <span className="text-[10px] text-slate-400">Due this week</span>
+            </div>
+            <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl">
+              <span className="text-[11px] font-semibold text-slate-400 block uppercase">Status</span>
+              <span className="text-2xl font-extrabold text-slate-900 dark:text-slate-100 block mt-1">Active</span>
+              <span className="text-[10px] text-slate-400">Roll: {activeWard.admissionNo || 'CS2023'}</span>
+            </div>
           </div>
 
-          {/* Right Panel: Emergency & Contact Details */}
-          <div className="space-y-6">
-            
-            {/* Parent registry contact card */}
-            <div className="border bg-card p-5 rounded-xl shadow-sm space-y-4 h-fit">
-              <h3 className="text-sm font-extrabold uppercase border-b pb-2">Parent Contact registry</h3>
-              <div className="space-y-3.5">
-                <div className="flex flex-wrap gap-3">
-                  <User className="h-5 w-5 text-indigo-600 mt-0.5 shrink-0" />
-                  <div>
-                    <h4 className="text-[10px] uppercase text-muted-foreground leading-tight">Registered Parent</h4>
-                    <p className="font-bold mt-0.5">{activeWard.parentName || user.firstName + ' ' + user.lastName}</p>
-                  </div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="p-5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl space-y-3">
+              <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">Child Profile Summary</h3>
+              <div className="space-y-2 text-xs">
+                <div className="flex justify-between py-1.5 border-b border-slate-100 dark:border-slate-800">
+                  <span className="text-slate-400 font-semibold">Full Name:</span>
+                  <span className="font-bold text-slate-800 dark:text-slate-200">{activeWard.firstName} {activeWard.lastName}</span>
                 </div>
-
-                <div className="flex flex-wrap gap-3">
-                  <Mail className="h-5 w-5 text-indigo-600 mt-0.5 shrink-0" />
-                  <div>
-                    <h4 className="text-[10px] uppercase text-muted-foreground leading-tight">Registered Email</h4>
-                    <p className="font-bold mt-0.5">{activeWard.parentEmail || user.email}</p>
-                  </div>
+                <div className="flex justify-between py-1.5 border-b border-slate-100 dark:border-slate-800">
+                  <span className="text-slate-400 font-semibold">Admission No:</span>
+                  <span className="font-bold text-slate-800 dark:text-slate-200">{activeWard.admissionNo}</span>
                 </div>
-
-                <div className="flex flex-wrap gap-3">
-                  <Phone className="h-5 w-5 text-indigo-600 mt-0.5 shrink-0" />
-                  <div>
-                    <h4 className="text-[10px] uppercase text-muted-foreground leading-tight">Emergency Contact</h4>
-                    <p className="font-bold mt-0.5">{activeWard.parentPhone || 'N/A'}</p>
-                  </div>
+                <div className="flex justify-between py-1.5 border-b border-slate-100 dark:border-slate-800">
+                  <span className="text-slate-400 font-semibold">Department:</span>
+                  <span className="font-bold text-slate-800 dark:text-slate-200">{activeWard.department?.name || 'Computer Science'}</span>
                 </div>
               </div>
             </div>
 
-            {/* Mentor communicator widget */}
-            <div className="border bg-card p-5 rounded-xl shadow-sm space-y-3">
-              <h3 className="text-sm font-extrabold uppercase border-b pb-1.5">Message Class Mentor</h3>
-              <form onSubmit={handleSendToMentor} className="space-y-2.5">
+            <div className="p-5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl space-y-3">
+              <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">Contact Class Mentor</h3>
+              <form onSubmit={handleSendToMentor} className="space-y-3">
                 <textarea
-                  value={commsText}
-                  onChange={e => setCommsText(e.target.value)}
-                  placeholder="Enter message for class mentor..."
                   rows={3}
-                  className="w-full border rounded-lg bg-background p-2.5 text-xs font-semibold resize-none"
+                  value={commsText}
+                  onChange={(e) => setCommsText(e.target.value)}
+                  placeholder="Type your message for the class mentor..."
+                  className="w-full text-xs p-3 border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 focus:outline-none"
                 />
-                <button type="submit" className="w-full h-8.5 bg-primary text-primary-foreground font-bold rounded-lg hover:opacity-90 flex flex-wrap items-center justify-center gap-1.5 text-xs">
+                <button
+                  type="submit"
+                  className="px-4 py-2 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-xs"
+                >
                   Send Message
                 </button>
               </form>
             </div>
           </div>
-
         </div>
       ) : (
-        <p className="text-xs text-muted-foreground py-6 text-center">No matching ward information connected to your parent email.</p>
+        <p className="text-xs text-slate-400 py-6 text-center">No ward information linked to this parent account.</p>
       )}
     </div>
   );
 };
+
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 6. MENTOR (CLASS ADVISOR) PORTAL

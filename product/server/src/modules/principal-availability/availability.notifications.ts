@@ -8,7 +8,7 @@ export class AvailabilityNotificationService {
   static async notifyVpDelegationStarted(params: {
     vpUserId: string;
     principalName: string;
-    status: 'BUSY' | 'OFFLINE';
+    status: string;
     endsAt: string;
     pendingCount: number;
   }) {

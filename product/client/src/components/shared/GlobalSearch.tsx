@@ -103,11 +103,11 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({ userRole }) => {
                 <div className="p-3 space-y-2">
                   <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">Executive Quick Actions</p>
                   <div className="grid grid-cols-2 gap-2 text-xs">
-                    <button onClick={() => { setIsOpen(false); navigate('/?tab=overview'); }} className="p-2 border rounded-lg hover:bg-muted/50 text-left font-semibold flex items-center justify-between">
+                    <button onClick={() => { setIsOpen(false); navigate('/dashboard'); }} className="p-2 border rounded-lg hover:bg-muted/50 text-left font-semibold flex items-center justify-between">
                       <span>Department Rankings</span>
                       <ArrowRight className="h-3 w-3 text-muted-foreground" />
                     </button>
-                    <button onClick={() => { setIsOpen(false); navigate('/?tab=placements'); }} className="p-2 border rounded-lg hover:bg-muted/50 text-left font-semibold flex items-center justify-between">
+                    <button onClick={() => { setIsOpen(false); navigate('/vp/placements'); }} className="p-2 border rounded-lg hover:bg-muted/50 text-left font-semibold flex items-center justify-between">
                       <span>Placement Drives</span>
                       <ArrowRight className="h-3 w-3 text-muted-foreground" />
                     </button>

@@ -5,8 +5,11 @@ export class CircularRepository {
   /**
    * List circulars with recipient status for a specific user.
    */
+  /**
+   * List circulars with recipient status for a specific user.
+   */
   async findMany(whereClause: any, userId: string) {
-    const circulars = await (prisma as any).circular.findMany({
+    const rawCirculars = await (prisma as any).circular.findMany({
       where: whereClause,
       orderBy: [
         { isEmergency: 'desc' },
@@ -14,12 +17,6 @@ export class CircularRepository {
         { publishedAt: 'desc' },
       ],
       include: {
-        author: {
-          select: { id: true, firstName: true, lastName: true, email: true, avatar: true },
-        },
-        department: {
-          select: { id: true, name: true, code: true },
-        },
         recipients: {
           where: { userId },
           select: {
@@ -30,6 +27,8 @@ export class CircularRepository {
         _count: { select: { recipients: true } },
       },
     });
+
+    const circulars = await this.populateRelations(rawCirculars);
 
     return circulars.map((c: any) => ({
       ...c,
@@ -52,15 +51,9 @@ export class CircularRepository {
    * Find a single circular by ID.
    */
   async findById(circularId: string, userId?: string) {
-    const circular = await (prisma as any).circular.findUnique({
+    const rawCircular = await (prisma as any).circular.findUnique({
       where: { id: circularId },
       include: {
-        author: {
-          select: { id: true, firstName: true, lastName: true, email: true, avatar: true },
-        },
-        department: {
-          select: { id: true, name: true, code: true },
-        },
         recipients: userId
           ? {
               where: { userId },
@@ -74,7 +67,9 @@ export class CircularRepository {
       },
     });
 
-    if (!circular) return null;
+    if (!rawCircular) return null;
+
+    const [circular] = await this.populateRelations([rawCircular]);
 
     return {
       ...circular,
@@ -92,6 +87,37 @@ export class CircularRepository {
       totalRecipients: circular._count?.recipients ?? 0,
     };
   }
+
+  private async populateRelations(circulars: any[]) {
+    if (!circulars || circulars.length === 0) return [];
+
+    const authorIds = Array.from(new Set(circulars.map((c) => c.authorId).filter(Boolean)));
+    const deptIds = Array.from(new Set(circulars.map((c) => c.departmentId).filter(Boolean)));
+
+    const authors = authorIds.length > 0
+      ? await (prisma as any).user.findMany({
+          where: { id: { in: authorIds } },
+          select: { id: true, firstName: true, lastName: true, email: true },
+        })
+      : [];
+
+    const departments = deptIds.length > 0
+      ? await (prisma as any).department.findMany({
+          where: { id: { in: deptIds } },
+          select: { id: true, name: true, code: true },
+        })
+      : [];
+
+    const authorMap = new Map(authors.map((a: any) => [a.id, a]));
+    const deptMap = new Map(departments.map((d: any) => [d.id, d]));
+
+    return circulars.map((c: any) => ({
+      ...c,
+      author: authorMap.get(c.authorId) || null,
+      department: deptMap.get(c.departmentId) || null,
+    }));
+  }
+
 
   /**
    * Create a new circular record.

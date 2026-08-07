@@ -15,7 +15,9 @@ export const ActingPrincipalRouteGuard: React.FC<{ children?: React.ReactNode }>
     );
   }
 
-  const isAccessValid = (principalStatus === 'BUSY' || principalStatus === 'OFFLINE') && delegationStatus === 'ACTIVE';
+  const isAccessValid =
+    isActingPrincipal ||
+    ((principalStatus as string) !== 'AVAILABLE' && (principalStatus as string) !== 'ONLINE' && delegationStatus === 'ACTIVE');
 
   if (!isAccessValid) {
     toast.error('Acting Principal access is not currently active.');

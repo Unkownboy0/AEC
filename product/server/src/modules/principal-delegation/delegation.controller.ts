@@ -112,7 +112,10 @@ export class DelegationController {
       const context = await PrincipalDelegationResolverService.resolveStatus();
 
       // Guard: Validate active delegation
-      if (context.delegationStatus !== 'ACTIVE' || context.actingPrincipalUserId !== user.id) {
+      const userRole = (typeof user?.role === 'object' ? user.role?.name : String(user?.role || '')).toUpperCase();
+      const isVpRole = userRole.includes('VP') || userRole.includes('VICE') || userRole.includes('ADMIN');
+
+      if (context.delegationStatus !== 'ACTIVE' || (!isVpRole && context.actingPrincipalUserId !== user.id)) {
         return res.status(403).json({
           success: false,
           code: 'DELEGATION_INACTIVE',
@@ -145,7 +148,10 @@ export class DelegationController {
       const { comment } = req.body;
 
       const context = await PrincipalDelegationResolverService.resolveStatus();
-      if (context.delegationStatus !== 'ACTIVE' || context.actingPrincipalUserId !== user.id) {
+      const userRole = (typeof user?.role === 'object' ? user.role?.name : String(user?.role || '')).toUpperCase();
+      const isVpRole = userRole.includes('VP') || userRole.includes('VICE') || userRole.includes('ADMIN');
+
+      if (context.delegationStatus !== 'ACTIVE' || (!isVpRole && context.actingPrincipalUserId !== user.id)) {
         return res.status(403).json({
           success: false,
           code: 'DELEGATION_INACTIVE',
@@ -195,7 +201,10 @@ export class DelegationController {
       const { comment } = req.body;
 
       const context = await PrincipalDelegationResolverService.resolveStatus();
-      if (context.delegationStatus !== 'ACTIVE' || context.actingPrincipalUserId !== user.id) {
+      const userRole = (typeof user?.role === 'object' ? user.role?.name : String(user?.role || '')).toUpperCase();
+      const isVpRole = userRole.includes('VP') || userRole.includes('VICE') || userRole.includes('ADMIN');
+
+      if (context.delegationStatus !== 'ACTIVE' || (!isVpRole && context.actingPrincipalUserId !== user.id)) {
         return res.status(403).json({
           success: false,
           code: 'DELEGATION_INACTIVE',

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { ShieldCheck, RotateCcw, Info, RefreshCw, LayoutGrid, List } from 'lucide-react';
 import { usePrincipalAvailability } from '../hooks/usePrincipalAvailability';
 import { PrincipalStatusBadge } from '../components/PrincipalStatusBadge';
-import { AvailabilityModal } from '../components/AvailabilityModal';
+import { PrincipalStatusModal } from '../components/PrincipalStatusModal';
 import { HandoverSummaryCard } from '../components/HandoverSummaryCard';
 import { ApprovalSummaryCards } from '../components/ApprovalSummaryCards';
 import { ApprovalCategoryFilter } from '../components/ApprovalCategoryFilter';
@@ -76,38 +76,59 @@ export const PrincipalApprovalCenterPage: React.FC = () => {
   }, []);
 
   const handleApproveRequest = async (id: string, remarks?: string) => {
+    // Optimistic UI mutation: mark request as APPROVED
+    setRequests((prev) =>
+      prev.map((r) => (r.id === id || r.requestId === id ? { ...r, status: 'APPROVED' } : r))
+    );
+    setSummaryCards((prev) => ({
+      ...prev,
+      pendingCount: Math.max(0, prev.pendingCount - 1),
+      approvedTodayCount: prev.approvedTodayCount + 1,
+    }));
+
     try {
-      await availabilityApi.approveDelegatedRequest(id, remarks);
+      await availabilityApi.approveRequest(id, remarks);
       await fetchQueue();
       await refreshAvailability();
     } catch (err) {
       console.error('Failed to approve request:', err);
+      await fetchQueue();
     }
   };
 
   const handleRejectRequest = async (id: string, remarks?: string) => {
+    // Optimistic UI mutation: mark request as REJECTED
+    setRequests((prev) =>
+      prev.map((r) => (r.id === id || r.requestId === id ? { ...r, status: 'REJECTED' } : r))
+    );
+    setSummaryCards((prev) => ({
+      ...prev,
+      pendingCount: Math.max(0, prev.pendingCount - 1),
+      rejectedTodayCount: prev.rejectedTodayCount + 1,
+    }));
+
     try {
-      await availabilityApi.rejectDelegatedRequest(id, remarks);
+      await availabilityApi.rejectRequest(id, remarks);
       await fetchQueue();
       await refreshAvailability();
     } catch (err) {
       console.error('Failed to reject request:', err);
+      await fetchQueue();
     }
   };
 
+
   const principalStatus = context?.principalStatus || 'AVAILABLE';
-  const isAvailable = principalStatus === 'AVAILABLE';
+  const isAvailable = (principalStatus as string) === 'AVAILABLE' || (principalStatus as string) === 'ONLINE';
 
   // Filter requests
   const filteredRequests = requests.filter((r) => {
-    // Filter by main tab
     let matchTab = true;
     if (activeTab === 'PENDING') matchTab = r.status === 'PENDING';
     else if (activeTab === 'PROCESSED') matchTab = r.status === 'APPROVED' || r.status === 'REJECTED';
     else if (activeTab === 'VP_HANDLED') matchTab = Boolean(r.actionAsRole === 'ACTING_PRINCIPAL');
     else if (activeTab === 'RETURNED') matchTab = r.assignmentType === 'RETURNED_TO_PRINCIPAL' || r.status === 'RETURNED';
 
-    // Filter by category
     let matchCat = true;
     if (selectedCategory !== 'ALL') {
       matchCat = r.requestType === selectedCategory;
@@ -117,26 +138,28 @@ export const PrincipalApprovalCenterPage: React.FC = () => {
   });
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 p-6 md:p-8 space-y-6 max-w-7xl mx-auto">
+    <div className="min-h-screen bg-app-bg text-text-primary p-4 sm:p-6 lg:p-8 space-y-6 max-w-7xl mx-auto">
       {/* Page Header */}
-      <div className="bg-slate-900/80 border border-slate-800 rounded-3xl p-6 shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+      <div className="bg-surface border border-border rounded-3xl p-6 shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-3 mb-2">
-            <h1 className="text-2xl font-black text-white">Approval Center</h1>
+            <h1 className="text-2xl font-extrabold text-text-primary">
+              {isAvailable ? 'Principal Approval Center' : 'Acting Principal Approval Center'}
+            </h1>
             <PrincipalStatusBadge status={principalStatus} size="md" />
           </div>
 
-          <p className="text-xs text-slate-400">
+          <p className="text-xs text-text-muted">
             {isAvailable
               ? 'You are currently available and handling approvals.'
               : 'Vice Principal is currently handling delegated approvals.'}
           </p>
 
           {!isAvailable && context?.actingPrincipal && (
-            <div className="mt-2 text-xs font-semibold text-amber-300 flex items-center gap-2">
-              <span>Acting Authority: <strong className="text-white">{context.actingPrincipal.name}</strong></span>
+            <div className="mt-2 text-xs font-semibold text-amber-600 dark:text-amber-300 flex items-center gap-2">
+              <span>Acting Authority: <strong className="text-text-primary">{context.actingPrincipal.name}</strong></span>
               <span>•</span>
-              <span>Until: <strong className="text-white">{context.delegation?.endsAt ? new Date(context.delegation.endsAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '6:00 PM'}</strong></span>
+              <span>Until: <strong className="text-text-primary">{context.delegation?.endsAt ? new Date(context.delegation.endsAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '6:00 PM'}</strong></span>
             </div>
           )}
         </div>
@@ -144,11 +167,12 @@ export const PrincipalApprovalCenterPage: React.FC = () => {
         {/* Action Controls */}
         <div className="flex items-center gap-3 self-end md:self-auto">
           <button
+            type="button"
             onClick={() => {
               refreshAvailability();
               fetchQueue();
             }}
-            className="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors"
+            className="p-2.5 rounded-xl bg-surface-soft hover:bg-surface border border-border text-text-muted hover:text-text-primary transition-colors"
             title="Refresh Queue"
           >
             <RefreshCw className="w-4 h-4" />
@@ -157,16 +181,18 @@ export const PrincipalApprovalCenterPage: React.FC = () => {
           {isPrincipal && (
             !isAvailable ? (
               <button
+                type="button"
                 onClick={() => updateStatus({ status: 'AVAILABLE' })}
-                className="px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-extrabold transition-all shadow-md flex items-center gap-2"
+                className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-all shadow-xs flex items-center gap-2"
               >
                 <RotateCcw className="w-4 h-4 stroke-[3]" />
                 <span>Return Available</span>
               </button>
             ) : (
               <button
+                type="button"
                 onClick={() => setIsModalOpen(true)}
-                className="px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-extrabold transition-all shadow-md flex items-center gap-2"
+                className="px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold transition-all shadow-xs flex items-center gap-2"
               >
                 <span>Change Status</span>
               </button>
@@ -175,7 +201,7 @@ export const PrincipalApprovalCenterPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Handover Summary Card if available */}
+      {/* Handover Summary Card */}
       <HandoverSummaryCard
         onReviewReturned={() => {
           setActiveTab('RETURNED');
@@ -206,14 +232,14 @@ export const PrincipalApprovalCenterPage: React.FC = () => {
 
       {/* Request Items View */}
       {loadingQueue ? (
-        <div className="p-12 text-center text-slate-400 text-xs font-semibold bg-slate-900/40 rounded-3xl border border-slate-800">
+        <div className="p-12 text-center text-text-muted text-xs font-semibold bg-surface-soft rounded-3xl border border-border">
           Loading approval requests...
         </div>
       ) : filteredRequests.length === 0 ? (
-        <div className="p-12 text-center bg-slate-900/40 rounded-3xl border border-slate-800 space-y-2">
-          <ShieldCheck className="w-8 h-8 text-emerald-400 mx-auto" />
-          <h3 className="text-sm font-extrabold text-white">No requests found</h3>
-          <p className="text-xs text-slate-400">There are no approval items matching your current filters.</p>
+        <div className="p-12 text-center bg-surface rounded-3xl border border-border space-y-2">
+          <ShieldCheck className="w-8 h-8 text-emerald-500 mx-auto" />
+          <h3 className="text-sm font-bold text-text-primary">No requests found</h3>
+          <p className="text-xs text-text-muted">There are no approval items matching your current filters.</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -242,12 +268,12 @@ export const PrincipalApprovalCenterPage: React.FC = () => {
 
       {/* Change Availability Modal */}
       {isModalOpen && (
-        <AvailabilityModal
+        <PrincipalStatusModal
           currentStatus={principalStatus}
           isOpen={isModalOpen}
           onClose={() => setIsModalOpen(false)}
-          onConfirm={async (dto) => {
-            await updateStatus(dto);
+          onStatusUpdated={async () => {
+            await refreshAvailability();
             await fetchQueue();
           }}
         />

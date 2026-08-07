@@ -3,12 +3,18 @@ import { ShieldCheck, Clock, Eye, RotateCcw } from 'lucide-react';
 import { useDelegationContext } from '../../delegation/context/DelegationContext';
 import { useNavigate } from 'react-router-dom';
 
+import { useAuth } from '../../../context/AuthContext';
+
 export const PrincipalDelegationBanner: React.FC = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const { principalStatus, delegationStatus, delegationEndsAt, updateStatus } = useDelegationContext();
 
-  // ONLY render when Principal status is BUSY or OFFLINE and delegation is ACTIVE
-  if ((principalStatus !== 'BUSY' && principalStatus !== 'OFFLINE') || delegationStatus !== 'ACTIVE') {
+  const rawRole = (typeof user?.role === 'object' ? (user?.role as any)?.name : String(user?.role || '')).toUpperCase();
+  const isPrincipal = rawRole.includes('PRINCIPAL') && !rawRole.includes('VICE') && !rawRole.includes('VP');
+
+  // ONLY render for Principal when delegation is ACTIVE and status is not AVAILABLE
+  if (!isPrincipal || (principalStatus as string) === 'AVAILABLE' || (principalStatus as string) === 'ONLINE' || delegationStatus !== 'ACTIVE') {
     return null;
   }
 

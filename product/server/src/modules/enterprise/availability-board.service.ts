@@ -186,13 +186,13 @@ export class AvailabilityBoardService {
       );
     }
 
-    // Summary calculation
-    const facultyOnLeave = items.filter(i => i.role === 'FACULTY' && i.category === 'LEAVE').length;
-    const facultyOnOD = items.filter(i => i.role === 'FACULTY' && i.category === 'ON_DUTY').length;
+    // Summary calculation (unique persons on leave / OD)
+    const facultyOnLeave = new Set(items.filter(i => i.role === 'FACULTY' && i.category === 'LEAVE').map(i => i.personId)).size;
+    const facultyOnOD = new Set(items.filter(i => i.role === 'FACULTY' && i.category === 'ON_DUTY').map(i => i.personId)).size;
     const facultyPresent = Math.max(0, totalFacultyCount - (facultyOnLeave + facultyOnOD));
 
-    const studentOnLeave = items.filter(i => i.role === 'STUDENT' && i.category === 'LEAVE').length;
-    const studentOnOD = items.filter(i => i.role === 'STUDENT' && i.category === 'ON_DUTY').length;
+    const studentOnLeave = new Set(items.filter(i => i.role === 'STUDENT' && i.category === 'LEAVE').map(i => i.personId)).size;
+    const studentOnOD = new Set(items.filter(i => i.role === 'STUDENT' && i.category === 'ON_DUTY').map(i => i.personId)).size;
     const studentPresent = Math.max(0, totalStudentCount - (studentOnLeave + studentOnOD));
 
     // List of all active departments for selection dropdown (Dean / VP)
