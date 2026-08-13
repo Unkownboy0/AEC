@@ -57,7 +57,7 @@ export class EnterpriseController {
           program: true,
           academicYear: true,
           mentor: true,
-          attendanceRecords: { where: { deleted: false } },
+          attendanceRecords: { where: { deleted: false }, include: { subject: { select: { id: true, name: true, code: true } } } },
           marks: { where: { deleted: false }, include: { subject: { select: { credits: true } } } },
           feeBills: { where: { deleted: false } },
           workflowRequests: { where: { status: { in: ['APPROVED', 'PENDING_MENTOR', 'PENDING_HOD', 'PENDING_DEAN'] } } },
@@ -70,6 +70,14 @@ export class EnterpriseController {
       if (!student) {
         return res.status(404).json({ status: 'error', message: 'Student profile not found.' });
       }
+
+      // Fetch department subjects for student
+      const departmentSubjects = student.departmentId
+        ? await prisma.subject.findMany({
+            where: { departmentId: student.departmentId, deleted: false },
+            select: { id: true, code: true, name: true, credits: true }
+          })
+        : [];
 
       // 1. Calculate Attendance %
       const totalAttendanceCount = student.attendanceRecords.length;
@@ -252,7 +260,10 @@ export class EnterpriseController {
       res.status(200).json({
         status: 'success',
         data: {
-          student,
+          student: {
+            ...student,
+            enrolledSubjects: departmentSubjects,
+          },
           metrics: {
             attendancePercentage,
             cgpa,
