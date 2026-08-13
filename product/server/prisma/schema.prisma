@@ -1687,6 +1687,9 @@ model LibraryBook {
   location        String?
   issues          String  @default("[]") // JSON list of issuances
 
+  libraryIssues    LibraryIssue[]
+  reservations     LibraryReservation[]
+
   archived   Boolean   @default(false)
   archivedAt DateTime?
   deleted    Boolean   @default(false)
@@ -1707,6 +1710,9 @@ model TransportRoute {
   stops       String    @default("[]") // JSON list of stops/fees
   monthlyFee  Float     @default(0.0)
   students    Student[]
+  transportStops    TransportStop[]
+  routeVehicles     TransportRouteVehicle[]
+  transportAllocations TransportAllocation[]
 
   archived   Boolean   @default(false)
   archivedAt DateTime?
@@ -1725,6 +1731,7 @@ model HostelBuilding {
   description String?
   rooms       String    @default("[]") // JSON rooms, beds capacities
   students    Student[]
+  blocks      HostelBlock[]
 
   archived   Boolean   @default(false)
   archivedAt DateTime?
@@ -4298,4 +4305,1994 @@ model ApprovalAttachment {
   @@index([requestId])
   @@index([status])
   @@map("approval_attachments")
+}
+
+// ==========================================
+// MODULE 17: LIBRARY MANAGEMENT
+// ==========================================
+
+model LibraryCategory {
+  id          String        @id @default(uuid())
+  name        String        @unique
+  code        String        @unique
+  description String?
+  parentId    String?
+  parent      LibraryCategory?  @relation("LibraryCategoryHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
+  children    LibraryCategory[] @relation("LibraryCategoryHierarchy")
+  status      String        @default("ACTIVE")
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@map("library_categories")
+}
+
+model LibraryAuthor {
+  id        String   @id @default(uuid())
+  name      String
+  email     String?
+  bio       String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("library_authors")
+}
+
+model LibraryIssue {
+  id            String    @id @default(uuid())
+  bookId        String
+  book          LibraryBook @relation(fields: [bookId], references: [id], onDelete: Cascade)
+  borrowerId    String
+  borrowerType  String    @default("STUDENT") // STUDENT, FACULTY, STAFF
+  accessionNo   String?
+  issueDate     DateTime  @default(now())
+  dueDate       DateTime
+  returnDate    DateTime?
+  renewalCount  Int       @default(0)
+  maxRenewals   Int       @default(2)
+  status        String    @default("ISSUED") // ISSUED, RETURNED, OVERDUE, LOST, DAMAGED
+  fineAmount    Float     @default(0)
+  fineStatus    String?   // PENDING, PAID, WAIVED
+  remarks       String?
+  issuedById    String
+  returnedById  String?
+  fines         LibraryFine[]
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([bookId, status])
+  @@index([borrowerId, borrowerType])
+  @@index([dueDate, status])
+  @@map("library_issues")
+}
+
+model LibraryReservation {
+  id            String    @id @default(uuid())
+  bookId        String
+  book          LibraryBook @relation(fields: [bookId], references: [id], onDelete: Cascade)
+  reservedById  String
+  reserverType  String    @default("STUDENT")
+  status        String    @default("ACTIVE") // ACTIVE, FULFILLED, CANCELLED, EXPIRED
+  reservedAt    DateTime  @default(now())
+  expiresAt     DateTime
+  fulfilledAt   DateTime?
+  cancelledAt   DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([bookId, status])
+  @@index([reservedById])
+  @@map("library_reservations")
+}
+
+model LibraryFine {
+  id           String    @id @default(uuid())
+  issueId      String
+  issue        LibraryIssue @relation(fields: [issueId], references: [id], onDelete: Cascade)
+  borrowerId   String
+  borrowerType String    @default("STUDENT")
+  amount       Float
+  reason       String    // OVERDUE, LOST, DAMAGED
+  status       String    @default("PENDING") // PENDING, PAID, WAIVED, CONNECTED_TO_FEES
+  feePaymentId String?
+  waivedById   String?
+  waivedReason String?
+  paidAt       DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([borrowerId, status])
+  @@map("library_fines")
+}
+
+model LibraryDigitalResource {
+  id          String   @id @default(uuid())
+  title       String
+  type        String   @default("EBOOK") // EBOOK, JOURNAL, VIDEO, DATABASE, THESIS
+  url         String?
+  fileKey     String?
+  isbn        String?
+  author      String?
+  publisher   String?
+  category    String?
+  description String?
+  accessLevel String   @default("ALL") // ALL, FACULTY_ONLY, RESEARCH_ONLY
+  status      String   @default("ACTIVE")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("library_digital_resources")
+}
+
+// ==========================================
+// MODULE 18: HOSTEL MANAGEMENT
+// ==========================================
+
+model HostelBlock {
+  id              String        @id @default(uuid())
+  hostelId        String
+  hostel          HostelBuilding @relation(fields: [hostelId], references: [id], onDelete: Cascade)
+  name            String
+  description     String?
+  totalFloors     Int           @default(1)
+  status          String        @default("ACTIVE")
+  floors          HostelFloor[]
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@unique([hostelId, name])
+  @@map("hostel_blocks")
+}
+
+model HostelFloor {
+  id        String      @id @default(uuid())
+  blockId   String
+  block     HostelBlock @relation(fields: [blockId], references: [id], onDelete: Cascade)
+  number    Int
+  name      String?
+  status    String      @default("ACTIVE")
+  rooms     HostelRoom[]
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  @@unique([blockId, number])
+  @@map("hostel_floors")
+}
+
+model HostelRoom {
+  id          String        @id @default(uuid())
+  floorId     String
+  floor       HostelFloor   @relation(fields: [floorId], references: [id], onDelete: Cascade)
+  roomNumber  String
+  roomType    String        @default("STANDARD") // STANDARD, SINGLE, DOUBLE, TRIPLE, DORMITORY
+  capacity    Int           @default(2)
+  occupied    Int           @default(0)
+  amenities   String        @default("[]") // JSON
+  status      String        @default("AVAILABLE") // AVAILABLE, FULL, MAINTENANCE, BLOCKED
+  beds        HostelBed[]
+  allocations HostelAllocation[]
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@unique([floorId, roomNumber])
+  @@index([status])
+  @@map("hostel_rooms")
+}
+
+model HostelBed {
+  id         String          @id @default(uuid())
+  roomId     String
+  room       HostelRoom      @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  bedNumber  String
+  status     String          @default("AVAILABLE") // AVAILABLE, OCCUPIED, MAINTENANCE
+  allocation HostelAllocation?
+  createdAt  DateTime        @default(now())
+  updatedAt  DateTime        @updatedAt
+
+  @@unique([roomId, bedNumber])
+  @@map("hostel_beds")
+}
+
+model HostelAllocation {
+  id             String    @id @default(uuid())
+  studentId      String
+  roomId         String
+  room           HostelRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  bedId          String?   @unique
+  bed            HostelBed? @relation(fields: [bedId], references: [id], onDelete: SetNull)
+  academicYear   String
+  allocationDate DateTime  @default(now())
+  vacationDate   DateTime?
+  status         String    @default("ACTIVE") // ACTIVE, VACATED, TRANSFERRED
+  allocatedById  String
+  remarks        String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([studentId, status])
+  @@index([roomId, status])
+  @@map("hostel_allocations")
+}
+
+model HostelRoomChange {
+  id            String   @id @default(uuid())
+  studentId     String
+  fromRoomId    String
+  toRoomId      String
+  fromBedId     String?
+  toBedId       String?
+  reason        String
+  status        String   @default("REQUESTED") // REQUESTED, APPROVED, REJECTED, COMPLETED
+  approvedById  String?
+  approvedAt    DateTime?
+  completedAt   DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([studentId])
+  @@map("hostel_room_changes")
+}
+
+model HostelWarden {
+  id           String   @id @default(uuid())
+  userId       String
+  hostelId     String
+  designation  String   @default("WARDEN") // WARDEN, CHIEF_WARDEN, ASSISTANT_WARDEN
+  status       String   @default("ACTIVE")
+  assignedAt   DateTime @default(now())
+  relievedAt   DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([userId, hostelId])
+  @@map("hostel_wardens")
+}
+
+model HostelMess {
+  id           String   @id @default(uuid())
+  hostelId     String
+  name         String
+  type         String   @default("VEG") // VEG, NON_VEG, BOTH
+  capacity     Int
+  menuSchedule String   @default("{}") // JSON weekly menu
+  timings      String   @default("{}") // JSON meal timings
+  status       String   @default("ACTIVE")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("hostel_mess")
+}
+
+model HostelMessAttendance {
+  id        String   @id @default(uuid())
+  messId    String
+  studentId String
+  date      DateTime @db.Date
+  meal      String   // BREAKFAST, LUNCH, SNACKS, DINNER
+  status    String   @default("PRESENT")
+  createdAt DateTime @default(now())
+
+  @@unique([messId, studentId, date, meal])
+  @@index([studentId, date])
+  @@map("hostel_mess_attendance")
+}
+
+model HostelNightAttendance {
+  id         String   @id @default(uuid())
+  hostelId   String
+  studentId  String
+  date       DateTime @db.Date
+  status     String   @default("PRESENT") // PRESENT, ABSENT, OUTING, LEAVE
+  recordedBy String
+  remarks    String?
+  createdAt  DateTime @default(now())
+
+  @@unique([hostelId, studentId, date])
+  @@index([studentId, date])
+  @@map("hostel_night_attendance")
+}
+
+model HostelOuting {
+  id            String    @id @default(uuid())
+  studentId     String
+  hostelId      String
+  outDate       DateTime
+  outTime       String
+  expectedReturn DateTime
+  actualReturn  DateTime?
+  purpose       String
+  destination   String
+  contactNumber String
+  status        String    @default("REQUESTED") // REQUESTED, APPROVED, OUT, RETURNED, OVERDUE
+  approvedById  String?
+  approvedAt    DateTime?
+  remarks       String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([studentId, status])
+  @@map("hostel_outings")
+}
+
+model HostelVisitor {
+  id            String    @id @default(uuid())
+  hostelId      String
+  studentId     String
+  visitorName   String
+  relationship  String
+  visitorPhone  String
+  visitorIdType String?
+  visitorIdNo   String?
+  purpose       String
+  entryTime     DateTime  @default(now())
+  exitTime      DateTime?
+  status        String    @default("CHECKED_IN") // CHECKED_IN, CHECKED_OUT
+  verifiedById  String
+  remarks       String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([studentId])
+  @@index([hostelId, entryTime])
+  @@map("hostel_visitors")
+}
+
+model HostelComplaint {
+  id            String    @id @default(uuid())
+  hostelId      String
+  studentId     String?
+  roomId        String?
+  category      String    @default("GENERAL") // ELECTRICAL, PLUMBING, FURNITURE, CLEANING, FOOD, SECURITY, GENERAL
+  title         String
+  description   String
+  priority      String    @default("MEDIUM")
+  status        String    @default("OPEN") // OPEN, ASSIGNED, IN_PROGRESS, RESOLVED, CLOSED
+  attachments   String    @default("[]") // JSON
+  assignedToId  String?
+  resolvedAt    DateTime?
+  resolution    String?
+  ticketId      String?   // Link to main Ticket system
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([hostelId, status])
+  @@index([studentId])
+  @@map("hostel_complaints")
+}
+
+model HostelDiscipline {
+  id          String   @id @default(uuid())
+  hostelId    String
+  studentId   String
+  incidentDate DateTime
+  category    String   // CURFEW_VIOLATION, PROPERTY_DAMAGE, MISCONDUCT, OTHER
+  description String
+  severity    String   @default("MINOR") // MINOR, MODERATE, MAJOR
+  action      String?
+  actionBy    String
+  status      String   @default("RECORDED") // RECORDED, WARNING_ISSUED, PENALTY_APPLIED, RESOLVED
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([studentId])
+  @@map("hostel_discipline")
+}
+
+// ==========================================
+// MODULE 19: TRANSPORT MANAGEMENT
+// ==========================================
+
+model Vehicle {
+  id              String   @id @default(uuid())
+  vehicleNumber   String   @unique
+  type            String   @default("BUS") // BUS, MINI_BUS, VAN, CAR
+  make            String?
+  model           String?
+  year            Int?
+  capacity        Int
+  fuelType        String   @default("DIESEL")
+  status          String   @default("ACTIVE") // ACTIVE, MAINTENANCE, RETIRED
+  insuranceExpiry DateTime?
+  fitnessExpiry   DateTime?
+  permitExpiry    DateTime?
+  registrationNo  String?
+  gpsDeviceId     String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  routes            TransportRouteVehicle[]
+  maintenanceRecords TransportMaintenance[]
+  fuelRecords       TransportFuel[]
+  breakdowns        TransportBreakdown[]
+
+  @@map("vehicles")
+}
+
+model TransportStop {
+  id           String   @id @default(uuid())
+  routeId      String
+  route        TransportRoute @relation(fields: [routeId], references: [id], onDelete: Cascade)
+  name         String
+  landmark     String?
+  latitude     Float?
+  longitude    Float?
+  sequence     Int
+  pickupTime   String?
+  dropTime     String?
+  fee          Float    @default(0)
+  status       String   @default("ACTIVE")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  allocations  TransportAllocation[]
+
+  @@unique([routeId, sequence])
+  @@map("transport_stops")
+}
+
+model TransportDriver {
+  id            String   @id @default(uuid())
+  name          String
+  phone         String
+  alternatePhone String?
+  licenseNo     String   @unique
+  licenseExpiry DateTime
+  experience    Int      @default(0)
+  address       String?
+  photo         String?
+  status        String   @default("ACTIVE")
+  userId        String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  routeAssignments TransportRouteVehicle[]
+
+  @@map("transport_drivers")
+}
+
+model TransportRouteVehicle {
+  id          String   @id @default(uuid())
+  routeId     String
+  route       TransportRoute @relation(fields: [routeId], references: [id], onDelete: Cascade)
+  vehicleId   String
+  vehicle     Vehicle  @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  driverId    String?
+  driver      TransportDriver? @relation(fields: [driverId], references: [id], onDelete: SetNull)
+  conductorId String?
+  shift       String   @default("MORNING") // MORNING, EVENING, BOTH
+  status      String   @default("ACTIVE")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([routeId, vehicleId, shift])
+  @@map("transport_route_vehicles")
+}
+
+model TransportAllocation {
+  id            String   @id @default(uuid())
+  routeId       String
+  route         TransportRoute @relation(fields: [routeId], references: [id], onDelete: Cascade)
+  stopId        String
+  stop          TransportStop @relation(fields: [stopId], references: [id], onDelete: Cascade)
+  passengerId   String
+  passengerType String   @default("STUDENT") // STUDENT, FACULTY, STAFF
+  academicYear  String
+  status        String   @default("ACTIVE") // ACTIVE, CANCELLED, SUSPENDED
+  startDate     DateTime
+  endDate       DateTime?
+  monthlyFee    Float    @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([passengerId, passengerType])
+  @@index([routeId, status])
+  @@map("transport_allocations")
+}
+
+model TransportAttendance {
+  id            String   @id @default(uuid())
+  routeId       String
+  vehicleId     String?
+  passengerId   String
+  passengerType String   @default("STUDENT")
+  date          DateTime @db.Date
+  direction     String   // PICKUP, DROP
+  status        String   @default("BOARDED") // BOARDED, ABSENT, LATE
+  boardingTime  DateTime?
+  recordedBy    String?
+  createdAt     DateTime @default(now())
+
+  @@unique([routeId, passengerId, date, direction])
+  @@index([passengerId, date])
+  @@map("transport_attendance")
+}
+
+model TransportMaintenance {
+  id            String    @id @default(uuid())
+  vehicleId     String
+  vehicle       Vehicle   @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  type          String    @default("ROUTINE") // ROUTINE, REPAIR, EMERGENCY
+  description   String
+  startDate     DateTime
+  endDate       DateTime?
+  cost          Float     @default(0)
+  vendorId      String?
+  status        String    @default("SCHEDULED") // SCHEDULED, IN_PROGRESS, COMPLETED
+  remarks       String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([vehicleId, status])
+  @@map("transport_maintenance")
+}
+
+model TransportFuel {
+  id          String   @id @default(uuid())
+  vehicleId   String
+  vehicle     Vehicle  @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  date        DateTime
+  quantity    Float
+  costPerUnit Float
+  totalCost   Float
+  odometer    Int?
+  filledById  String
+  receiptUrl  String?
+  createdAt   DateTime @default(now())
+
+  @@index([vehicleId, date])
+  @@map("transport_fuel")
+}
+
+model TransportBreakdown {
+  id           String    @id @default(uuid())
+  vehicleId    String
+  vehicle      Vehicle   @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  routeId      String?
+  reportedAt   DateTime  @default(now())
+  location     String?
+  description  String
+  severity     String    @default("MEDIUM") // LOW, MEDIUM, HIGH, CRITICAL
+  status       String    @default("REPORTED") // REPORTED, RESCUE_SENT, RESOLVED
+  resolvedAt   DateTime?
+  resolution   String?
+  reportedById String
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([vehicleId, status])
+  @@map("transport_breakdowns")
+}
+
+// ==========================================
+// MODULE 20: CAMPUS SECURITY
+// ==========================================
+
+model GatePass {
+  id            String    @id @default(uuid())
+  passNumber    String    @unique
+  requesterId   String
+  requesterType String    @default("STUDENT") // STUDENT, FACULTY, STAFF
+  purpose       String
+  destination   String?
+  validFrom     DateTime
+  validUntil    DateTime
+  vehicleNo     String?
+  status        String    @default("REQUESTED") // REQUESTED, APPROVED, ACTIVE, USED, EXPIRED, CANCELLED
+  approvedById  String?
+  approvedAt    DateTime?
+  usedAt        DateTime?
+  qrToken       String?   @unique
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([requesterId, requesterType])
+  @@index([status, validFrom])
+  @@map("gate_passes")
+}
+
+model VisitorRecord {
+  id             String    @id @default(uuid())
+  visitorName    String
+  visitorPhone   String
+  visitorEmail   String?
+  visitorIdType  String?   // AADHAAR, PAN, DRIVING_LICENSE, PASSPORT
+  visitorIdNo    String?
+  organization   String?
+  purpose        String
+  hostId         String?
+  hostType       String?   // FACULTY, STAFF, HOD, PRINCIPAL
+  hostName       String?
+  vehicleNo      String?
+  entryGate      String?
+  exitGate       String?
+  entryTime      DateTime  @default(now())
+  exitTime       DateTime?
+  photo          String?
+  badgeNumber    String?
+  status         String    @default("CHECKED_IN") // CHECKED_IN, CHECKED_OUT, DENIED
+  verifiedById   String
+  remarks        String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([entryTime])
+  @@index([hostId])
+  @@index([status])
+  @@map("visitor_records")
+}
+
+model EntryExitLog {
+  id           String   @id @default(uuid())
+  personId     String
+  personType   String   // STUDENT, FACULTY, STAFF, VISITOR
+  direction    String   // ENTRY, EXIT
+  gate         String?
+  method       String   @default("QR_SCAN") // QR_SCAN, MANUAL, BIOMETRIC, RFID
+  verifiedById String?
+  timestamp    DateTime @default(now())
+  remarks      String?
+
+  @@index([personId, personType])
+  @@index([timestamp])
+  @@map("entry_exit_logs")
+}
+
+model SecurityIncident {
+  id            String    @id @default(uuid())
+  incidentNumber String   @unique
+  type          String    // THEFT, TRESPASSING, ACCIDENT, FIRE, MEDICAL, VANDALISM, OTHER
+  severity      String    @default("MEDIUM") // LOW, MEDIUM, HIGH, CRITICAL
+  location      String
+  description   String
+  reportedById  String
+  reportedAt    DateTime  @default(now())
+  witnesses     String    @default("[]") // JSON
+  attachments   String    @default("[]") // JSON
+  status        String    @default("REPORTED") // REPORTED, INVESTIGATING, RESOLVED, CLOSED
+  assignedToId  String?
+  resolution    String?
+  resolvedAt    DateTime?
+  resolvedById  String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([type, status])
+  @@index([reportedAt])
+  @@map("security_incidents")
+}
+
+model SecurityVerification {
+  id           String   @id @default(uuid())
+  verifierId   String
+  targetId     String
+  targetType   String   // STUDENT, FACULTY, STAFF, VISITOR, VEHICLE
+  method       String   @default("QR") // QR, MANUAL, BIOMETRIC
+  result       String   // VERIFIED, FAILED, EXPIRED, INVALID
+  qrPayload    String?
+  responseData String?  // JSON — minimum required info returned
+  ipAddress    String?
+  deviceId     String?
+  timestamp    DateTime @default(now())
+
+  @@index([targetId, targetType])
+  @@index([verifierId])
+  @@index([timestamp])
+  @@map("security_verifications")
+}
+
+// ==========================================
+// MODULE 23: FACULTY / STAFF SELF APPRAISAL
+// ==========================================
+
+model AppraisalConfig {
+  id             String   @id @default(uuid())
+  academicYear   String
+  title          String
+  description    String?
+  status         String   @default("DRAFT") // DRAFT, ACTIVE, CLOSED, ARCHIVED
+  startDate      DateTime
+  endDate        DateTime
+  configuredById String
+  categories     AppraisalCategory[]
+  submissions    AppraisalSubmission[]
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([academicYear, title])
+  @@map("appraisal_configs")
+}
+
+model AppraisalCategory {
+  id            String   @id @default(uuid())
+  configId      String
+  config        AppraisalConfig @relation(fields: [configId], references: [id], onDelete: Cascade)
+  name          String
+  code          String
+  description   String?
+  maxPoints     Float    @default(100)
+  weightage     Float    @default(1.0)
+  sortOrder     Int      @default(0)
+  subcategories AppraisalSubcategory[]
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([configId, code])
+  @@map("appraisal_categories")
+}
+
+model AppraisalSubcategory {
+  id                    String   @id @default(uuid())
+  categoryId            String
+  category              AppraisalCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  name                  String
+  code                  String
+  description           String?
+  maxPoints             Float    @default(10)
+  pointsPerItem         Float    @default(1)
+  maxItems              Int?
+  evidenceRequired      Boolean  @default(true)
+  verificationAuthority String   @default("HOD") // HOD, DEAN, IQAC, PRINCIPAL
+  sortOrder             Int      @default(0)
+  entries               AppraisalEntry[]
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@unique([categoryId, code])
+  @@map("appraisal_subcategories")
+}
+
+model AppraisalSubmission {
+  id             String   @id @default(uuid())
+  configId       String
+  config         AppraisalConfig @relation(fields: [configId], references: [id], onDelete: Cascade)
+  facultyId      String
+  academicYear   String
+  status         String   @default("DRAFT") // DRAFT, SUBMITTED, UNDER_REVIEW, RETURNED, VERIFIED, FINALIZED
+  totalScore     Float    @default(0)
+  weightedScore  Float    @default(0)
+  submittedAt    DateTime?
+  verifiedById   String?
+  verifiedAt     DateTime?
+  returnReason   String?
+  finalizedAt    DateTime?
+  entries        AppraisalEntry[]
+  verifications  AppraisalVerification[]
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([configId, facultyId, academicYear])
+  @@index([facultyId, academicYear])
+  @@index([status])
+  @@map("appraisal_submissions")
+}
+
+model AppraisalEntry {
+  id              String   @id @default(uuid())
+  submissionId    String
+  submission      AppraisalSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  subcategoryId   String
+  subcategory     AppraisalSubcategory @relation(fields: [subcategoryId], references: [id], onDelete: Cascade)
+  title           String
+  description     String?
+  claimedPoints   Float    @default(0)
+  verifiedPoints  Float?
+  evidenceId      String?  // Link to Evidence Repository
+  evidenceUrl     String?
+  evidenceType    String?
+  status          String   @default("CLAIMED") // CLAIMED, VERIFIED, REJECTED, RETURNED
+  verifiedById    String?
+  verifiedAt      DateTime?
+  remarks         String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([submissionId])
+  @@index([subcategoryId])
+  @@map("appraisal_entries")
+}
+
+model AppraisalVerification {
+  id             String   @id @default(uuid())
+  submissionId   String
+  submission     AppraisalSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  verifierId     String
+  verifierRole   String
+  action         String   // SUBMIT, VERIFY, RETURN, FINALIZE
+  previousStatus String?
+  newStatus      String
+  remarks        String?
+  createdAt      DateTime @default(now())
+
+  @@index([submissionId])
+  @@map("appraisal_verifications")
+}
+
+// ==========================================
+// MODULE 24: EVIDENCE REPOSITORY
+// ==========================================
+
+model EvidenceItem {
+  id             String   @id @default(uuid())
+  ownerId        String
+  ownerType      String   @default("FACULTY") // FACULTY, STUDENT, DEPARTMENT
+  category       String   // CERTIFICATE, PUBLICATION, PATENT, RESEARCH, FDP, AWARD, EVENT, DOCUMENT, URL, DOI
+  title          String
+  description    String?
+  fileKey        String?
+  fileUrl        String?
+  fileName       String?
+  fileSize       Int?
+  mimeType       String?
+  fileHash       String?  // SHA-256 for dedup
+  externalUrl    String?
+  doi            String?
+  metadata       String   @default("{}") // JSON: date, venue, organizer, etc.
+  academicYear   String?
+  verificationStatus String @default("UNVERIFIED") // UNVERIFIED, VERIFIED, REJECTED
+  verifiedById   String?
+  verifiedAt     DateTime?
+  version        Int      @default(1)
+  previousVersionId String?
+  status         String   @default("ACTIVE") // ACTIVE, ARCHIVED, DELETED
+  links          EvidenceLink[]
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([ownerId, ownerType])
+  @@index([category, academicYear])
+  @@index([fileHash])
+  @@map("evidence_items")
+}
+
+model EvidenceLink {
+  id           String       @id @default(uuid())
+  evidenceId   String
+  evidence     EvidenceItem @relation(fields: [evidenceId], references: [id], onDelete: Cascade)
+  linkedModule String       // APPRAISAL, IQAC, RESEARCH, PROFILE, ANNUAL_REPORT, DEPARTMENT_REPORT
+  linkedId     String
+  linkedType   String?
+  createdAt    DateTime     @default(now())
+
+  @@unique([evidenceId, linkedModule, linkedId])
+  @@index([linkedModule, linkedId])
+  @@map("evidence_links")
+}
+
+// ==========================================
+// MODULE 14: OFFICE / STUDENT SERVICES
+// ==========================================
+
+model CertificateTemplate {
+  id             String   @id @default(uuid())
+  name           String   @unique
+  code           String   @unique
+  type           String   // BONAFIDE, STUDY, CONDUCT, TC, FEE, SCHOLARSHIP, CUSTOM
+  content        String   // HTML/template with placeholders
+  headerHtml     String?
+  footerHtml     String?
+  signatories    String   @default("[]") // JSON: [{role, name, designation}]
+  requiresFinancialClearance Boolean @default(false)
+  requiresApproval Boolean @default(true)
+  autoFields     String   @default("[]") // JSON: fields auto-pulled from Student Master
+  status         String   @default("ACTIVE")
+  version        Int      @default(1)
+  createdById    String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  generations    CertificateGeneration[]
+
+  @@map("certificate_templates")
+}
+
+model CertificateGeneration {
+  id              String    @id @default(uuid())
+  requestNumber   String    @unique
+  templateId      String
+  template        CertificateTemplate @relation(fields: [templateId], references: [id])
+  studentId       String
+  requestedById   String
+  purpose         String?
+  data            String    @default("{}") // JSON: merged data from Student Master
+  status          String    @default("REQUESTED") // REQUESTED, UNDER_REVIEW, FINANCIAL_CLEARANCE, APPROVED, GENERATED, SIGNED, PUBLISHED, REJECTED, RETURNED
+  currentStep     String    @default("OFFICE_REVIEW")
+  qrVerificationHash String? @unique
+  generatedPdfUrl String?
+  signedPdfUrl    String?
+  signedAt        DateTime?
+  signedById      String?
+  publishedAt     DateTime?
+  rejectionReason String?
+  returnReason    String?
+  turnaroundHours Float?
+  financialClearance Boolean @default(false)
+  financialClearanceAt DateTime?
+  financialClearanceBy String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([studentId, status])
+  @@index([templateId])
+  @@index([status, createdAt])
+  @@map("certificate_generations")
+}
+
+// ==========================================
+// MODULE 34: PURCHASE & PROCUREMENT
+// ==========================================
+
+model PurchaseRequest {
+  id              String   @id @default(uuid())
+  requestNumber   String   @unique
+  departmentId    String
+  requestedById   String
+  title           String
+  description     String
+  category        String   @default("GENERAL") // GENERAL, IT, LAB, FURNITURE, STATIONERY, OTHER
+  items           String   @default("[]") // JSON: [{name, qty, estPrice, specs}]
+  estimatedAmount Float
+  budgetHead      String?
+  priority        String   @default("MEDIUM")
+  status          String   @default("DRAFT") // DRAFT, SUBMITTED, HOD_APPROVED, FINANCE_APPROVED, PRINCIPAL_APPROVED, PO_CREATED, COMPLETED, REJECTED
+  currentStep     String   @default("HOD")
+  attachments     String   @default("[]") // JSON
+  remarks         String?
+  approvedAmount  Float?
+  quotations      PurchaseQuotation[]
+  orders          PurchaseOrder[]
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([departmentId, status])
+  @@index([requestedById])
+  @@map("purchase_requests")
+}
+
+model PurchaseQuotation {
+  id            String   @id @default(uuid())
+  requestId     String
+  request       PurchaseRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  vendorId      String?
+  vendorName    String
+  quotationNo   String?
+  quotationDate DateTime
+  items         String   @default("[]") // JSON: [{name, qty, unitPrice, tax, total}]
+  totalAmount   Float
+  validUntil    DateTime?
+  terms         String?
+  attachmentUrl String?
+  isSelected    Boolean  @default(false)
+  remarks       String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([requestId])
+  @@map("purchase_quotations")
+}
+
+model PurchaseOrder {
+  id              String   @id @default(uuid())
+  poNumber        String   @unique
+  requestId       String?
+  request         PurchaseRequest? @relation(fields: [requestId], references: [id], onDelete: SetNull)
+  vendorId        String
+  departmentId    String
+  items           String   @default("[]") // JSON
+  totalAmount     Float
+  tax             Float    @default(0)
+  grandTotal      Float
+  deliveryDate    DateTime?
+  terms           String?
+  status          String   @default("CREATED") // CREATED, SENT, ACKNOWLEDGED, PARTIALLY_RECEIVED, RECEIVED, INVOICED, CLOSED, CANCELLED
+  approvedById    String?
+  approvedAt      DateTime?
+  attachments     String   @default("[]") // JSON
+  goodsReceipts   GoodsReceipt[]
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([vendorId])
+  @@index([departmentId, status])
+  @@map("purchase_orders")
+}
+
+model GoodsReceipt {
+  id            String    @id @default(uuid())
+  grnNumber     String    @unique
+  poId          String
+  po            PurchaseOrder @relation(fields: [poId], references: [id], onDelete: Cascade)
+  receivedDate  DateTime  @default(now())
+  receivedById  String
+  items         String    @default("[]") // JSON: [{item, qtyOrdered, qtyReceived, condition}]
+  remarks       String?
+  attachments   String    @default("[]") // JSON
+  status        String    @default("RECEIVED") // RECEIVED, INSPECTED, ACCEPTED, REJECTED
+  inspectedById String?
+  inspectedAt   DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([poId])
+  @@map("goods_receipts")
+}
+
+// ==========================================
+// MODULE 35: INVENTORY & ASSET MANAGEMENT
+// ==========================================
+
+model Asset {
+  id              String    @id @default(uuid())
+  assetId         String    @unique
+  serialNumber    String?
+  name            String
+  category        String    // IT, FURNITURE, LAB, VEHICLE, BUILDING, OTHER
+  subcategory     String?
+  description     String?
+  departmentId    String
+  locationId      String?
+  custodianId     String?
+  purchaseDate    DateTime?
+  purchaseOrderId String?
+  vendorId        String?
+  purchasePrice   Float     @default(0)
+  currentValue    Float     @default(0)
+  warrantyExpiry  DateTime?
+  amcExpiry       DateTime?
+  amcVendorId     String?
+  condition       String    @default("GOOD") // NEW, GOOD, FAIR, POOR, CONDEMNED
+  status          String    @default("ACTIVE") // ACTIVE, IN_REPAIR, TRANSFERRED, DISPOSED, LOST
+  photo           String?
+  qrCode          String?
+  metadata        String    @default("{}") // JSON
+  movements       AssetMovement[]
+  serviceRecords  AssetService[]
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([departmentId, status])
+  @@index([category])
+  @@index([custodianId])
+  @@map("assets")
+}
+
+model AssetMovement {
+  id             String   @id @default(uuid())
+  assetId        String
+  asset          Asset    @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  movementType   String   // ALLOCATION, TRANSFER, RETURN, DISPOSAL, REPAIR
+  fromDeptId     String?
+  toDeptId       String?
+  fromCustodianId String?
+  toCustodianId  String?
+  fromLocation   String?
+  toLocation     String?
+  reason         String?
+  approvedById   String?
+  performedById  String
+  performedAt    DateTime @default(now())
+  remarks        String?
+  createdAt      DateTime @default(now())
+
+  @@index([assetId])
+  @@map("asset_movements")
+}
+
+model AssetService {
+  id           String    @id @default(uuid())
+  assetId      String
+  asset        Asset     @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  serviceType  String    // ROUTINE, REPAIR, AMC, WARRANTY
+  description  String
+  vendorId     String?
+  cost         Float     @default(0)
+  startDate    DateTime
+  endDate      DateTime?
+  status       String    @default("SCHEDULED") // SCHEDULED, IN_PROGRESS, COMPLETED
+  remarks      String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([assetId])
+  @@map("asset_services")
+}
+
+model InventoryItem {
+  id            String   @id @default(uuid())
+  itemCode      String   @unique
+  name          String
+  category      String
+  unit          String   @default("NOS") // NOS, KG, LTR, MTR, PKT, BOX
+  description   String?
+  currentStock  Float    @default(0)
+  minimumStock  Float    @default(0)
+  reorderLevel  Float    @default(0)
+  departmentId  String?
+  location      String?
+  status        String   @default("ACTIVE")
+  transactions  InventoryTransaction[]
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([category])
+  @@index([departmentId])
+  @@map("inventory_items")
+}
+
+model InventoryTransaction {
+  id            String        @id @default(uuid())
+  itemId        String
+  item          InventoryItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  type          String        // STOCK_IN, STOCK_OUT, ADJUSTMENT, RETURN
+  quantity      Float
+  previousStock Float
+  newStock      Float
+  reference     String?       // PO number, issue reference
+  departmentId  String?
+  issuedToId    String?
+  performedById String
+  remarks       String?
+  createdAt     DateTime      @default(now())
+
+  @@index([itemId, type])
+  @@index([createdAt])
+  @@map("inventory_transactions")
+}
+
+// ==========================================
+// MODULE 36: VENDOR MANAGEMENT
+// ==========================================
+
+model Vendor {
+  id            String   @id @default(uuid())
+  vendorCode    String   @unique
+  name          String
+  tradeName     String?
+  type          String   @default("SUPPLIER") // SUPPLIER, SERVICE_PROVIDER, CONTRACTOR, AMC
+  gstNumber     String?
+  panNumber     String?
+  tanNumber     String?
+  email         String?
+  phone         String
+  alternatePhone String?
+  website       String?
+  addressLine1  String
+  addressLine2  String?
+  city          String
+  state         String
+  pincode       String
+  country       String   @default("India")
+  bankName      String?
+  bankBranch    String?
+  bankAccount   String?
+  ifscCode      String?
+  products      String   @default("[]") // JSON: products/services offered
+  documents     String   @default("[]") // JSON
+  rating        Float?
+  status        String   @default("ACTIVE") // ACTIVE, BLACKLISTED, INACTIVE
+  notes         String?
+  contacts      VendorContact[]
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([gstNumber])
+  @@index([status])
+  @@map("vendors")
+}
+
+model VendorContact {
+  id         String   @id @default(uuid())
+  vendorId   String
+  vendor     Vendor   @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  name       String
+  designation String?
+  email      String?
+  phone      String
+  isPrimary  Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@map("vendor_contacts")
+}
+
+// ==========================================
+// MODULE 37: CAMPUS MAINTENANCE
+// ==========================================
+
+model MaintenanceRequest {
+  id            String    @id @default(uuid())
+  requestNumber String    @unique
+  category      String    // ELECTRICAL, PLUMBING, IT, CIVIL, LAB, FURNITURE, HOSTEL, TRANSPORT, OTHER
+  subcategory   String?
+  title         String
+  description   String
+  location      String
+  buildingId    String?
+  roomId        String?
+  priority      String    @default("MEDIUM") // LOW, MEDIUM, HIGH, URGENT
+  status        String    @default("OPEN") // OPEN, TRIAGED, ASSIGNED, IN_PROGRESS, RESOLVED, VERIFIED, CLOSED, REJECTED
+  reportedById  String
+  reportedByType String   @default("STAFF") // STUDENT, FACULTY, STAFF, WARDEN
+  attachments   String    @default("[]") // JSON
+  photos        String    @default("[]") // JSON
+  assignedToId  String?
+  ticketId      String?   // Link to Grievance/Helpdesk
+  assetId       String?   // Link to Asset if applicable
+  estimatedCost Float?
+  actualCost    Float?
+  partsUsed     String    @default("[]") // JSON
+  slaHours      Int?
+  triageRemarks String?
+  resolution    String?
+  resolvedAt    DateTime?
+  resolvedById  String?
+  verifiedAt    DateTime?
+  verifiedById  String?
+  feedback      String?
+  feedbackRating Int?
+  works         MaintenanceWork[]
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([category, status])
+  @@index([reportedById])
+  @@index([assignedToId])
+  @@index([priority, status])
+  @@map("maintenance_requests")
+}
+
+model MaintenanceTechnician {
+  id           String   @id @default(uuid())
+  userId       String?
+  name         String
+  phone        String
+  specialization String @default("GENERAL") // ELECTRICAL, PLUMBING, IT, CIVIL, GENERAL
+  status       String   @default("AVAILABLE") // AVAILABLE, BUSY, ON_LEAVE
+  works        MaintenanceWork[]
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("maintenance_technicians")
+}
+
+model MaintenanceWork {
+  id            String    @id @default(uuid())
+  requestId     String
+  request       MaintenanceRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  technicianId  String?
+  technician    MaintenanceTechnician? @relation(fields: [technicianId], references: [id], onDelete: SetNull)
+  description   String
+  startTime     DateTime?
+  endTime       DateTime?
+  hoursWorked   Float?
+  partsUsed     String    @default("[]") // JSON
+  cost          Float     @default(0)
+  status        String    @default("ASSIGNED") // ASSIGNED, STARTED, COMPLETED
+  remarks       String?
+  photos        String    @default("[]") // JSON
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([requestId])
+  @@map("maintenance_works")
+}
+
+// ==========================================
+// MODULE 38: ROOM & LAB BOOKING
+// ==========================================
+
+model BookableResource {
+  id           String   @id @default(uuid())
+  name         String
+  code         String   @unique
+  type         String   // CLASSROOM, LAB, SEMINAR_HALL, AUDITORIUM, MEETING_ROOM, EQUIPMENT
+  building     String?
+  floor        String?
+  capacity     Int?
+  amenities    String   @default("[]") // JSON
+  photo        String?
+  status       String   @default("AVAILABLE") // AVAILABLE, MAINTENANCE, BLOCKED, RETIRED
+  departmentId String?
+  bookings     ResourceBooking[]
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([type, status])
+  @@map("bookable_resources")
+}
+
+model ResourceBooking {
+  id            String    @id @default(uuid())
+  resourceId    String
+  resource      BookableResource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+  bookedById    String
+  bookedByRole  String
+  purpose       String
+  description   String?
+  startTime     DateTime
+  endTime       DateTime
+  attendees     Int?
+  equipmentNeeded String  @default("[]") // JSON
+  status        String   @default("REQUESTED") // REQUESTED, APPROVED, CONFIRMED, CANCELLED, COMPLETED
+  approvalRequired Boolean @default(false)
+  approvedById  String?
+  approvedAt    DateTime?
+  cancelledAt   DateTime?
+  cancellationReason String?
+  conflictCheckPassed Boolean @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([resourceId, startTime, endTime])
+  @@index([bookedById])
+  @@index([status])
+  @@map("resource_bookings")
+}
+
+// ==========================================
+// MODULE 39: COMMITTEE & MEETING MANAGEMENT
+// ==========================================
+
+model Meeting {
+  id             String   @id @default(uuid())
+  committeeId    String?
+  title          String
+  description    String?
+  meetingType    String   @default("REGULAR") // REGULAR, SPECIAL, EMERGENCY, REVIEW
+  venue          String?
+  onlineLink     String?
+  scheduledDate  DateTime
+  startTime      String
+  endTime        String
+  chairPersonId  String
+  coordinatorId  String?
+  status         String   @default("SCHEDULED") // SCHEDULED, IN_PROGRESS, COMPLETED, CANCELLED, POSTPONED
+  invitees       MeetingInvitee[]
+  agendaItems    MeetingAgenda[]
+  minutes        MeetingMinutes?
+  actionItems    MeetingActionItem[]
+  attachments    String   @default("[]") // JSON
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([scheduledDate])
+  @@index([committeeId])
+  @@index([chairPersonId])
+  @@map("meetings")
+}
+
+model MeetingInvitee {
+  id           String    @id @default(uuid())
+  meetingId    String
+  meeting      Meeting   @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  userId       String
+  role         String    @default("MEMBER") // CHAIR, COORDINATOR, MEMBER, INVITEE
+  rsvpStatus   String    @default("PENDING") // PENDING, ACCEPTED, DECLINED, TENTATIVE
+  attended     Boolean   @default(false)
+  attendedAt   DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@unique([meetingId, userId])
+  @@map("meeting_invitees")
+}
+
+model MeetingAgenda {
+  id          String   @id @default(uuid())
+  meetingId   String
+  meeting     Meeting  @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  sequence    Int
+  title       String
+  description String?
+  presenterId String?
+  duration    Int?     // minutes
+  status      String   @default("PENDING") // PENDING, DISCUSSED, DEFERRED, DROPPED
+  decision    String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([meetingId])
+  @@map("meeting_agenda")
+}
+
+model MeetingMinutes {
+  id           String   @id @default(uuid())
+  meetingId    String   @unique
+  meeting      Meeting  @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  content      String
+  preparedById String
+  approvedById String?
+  approvedAt   DateTime?
+  status       String   @default("DRAFT") // DRAFT, SUBMITTED, APPROVED, PUBLISHED
+  publishedAt  DateTime?
+  version      Int      @default(1)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("meeting_minutes")
+}
+
+model MeetingActionItem {
+  id            String    @id @default(uuid())
+  meetingId     String
+  meeting       Meeting   @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  title         String
+  description   String?
+  assigneeId    String
+  deadline      DateTime?
+  priority      String    @default("MEDIUM")
+  status        String    @default("OPEN") // OPEN, IN_PROGRESS, COMPLETED, OVERDUE
+  taskId        String?   // Auto-linked to Task system
+  completedAt   DateTime?
+  remarks       String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([meetingId])
+  @@index([assigneeId])
+  @@map("meeting_action_items")
+}
+
+// ==========================================
+// MODULE 40: RESEARCH & PATENT MANAGEMENT
+// ==========================================
+
+model ResearchProject {
+  id             String    @id @default(uuid())
+  title          String
+  piId           String    // Principal Investigator (faculty ID)
+  coPiIds        String    @default("[]") // JSON array of faculty IDs
+  departmentId   String
+  fundingAgency  String?
+  fundingAmount  Float     @default(0)
+  startDate      DateTime?
+  endDate        DateTime?
+  duration       Int?      // months
+  status         String    @default("PROPOSED") // PROPOSED, SANCTIONED, ONGOING, COMPLETED, TERMINATED
+  description    String?
+  objectives     String?
+  milestones     String    @default("[]") // JSON
+  reports        String    @default("[]") // JSON
+  publications   String    @default("[]") // JSON: linked publication IDs
+  evidenceId     String?   // Link to Evidence Repository
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([piId])
+  @@index([departmentId])
+  @@index([status])
+  @@map("research_projects")
+}
+
+model ResearchPublication {
+  id             String   @id @default(uuid())
+  title          String
+  authors        String   @default("[]") // JSON: [{name, affiliation, facultyId?}]
+  journal        String?
+  conference     String?
+  volume         String?
+  issue          String?
+  pages          String?
+  year           Int
+  doi            String?  @unique
+  isbn           String?
+  impactFactor   Float?
+  indexing       String?  // SCI, SCOPUS, WEB_OF_SCIENCE, UGC_CARE, OTHER
+  type           String   @default("JOURNAL") // JOURNAL, CONFERENCE, BOOK_CHAPTER, BOOK
+  abstract       String?
+  keywords       String   @default("[]") // JSON
+  url            String?
+  evidenceId     String?
+  departmentId   String?
+  status         String   @default("PUBLISHED")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([year, type])
+  @@index([departmentId])
+  @@map("research_publications")
+}
+
+model Patent {
+  id              String    @id @default(uuid())
+  title           String
+  inventors       String    @default("[]") // JSON: [{name, facultyId?, studentId?}]
+  applicationNo   String?   @unique
+  filingDate      DateTime?
+  publicationDate DateTime?
+  grantDate       DateTime?
+  patentNo        String?
+  status          String    @default("FILED") // FILED, PUBLISHED, GRANTED, REJECTED, ABANDONED
+  country         String    @default("India")
+  type            String    @default("UTILITY") // UTILITY, DESIGN, PLANT
+  abstract        String?
+  documents       String    @default("[]") // JSON
+  evidenceId      String?
+  departmentId    String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([status])
+  @@index([departmentId])
+  @@map("patents")
+}
+
+// ==========================================
+// MODULE 41: SCHOLARSHIP & STUDENT WELFARE
+// ==========================================
+
+model ScholarshipScheme {
+  id              String   @id @default(uuid())
+  name            String
+  code            String   @unique
+  provider        String   // GOVERNMENT, INSTITUTION, PRIVATE, TRUST
+  description     String?
+  eligibility     String   @default("{}") // JSON: {minCGPA, maxIncome, categories, departments}
+  amount          Float?
+  isRecurring     Boolean  @default(false)
+  renewalCriteria String?  // JSON
+  documents       String   @default("[]") // JSON: required documents
+  status          String   @default("ACTIVE") // ACTIVE, CLOSED, ARCHIVED
+  academicYear    String?
+  startDate       DateTime?
+  endDate         DateTime?
+  maxBeneficiaries Int?
+  applications    ScholarshipApplication2[]
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("scholarship_schemes")
+}
+
+model ScholarshipApplication2 {
+  id              String    @id @default(uuid())
+  schemeId        String
+  scheme          ScholarshipScheme @relation(fields: [schemeId], references: [id], onDelete: Cascade)
+  studentId       String
+  academicYear    String
+  status          String    @default("APPLIED") // APPLIED, DOCUMENTS_VERIFIED, ELIGIBLE, APPROVED, REJECTED, DISBURSED, RENEWED
+  applicationData String    @default("{}") // JSON
+  documents       String    @default("[]") // JSON
+  verifiedById    String?
+  verifiedAt      DateTime?
+  approvedById    String?
+  approvedAt      DateTime?
+  amount          Float?
+  disbursements   ScholarshipDisbursement[]
+  remarks         String?
+  rejectionReason String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@unique([schemeId, studentId, academicYear])
+  @@index([studentId])
+  @@index([status])
+  @@map("scholarship_applications_v2")
+}
+
+model ScholarshipDisbursement {
+  id              String    @id @default(uuid())
+  applicationId   String
+  application     ScholarshipApplication2 @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  amount          Float
+  disbursementDate DateTime
+  method          String    @default("BANK_TRANSFER") // BANK_TRANSFER, FEE_ADJUSTMENT, CHEQUE
+  reference       String?
+  feePaymentId   String?   // If connected to Fee/Accounts
+  status          String    @default("PROCESSED") // PROCESSED, CONFIRMED, FAILED
+  processedById   String
+  remarks         String?
+  createdAt       DateTime  @default(now())
+
+  @@index([applicationId])
+  @@map("scholarship_disbursements")
+}
+
+// ==========================================
+// MODULE 42: CLUBS & EVENTS
+// ==========================================
+
+model Club {
+  id             String   @id @default(uuid())
+  name           String   @unique
+  code           String   @unique
+  type           String   @default("TECHNICAL") // TECHNICAL, CULTURAL, LITERARY, SPORTS, SOCIAL_SERVICE, NSS, NCC, OTHER
+  description    String?
+  logo           String?
+  coordinatorId  String?  // Faculty coordinator
+  departmentId   String?
+  status         String   @default("ACTIVE")
+  memberships    ClubMembership[]
+  events         ClubEvent[]
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@map("clubs")
+}
+
+model ClubMembership {
+  id          String    @id @default(uuid())
+  clubId      String
+  club        Club      @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  studentId   String
+  role        String    @default("MEMBER") // PRESIDENT, VICE_PRESIDENT, SECRETARY, TREASURER, MEMBER
+  status      String    @default("ACTIVE") // REQUESTED, ACTIVE, INACTIVE, REMOVED
+  joinedAt    DateTime  @default(now())
+  leftAt      DateTime?
+  approvedById String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([clubId, studentId])
+  @@map("club_memberships")
+}
+
+model ClubEvent {
+  id              String   @id @default(uuid())
+  clubId          String?
+  club            Club?    @relation(fields: [clubId], references: [id], onDelete: SetNull)
+  title           String
+  type            String   @default("EVENT") // EVENT, WORKSHOP, COMPETITION, SEMINAR, WEBINAR, FEST
+  description     String?
+  venue           String?
+  onlineLink      String?
+  startDate       DateTime
+  endDate         DateTime
+  registrationDeadline DateTime?
+  maxParticipants Int?
+  eligibility     String?
+  departmentId    String?
+  organizerId     String
+  status          String   @default("PLANNED") // PLANNED, REGISTRATION_OPEN, ONGOING, COMPLETED, CANCELLED
+  budget          Float?
+  budgetApproved  Boolean  @default(false)
+  poster          String?
+  attachments     String   @default("[]") // JSON
+  registrations   EventRegistration[]
+  eventAttendance EventAttendance[]
+  certificates    EventCertificate[]
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([startDate])
+  @@index([clubId])
+  @@map("club_events")
+}
+
+model EventRegistration {
+  id          String    @id @default(uuid())
+  eventId     String
+  event       ClubEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  studentId   String
+  status      String    @default("REGISTERED") // REGISTERED, CONFIRMED, CANCELLED, ATTENDED
+  registeredAt DateTime @default(now())
+  cancelledAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([eventId, studentId])
+  @@map("event_registrations")
+}
+
+model EventAttendance {
+  id          String    @id @default(uuid())
+  eventId     String
+  event       ClubEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  studentId   String
+  date        DateTime  @db.Date
+  checkIn     DateTime?
+  checkOut    DateTime?
+  status      String    @default("PRESENT") // PRESENT, ABSENT, LATE
+  recordedById String?
+  createdAt   DateTime  @default(now())
+
+  @@unique([eventId, studentId, date])
+  @@map("event_attendance")
+}
+
+model EventCertificate {
+  id           String    @id @default(uuid())
+  eventId      String
+  event        ClubEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  studentId    String
+  type         String    @default("PARTICIPATION") // PARTICIPATION, WINNER, RUNNER_UP, MERIT, APPRECIATION
+  certificateUrl String?
+  qrHash       String?   @unique
+  issuedAt     DateTime  @default(now())
+  issuedById   String
+  createdAt    DateTime  @default(now())
+
+  @@unique([eventId, studentId, type])
+  @@map("event_certificates")
+}
+
+// ==========================================
+// MODULE 44: ALUMNI
+// ==========================================
+
+model AlumniProfile {
+  id                 String    @id @default(uuid())
+  userId             String?   @unique
+  originalStudentId  String?   @unique
+  firstName          String
+  lastName           String
+  email              String?
+  phone              String?
+  batch              String    // e.g. "2020-2024"
+  departmentId       String
+  programId          String
+  degreeAwarded      String?
+  yearOfGraduation   Int
+  cgpa               Float?
+  photo              String?
+  currentOrganization String?
+  currentDesignation  String?
+  currentLocation    String?
+  linkedin           String?
+  skills             String    @default("[]") // JSON
+  isVerified         Boolean   @default(false)
+  verifiedAt         DateTime?
+  consentToConnect   Boolean   @default(false)
+  consentToMentor    Boolean   @default(false)
+  communicationPrefs String    @default("{}") // JSON
+  employment         AlumniEmployment[]
+  status             String    @default("ACTIVE")
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  @@index([departmentId])
+  @@index([batch])
+  @@index([yearOfGraduation])
+  @@map("alumni_profiles")
+}
+
+model AlumniEmployment {
+  id              String        @id @default(uuid())
+  alumniId        String
+  alumni          AlumniProfile @relation(fields: [alumniId], references: [id], onDelete: Cascade)
+  organization    String
+  designation     String
+  location        String?
+  type            String        @default("EMPLOYMENT") // EMPLOYMENT, HIGHER_STUDIES, ENTREPRENEURSHIP, OTHER
+  startDate       DateTime?
+  endDate         DateTime?
+  isCurrent       Boolean       @default(false)
+  description     String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@index([alumniId])
+  @@map("alumni_employment")
+}
+
+// ==========================================
+// MODULE 45: UNIFIED CAMPUS CALENDAR
+// ==========================================
+
+model CalendarEvent {
+  id            String    @id @default(uuid())
+  title         String
+  description   String?
+  eventType     String    // ACADEMIC, HOLIDAY, EXAM, MEETING, TASK, PLACEMENT, EVENT, SPORTS, LEAVE, PERSONAL
+  sourceModule  String?   // The module that created this event
+  sourceId      String?   // ID in the source module
+  startDate     DateTime
+  endDate       DateTime?
+  allDay        Boolean   @default(false)
+  startTime     String?
+  endTime       String?
+  venue         String?
+  onlineLink    String?
+  scope         String    @default("INSTITUTION") // INSTITUTION, DEPARTMENT, PROGRAM, SECTION, PERSONAL
+  departmentId  String?
+  createdById   String
+  visibility    String    @default("PUBLIC") // PUBLIC, RESTRICTED, PRIVATE
+  targetAudience String  @default("[]") // JSON: roles, departments, etc.
+  color         String?
+  isRecurring   Boolean   @default(false)
+  recurrenceRule String?  // iCal RRULE format
+  reminderMinutes Int?
+  status        String    @default("ACTIVE") // ACTIVE, CANCELLED, POSTPONED
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([startDate, endDate])
+  @@index([eventType])
+  @@index([scope, departmentId])
+  @@index([sourceModule, sourceId])
+  @@map("calendar_events")
+}
+
+// ==========================================
+// MODULE 46: EMERGENCY & SOS
+// ==========================================
+
+model EmergencyAlert {
+  id              String    @id @default(uuid())
+  alertNumber     String    @unique
+  type            String    // SECURITY, MEDICAL, TRANSPORT, CAMPUS_CLOSURE, FIRE, NATURAL_DISASTER, OTHER
+  severity        String    @default("HIGH") // MEDIUM, HIGH, CRITICAL
+  title           String
+  message         String
+  instructions    String?
+  scope           String    @default("CAMPUS_WIDE") // CAMPUS_WIDE, BUILDING, DEPARTMENT, HOSTEL, TRANSPORT
+  scopeDetails    String?   // JSON: specific buildings, departments, etc.
+  initiatedById   String
+  initiatedByRole String
+  status          String    @default("ACTIVE") // ACTIVE, UPDATED, RESOLVED, FALSE_ALARM
+  resolvedAt      DateTime?
+  resolvedById    String?
+  resolution      String?
+  updateHistory   String    @default("[]") // JSON: [{time, update, by}]
+  channels        String    @default("[\"IN_APP\",\"PUSH\"]") // JSON: delivery channels
+  acknowledgements EmergencyAcknowledgement[]
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([status])
+  @@index([type])
+  @@index([createdAt])
+  @@map("emergency_alerts")
+}
+
+model EmergencyAcknowledgement {
+  id            String         @id @default(uuid())
+  alertId       String
+  alert         EmergencyAlert @relation(fields: [alertId], references: [id], onDelete: Cascade)
+  userId        String
+  status        String         @default("RECEIVED") // RECEIVED, ACKNOWLEDGED, SAFE, NEED_HELP
+  message       String?
+  location      String?
+  acknowledgedAt DateTime      @default(now())
+
+  @@unique([alertId, userId])
+  @@index([alertId])
+  @@map("emergency_acknowledgements")
+}
+
+// ==========================================
+// MODULE 51: ACTIVITY ENGINE & STUDENT SKILLS
+// ==========================================
+
+model CampusActivity {
+  id                  String   @id @default(uuid())
+  title               String
+  description         String?
+  category            String   // ACADEMIC, TECHNICAL, TRAINING, PLACEMENT, RESEARCH, WORKSHOP, SEMINAR, CONFERENCE, HACKATHON, COMPETITION, CLUB, SPORTS, CULTURAL, NSS_NCC, ORIENTATION, INDUSTRIAL_VISIT, GUEST_LECTURE, CERTIFICATION, MEETING, INSTITUTIONAL_EVENT
+  subcategory         String?
+  organizerId         String
+  responsibleStaffId  String?
+  departmentId        String?
+  programId           String?
+  targetYear          Int?
+  targetSection       String?
+  audience            String   @default("[]") // JSON: eligible departments/programs/years/sections
+  startDate           DateTime
+  endDate             DateTime
+  startTime           String?
+  endTime             String?
+  venue               String?
+  onlineLink          String?
+  capacity            Int?
+  registrationRequired Boolean @default(false)
+  attendanceRequired  Boolean  @default(true)
+  assessmentRequired  Boolean  @default(false)
+  certificateAvailable Boolean @default(false)
+  evidenceRequired    Boolean  @default(false)
+  approvalRequired    Boolean  @default(false)
+  budget              Float?
+  budgetApproved      Boolean  @default(false)
+  status              String   @default("PLANNED") // PLANNED, APPROVED, REGISTRATION_OPEN, ONGOING, COMPLETED, CANCELLED
+  sessions            ActivitySession[]
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@index([category, status])
+  @@index([departmentId])
+  @@index([startDate])
+  @@map("campus_activities")
+}
+
+model ActivitySession {
+  id            String         @id @default(uuid())
+  activityId    String
+  activity      CampusActivity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  title         String?
+  date          DateTime       @db.Date
+  startTime     String
+  endTime       String
+  venue         String?
+  trainerId     String?
+  trainerName   String?
+  topic         String?
+  sessionOrder  Int            @default(1)
+  status        String         @default("SCHEDULED") // SCHEDULED, IN_PROGRESS, COMPLETED, CANCELLED
+  attendance    ActivityAttendanceRecord[]
+  assessments   ActivityAssessment[]
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  @@index([activityId, date])
+  @@map("activity_sessions")
+}
+
+model ActivityAttendanceRecord {
+  id          String          @id @default(uuid())
+  sessionId   String
+  session     ActivitySession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  studentId   String
+  date        DateTime        @db.Date
+  checkIn     DateTime?
+  checkOut    DateTime?
+  status      String          @default("PRESENT") // PRESENT, ABSENT, LATE, EXCUSED, OD
+  source      String          @default("MANUAL") // MANUAL, QR, SELF_CHECK_IN, IMPORT
+  recordedById String?
+  correctionHistory String    @default("[]") // JSON
+  createdAt   DateTime        @default(now())
+
+  @@unique([sessionId, studentId, date])
+  @@index([studentId, date])
+  @@map("activity_attendance")
+}
+
+model ActivityAssessment {
+  id            String          @id @default(uuid())
+  sessionId     String?
+  session       ActivitySession? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+  activityId    String
+  studentId     String
+  type          String          @default("COMPLETION") // QUIZ, TEST, PRACTICAL, ASSIGNMENT, PRESENTATION, EVALUATION, PARTICIPATION, COMPLETION
+  maxScore      Float?
+  score         Float?
+  grade         String?
+  feedback      String?
+  evaluatedById String?
+  evaluatedAt   DateTime?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  @@index([studentId, activityId])
+  @@map("activity_assessments")
+}
+
+model StudentSkill {
+  id           String   @id @default(uuid())
+  studentId    String
+  skillName    String
+  category     String   @default("TECHNICAL") // TECHNICAL, SOFT, DOMAIN, LANGUAGE, TOOL
+  source       String   // COURSE, TRAINING, PROJECT, CERTIFICATION, HACKATHON, FACULTY_VERIFIED
+  sourceId     String?  // Reference to the source (activity ID, course ID, etc.)
+  evidenceId   String?  // Link to Evidence Repository
+  level        String?  // BEGINNER, INTERMEDIATE, ADVANCED, EXPERT
+  verifiedById String?
+  verifiedAt   DateTime?
+  isVerified   Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([studentId, skillName, source])
+  @@index([studentId])
+  @@index([skillName])
+  @@map("student_skills")
+}
+
+// ==========================================
+// WORKFLOW ENGINE ENHANCEMENTS (M28)
+// ==========================================
+
+model WorkflowDefinition {
+  id           String   @id @default(uuid())
+  name         String
+  code         String   @unique
+  module       String   // LEAVE, OD, CERTIFICATE, PURCHASE, REFUND, APPRAISAL, GRIEVANCE, GATE_PASS
+  description  String?
+  steps        String   @default("[]") // JSON: [{step, assigneeType, assigneeResolution, actions, sla}]
+  conditions   String   @default("{}") // JSON: conditional routing
+  version      Int      @default(1)
+  isActive     Boolean  @default(true)
+  configuredById String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([code, version])
+  @@index([module, isActive])
+  @@map("workflow_definitions")
 }

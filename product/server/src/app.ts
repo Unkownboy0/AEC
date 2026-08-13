@@ -201,6 +201,53 @@ PrincipalDataRepairScript.runCleanup()
 
 DelegationExpiryJob.startCron();
 
+// ─── CampusOS Modules 09–51 ──────────────────────────────────────────────
+import libraryRoutes from './modules/library/library.routes';
+import hostelRoutes from './modules/hostel/hostel.routes';
+import transportRoutes from './modules/transport/transport.routes';
+import campusSecurityRoutes from './modules/campus-security/campus-security.routes';
+import appraisalRoutes from './modules/appraisal/appraisal.routes';
+import evidenceRoutes from './modules/evidence/evidence.routes';
+import studentServicesRoutes from './modules/student-services/student-services.routes';
+import purchaseRoutes from './modules/purchase/purchase.routes';
+import inventoryRoutes from './modules/inventory/inventory.routes';
+import vendorRoutes from './modules/vendor/vendor.routes';
+import maintenanceRoutes from './modules/maintenance/maintenance.routes';
+import roomBookingRoutes from './modules/room-booking/room-booking.routes';
+import meetingRoutes from './modules/meeting/meeting.routes';
+import researchRoutes from './modules/research/research.routes';
+import scholarshipRoutes from './modules/scholarship/scholarship.routes';
+import clubsRoutes from './modules/clubs/clubs.routes';
+import alumniRoutes from './modules/alumni/alumni.routes';
+import calendarRoutes from './modules/calendar/calendar.routes';
+import emergencyRoutes from './modules/emergency/emergency.routes';
+import activityRoutes from './modules/activity/activity.routes';
+import student360Routes from './modules/student-360/student-360.routes';
+import staff360Routes from './modules/staff-360/staff-360.routes';
+
+app.use('/api/library', libraryRoutes);
+app.use('/api/hostel', hostelRoutes);
+app.use('/api/transport', transportRoutes);
+app.use('/api/campus-security', campusSecurityRoutes);
+app.use('/api/appraisal', appraisalRoutes);
+app.use('/api/evidence', evidenceRoutes);
+app.use('/api/student-services', studentServicesRoutes);
+app.use('/api/purchase', purchaseRoutes);
+app.use('/api/inventory', inventoryRoutes);
+app.use('/api/vendors', vendorRoutes);
+app.use('/api/maintenance', maintenanceRoutes);
+app.use('/api/room-booking', roomBookingRoutes);
+app.use('/api/meetings', meetingRoutes);
+app.use('/api/research', researchRoutes);
+app.use('/api/scholarships', scholarshipRoutes);
+app.use('/api/clubs', clubsRoutes);
+app.use('/api/alumni', alumniRoutes);
+app.use('/api/calendar', calendarRoutes);
+app.use('/api/emergency', emergencyRoutes);
+app.use('/api/activities', activityRoutes);
+app.use('/api/student-360', student360Routes);
+app.use('/api/staff-360', staff360Routes);
+
 // Fallback Route for API endpoints
 app.use('/api/*', (req, res) => {
   res.status(404).json({
