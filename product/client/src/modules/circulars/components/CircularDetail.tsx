@@ -62,10 +62,6 @@ export const CircularDetail: React.FC<CircularDetailProps> = ({ circular, onClos
     },
   ];
 
-  const authorName = circular.author
-    ? `${circular.author.firstName || ''} ${circular.author.lastName || ''}`.trim()
-    : (circular.publishedAs || circular.authorRole || 'Principal Office');
-
   return (
     <article className="overflow-hidden rounded-[1.75rem] border border-slate-200/70 bg-white shadow-[0_24px_80px_-36px_rgba(15,23,42,0.38)] dark:border-slate-800 dark:bg-[#10141d]">
       <header className="flex items-start justify-between border-b border-slate-200/70 px-5 py-6 sm:px-8 sm:py-8 dark:border-slate-800">
