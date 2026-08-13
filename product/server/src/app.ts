@@ -224,6 +224,7 @@ import emergencyRoutes from './modules/emergency/emergency.routes';
 import activityRoutes from './modules/activity/activity.routes';
 import student360Routes from './modules/student-360/student-360.routes';
 import staff360Routes from './modules/staff-360/staff-360.routes';
+import integrationRoutes from './modules/integration/integration-chain.routes';
 
 app.use('/api/library', libraryRoutes);
 app.use('/api/hostel', hostelRoutes);
@@ -247,6 +248,7 @@ app.use('/api/emergency', emergencyRoutes);
 app.use('/api/activities', activityRoutes);
 app.use('/api/student-360', student360Routes);
 app.use('/api/staff-360', staff360Routes);
+app.use('/api/integration', integrationRoutes);
 
 // Fallback Route for API endpoints
 app.use('/api/*', (req, res) => {
