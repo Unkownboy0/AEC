@@ -106,6 +106,8 @@ export class SearchController {
             department: { select: { name: true, code: true } },
           },
         }),
+
+        // 3. Faculty (matches employeeId, names, designation)
         prisma.faculty.findMany({
           where: staffWhere,
           take: 8,
@@ -119,6 +121,22 @@ export class SearchController {
             department: { select: { name: true, code: true } },
           },
         }),
+
+        // 4. Circulars (matches title, description, circularNumber)
+        (prisma as any).circular?.findMany?.({
+          where: {
+            OR: [
+              { title: { contains: searchPattern } },
+              { circularNumber: { contains: searchPattern } },
+              { description: { contains: searchPattern } },
+            ],
+            status: 'PUBLISHED',
+          },
+          take: 5,
+          select: { id: true, title: true, circularNumber: true, category: true },
+        }).catch(() => []) ?? [],
+
+        // 5. Departments
         prisma.department.findMany({
           where: {
             status: 'ACTIVE',
@@ -131,6 +149,8 @@ export class SearchController {
           take: 5,
           select: { id: true, name: true, code: true },
         }),
+
+        // 7. Subjects
         prisma.subject.findMany({
           where: subjectWhere,
           take: 8,
