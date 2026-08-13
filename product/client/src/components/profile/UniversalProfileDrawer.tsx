@@ -22,7 +22,7 @@ export const UniversalProfileDrawer: React.FC<UniversalProfileDrawerProps> = ({
         className="fixed inset-0"
         onClick={onClose}
       />
-      <div className="relative w-full max-w-4xl h-full overflow-y-auto bg-slate-950 p-4 shadow-2xl z-10 animate-in slide-in-from-right duration-300">
+      <div className="relative w-full max-w-4xl h-full overflow-y-auto bg-surface p-4 shadow-2xl z-10 border-l border-border animate-in slide-in-from-right duration-300">
         <UniversalProfileWorkspace
           userId={userId}
           onNavigateToUser={onNavigateToUser}

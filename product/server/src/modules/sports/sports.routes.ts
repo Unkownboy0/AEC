@@ -1,27 +1,36 @@
 import { Router } from 'express';
 import { SportsController } from './sports.controller';
-import { requireAuth } from '../../core/middlewares/auth.middleware';
+import { requireAuth, requireRole } from '../../core/middlewares/auth.middleware';
 
 const router = Router();
 const controller = new SportsController();
 
 router.use(requireAuth);
 
+const sportsAdmin = requireRole([
+  'Super Admin',
+  'College Admin',
+  'Principal',
+  'Sports',
+  'Sports Coordinator',
+  'Physical Education Director',
+]);
+
 
 router.get('/summary', controller.getSportsSummary);
 router.get('/teams', controller.listTeams);
-router.post('/teams', controller.createTeam);
+router.post('/teams', sportsAdmin, controller.createTeam);
 
 router.get('/tournaments', controller.listTournaments);
-router.post('/tournaments', controller.createTournament);
+router.post('/tournaments', sportsAdmin, controller.createTournament);
 
 router.get('/bookings', controller.listBookings);
 router.post('/bookings', controller.createBooking);
 
 router.get('/equipment', controller.listEquipment);
-router.post('/equipment', controller.createEquipment);
+router.post('/equipment', sportsAdmin, controller.createEquipment);
 
 router.get('/achievements', controller.listAchievements);
-router.post('/achievements', controller.createAchievement);
+router.post('/achievements', sportsAdmin, controller.createAchievement);
 
 export default router;

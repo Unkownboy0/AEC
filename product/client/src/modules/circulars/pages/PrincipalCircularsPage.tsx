@@ -43,11 +43,26 @@ const emptyForm = (): CreateCircularPayload => ({
   acknowledgementRequired: false,
 });
 
+const DEPARTMENTS_LIST = [
+  { id: 'cse', name: 'Computer Science & Engineering', code: 'CSE' },
+  { id: 'it', name: 'Information Technology', code: 'IT' },
+  { id: 'ece', name: 'Electronics & Comm. Engg', code: 'ECE' },
+  { id: 'eee', name: 'Electrical & Electronics Engg', code: 'EEE' },
+  { id: 'mech', name: 'Mechanical Engineering', code: 'MECH' },
+  { id: 'civil', name: 'Civil Engineering', code: 'CIVIL' },
+  { id: 'aiml', name: 'AI & Machine Learning', code: 'AIML' },
+  { id: 'aids', name: 'AI & Data Science', code: 'AIDS' },
+  { id: 'mba', name: 'Master of Business Admin (MBA)', code: 'MBA' },
+  { id: 'mca', name: 'Master of Computer Applications (MCA)', code: 'MCA' },
+  { id: 'sh', name: 'Science & Humanities', code: 'S&H' },
+];
+
 export const PrincipalCircularsPage: React.FC = () => {
   const { circulars, loading, error, refresh, acknowledge } = useCirculars();
   const [selected, setSelected] = useState<Circular | null>(null);
   const [showCreate, setShowCreate] = useState(false);
   const [form, setForm] = useState<CreateCircularPayload>(emptyForm());
+  const [userTagInput, setUserTagInput] = useState('');
   const [publishing, setPublishing] = useState(false);
   const [publishError, setPublishError] = useState('');
   const [acknowledging, setAcknowledging] = useState(false);
@@ -62,7 +77,16 @@ export const PrincipalCircularsPage: React.FC = () => {
     setPublishing(true);
     setPublishError('');
     try {
-      await createCircular(form);
+      const payload: CreateCircularPayload = {
+        ...form,
+        attachmentUrl: form.attachmentUrl?.trim() || undefined,
+        attachmentName: form.attachmentName?.trim() || undefined,
+        referenceLink: form.referenceLink?.trim() || undefined,
+        description: form.description?.trim() || undefined,
+        targetDepartments: form.targetDepartments || [],
+        selectedUserIds: form.selectedUserIds || [],
+      };
+      await createCircular(payload);
       setShowCreate(false);
       setForm(emptyForm());
       refresh();
@@ -134,45 +158,45 @@ export const PrincipalCircularsPage: React.FC = () => {
 
       {/* Create Modal */}
       {showCreate && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm">
-          <div className="w-full sm:max-w-lg sm:mx-4 bg-white dark:bg-gray-900 sm:rounded-2xl rounded-t-2xl max-h-[92vh] flex flex-col overflow-hidden shadow-2xl">
-            <div className="px-4 py-4 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
-              <h2 className="font-bold text-gray-900 dark:text-white">New Institution Circular</h2>
-              <button onClick={() => setShowCreate(false)} className="p-2 rounded-xl hover:bg-gray-100 transition-colors text-gray-400 text-xl">×</button>
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-xs">
+          <div className="w-full sm:max-w-lg sm:mx-4 bg-surface sm:rounded-2xl rounded-t-2xl max-h-[92vh] flex flex-col overflow-hidden shadow-modal border border-border">
+            <div className="px-5 py-4 border-b border-border flex items-center justify-between">
+              <h2 className="font-bold text-text-primary">New Institution Circular</h2>
+              <button onClick={() => setShowCreate(false)} className="p-1.5 rounded-xl hover:bg-surface-soft transition-colors text-text-muted hover:text-text-primary text-xl">×</button>
             </div>
-            <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
+            <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
               <input
                 type="text"
-                className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full bg-surface-soft border border-border rounded-xl px-4 py-3 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary"
                 placeholder="Circular title *"
                 value={form.title}
                 onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
               />
               <div className="grid grid-cols-2 gap-3">
                 <select
-                  className="border border-gray-200 rounded-xl px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+                  className="bg-surface-soft border border-border rounded-xl px-3 py-3 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-primary"
                   value={form.category}
                   onChange={e => setForm(f => ({ ...f, category: e.target.value as CircularCategory }))}
                 >
-                  {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                  {CATEGORIES.map(c => <option key={c} value={c} className="bg-surface text-text-primary">{c}</option>)}
                 </select>
                 <select
-                  className="border border-gray-200 rounded-xl px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+                  className="bg-surface-soft border border-border rounded-xl px-3 py-3 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-primary"
                   value={form.priority}
                   onChange={e => setForm(f => ({ ...f, priority: e.target.value as CircularPriority }))}
                 >
-                  {['LOW', 'NORMAL', 'HIGH', 'URGENT'].map(p => <option key={p} value={p}>{p}</option>)}
+                  {['LOW', 'NORMAL', 'HIGH', 'URGENT'].map(p => <option key={p} value={p} className="bg-surface text-text-primary">{p}</option>)}
                 </select>
               </div>
               {/* Broadcast Level */}
               <div>
-                <label className="text-sm font-medium text-gray-700 block mb-2">Target Audience</label>
+                <label className="text-xs font-bold uppercase tracking-wider text-text-muted block mb-2">Target Audience</label>
                 <div className="space-y-2">
                   {BROADCAST_OPTIONS.map(opt => (
                     <label
                       key={opt.value}
-                      className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-all ${
-                        form.broadcastLevel === opt.value ? 'border-indigo-500 bg-indigo-50' : 'border-gray-200 hover:border-indigo-200'
+                      className={`flex items-start gap-3 p-3.5 rounded-xl border cursor-pointer transition-all ${
+                        form.broadcastLevel === opt.value ? 'border-primary bg-primary-soft/50' : 'border-border bg-surface-soft hover:border-primary/50'
                       }`}
                     >
                       <input
@@ -181,44 +205,164 @@ export const PrincipalCircularsPage: React.FC = () => {
                         value={opt.value}
                         checked={form.broadcastLevel === opt.value}
                         onChange={() => setForm(f => ({ ...f, broadcastLevel: opt.value }))}
-                        className="mt-0.5"
+                        className="mt-0.5 accent-primary"
                       />
                       <div>
-                        <p className="text-sm font-medium text-gray-800">{opt.label}</p>
-                        <p className="text-xs text-gray-500">{opt.description}</p>
+                        <p className="text-xs font-bold text-text-primary">{opt.label}</p>
+                        <p className="text-[11px] text-text-muted mt-0.5">{opt.description}</p>
                       </div>
                     </label>
                   ))}
                 </div>
+
+                {/* Conditional Target Department Selection */}
+                {form.broadcastLevel === 'DEPARTMENT_SPECIFIC' && (
+                  <div className="mt-3 p-3.5 bg-surface-soft border border-border rounded-xl space-y-2 animate-in fade-in duration-200">
+                    <div className="flex items-center justify-between border-b border-border/60 pb-2">
+                      <span className="text-xs font-bold text-text-primary uppercase tracking-wider">
+                        Select Departments ({(form.targetDepartments || []).length})
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setForm(f => ({
+                          ...f,
+                          targetDepartments: (f.targetDepartments || []).length === DEPARTMENTS_LIST.map(d => d.id).length ? [] : DEPARTMENTS_LIST.map(d => d.id)
+                        }))}
+                        className="text-[11px] font-bold text-primary hover:underline"
+                      >
+                        {(form.targetDepartments || []).length === DEPARTMENTS_LIST.length ? 'Deselect All' : 'Select All'}
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-48 overflow-y-auto pr-1">
+                      {DEPARTMENTS_LIST.map(dept => {
+                        const isChecked = (form.targetDepartments || []).includes(dept.id);
+                        return (
+                          <label
+                            key={dept.id}
+                            className={`flex items-center gap-2.5 p-2 rounded-lg border text-xs cursor-pointer transition-all ${
+                              isChecked
+                                ? 'border-primary bg-primary-soft/40 text-primary font-bold'
+                                : 'border-border bg-surface text-text-secondary hover:border-primary/40'
+                            }`}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              onChange={() => {
+                                setForm(f => {
+                                  const currentDepts = f.targetDepartments || [];
+                                  return {
+                                    ...f,
+                                    targetDepartments: isChecked
+                                      ? currentDepts.filter(id => id !== dept.id)
+                                      : [...currentDepts, dept.id]
+                                  };
+                                });
+                              }}
+                              className="accent-primary"
+                            />
+                            <span className="truncate">{dept.code} - {dept.name}</span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Conditional Selected Users Input */}
+                {form.broadcastLevel === 'SELECTED_USERS' && (
+                  <div className="mt-3 p-3.5 bg-surface-soft border border-border rounded-xl space-y-2.5 animate-in fade-in duration-200">
+                    <span className="text-xs font-bold text-text-primary uppercase tracking-wider block">
+                      Specific Recipients ({(form.selectedUserIds || []).length})
+                    </span>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={userTagInput}
+                        onChange={e => setUserTagInput(e.target.value)}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            if (userTagInput.trim()) {
+                              const val = userTagInput.trim();
+                              const currentUsers = form.selectedUserIds || [];
+                              if (!currentUsers.includes(val)) {
+                                setForm(f => ({ ...f, selectedUserIds: [...(f.selectedUserIds || []), val] }));
+                              }
+                              setUserTagInput('');
+                            }
+                          }
+                        }}
+                        placeholder="Type User ID or Email and press Enter"
+                        className="flex-1 bg-surface border border-border rounded-xl px-3 py-2 text-xs text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-primary"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (userTagInput.trim()) {
+                            const val = userTagInput.trim();
+                            const currentUsers = form.selectedUserIds || [];
+                            if (!currentUsers.includes(val)) {
+                              setForm(f => ({ ...f, selectedUserIds: [...(f.selectedUserIds || []), val] }));
+                            }
+                            setUserTagInput('');
+                          }
+                        }}
+                        className="px-3.5 py-2 rounded-xl bg-primary text-primary-foreground text-xs font-bold hover:bg-primary-hover transition-colors"
+                      >
+                        Add
+                      </button>
+                    </div>
+                    {(form.selectedUserIds || []).length > 0 && (
+                      <div className="flex flex-wrap gap-1.5 pt-1 max-h-36 overflow-y-auto">
+                        {(form.selectedUserIds || []).map(uid => (
+                          <span
+                            key={uid}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-primary-soft text-primary text-xs font-bold border border-primary/20"
+                          >
+                            <span>{uid}</span>
+                            <button
+                              type="button"
+                              onClick={() => setForm(f => ({ ...f, selectedUserIds: (f.selectedUserIds || []).filter(id => id !== uid) }))}
+                              className="hover:text-danger text-xs font-bold"
+                            >
+                              ×
+                            </button>
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
               <textarea
                 rows={5}
-                className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+                className="w-full bg-surface-soft border border-border rounded-xl px-4 py-3 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary resize-none"
                 placeholder="Circular content *"
                 value={form.content}
                 onChange={e => setForm(f => ({ ...f, content: e.target.value }))}
               />
-              <div className="flex gap-3 flex-wrap">
+              <div className="flex gap-4 flex-wrap">
                 <label className="flex items-center gap-2 cursor-pointer">
-                  <input type="checkbox" checked={form.isPinned} onChange={e => setForm(f => ({ ...f, isPinned: e.target.checked }))} className="rounded" />
-                  <span className="text-sm text-gray-600">📌 Pin</span>
+                  <input type="checkbox" checked={form.isPinned} onChange={e => setForm(f => ({ ...f, isPinned: e.target.checked }))} className="rounded accent-primary" />
+                  <span className="text-xs font-medium text-text-secondary">📌 Pin to Top</span>
                 </label>
                 <label className="flex items-center gap-2 cursor-pointer">
-                  <input type="checkbox" checked={form.isEmergency} onChange={e => setForm(f => ({ ...f, isEmergency: e.target.checked }))} className="rounded" />
-                  <span className="text-sm text-red-600">🚨 Emergency</span>
+                  <input type="checkbox" checked={form.isEmergency} onChange={e => setForm(f => ({ ...f, isEmergency: e.target.checked }))} className="rounded accent-danger" />
+                  <span className="text-xs font-medium text-danger">🚨 Emergency</span>
                 </label>
                 <label className="flex items-center gap-2 cursor-pointer">
-                  <input type="checkbox" checked={form.acknowledgementRequired} onChange={e => setForm(f => ({ ...f, acknowledgementRequired: e.target.checked }))} className="rounded" />
-                  <span className="text-sm text-gray-600">Require Ack</span>
+                  <input type="checkbox" checked={form.acknowledgementRequired} onChange={e => setForm(f => ({ ...f, acknowledgementRequired: e.target.checked }))} className="rounded accent-primary" />
+                  <span className="text-xs font-medium text-text-secondary">Require Ack</span>
                 </label>
               </div>
-              {publishError && <p className="text-sm text-red-600 bg-red-50 rounded-xl px-4 py-2 border border-red-100">{publishError}</p>}
+              {publishError && <p className="text-xs text-danger bg-danger-light rounded-xl px-4 py-2.5 border border-danger/20 font-medium">{publishError}</p>}
             </div>
-            <div className="px-4 py-3 border-t border-gray-100 dark:border-gray-800">
+            <div className="px-5 py-4 border-t border-border">
               <button
                 onClick={handlePublish}
                 disabled={publishing || !form.title.trim() || !form.content.trim()}
-                className="w-full py-3 rounded-xl bg-indigo-600 text-white font-semibold flex items-center justify-center gap-2 hover:bg-indigo-700 active:scale-[0.98] transition-all disabled:opacity-60"
+                className="w-full py-3 rounded-xl bg-primary text-primary-foreground font-semibold flex items-center justify-center gap-2 hover:bg-primary-hover active:scale-[0.98] transition-all disabled:opacity-60"
               >
                 <Send className="w-4 h-4" />
                 {publishing ? 'Publishing...' : 'Publish Institution Circular'}

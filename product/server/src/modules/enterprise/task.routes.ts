@@ -1,18 +1,20 @@
 import { Router } from 'express';
 import { TaskController } from './task.controller';
-import { requireAuth } from '../../core/middlewares/auth.middleware';
+import { requireAuth, requireRole } from '../../core/middlewares/auth.middleware';
 import { enforceDepartmentScope } from '../../core/middlewares/departmentScope';
 
 const router = Router();
 
 router.use(requireAuth);
 
-router.post('/', TaskController.createTask);
+const taskAuthorRoles = ['Super Admin', 'College Admin', 'Principal', 'Vice Principal', 'Academic Dean', 'Admission Dean', 'IQAC Dean', 'HOD', 'Faculty', 'Mentor'];
+
+router.post('/', requireRole(taskAuthorRoles), TaskController.createTask);
 router.get('/', enforceDepartmentScope as any, TaskController.getTasks);
 router.get('/kanban', TaskController.getKanbanBoard);
-router.get('/analytics/workload', TaskController.getWorkloadAnalytics);
+router.get('/analytics/workload', requireRole(taskAuthorRoles), enforceDepartmentScope as any, TaskController.getWorkloadAnalytics);
 router.get('/templates', TaskController.getTemplates);
-router.post('/templates', TaskController.createTemplate);
+router.post('/templates', requireRole(taskAuthorRoles), TaskController.createTemplate);
 router.get('/:taskId', TaskController.getTaskById);
 router.patch('/:taskId/status', TaskController.updateTaskStatus);
 router.patch('/:taskId/checklist', TaskController.updateChecklist);

@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Loader2 } from 'lucide-react';
 import { Circular } from '../types/circular.types';
-import { fetchCircularById, acknowledgeCircular } from '../api/circularApi';
+import { fetchCircularById, markCircularRead } from '../api/circularApi';
 import { CircularDetail } from '../components/CircularDetail';
 
 export const CircularDetailPage: React.FC = () => {
@@ -11,31 +11,23 @@ export const CircularDetailPage: React.FC = () => {
   const [circular, setCircular] = useState<Circular | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [acknowledging, setAcknowledging] = useState(false);
 
   useEffect(() => {
     if (!id) return;
     setLoading(true);
     fetchCircularById(id)
-      .then(setCircular)
+      .then(async (item) => {
+        setCircular(item ? { ...item, isRead: true, userReadAt: item.userReadAt || new Date().toISOString() } : item);
+        if (item && !item.isRead) await markCircularRead(id).catch(() => undefined);
+      })
       .catch(err => setError(err?.response?.data?.error ?? err?.message ?? 'Circular not found'))
       .finally(() => setLoading(false));
   }, [id]);
 
-  const handleAcknowledge = async (circularId: string) => {
-    setAcknowledging(true);
-    try {
-      await acknowledgeCircular(circularId);
-      setCircular(prev => prev ? { ...prev, isAcknowledged: true, userAcknowledgedAt: new Date().toISOString() } : prev);
-    } finally {
-      setAcknowledging(false);
-    }
-  };
-
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
+    <main className="min-h-[calc(100dvh-4rem)] bg-slate-50/60 pb-16 dark:bg-[#090d14]">
       {/* Back bar */}
-      <div className="sticky top-0 z-10 bg-white dark:bg-gray-900 border-b border-gray-100 dark:border-gray-800 px-4 py-3">
+      <div className="sticky top-0 z-10 border-b border-slate-200/70 bg-white/85 px-4 py-3 backdrop-blur-xl dark:border-slate-800 dark:bg-[#090d14]/85 sm:px-6">
         <button
           onClick={() => navigate(-1)}
           className="flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900 transition-colors"
@@ -45,7 +37,7 @@ export const CircularDetailPage: React.FC = () => {
         </button>
       </div>
 
-      <div className="max-w-2xl mx-auto">
+      <div className="mx-auto max-w-4xl px-3 pt-5 sm:px-6 sm:pt-8">
         {loading && (
           <div className="flex items-center justify-center py-24">
             <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
@@ -63,14 +55,10 @@ export const CircularDetailPage: React.FC = () => {
         )}
 
         {!loading && !error && circular && (
-          <CircularDetail
-            circular={circular}
-            onAcknowledge={handleAcknowledge}
-            acknowledging={acknowledging}
-          />
+          <CircularDetail circular={circular} />
         )}
       </div>
-    </div>
+    </main>
   );
 };
 

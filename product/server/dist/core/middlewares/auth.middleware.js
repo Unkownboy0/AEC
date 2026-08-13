@@ -8,37 +8,45 @@ const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const env_1 = require("../../config/env");
 const exceptions_1 = require("../../utils/exceptions");
 const prisma_1 = require("../../lib/prisma");
+const workspace_access_1 = require("../../modules/auth/workspace-access");
 const requireAuth = async (req, res, next) => {
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
         return next(new exceptions_1.UnauthorizedException('Access token missing or invalid'));
     }
     const token = authHeader.split(' ')[1];
+    let decoded;
     try {
-        const decoded = jsonwebtoken_1.default.verify(token, env_1.env.JWT_SECRET);
-        const userPayload = { ...decoded };
-        const activeRole = req.headers['x-active-role'];
-        if (activeRole && activeRole !== decoded.role) {
-            const allowedRoles = [decoded.role];
-            if (['Faculty', 'HOD', 'Academic Dean', 'Vice Principal', 'Principal'].includes(decoded.role)) {
-                allowedRoles.push('Faculty', 'Mentor');
-            }
-            if (allowedRoles.includes(activeRole)) {
-                const roleData = await prisma_1.prisma.role.findFirst({
-                    where: { name: activeRole },
-                    include: { permissions: { include: { permission: true } } }
-                });
-                if (roleData) {
-                    userPayload.role = activeRole;
-                    userPayload.permissions = roleData.permissions.map(p => p.permission.name);
-                }
-            }
+        decoded = jsonwebtoken_1.default.verify(token, env_1.env.JWT_SECRET, {
+            maxAge: env_1.env.JWT_EXPIRES_IN,
+        });
+    }
+    catch {
+        return next(new exceptions_1.UnauthorizedException('Access token expired or corrupted'));
+    }
+    try {
+        const access = await (0, workspace_access_1.resolveUserWorkspaceAccess)(decoded.id);
+        if (!access) {
+            return next(new exceptions_1.UnauthorizedException('User account is inactive or no longer available'));
         }
-        req.user = userPayload;
-        next();
+        const requestedRoleHeader = req.headers['x-active-role'];
+        const requestedRole = typeof requestedRoleHeader === 'string' && requestedRoleHeader.trim()
+            ? requestedRoleHeader.trim()
+            : decoded.role;
+        const workspace = access.workspaces.find((entry) => entry.name === requestedRole);
+        if (!workspace) {
+            return next(new exceptions_1.ForbiddenException('The requested workspace is not assigned to your account'));
+        }
+        req.user = {
+            id: access.userId,
+            email: access.email,
+            role: workspace.name,
+            permissions: workspace.permissions,
+        };
+        return next();
     }
     catch (error) {
-        next(new exceptions_1.UnauthorizedException('Access token expired or corrupted'));
+        return next(error);
     }
 };
 exports.requireAuth = requireAuth;
@@ -73,10 +81,6 @@ const requirePermission = (permission) => {
         if (!req.user) {
             throw new exceptions_1.UnauthorizedException('Authentication required');
         }
-        // Super Admin gets all privileges
-        if (req.user.role === 'Super Admin') {
-            return next();
-        }
         const hasPermission = (0, exports.checkPermission)(req.user.permissions, permission);
         if (!hasPermission) {
             throw new exceptions_1.ForbiddenException(`You do not have the required permission: ${permission}`);
@@ -85,18 +89,60 @@ const requirePermission = (permission) => {
     };
 };
 exports.requirePermission = requirePermission;
+const normalizeRoleStr = (r) => (r || '').toUpperCase().replace(/[\s_]+/g, '');
 const requireRole = (allowedRoles) => {
-    return (req, res, next) => {
+    return async (req, res, next) => {
         if (!req.user) {
-            throw new exceptions_1.UnauthorizedException('Authentication required');
+            return next(new exceptions_1.UnauthorizedException('Authentication required'));
         }
-        // Super Admin has bypass access
-        if (req.user.role === 'Super Admin') {
-            return next();
-        }
-        const hasRole = allowedRoles.includes(req.user.role);
+        const userRoleRaw = typeof req.user.role === 'object' ? req.user.role?.name : String(req.user.role || '');
+        const userRoleNorm = normalizeRoleStr(userRoleRaw);
+        const normalizedAllowed = allowedRoles.map(normalizeRoleStr);
+        // Direct active-workspace role match. Elevated roles must still be listed
+        // explicitly by the route; authentication alone is never an authorization bypass.
+        let hasRole = normalizedAllowed.includes(userRoleNorm);
+        // 3. Narrow aliases only. Dean workspaces are intentionally not aliases for
+        // one another, and VP is not Principal without an active delegation.
         if (!hasRole) {
-            throw new exceptions_1.ForbiddenException('Your role does not allow access to this resource');
+            if ((userRoleNorm === 'VICEPRINCIPAL' || userRoleNorm === 'VP') && normalizedAllowed.some(r => r === 'VP' || r === 'VICEPRINCIPAL')) {
+                hasRole = true;
+            }
+            else if (userRoleNorm === 'HOD' && normalizedAllowed.some(r => r === 'HOD' || r === 'HEADOFDEPARTMENT')) {
+                hasRole = true;
+            }
+            else if (userRoleNorm === 'FACULTY' && normalizedAllowed.some(r => r === 'FACULTY' || r === 'TEACHER')) {
+                hasRole = true;
+            }
+        }
+        // 4. Active Principal delegation check for VP
+        const routeAcceptsDelegatedPrincipal = normalizedAllowed.some((role) => role === 'PRINCIPAL' || role === 'ACTINGPRINCIPAL');
+        if (!hasRole && routeAcceptsDelegatedPrincipal && (userRoleNorm === 'VICEPRINCIPAL' || userRoleNorm === 'VP')) {
+            try {
+                const activeDelegation = await prisma_1.prisma.principalDelegation.findFirst({
+                    where: {
+                        actingUserId: req.user.id,
+                        status: 'ACTIVE',
+                        startDate: { lte: new Date() },
+                        endDate: { gt: new Date() }
+                    }
+                });
+                let delegatedScope = {};
+                try {
+                    delegatedScope = activeDelegation ? JSON.parse(activeDelegation.delegatedScope || '{}') : {};
+                }
+                catch {
+                    delegatedScope = {};
+                }
+                if (activeDelegation && delegatedScope.tenantId === env_1.env.CAMPUS_TENANT_ID) {
+                    hasRole = true;
+                }
+            }
+            catch {
+                // Fallback
+            }
+        }
+        if (!hasRole) {
+            return next(new exceptions_1.ForbiddenException('Your role does not allow access to this resource'));
         }
         next();
     };

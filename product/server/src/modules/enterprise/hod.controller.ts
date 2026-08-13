@@ -117,12 +117,12 @@ export class HODController {
       }
       const attendancePercentage = totalAttendanceRecords > 0
         ? Math.round((presentAttendanceRecords / totalAttendanceRecords) * 100)
-        : 88; // Dynamic default fallback based on records
+        : null;
 
       // Calculate Pass Percentage
       const totalMarks = marksStats.length;
       const passedMarks = marksStats.filter((m: { grade?: string | null }) => m.grade !== 'F' && m.grade !== 'RA').length;
-      const passPercentage = totalMarks > 0 ? Math.round((passedMarks / totalMarks) * 100) : 92;
+      const passPercentage = totalMarks > 0 ? Math.round((passedMarks / totalMarks) * 100) : null;
 
       // Calculate Research Publications
       let researchPublicationsCount = 0;
@@ -141,15 +141,17 @@ export class HODController {
       }
 
       // Calculate Faculty Average Workload (hours/week)
-      const avgFacultyWorkloadHours = facultyCount > 0 ? Math.round((totalTimetableSlots / facultyCount) * 10) / 10 : 16;
+      const avgFacultyWorkloadHours = facultyCount > 0 ? Math.round((totalTimetableSlots / facultyCount) * 10) / 10 : null;
 
       // Calculate Syllabus Completion Rate
       const syllabusCompletionRate = syllabusUnits > 0
         ? Math.min(100, Math.round((syllabusMaterials / (syllabusUnits * 2)) * 100))
-        : 82;
+        : null;
 
       // Calculate Compliance Score
-      const complianceScore = Math.min(100, Math.round((passPercentage * 0.4) + (attendancePercentage * 0.4) + (syllabusCompletionRate * 0.2)));
+      const complianceScore = passPercentage !== null && attendancePercentage !== null && syllabusCompletionRate !== null
+        ? Math.min(100, Math.round((passPercentage * 0.4) + (attendancePercentage * 0.4) + (syllabusCompletionRate * 0.2)))
+        : null;
 
       res.status(200).json({
         status: 'success',

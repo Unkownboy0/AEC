@@ -1,5 +1,11 @@
 apply plugin: 'com.android.application'
 
+def releaseStoreFile = System.getenv('CAMPUSOS_ANDROID_KEYSTORE_FILE')
+def releaseStorePassword = System.getenv('CAMPUSOS_ANDROID_KEYSTORE_PASSWORD')
+def releaseKeyAlias = System.getenv('CAMPUSOS_ANDROID_KEY_ALIAS')
+def releaseKeyPassword = System.getenv('CAMPUSOS_ANDROID_KEY_PASSWORD')
+def hasReleaseSigning = releaseStoreFile && releaseStorePassword && releaseKeyAlias && releaseKeyPassword
+
 android {
     namespace "com.geetorus.campusos"
     compileSdk rootProject.ext.compileSdkVersion
@@ -16,10 +22,28 @@ android {
             ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    signingConfigs {
+        if (hasReleaseSigning) {
+            release {
+                storeFile file(releaseStoreFile)
+                storePassword releaseStorePassword
+                keyAlias releaseKeyAlias
+                keyPassword releaseKeyPassword
+                enableV1Signing true
+                enableV2Signing true
+                enableV3Signing true
+                enableV4Signing true
+            }
+        }
+    }
     buildTypes {
         release {
-            minifyEnabled false
+            minifyEnabled true
+            shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            if (hasReleaseSigning) {
+                signingConfig signingConfigs.release
+            }
         }
     }
     configurations.configureEach {
@@ -27,6 +51,13 @@ android {
             force "androidx.core:core:${rootProject.ext.androidxCoreVersion}"
             force "androidx.core:core-ktx:${rootProject.ext.androidxCoreVersion}"
         }
+    }
+}
+
+gradle.taskGraph.whenReady { graph ->
+    def requestedSignedBundle = graph.allTasks.any { it.path == ':app:bundleRelease' }
+    if (requestedSignedBundle && !hasReleaseSigning) {
+        throw new GradleException('Signed AAB requires CAMPUSOS_ANDROID_KEYSTORE_FILE, CAMPUSOS_ANDROID_KEYSTORE_PASSWORD, CAMPUSOS_ANDROID_KEY_ALIAS and CAMPUSOS_ANDROID_KEY_PASSWORD.')
     }
 }
 
@@ -38,8 +69,12 @@ dependencies {
     implementation project(':capacitor-android')
     testImplementation "junit:junit:$junitVersion"
     androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
-    androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
     implementation project(':capacitor-cordova-android-plugins')
+
+    // Firebase Platform & Messaging SDKs
+    implementation platform('com.google.firebase:firebase-bom:33.1.2')
+    implementation 'com.google.firebase:firebase-messaging'
+    implementation 'com.google.firebase:firebase-analytics'
 }
 
 apply from: 'capacitor.build.gradle'

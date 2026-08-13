@@ -93,6 +93,18 @@ export async function acknowledgeCircular(id: string): Promise<void> {
   await api.post(`/circulars/${id}/acknowledge`);
 }
 
+export async function markCircularRead(id: string): Promise<void> {
+  await api.post(`/circulars/${id}/read`);
+}
+
+export async function clearCircular(id: string): Promise<void> {
+  await api.post(`/circulars/${id}/clear`);
+}
+
+export async function deleteCircular(id: string): Promise<void> {
+  await api.delete(`/circulars/${id}`);
+}
+
 /**
  * Fetch recipient list for a circular (HOD/admin view).
  */

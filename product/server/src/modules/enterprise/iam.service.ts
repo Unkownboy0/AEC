@@ -6,7 +6,7 @@ export class IamService {
   /**
    * Evaluate runtime IAM permissions combining primary role, secondary roles, committee permissions, and active delegations
    */
-  async evaluateRuntimeIAM(userId: string) {
+  async evaluateRuntimeIAM(userId: string, activeRoleName?: string) {
     const db = prisma as any;
     const user = await db.user.findUnique({
       where: { id: userId },
@@ -19,7 +19,7 @@ export class IamService {
 
     if (!user) throw new NotFoundException('User not found');
 
-    // Collect all active roles (primary + secondary)
+    // Collect all active roles for workspace discovery and switching.
     const activeRoles: any[] = [];
     if (user.role) activeRoles.push(user.role);
     if (user.assignedRoles && user.assignedRoles.length > 0) {
@@ -41,12 +41,25 @@ export class IamService {
       }
     });
 
-    // Resolve merged module access (UNION strategy: true if any role/delegation/committee grants it)
+    const normalizeRole = (value: unknown) => String(value || '').toUpperCase().replace(/[\s-]+/g, '_');
+    const requestedRole = normalizeRole(activeRoleName || user.activeWorkspace || user.role?.name);
+    const activeRole = activeRoles.find((role) =>
+      normalizeRole(role.name) === requestedRole || normalizeRole(role.roleCode) === requestedRole
+    ) || user.role;
+
+    // Resolve effective access for the active workspace only. Other assigned
+    // roles remain switchable but cannot leak permissions into this workspace.
     const mergedModuleAccess: Record<string, Record<string, boolean>> = {};
     const mergedSidebarConfig: Record<string, boolean> = {};
     const mergedWorkspacesSet = new Set<string>();
 
     activeRoles.forEach(r => {
+      const ws = r.workspaceAccess ? JSON.parse(r.workspaceAccess) : [r.name];
+      ws.forEach((w: string) => mergedWorkspacesSet.add(w));
+    });
+
+    if (activeRole) {
+      const r = activeRole;
       const modAccess = r.moduleAccess ? JSON.parse(r.moduleAccess) : {};
       Object.keys(modAccess).forEach(mod => {
         if (!mergedModuleAccess[mod]) mergedModuleAccess[mod] = {};
@@ -62,11 +75,10 @@ export class IamService {
         if (sidebar[k]) mergedSidebarConfig[k] = true;
       });
 
-      const ws = r.workspaceAccess ? JSON.parse(r.workspaceAccess) : [];
-      ws.forEach((w: string) => mergedWorkspacesSet.add(w));
-    });
+    }
 
-    // Add Committee permissions
+    // Committee permissions are additive responsibilities within the active
+    // identity and remain visible across eligible workspaces.
     if (user.committees) {
       user.committees.forEach((uc: any) => {
         if (uc.committee && uc.committee.additionalPermissions) {
@@ -132,9 +144,9 @@ export class IamService {
       moduleAccess: mergedModuleAccess,
       sidebarConfig: mergedSidebarConfig,
       workspaces: userWorkspaces,
-      activeWorkspace: user.activeWorkspace || userWorkspaces[0],
-      searchScope: user.role?.searchScope || 'EVERYONE',
-      isSuperAdmin: activeRoles.some(r => r.roleCode === 'SUPER_ADMIN')
+      activeWorkspace: activeRole?.name || user.activeWorkspace || userWorkspaces[0],
+      searchScope: activeRole?.searchScope || 'OWN_PROFILE',
+      isSuperAdmin: activeRole?.roleCode === 'SUPER_ADMIN' || activeRole?.name === 'Super Admin'
     };
   }
 

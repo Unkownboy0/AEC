@@ -3,6 +3,7 @@ import { Bell, Search, Download, Pin, ChevronRight, AlertCircle, Info, CheckCirc
 import { toast } from '../../components/ui/Toast';
 import { Loading } from '../../components/ui/Loading';
 import api from '../../lib/axios';
+import { markCircularRead } from '../../modules/circulars/api/circularApi';
 
 // Map backend priority values to display config
 const PRIORITY_CONFIG: Record<string, { label: string; className: string }> = {
@@ -81,6 +82,8 @@ export const StudentCirculars: React.FC = () => {
             issuedBy: resolveIssuedBy(c),
             createdAt: c.createdAt || c.publishedAt || new Date().toISOString(),
             pinned: c.isPinned === true || c.pinned === true,
+            isRead: Boolean(c.isRead || c.userReadAt),
+            attachmentUrl: c.attachmentUrl,
           }));
           setCirculars(mapped);
         }
@@ -102,6 +105,14 @@ export const StudentCirculars: React.FC = () => {
 
   const pinned = filtered.filter(c => c.pinned);
   const rest = filtered.filter(c => !c.pinned);
+  const viewCircular = async (id: string) => {
+    setExpandedId(current => current === id ? null : id);
+    const target = circulars.find(c => c.id === id);
+    if (target && !target.isRead) {
+      setCirculars(items => items.map(item => item.id === id ? { ...item, isRead: true } : item));
+      await markCircularRead(id).catch(() => undefined);
+    }
+  };
 
   if (isLoading) return <Loading text="Loading Circulars..." />;
 
@@ -148,7 +159,7 @@ export const StudentCirculars: React.FC = () => {
             <Pin className="h-3 w-3" /> Pinned Notices
           </p>
           {pinned.map(c => (
-            <CircularCard key={c.id} circular={c} expandedId={expandedId} setExpandedId={setExpandedId} />
+            <CircularCard key={c.id} circular={c} expandedId={expandedId} onView={viewCircular} />
           ))}
         </div>
       )}
@@ -159,7 +170,7 @@ export const StudentCirculars: React.FC = () => {
           <p className="text-[10px] uppercase font-black tracking-wider text-slate-400">All Circulars</p>
         )}
         {rest.map(c => (
-          <CircularCard key={c.id} circular={c} expandedId={expandedId} setExpandedId={setExpandedId} />
+          <CircularCard key={c.id} circular={c} expandedId={expandedId} onView={viewCircular} />
         ))}
         {filtered.length === 0 && (
           <div className="text-center py-12 border-2 border-dashed rounded-2xl">
@@ -175,8 +186,8 @@ export const StudentCirculars: React.FC = () => {
 const CircularCard: React.FC<{
   circular: any;
   expandedId: string | null;
-  setExpandedId: (id: string | null) => void;
-}> = ({ circular, expandedId, setExpandedId }) => {
+  onView: (id: string) => void;
+}> = ({ circular, expandedId, onView }) => {
   const isExpanded = expandedId === circular.id;
   const catConfig = CATEGORY_CONFIG[circular.category] || DEFAULT_CATEGORY;
   const prioConfig = PRIORITY_CONFIG[circular.priority] || DEFAULT_PRIORITY;
@@ -195,7 +206,7 @@ const CircularCard: React.FC<{
     <div className={`border bg-card rounded-2xl shadow-sm overflow-hidden transition-all ${circular.pinned ? 'border-indigo-200 dark:border-indigo-800' : ''}`}>
       <button
         className="w-full p-4 text-left flex items-start gap-3"
-        onClick={() => setExpandedId(isExpanded ? null : circular.id)}
+        onClick={() => onView(circular.id)}
       >
         <div className={`p-2 rounded-xl bg-muted/50 mt-0.5 shrink-0 ${catConfig.color}`}>
           <CatIcon className="h-3.5 w-3.5" />
@@ -224,20 +235,11 @@ const CircularCard: React.FC<{
           <p className="text-xs text-slate-600 dark:text-slate-300 font-medium leading-relaxed pt-3">
             {circular.content || 'No additional content.'}
           </p>
-          <div className="flex gap-2 mt-3">
-            <button
-              onClick={() => toast.success('Circular marked as read.')}
-              className="px-3 py-1.5 text-[10px] font-black border rounded-lg hover:bg-muted flex items-center gap-1"
-            >
-              <CheckCircle className="h-3.5 w-3.5 text-emerald-500" /> Mark Read
-            </button>
-            <button
-              onClick={() => toast.success('Circular downloaded.')}
-              className="px-3 py-1.5 text-[10px] font-black border rounded-lg hover:bg-muted flex items-center gap-1"
-            >
-              <Download className="h-3.5 w-3.5 text-indigo-500" /> Download
-            </button>
-          </div>
+          {circular.attachmentUrl && (
+            <a href={circular.attachmentUrl} target="_blank" rel="noopener noreferrer" className="mt-3 inline-flex items-center gap-1 rounded-lg border px-3 py-1.5 text-[10px] font-black hover:bg-muted">
+              <Download className="h-3.5 w-3.5 text-indigo-500" /> Open attachment
+            </a>
+          )}
         </div>
       )}
     </div>

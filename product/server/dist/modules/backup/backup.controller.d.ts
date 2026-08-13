@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 export declare class BackupController {
     private backupsDir;
+    private postgresEnvironment;
     constructor();
     /**
      * List all backup logs
@@ -14,8 +15,7 @@ export declare class BackupController {
      * Download a backup file
      */
     download: (req: Request, res: Response, next: NextFunction) => Promise<void>;
-    /**
-     * Simulate a database restore
-     */
+    /** Validate that pg_restore can read the archive. An actual restore is an
+     * offline runbook operation and is never performed against the live DB here. */
     restore: (req: Request, res: Response, next: NextFunction) => Promise<void>;
 }

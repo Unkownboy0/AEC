@@ -19,6 +19,8 @@ type IamModal =
 const ALL_ROLES = [
   'Super Admin',
   'College Admin',
+  'Governing Body',
+  'Management',
   'Principal',
   'Vice Principal',
   'Academic Dean',
@@ -72,6 +74,7 @@ interface EnterpriseUserDirectoryProps {
 export const EnterpriseUserDirectory: React.FC<EnterpriseUserDirectoryProps> = () => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [users, setUsers] = useState<any[]>([]);
   const [stats, setStats] = useState<any>(null);
 
@@ -85,6 +88,10 @@ export const EnterpriseUserDirectory: React.FC<EnterpriseUserDirectoryProps> = (
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isMappingModalOpen, setIsMappingModalOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [bulkFile, setBulkFile] = useState<File | null>(null);
+  const [bulkPreview, setBulkPreview] = useState<any | null>(null);
+  const [bulkResult, setBulkResult] = useState<any | null>(null);
+  const [bulkBusy, setBulkBusy] = useState(false);
 
   // IAM Action modals
   const [iamModal, setIamModal] = useState<IamModal>(null);
@@ -109,6 +116,74 @@ export const EnterpriseUserDirectory: React.FC<EnterpriseUserDirectoryProps> = (
     return { minLen: p.length >= 8, upper: /[A-Z]/.test(p), lower: /[a-z]/.test(p), num: /[0-9]/.test(p), special: /[^A-Za-z0-9]/.test(p) };
   }, [iamNewPwd]);
   const pwdPolicyPass = Object.values(pwdPolicy).every(Boolean);
+
+  const readFileBase64 = (file: File) => new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error('Unable to read the selected file'));
+    reader.onload = () => resolve(String(reader.result).split(',')[1] || '');
+    reader.readAsDataURL(file);
+  });
+
+  const closeBulkImport = () => {
+    setIsImportModalOpen(false);
+    setBulkFile(null);
+    setBulkPreview(null);
+    setBulkResult(null);
+  };
+
+  const previewBulkImport = async () => {
+    if (!bulkFile) return toast.error('Choose a CSV or XLSX file first.');
+    setBulkBusy(true);
+    setBulkPreview(null);
+    setBulkResult(null);
+    try {
+      const base64 = await readFileBase64(bulkFile);
+      const response = await api.post('/users/import/file-preview', { fileName: bulkFile.name, base64 });
+      setBulkPreview(response.data.data);
+      toast.success(`Validated ${response.data.data.total} row(s).`);
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || error.message || 'Import validation failed.');
+    } finally { setBulkBusy(false); }
+  };
+
+  const commitBulkImport = async () => {
+    if (!bulkFile || !bulkPreview || bulkPreview.invalid) return;
+    setBulkBusy(true);
+    try {
+      const base64 = await readFileBase64(bulkFile);
+      const response = await api.post('/users/import/file-commit', { fileName: bulkFile.name, base64 });
+      setBulkResult(response.data.data);
+      setBulkPreview(null);
+      await fetchDirectoryData(true);
+      toast.success(`Provisioned ${response.data.data.committed} account(s).`);
+    } catch (error: any) {
+      const report = error.response?.data?.data;
+      if (report) setBulkPreview(report);
+      toast.error(error.response?.data?.message || error.message || 'Account provisioning failed.');
+    } finally { setBulkBusy(false); }
+  };
+
+  const downloadImportTemplate = () => {
+    const headers = ['profileType','email','firstName','lastName','roleName','username','phone','status','departmentCode','programCode','courseCode','academicYear','semesterNumber','sectionName','registerNumber','employeeId','dob','dateOfAdmission','dateOfJoining','gender','parentName','parentPhone','currentAddress','permanentAddress','designation','qualification','experience','workspaceRoles'];
+    const blob = new Blob([`${headers.join(',')}\n`], { type: 'text/csv;charset=utf-8' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob); link.download = 'campusos-user-import-template.csv'; link.click();
+    URL.revokeObjectURL(link.href);
+  };
+
+  const downloadImportReport = () => {
+    if (!bulkResult) return;
+    const escape = (value: unknown) => `"${String(value ?? '').replace(/"/g, '""')}"`;
+    const rows = [
+      ['row','status','email','username','temporaryPassword','errors'],
+      ...(bulkResult.credentials || []).map((item: any) => [item.rowNumber,'SUCCESS',item.email,item.username,item.temporaryPassword,'']),
+      ...(bulkResult.failures || []).map((item: any) => [item.rowNumber,'FAILED',item.email || '','','',(item.errors || []).join('; ')]),
+    ];
+    const blob = new Blob([rows.map((row: unknown[]) => row.map(escape).join(',')).join('\n')], { type: 'text/csv;charset=utf-8' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob); link.download = 'campusos-provisioning-report.csv'; link.click();
+    URL.revokeObjectURL(link.href);
+  };
 
   // Create User Form State
   const [formData, setFormData] = useState({
@@ -144,6 +219,7 @@ export const EnterpriseUserDirectory: React.FC<EnterpriseUserDirectoryProps> = (
     if (isManualRefresh) setRefreshing(true);
     else setLoading(true);
 
+    setLoadError(null);
     try {
       const [usersRes, statsRes] = await Promise.all([
         api.get('/users?pageSize=100').catch(() => null),
@@ -152,9 +228,9 @@ export const EnterpriseUserDirectory: React.FC<EnterpriseUserDirectoryProps> = (
 
       if (usersRes?.data?.status === 'success') {
         const rawUsers = usersRes.data.data.items || usersRes.data.data.users || [];
-        setUsers(rawUsers.length > 0 ? rawUsers : getFallbackUsers());
+        setUsers(rawUsers);
       } else {
-        setUsers(getFallbackUsers());
+        throw new Error('The directory service returned an invalid response.');
       }
 
       if (statsRes?.data?.status === 'success') {
@@ -162,7 +238,8 @@ export const EnterpriseUserDirectory: React.FC<EnterpriseUserDirectoryProps> = (
       }
     } catch (err) {
       console.error('Failed to load user directory:', err);
-      setUsers(getFallbackUsers());
+      setUsers([]);
+      setLoadError('The live user directory could not be loaded. No placeholder accounts are being shown.');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -211,10 +288,23 @@ export const EnterpriseUserDirectory: React.FC<EnterpriseUserDirectoryProps> = (
 
   const handleResetPassword = async () => {
     if (!selectedUser) return;
-    const tmp = selectedUser.phone || `Gt@2026${Math.floor(1000+Math.random()*9000)}`;
-    await api.patch(`/users/${selectedUser.id}`, { password: tmp, forceChangePassword: true }).catch(()=>null);
-    toast.success(`Password reset. Temp password = ${tmp} (phone number). User must change on first login.`);
-    closeIam();
+    try {
+      const response = await api.post(`/users/${selectedUser.id}/regenerate-credentials`);
+      const credential = response.data?.data;
+      if (!credential?.temporaryPassword) throw new Error('The server did not return a one-time credential.');
+      setSuccessCredsModal({
+        fullName: `${selectedUser.firstName || ''} ${selectedUser.lastName || ''}`.trim(),
+        role: selectedUser.role?.name || selectedUser.roleName || 'User',
+        username: credential.username || selectedUser.username || selectedUser.email,
+        temporaryPassword: credential.temporaryPassword,
+        department: selectedUser.department,
+        email: selectedUser.email,
+      });
+      toast.success('A secure one-time credential was generated.');
+      closeIam();
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || error.message || 'Credential reset failed.');
+    }
   };
   const handleChangePassword = async () => {
     if (!pwdPolicyPass) { toast.error('Password does not meet policy.'); return; }
@@ -232,10 +322,12 @@ export const EnterpriseUserDirectory: React.FC<EnterpriseUserDirectoryProps> = (
   };
   const handleUpdatePhone = async () => {
     if (iamPhone.replace(/\D/g,'').length < 10) { toast.error('Enter a valid 10-digit number.'); return; }
-    await api.patch(`/users/${selectedUser.id}`, { phone: iamPhone }).catch(()=>null);
-    applyLocal(selectedUser.id, { phone: iamPhone });
-    toast.success(`Phone updated → ${iamPhone}. New temp password = phone number.`);
-    closeIam();
+    try {
+      await api.put(`/users/${selectedUser.id}`, { phone: iamPhone });
+      applyLocal(selectedUser.id, { phone: iamPhone });
+      toast.success('Phone number updated. The existing credential was not changed.');
+      closeIam();
+    } catch (error: any) { toast.error(error.response?.data?.message || 'Phone update failed.'); }
   };
   const handleChangeRole = async () => {
     await api.patch(`/users/${selectedUser.id}`, { roleName: iamRole }).catch(()=>null);
@@ -331,7 +423,7 @@ export const EnterpriseUserDirectory: React.FC<EnterpriseUserDirectoryProps> = (
           fullName: `${formData.firstName} ${formData.lastName || ''}`.trim(),
           role: formData.roleName,
           username: created.generatedUsername || created.username || formData.email,
-          temporaryPassword: created.temporaryPassword || 'Gt@2026#A7',
+          temporaryPassword: created.temporaryPassword,
           department: formData.departmentCode,
           email: formData.email,
         });
@@ -416,21 +508,9 @@ export const EnterpriseUserDirectory: React.FC<EnterpriseUserDirectoryProps> = (
   };
 
   const directoryStats = stats || {
-    totalUsers: users.length || 5320,
-    activeUsers: 5120,
-    inactiveUsers: 180,
-    pendingActivation: 20,
-    students: 4850,
-    faculty: 340,
-    mentors: 150,
-    hods: 11,
-    deans: 4,
-    vicePrincipal: 1,
-    principal: 1,
-    parents: 4200,
-    staff: 65,
-    admins: 12,
-    recentlyAdded: 28
+    totalUsers: users.length, activeUsers: 0, inactiveUsers: 0, pendingActivation: 0,
+    students: 0, faculty: 0, mentors: 0, hods: 0, deans: 0, vicePrincipal: 0,
+    principal: 0, parents: 0, staff: 0, admins: 0, recentlyAdded: 0,
   };
 
   const filteredUsers = useMemo(() => {
@@ -459,6 +539,17 @@ export const EnterpriseUserDirectory: React.FC<EnterpriseUserDirectoryProps> = (
       <div className="p-12 text-center border bg-card rounded-2xl shadow-sm space-y-3">
         <RefreshCw className="h-8 w-8 text-primary animate-spin mx-auto" />
         <p className="text-xs font-bold text-muted-foreground">Loading Enterprise User Directory & Identity System...</p>
+      </div>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <div className="rounded-2xl border border-rose-500/25 bg-rose-500/5 p-8 text-center" role="alert">
+        <AlertTriangle className="mx-auto h-7 w-7 text-rose-500" />
+        <h2 className="mt-4 text-lg font-bold">User directory unavailable</h2>
+        <p className="mx-auto mt-2 max-w-xl text-sm text-muted-foreground">{loadError}</p>
+        <button onClick={() => fetchDirectoryData()} className="mt-5 rounded-xl bg-foreground px-4 py-2.5 text-sm font-semibold text-background">Retry loading</button>
       </div>
     );
   }
@@ -1257,7 +1348,7 @@ export const EnterpriseUserDirectory: React.FC<EnterpriseUserDirectoryProps> = (
               <h3 className="text-sm font-extrabold text-foreground flex flex-wrap items-center gap-2 uppercase">
                 <Upload className="h-4 w-4 text-emerald-600" /> Bulk User Import (CSV / Excel)
               </h3>
-              <button onClick={() => setIsImportModalOpen(false)} className="p-1 rounded hover:bg-muted">
+              <button onClick={closeBulkImport} className="p-1 rounded hover:bg-muted">
                 <X className="h-4 w-4" />
               </button>
             </div>
@@ -1265,28 +1356,53 @@ export const EnterpriseUserDirectory: React.FC<EnterpriseUserDirectoryProps> = (
             <div className="p-4 border-2 border-dashed border-primary/30 rounded-xl bg-primary/5 text-center space-y-2">
               <Upload className="h-8 w-8 text-primary mx-auto" />
               <p className="text-xs font-bold text-foreground">Upload Student or Faculty CSV / Excel File</p>
-              <p className="text-[10px] text-muted-foreground">Columns: Full Name, Register Number, Department, Email, Phone</p>
+              <p className="text-[10px] text-muted-foreground">Files are validated before any account or linked profile is created. Maximum 5 MB / 1,000 rows.</p>
               <input
                 type="file"
                 accept=".csv,.xlsx"
                 onChange={(e) => {
                   if (e.target.files?.[0]) {
-                    toast.success(`Processing bulk import for '${e.target.files[0].name}'...`);
-                    setTimeout(() => {
-                      toast.success('Successfully imported 14 user accounts with auto-generated credentials.');
-                      setIsImportModalOpen(false);
-                      fetchDirectoryData(true);
-                    }, 1200);
+                    setBulkFile(e.target.files[0]);
+                    setBulkPreview(null);
+                    setBulkResult(null);
                   }
                 }}
                 className="mx-auto text-xs font-semibold"
               />
+              <button type="button" onClick={downloadImportTemplate} className="text-[10px] font-extrabold text-primary hover:underline">Download required-column template</button>
             </div>
 
+            {bulkPreview && (
+              <div className="rounded-xl border p-3 space-y-2 text-xs">
+                <div className="flex items-center justify-between">
+                  <span className="font-extrabold">Validation report</span>
+                  <span className={bulkPreview.invalid ? 'text-rose-600 font-bold' : 'text-emerald-600 font-bold'}>{bulkPreview.valid} valid / {bulkPreview.invalid} invalid</span>
+                </div>
+                <div className="max-h-40 overflow-auto space-y-1">
+                  {bulkPreview.rows?.filter((row: any) => !row.valid).map((row: any) => (
+                    <div key={row.rowNumber} className="rounded-lg bg-rose-500/10 px-2 py-1.5 text-rose-700 dark:text-rose-300">
+                      <strong>Row {row.rowNumber}:</strong> {row.errors.join('; ')}
+                    </div>
+                  ))}
+                  {!bulkPreview.invalid && <p className="text-emerald-600 font-semibold">All rows are ready. Commit will create accounts and linked profiles in row-level transactions.</p>}
+                </div>
+              </div>
+            )}
+
+            {bulkResult && (
+              <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3 text-xs space-y-2">
+                <p className="font-extrabold text-emerald-700 dark:text-emerald-300">{bulkResult.committed} account(s) provisioned; {bulkResult.failed || 0} failed.</p>
+                <p className="text-muted-foreground">Temporary passwords are shown only in the downloadable report. Store and distribute it securely.</p>
+                <button type="button" onClick={downloadImportReport} className="font-extrabold text-primary hover:underline">Download one-time success/error report</button>
+              </div>
+            )}
+
             <div className="flex flex-wrap justify-end gap-2 pt-2 border-t">
-              <button onClick={() => setIsImportModalOpen(false)} className="px-4 py-1.5 border rounded-lg text-xs font-bold hover:bg-muted">
+              <button onClick={closeBulkImport} className="px-4 py-1.5 border rounded-lg text-xs font-bold hover:bg-muted">
                 Close
               </button>
+              {!bulkPreview && !bulkResult && <button disabled={!bulkFile || bulkBusy} onClick={previewBulkImport} className="px-4 py-1.5 bg-primary text-primary-foreground rounded-lg text-xs font-extrabold disabled:opacity-50">{bulkBusy ? 'Validating…' : 'Validate file'}</button>}
+              {bulkPreview && <button disabled={Boolean(bulkPreview.invalid) || bulkBusy} onClick={commitBulkImport} className="px-4 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-extrabold disabled:opacity-50">{bulkBusy ? 'Provisioning…' : 'Confirm & provision'}</button>}
             </div>
           </div>
         </div>

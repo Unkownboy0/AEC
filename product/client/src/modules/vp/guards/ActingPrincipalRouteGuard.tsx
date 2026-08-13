@@ -4,7 +4,7 @@ import { useDelegationContext } from '../../delegation/context/DelegationContext
 import { toast } from '../../../components/ui/Toast';
 
 export const ActingPrincipalRouteGuard: React.FC<{ children?: React.ReactNode }> = ({ children }) => {
-  const { principalStatus, delegationStatus, isActingPrincipal, loading } = useDelegationContext();
+  const { isActingPrincipal, loading } = useDelegationContext();
 
   if (loading) {
     return (
@@ -15,9 +15,7 @@ export const ActingPrincipalRouteGuard: React.FC<{ children?: React.ReactNode }>
     );
   }
 
-  const isAccessValid = (principalStatus === 'BUSY' || principalStatus === 'OFFLINE') && delegationStatus === 'ACTIVE';
-
-  if (!isAccessValid) {
+  if (!isActingPrincipal) {
     toast.error('Acting Principal access is not currently active.');
     return <Navigate to="/vp/dashboard" replace />;
   }

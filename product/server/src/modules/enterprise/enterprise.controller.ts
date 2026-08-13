@@ -8,6 +8,21 @@ import { buildStudentIDCardPDF } from '../../utils/idcard.pdf';
 import { generateAttendanceReportPdf } from '../../utils/attendance.pdf';
 import jwt from 'jsonwebtoken';
 import { env } from '../../config/env';
+import { z } from 'zod';
+import { BadRequestException } from '../../utils/exceptions';
+import {
+  assertComplaintArchiveAccess,
+  assertEnterpriseBulkAccess,
+} from './enterprise-authorization';
+
+const bulkActionSchema = z.object({
+  moduleKey: z.enum(['students', 'faculty', 'exams', 'library', 'transport', 'hostel', 'tickets']),
+  action: z.enum(['delete', 'archive', 'restore', 'assign-mentor', 'assign-department', 'assign-section']),
+  ids: z.array(z.string().uuid()).min(1).max(500),
+  mentorId: z.string().uuid().optional(),
+  departmentId: z.string().uuid().optional(),
+  sectionId: z.string().uuid().optional(),
+}).strict();
 
 export class EnterpriseController {
   private service = new EnterpriseService();
@@ -43,7 +58,7 @@ export class EnterpriseController {
           academicYear: true,
           mentor: true,
           attendanceRecords: { where: { deleted: false } },
-          marks: { where: { deleted: false } },
+          marks: { where: { deleted: false }, include: { subject: { select: { credits: true } } } },
           feeBills: { where: { deleted: false } },
           workflowRequests: { where: { status: { in: ['APPROVED', 'PENDING_MENTOR', 'PENDING_HOD', 'PENDING_DEAN'] } } },
           submissions: { where: { status: 'SUBMITTED' } },
@@ -59,69 +74,96 @@ export class EnterpriseController {
       // 1. Calculate Attendance %
       const totalAttendanceCount = student.attendanceRecords.length;
       const presentCount = student.attendanceRecords.filter(a => a.status === 'PRESENT').length;
-      const attendancePercentage = totalAttendanceCount > 0 ? parseFloat(((presentCount / totalAttendanceCount) * 100).toFixed(2)) : 92.8;
+      const attendancePercentage = totalAttendanceCount > 0
+        ? parseFloat(((presentCount / totalAttendanceCount) * 100).toFixed(2))
+        : null;
 
       // 2. CGPA
       const marksWithGpa = student.marks.filter(m => m.status === 'PUBLISHED');
-      const cgpa = marksWithGpa.length > 0 ? parseFloat((marksWithGpa.reduce((acc, m) => acc + m.gpa, 0) / marksWithGpa.length).toFixed(2)) : 9.5;
+      const cgpa = marksWithGpa.length > 0
+        ? parseFloat((marksWithGpa.reduce((acc, mark) => acc + mark.gpa, 0) / marksWithGpa.length).toFixed(2))
+        : null;
 
       // 3. Credits
-      const completedCredits = student.marks.filter(m => m.status === 'PUBLISHED' && m.grade !== 'F').length * 4;
-      const totalCreditsNeeded = student.program?.credits ?? 160;
-      const remainingCredits = Math.max(0, totalCreditsNeeded - completedCredits);
+      const completedCredits = student.marks
+        .filter((mark) => mark.status === 'PUBLISHED' && mark.grade !== 'F')
+        .reduce((total, mark) => total + (mark.subject?.credits || 0), 0);
+      const totalCreditsNeeded = student.program?.credits ?? null;
+      const remainingCredits = totalCreditsNeeded == null
+        ? null
+        : Math.max(0, totalCreditsNeeded - completedCredits);
 
       // 4. Timetable today
-      const days = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'];
-      const todayName = days[new Date().getDay()];
-      const todaySlots = await prisma.timetableSlot.findMany({
-        where: {
-          semesterId: student.semesterId,
-          sectionId: student.sectionId,
-          dayOfWeek: todayName
-        },
-        include: {
-          subject: { select: { name: true, code: true, isLab: true } },
-          faculty: { select: { firstName: true, lastName: true } }
-        },
-        orderBy: { slotIndex: 'asc' }
-      });
+      let todaySlots: any[] = [];
+      try {
+        const days = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'];
+        const todayName = days[new Date().getDay()];
+        todaySlots = await (prisma as any).timetableSlot?.findMany?.({
+          where: {
+            semesterId: student.semesterId,
+            sectionId: student.sectionId,
+            dayOfWeek: todayName
+          },
+          include: {
+            subject: { select: { name: true, code: true, isLab: true } },
+            faculty: { select: { firstName: true, lastName: true } }
+          },
+          orderBy: { slotIndex: 'asc' }
+        }) ?? [];
+      } catch (e) {
+        console.error('[StudentDashboard] TimetableSlot fetch error:', e);
+      }
 
       // 5. Upcoming Exams
-      const upcomingExams = await prisma.exam.findMany({
-        where: {
-          semesterId: student.semesterId,
-          courseId: student.courseId,
-          status: 'SCHEDULED'
-        },
-        orderBy: { startDate: 'asc' }
-      });
+      let upcomingExams: any[] = [];
+      try {
+        upcomingExams = await (prisma as any).exam?.findMany?.({
+          where: {
+            semesterId: student.semesterId,
+            courseId: student.courseId,
+            status: 'SCHEDULED'
+          },
+          orderBy: { startDate: 'asc' }
+        }) ?? [];
+      } catch (e) {
+        console.error('[StudentDashboard] Exam fetch error:', e);
+      }
 
       // 6. Pending Homework (Workbook)
-      const pendingHomeworkCount = 2;
+      const pendingHomeworkCount = null;
 
       // 7. Pending Assignments
-      const allAssignments = await prisma.assignment.findMany({
-        where: {
-          semesterId: student.semesterId,
-          sectionId: student.sectionId,
-          deleted: false
-        }
-      });
-      const submissions = await prisma.assignmentSubmission.findMany({
-        where: { studentId: student.id }
-      });
-      const submittedIds = submissions.map(s => s.assignmentId);
-      const pendingAssignmentsCount = allAssignments.filter(a => !submittedIds.includes(a.id)).length;
+      let pendingAssignmentsCount = 0;
+      try {
+        const allAssignments = await (prisma as any).assignment?.findMany?.({
+          where: {
+            semesterId: student.semesterId,
+            sectionId: student.sectionId,
+            deleted: false
+          }
+        }) ?? [];
+        const submissions = await (prisma as any).assignmentSubmission?.findMany?.({
+          where: { studentId: student.id }
+        }) ?? [];
+        const submittedIds = submissions.map((s: any) => s.assignmentId);
+        pendingAssignmentsCount = allAssignments.filter((a: any) => !submittedIds.includes(a.id)).length;
+      } catch (e) {
+        console.error('[StudentDashboard] Assignments fetch error:', e);
+      }
 
       // 8. Library due books count
-      const allBooks = await prisma.libraryBook.findMany({ where: { deleted: false } });
       let libraryDueCount = 0;
-      for (const book of allBooks) {
-        try {
-          const issues = JSON.parse(book.issues || '[]');
-          const activeIssues = issues.filter((i: any) => i.studentId === student.id && !i.returned);
-          libraryDueCount += activeIssues.length;
-        } catch (_) {}
+      try {
+        const allBooks = await (prisma as any).libraryBook?.findMany?.({ where: { deleted: false } }) ?? [];
+        for (const book of allBooks) {
+          try {
+            const issues = JSON.parse(book.issues || '[]');
+            const activeIssues = issues.filter((i: any) => i.studentId === student.id && !i.returned);
+            libraryDueCount += activeIssues.length;
+          } catch (_) {}
+        }
+      } catch (e) {
+        console.error('[StudentDashboard] LibraryBook fetch error:', e);
       }
 
       // 9. Leave & OD status
@@ -131,7 +173,9 @@ export class EnterpriseController {
       const odStatus = activeOds.length > 0 ? activeOds[0].status : 'NO_ACTIVE_OD';
 
       // 10. Placement & Internship Updates
-      const placementsEligible = cgpa >= 7.0 ? 'ELIGIBLE' : 'NOT_ELIGIBLE';
+      const placementsEligible = student.placementApplications.length > 0
+        ? student.placementApplications[0].status
+        : null;
       const internshipStatus = student.internships.length > 0 ? student.internships[0].status : 'NO_APPLICATIONS';
 
       // 11. Recent Circulars (Unified Circular Model)
@@ -178,6 +222,33 @@ export class EnterpriseController {
         console.error('[StudentDashboard] MentorMessages fetch error:', e);
       }
 
+      // 15. Next Class calculation from todaySlots
+      let nextClass: any = null;
+      if (todaySlots.length > 0) {
+        const now = new Date();
+        const currentMins = now.getHours() * 60 + now.getMinutes();
+        for (const slot of todaySlots) {
+          if (slot.startTime) {
+            const [h, m] = slot.startTime.split(':').map((v: string) => parseInt(v, 10));
+            if (!isNaN(h) && (h * 60 + (m || 0)) > currentMins) {
+              nextClass = slot;
+              break;
+            }
+          }
+        }
+        if (!nextClass) {
+          nextClass = todaySlots[0];
+        }
+      }
+
+      // 16. Fee Dues Summary
+      const unpaidBills = student.feeBills.filter((b: any) => b.status !== 'PAID' && b.status !== 'CANCELLED');
+      const feeDuesAmount = unpaidBills.reduce((sum: number, b: any) => sum + (b.totalAmount || b.amount || 0), 0);
+
+      // 17. Transport & Hostel Eligibility Flags
+      const isHostelEligible = Boolean(student.hostelId || student.roomNo);
+      const isTransportEligible = Boolean(student.transportRouteId || student.transportStopId);
+
       res.status(200).json({
         status: 'success',
         data: {
@@ -193,9 +264,13 @@ export class EnterpriseController {
             leaveStatus,
             odStatus,
             placementsEligible,
-            internshipStatus
+            internshipStatus,
+            feeDuesAmount,
+            isHostelEligible,
+            isTransportEligible,
           },
           todaySlots,
+          nextClass,
           upcomingExams,
           circulars,
           notifications,
@@ -701,7 +776,7 @@ export class EnterpriseController {
   recordMark = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const user = (req as any).user;
-      const data = await this.service.recordMark(req.body, user.id, req.ip, req.headers['user-agent']);
+      const data = await this.service.recordMark(req.body, user.id, user.role, req.ip, req.headers['user-agent']);
       res.status(201).json({ status: 'success', data });
     } catch (error) {
       next(error);
@@ -939,7 +1014,7 @@ export class EnterpriseController {
   createTicket = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const user = (req as any).user;
-      const data = await this.service.createTicket(req.body, user.id, req.ip, req.headers['user-agent']);
+      const data = await this.service.createTicket(req.body, user.id, user.role, req.ip, req.headers['user-agent']);
       res.status(201).json({ status: 'success', data });
     } catch (error) {
       next(error);
@@ -949,7 +1024,7 @@ export class EnterpriseController {
   updateTicket = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const user = (req as any).user;
-      const data = await this.service.updateTicket(req.params.id, req.body, user.id, req.ip, req.headers['user-agent']);
+      const data = await this.service.updateTicket(req.params.id, req.body, user.id, user.role, req.ip, req.headers['user-agent']);
       res.status(200).json({ status: 'success', data });
     } catch (error) {
       next(error);
@@ -959,8 +1034,9 @@ export class EnterpriseController {
   deleteTicket = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const user = (req as any).user;
-      await this.service.bulkDelete('tickets', [req.params.id], user.id, req.ip, req.headers['user-agent']);
-      res.status(200).json({ status: 'success', message: 'Support Ticket deleted' });
+      assertComplaintArchiveAccess(user.role);
+      await this.service.bulkArchive('tickets', [req.params.id], user.id, req.ip, req.headers['user-agent']);
+      res.status(200).json({ status: 'success', message: 'Complaint archived' });
     } catch (error) {
       next(error);
     }
@@ -971,8 +1047,10 @@ export class EnterpriseController {
   // ==========================================
   bulkAction = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const { moduleKey, action, ids } = req.body;
+      const input = bulkActionSchema.parse(req.body);
+      const { moduleKey, action, ids } = input;
       const user = (req as any).user;
+      assertEnterpriseBulkAccess(user.role);
 
       if (action === 'delete') {
         await this.service.bulkDelete(moduleKey, ids, user.id, req.ip, req.headers['user-agent']);
@@ -981,13 +1059,16 @@ export class EnterpriseController {
       } else if (action === 'restore') {
         await this.service.bulkRestore(moduleKey, ids, user.id, req.ip, req.headers['user-agent']);
       } else if (action === 'assign-mentor') {
-        const { mentorId } = req.body;
+        const { mentorId } = input;
+        if (!mentorId) throw new BadRequestException('mentorId is required');
         await this.service.bulkAssignMentor(ids, mentorId, user.id, req.ip, req.headers['user-agent']);
       } else if (action === 'assign-department') {
-        const { departmentId } = req.body;
+        const { departmentId } = input;
+        if (!departmentId) throw new BadRequestException('departmentId is required');
         await this.service.bulkAssignDepartment(ids, departmentId, user.id, req.ip, req.headers['user-agent']);
       } else if (action === 'assign-section') {
-        const { sectionId } = req.body;
+        const { sectionId } = input;
+        if (!sectionId) throw new BadRequestException('sectionId is required');
         await this.service.bulkAssignSection(ids, sectionId, user.id, req.ip, req.headers['user-agent']);
       }
 
@@ -1624,4 +1705,3 @@ export class EnterpriseController {
     }
   };
 }
-

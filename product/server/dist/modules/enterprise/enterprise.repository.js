@@ -23,6 +23,8 @@ class EnterpriseRepository {
             where.semesterId = semesterId;
         if (mentorId)
             where.mentorId = mentorId;
+        if (params.scopeWhere)
+            where.AND = [params.scopeWhere];
         if (search) {
             where.OR = [
                 { firstName: { contains: search } },
@@ -402,8 +404,8 @@ class EnterpriseRepository {
         const page = Math.max(1, parseInt(params.page) || 1);
         const pageSize = Math.max(1, parseInt(params.pageSize) || 10);
         const skip = (page - 1) * pageSize;
-        const { status, category, priority, studentId } = params;
-        const where = { deleted: false };
+        const { status, category, priority, studentId, facultyId, scopeWhere } = params;
+        const where = { deleted: false, ...(scopeWhere || {}) };
         if (status)
             where.status = status;
         if (category)
@@ -412,13 +414,15 @@ class EnterpriseRepository {
             where.priority = priority;
         if (studentId)
             where.studentId = studentId;
+        if (facultyId)
+            where.facultyId = facultyId;
         const [items, totalCount] = await Promise.all([
             prisma_1.prisma.ticket.findMany({
                 where,
                 skip,
                 take: pageSize,
                 orderBy: { createdAt: 'desc' },
-                include: { faculty: true, student: true },
+                include: { faculty: true, student: true, assignedTo: { select: { id: true, firstName: true, lastName: true } } },
             }),
             prisma_1.prisma.ticket.count({ where }),
         ]);
@@ -427,7 +431,7 @@ class EnterpriseRepository {
     async findTicketById(id) {
         return prisma_1.prisma.ticket.findFirst({
             where: { id, deleted: false },
-            include: { faculty: true, student: true },
+            include: { faculty: true, student: true, assignedTo: { select: { id: true, firstName: true, lastName: true } } },
         });
     }
     async createTicket(data) {

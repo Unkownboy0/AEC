@@ -1,15 +1,25 @@
 import React, { useState, useEffect } from "react";
 import {
-  CalendarDays, FileText, Send, Clock, CheckCircle, AlertTriangle, XCircle, Plus, ChevronRight, ArrowLeft
+  CalendarDays, FileText, Send, Clock, CheckCircle, AlertTriangle, XCircle, Plus, ChevronRight, ArrowLeft, Ban
 } from "lucide-react";
 import { toast } from "../../components/ui/Toast";
 import { Loading } from "../../components/ui/Loading";
 import api from "../../lib/axios";
 
+const OD_MIN_ADVANCE_DAYS = 2;
+
+function minStartDate(type: string): string {
+  const min = new Date();
+  if (type === "OD") min.setDate(min.getDate() + OD_MIN_ADVANCE_DAYS);
+  return min.toISOString().slice(0, 10);
+}
+
 export const StudentLeaveOd: React.FC = () => {
   const [requests, setRequests] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedRequest, setSelectedRequest] = useState<any>(null);
+  const [mobileView, setMobileView] = useState<'apply' | 'history'>('apply');
+  const [odLeadTimeDays, setOdLeadTimeDays] = useState<number>(2);
   
   // Form State
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -28,9 +38,17 @@ export const StudentLeaveOd: React.FC = () => {
   const [availableFaculties, setAvailableFaculties] = useState<any[]>([]);
   const [selectedFacultyId, setSelectedFacultyId] = useState<string>("ALL");
 
+  function minStartDate(type: string, advanceDays: number): string {
+    const min = new Date();
+    if (type === "OD") {
+      min.setDate(min.getDate() + advanceDays);
+    }
+    return min.toISOString().slice(0, 10);
+  }
+
   const fetchRequests = async () => {
     try {
-      const res = await api.get('/workflows/requests');
+      const res = await api.get('/student/leave-od/my-requests');
       if (res.data?.status === 'success') {
         setRequests(res.data.data);
       }
@@ -43,9 +61,22 @@ export const StudentLeaveOd: React.FC = () => {
 
   useEffect(() => {
     fetchRequests();
+
+    const fetchOdLeadTimeSetting = async () => {
+      try {
+        const res = await api.get('/settings');
+        const settings = res.data?.data || [];
+        const odSetting = settings.find((s: any) => s.key === 'od_min_advance_days' || s.key === 'OD_MIN_ADVANCE_DAYS');
+        if (odSetting && !isNaN(parseInt(odSetting.value, 10))) {
+          setOdLeadTimeDays(parseInt(odSetting.value, 10));
+        }
+      } catch (_) {}
+    };
+    fetchOdLeadTimeSetting();
+
     const fetchTimetable = async () => {
       try {
-        const res = await api.get('/timetable/slots?studentId=me');
+        const res = await api.get('/timetables/slots?studentId=me');
         if (res.data?.status === 'success') {
           const slots = res.data.data || [];
           setTimetableSlots(slots);
@@ -113,9 +144,15 @@ export const StudentLeaveOd: React.FC = () => {
         affectedFacultyIds: Array.from(affectedFacultyIdsSet)
       });
 
-      const res = await api.post('/workflows/requests', {
-        ...formData,
-        attachments: attachmentsPayload
+      const res = await api.post('/student/leave-od', {
+        type: formData.type === 'OD' ? 'ON_DUTY' : 'LEAVE',
+        requestCategory: formData.title,
+        reason: formData.reason,
+        description: formData.title,
+        startDate: formData.startDate,
+        endDate: formData.endDate,
+        attachmentUrl: formData.attachments || undefined,
+        attachments: attachmentsPayload,
       });
 
       if (res.data?.status === 'success') {
@@ -130,6 +167,7 @@ export const StudentLeaveOd: React.FC = () => {
         });
         setSelectedPeriods([]);
         setSelectedFacultyId("ALL");
+        setMobileView('history');
         fetchRequests();
       }
     } catch (err: any) {
@@ -153,42 +191,72 @@ export const StudentLeaveOd: React.FC = () => {
     }
   };
 
+  const cancelRequest = async (id: string) => {
+    if (!window.confirm('Cancel this Leave/OD request?')) return;
+    try {
+      await api.post(`/workflows/requests/${id}/cancel`);
+      toast.success('Request cancelled.');
+      setSelectedRequest(null);
+      await fetchRequests();
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Request could not be cancelled.');
+    }
+  };
+
   if (isLoading) return <Loading text="Loading Leave & OD Requests..." />;
 
   return (
-    <div className="space-y-6 text-left pb-12 animate-in fade-in duration-200">
+    <main className="mx-auto max-w-[1320px] space-y-5 pb-24 text-left sm:space-y-7 sm:pb-14">
       
       {/* Page Header */}
-      <div>
-        <h1 className="text-xl font-black text-slate-800 dark:text-white flex items-center gap-2">
-          <CalendarDays className="h-5 w-5 text-indigo-600" /> Leave & OD Workspace
-        </h1>
-        <p className="text-xs text-muted-foreground mt-0.5">Submit and monitor leave applications and OD requests</p>
-      </div>
+      <header className="relative overflow-hidden rounded-[1.75rem] bg-[#111722] px-5 py-6 text-white shadow-[0_28px_80px_-44px_rgba(15,23,42,0.9)] sm:px-8 sm:py-8">
+        <div className="absolute -right-14 -top-20 h-52 w-52 rounded-full border border-indigo-400/20" aria-hidden="true" />
+        <div className="relative flex items-start gap-4">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-indigo-400/15 text-indigo-200">
+            <CalendarDays className="h-5 w-5" />
+          </div>
+          <div>
+            <p className="text-[10px] font-semibold uppercase tracking-[0.17em] text-indigo-300">Student requests</p>
+            <h1 className="mt-1 text-2xl font-bold tracking-[-0.035em] sm:text-3xl">Leave & OD workspace</h1>
+            <p className="mt-2 max-w-xl text-sm leading-6 text-slate-300">Apply, follow Mentor and HOD decisions, and keep every request in one place.</p>
+          </div>
+        </div>
+      </header>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+      <nav aria-label="Leave and OD views" className="grid grid-cols-2 rounded-2xl bg-slate-100 p-1 lg:hidden dark:bg-slate-900">
+        <button type="button" onClick={() => { setMobileView('apply'); setSelectedRequest(null); }} className={`min-h-11 rounded-xl px-4 text-sm font-semibold transition focus:outline-none focus:ring-2 focus:ring-indigo-500 ${mobileView === 'apply' ? 'bg-white text-slate-950 shadow-sm dark:bg-slate-800 dark:text-white' : 'text-slate-500'}`}>
+          Apply
+        </button>
+        <button type="button" onClick={() => setMobileView('history')} className={`min-h-11 rounded-xl px-4 text-sm font-semibold transition focus:outline-none focus:ring-2 focus:ring-indigo-500 ${mobileView === 'history' ? 'bg-white text-slate-950 shadow-sm dark:bg-slate-800 dark:text-white' : 'text-slate-500'}`}>
+          History <span className="ml-1 font-mono text-xs tabular-nums">{requests.length}</span>
+        </button>
+      </nav>
+
+      <section className="grid grid-cols-1 gap-5 lg:grid-cols-12 lg:gap-7">
         
         {/* ==================== LEFT COLUMN: REQUESTS LIST ==================== */}
-        <div className="lg:col-span-7 space-y-4">
-          <div className="border bg-card p-5 rounded-2xl shadow-sm space-y-4">
-            <h2 className="text-sm font-extrabold uppercase tracking-wider text-slate-800 dark:text-white">
-              My Request History
+        <div className={`${mobileView === 'history' ? 'block' : 'hidden'} space-y-4 lg:col-span-7 lg:block`}>
+          <section className="space-y-5 rounded-[1.5rem] border border-slate-200/70 bg-white p-4 shadow-[0_20px_60px_-42px_rgba(15,23,42,0.45)] sm:p-6 dark:border-slate-800 dark:bg-[#10141d]">
+            <h2 className="text-base font-semibold tracking-tight text-slate-900 dark:text-white">
+              Request history
             </h2>
 
             {requests.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground text-xs">
-                No leave or OD requests submitted yet.
+              <div className="rounded-2xl bg-slate-50 px-5 py-12 text-center dark:bg-slate-900/70">
+                <FileText className="mx-auto h-7 w-7 text-slate-300" />
+                <p className="mt-3 text-sm font-semibold text-slate-700 dark:text-slate-200">No requests yet</p>
+                <p className="mt-1 text-xs text-slate-500">Your submitted Leave and OD requests will appear here.</p>
               </div>
             ) : (
-              <div className="space-y-3 max-h-[500px] overflow-y-auto pr-1">
+              <div className="space-y-3 lg:max-h-[650px] lg:overflow-y-auto lg:pr-1">
                 {requests.map((r) => {
                   const isSelected = selectedRequest?.id === r.id;
                   return (
-                    <div
+                    <button
                       key={r.id}
-                      onClick={() => setSelectedRequest(r)}
-                      className={`p-4 border rounded-xl bg-background flex justify-between items-center transition-all cursor-pointer hover:border-indigo-200 hover:shadow-sm ${
-                        isSelected ? 'border-indigo-600 ring-1 ring-indigo-600/20 bg-indigo-50/5' : ''
+                      onClick={() => { setSelectedRequest(r); setMobileView('apply'); }}
+                      className={`flex min-h-20 w-full items-center justify-between rounded-2xl border p-4 text-left transition duration-200 hover:-translate-y-0.5 hover:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+                        isSelected ? 'border-indigo-500 bg-indigo-50/50 dark:bg-indigo-500/10' : 'border-slate-200/80 bg-slate-50/70 dark:border-slate-800 dark:bg-slate-900/60'
                       }`}
                     >
                       <div className="space-y-1 pr-4 min-w-0">
@@ -209,20 +277,20 @@ export const StudentLeaveOd: React.FC = () => {
                         {getStatusBadge(r.status)}
                         <ChevronRight className="h-4 w-4 text-slate-400" />
                       </div>
-                    </div>
+                    </button>
                   );
                 })}
               </div>
             )}
-          </div>
+          </section>
         </div>
 
         {/* ==================== RIGHT COLUMN: ACTION PANEL ==================== */}
-        <div className="lg:col-span-5 space-y-4">
+        <div className={`${mobileView === 'apply' ? 'block' : selectedRequest ? 'block' : 'hidden'} space-y-4 lg:col-span-5 lg:block`}>
           
           {selectedRequest ? (
             /* ==================== REQUEST DETAILS & WORKFLOW TIMELINE ==================== */
-            <div className="border bg-card p-5 rounded-2xl shadow-sm space-y-4 animate-in slide-in-from-right duration-200">
+            <section className="space-y-5 rounded-[1.5rem] border border-slate-200/70 bg-white p-4 shadow-[0_20px_60px_-42px_rgba(15,23,42,0.45)] sm:p-6 dark:border-slate-800 dark:bg-[#10141d]">
               <div className="flex justify-between items-center border-b pb-3">
                 <button
                   onClick={() => setSelectedRequest(null)}
@@ -231,6 +299,7 @@ export const StudentLeaveOd: React.FC = () => {
                   <ArrowLeft className="h-3.5 w-3.5" /> Back to Apply
                 </button>
                 {getStatusBadge(selectedRequest.status)}
+                {(selectedRequest.status === 'DRAFT' || selectedRequest.status.startsWith('PENDING') || selectedRequest.status === 'MENTOR_APPROVED' || selectedRequest.status === 'RETURNED_TO_STUDENT') && <button type="button" onClick={() => cancelRequest(selectedRequest.id)} className="ml-auto inline-flex items-center gap-1.5 rounded-lg border border-rose-200 px-3 py-1.5 text-xs font-semibold text-rose-600 hover:bg-rose-50"><Ban className="h-3.5 w-3.5" /> Cancel request</button>}
               </div>
 
               <div className="space-y-2.5">
@@ -346,15 +415,15 @@ export const StudentLeaveOd: React.FC = () => {
                   </div>
                 </div>
               </div>
-            </div>
+            </section>
           ) : (
             /* ==================== SUBMIT NEW REQUEST FORM ==================== */
-            <div className="border bg-card p-5 rounded-2xl shadow-sm space-y-4 animate-in slide-in-from-right duration-200">
-              <h2 className="text-sm font-extrabold uppercase tracking-wider text-slate-800 dark:text-white flex items-center gap-1.5">
-                <FileText className="h-4.5 w-4.5 text-indigo-600" /> Apply Leave / OD
+            <section className="space-y-5 rounded-[1.5rem] border border-slate-200/70 bg-white p-4 shadow-[0_20px_60px_-42px_rgba(15,23,42,0.45)] sm:p-6 dark:border-slate-800 dark:bg-[#10141d]">
+              <h2 className="flex items-center gap-2 text-base font-semibold tracking-tight text-slate-900 dark:text-white">
+                <FileText className="h-4 w-4 text-indigo-500" /> Apply for Leave / OD
               </h2>
               
-              <form onSubmit={handleSubmit} className="space-y-3.5 text-xs">
+              <form onSubmit={handleSubmit} className="space-y-5 text-xs">
                 
                 {/* Type Selection */}
                 <div>
@@ -363,7 +432,7 @@ export const StudentLeaveOd: React.FC = () => {
                     name="type"
                     value={formData.type}
                     onChange={handleInputChange}
-                    className="w-full px-3 py-2 border rounded-lg bg-background font-medium focus:ring-2 focus:ring-indigo-600/20 focus:border-indigo-600 transition-all outline-none"
+                    className="min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 font-medium text-slate-900 outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/15 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
                   >
                     <option value="LEAVE">Leave (Sick, Personal, etc.)</option>
                     <option value="OD">On Duty (OD - Hackathon, Seminar, etc.)</option>
@@ -379,32 +448,37 @@ export const StudentLeaveOd: React.FC = () => {
                     value={formData.title}
                     onChange={handleInputChange}
                     placeholder="e.g. Sick Leave - fever, Hackathon"
-                    className="w-full px-3 py-2 border rounded-lg bg-background font-semibold focus:ring-2 focus:ring-indigo-600/20 focus:border-indigo-600 transition-all outline-none"
+                    className="min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 font-medium text-slate-900 outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/15 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
                     required
                   />
                 </div>
 
                 {/* Date Grid */}
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <div>
                     <label className="block text-[10px] font-black text-slate-400 uppercase mb-1">Start Date</label>
                     <input
                       type="date"
                       name="startDate"
+                      min={minStartDate(formData.type, odLeadTimeDays)}
                       value={formData.startDate}
                       onChange={handleInputChange}
-                      className="w-full px-3 py-2 border rounded-lg bg-background font-semibold focus:ring-2 focus:ring-indigo-600/20 focus:border-indigo-600 transition-all outline-none"
+                      className="min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 font-medium text-slate-900 outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/15 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
                       required
                     />
+                    {formData.type === 'OD' && (
+                      <p className="text-[9px] text-slate-400 mt-1">OD requests must be submitted at least {odLeadTimeDays} {odLeadTimeDays === 1 ? 'day' : 'days'} in advance.</p>
+                    )}
                   </div>
                   <div>
                     <label className="block text-[10px] font-black text-slate-400 uppercase mb-1">End Date</label>
                     <input
                       type="date"
                       name="endDate"
+                      min={formData.startDate || minStartDate(formData.type, odLeadTimeDays)}
                       value={formData.endDate}
                       onChange={handleInputChange}
-                      className="w-full px-3 py-2 border rounded-lg bg-background font-semibold focus:ring-2 focus:ring-indigo-600/20 focus:border-indigo-600 transition-all outline-none"
+                      className="min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 font-medium text-slate-900 outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/15 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
                       required
                     />
                   </div>
@@ -418,7 +492,7 @@ export const StudentLeaveOd: React.FC = () => {
                       {selectedPeriods.length === 0 ? "Full-Day Leave" : `${selectedPeriods.length} Period(s) Selected`}
                     </span>
                   </div>
-                  <div className="grid grid-cols-4 gap-1.5 p-2 bg-slate-50 dark:bg-muted/10 rounded-xl border border-slate-100">
+                  <div className="grid grid-cols-4 gap-2 rounded-2xl bg-slate-50 p-2 dark:bg-slate-900/70">
                     {[1, 2, 3, 4, 5, 6, 7, 8].map((periodNum) => {
                       const isChecked = selectedPeriods.includes(periodNum);
                       const slot = timetableSlots.find((s: any) => s.slotIndex === periodNum);
@@ -427,7 +501,7 @@ export const StudentLeaveOd: React.FC = () => {
                           type="button"
                           key={periodNum}
                           onClick={() => togglePeriod(periodNum)}
-                          className={`py-1.5 px-2 rounded-lg border text-[10px] font-bold text-center transition-all flex flex-col items-center justify-center ${
+                          className={`flex min-h-11 flex-col items-center justify-center rounded-xl border px-2 py-2 text-center text-[10px] font-bold transition focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
                             isChecked
                               ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
                               : 'bg-background text-slate-700 hover:border-indigo-200'
@@ -455,7 +529,7 @@ export const StudentLeaveOd: React.FC = () => {
                     <select
                       value={selectedFacultyId}
                       onChange={(e) => setSelectedFacultyId(e.target.value)}
-                      className="w-full px-3 py-2 border rounded-lg bg-background font-medium focus:ring-2 focus:ring-indigo-600/20 focus:border-indigo-600 transition-all outline-none"
+                      className="min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 font-medium text-slate-900 outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/15 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
                     >
                       <option value="ALL">Auto-notify from Timetable</option>
                       {availableFaculties.map((fac) => (
@@ -479,7 +553,7 @@ export const StudentLeaveOd: React.FC = () => {
                     value={formData.reason}
                     onChange={handleInputChange}
                     placeholder="Provide details about your request..."
-                    className="w-full px-3 py-2 border rounded-lg bg-background font-medium focus:ring-2 focus:ring-indigo-600/20 focus:border-indigo-600 transition-all outline-none resize-none"
+                    className="w-full resize-none rounded-xl border border-slate-200 bg-white px-3 py-3 font-medium leading-5 text-slate-900 outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/15 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
                     required
                   />
                 </div>
@@ -493,14 +567,14 @@ export const StudentLeaveOd: React.FC = () => {
                     value={formData.attachments}
                     onChange={handleInputChange}
                     placeholder="https://drive.google.com/..."
-                    className="w-full px-3 py-2 border rounded-lg bg-background font-medium focus:ring-2 focus:ring-indigo-600/20 focus:border-indigo-600 transition-all outline-none"
+                    className="min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 font-medium text-slate-900 outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/15 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
                   />
                 </div>
 
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="w-full flex items-center justify-center gap-1.5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold rounded-lg shadow-md hover:shadow-lg transition-all"
+                  className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 px-5 py-3 text-sm font-semibold text-white transition duration-200 hover:bg-indigo-500 active:scale-[0.99] focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {isSubmitting ? (
                     <div className="h-4.5 w-4.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -512,13 +586,13 @@ export const StudentLeaveOd: React.FC = () => {
                 </button>
 
               </form>
-            </div>
+            </section>
           )}
 
         </div>
 
-      </div>
-    </div>
+      </section>
+    </main>
   );
 };
 

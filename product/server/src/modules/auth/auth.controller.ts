@@ -126,12 +126,12 @@ export class AuthController {
   forgotPassword = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const validated = forgotPasswordSchema.parse(req.body);
-      const result = await this.service.forgotPassword(validated.email);
+      await this.service.forgotPassword(validated.email);
 
       res.status(200).json({
         status: 'success',
-        message: 'If the email matches an active account, a password reset link has been dispatched.',
-        data: result, // Mock token returned for API tests
+        message: 'If the account exists, reset instructions will be sent.',
+        data: null,
       });
     } catch (error) {
       next(error);

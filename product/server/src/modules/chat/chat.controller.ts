@@ -2,6 +2,9 @@ import { Request, Response, NextFunction } from 'express';
 import { prisma } from '../../lib/prisma';
 import fs from 'fs';
 import path from 'path';
+import { randomUUID } from 'crypto';
+import { StudentAccessService } from '../security/student-access.service';
+import { NotificationService } from '../notifications/notification.service';
 
 export class ChatController {
   // ─── Search Students Autocomplete ─────────────────────────────────────────
@@ -10,83 +13,35 @@ export class ChatController {
       const user = (req as any).user;
       const q = String(req.query.q || '').trim();
 
-      // 1. Resolve Faculty profile if user is a Faculty
-      let facultyId: string | null = null;
-      const isFaculty = user.role === 'Faculty';
-
-      if (isFaculty) {
-        const fac = await prisma.faculty.findFirst({
-          where: { userId: user.id, deleted: false },
-        });
-        if (fac) {
-          facultyId = fac.id;
-        }
+      const normalizedRole = String(user.role || '').toUpperCase().replace(/[\s_-]+/g, '');
+      if (normalizedRole === 'STUDENT' || normalizedRole === 'PARENT') {
+        return res.status(200).json({ status: 'success', data: [], totalAssignments: 0 });
       }
 
-      let students: any[] = [];
-      let totalAssignments = 0;
-
-      if (isFaculty && facultyId) {
-        // Fetch all assigned students for this mentor
-        const activeAssignments = await prisma.mentorAssignment.findMany({
-          where: { mentorId: facultyId, status: 'ACTIVE' },
-          select: { studentId: true }
-        });
-        totalAssignments = activeAssignments.length;
-        const assignedStudentIds = activeAssignments.map(a => a.studentId);
-
-        if (assignedStudentIds.length > 0) {
-          const studentWhere: any = {
-            id: { in: assignedStudentIds },
-            deleted: false
-          };
-          if (q) {
-            studentWhere.OR = [
-              { admissionNo: { contains: q } },
-              { firstName: { contains: q } },
-              { lastName: { contains: q } },
-            ];
-          }
-
-          students = await prisma.student.findMany({
-            where: studentWhere,
-            include: {
-              department: { select: { name: true } },
-              program: { select: { name: true } },
-              semester: { select: { name: true } },
-              section: { select: { name: true } },
-              mentor: { select: { firstName: true, lastName: true } },
-              user: { select: { profilePhoto: true } }
-            },
-            take: 15,
-          });
-        }
-      } else {
-        // HOD / Admin can search all students
-        const studentWhere: any = {
-          deleted: false
-        };
-        if (q) {
-          studentWhere.OR = [
-            { admissionNo: { contains: q } },
-            { firstName: { contains: q } },
-            { lastName: { contains: q } },
-          ];
-        }
-
-        students = await prisma.student.findMany({
-          where: studentWhere,
-          include: {
-            department: { select: { name: true } },
-            program: { select: { name: true } },
-            semester: { select: { name: true } },
-            section: { select: { name: true } },
-            mentor: { select: { firstName: true, lastName: true } },
-            user: { select: { profilePhoto: true } }
-          },
-          take: 15,
+      const visibilityWhere = await StudentAccessService.visibleStudentWhere({ id: user.id, role: user.role });
+      const studentWhere: any = { AND: [visibilityWhere] };
+      if (q) {
+        studentWhere.AND.push({
+          OR: [
+            { admissionNo: { contains: q, mode: 'insensitive' } },
+            { firstName: { contains: q, mode: 'insensitive' } },
+            { lastName: { contains: q, mode: 'insensitive' } },
+          ]
         });
       }
+
+      const students = await prisma.student.findMany({
+        where: studentWhere,
+        include: {
+          department: { select: { name: true } },
+          program: { select: { name: true } },
+          semester: { select: { name: true } },
+          section: { select: { name: true } },
+          mentor: { select: { firstName: true, lastName: true } },
+          user: { select: { profilePhoto: true } }
+        },
+        take: 15,
+      });
 
       const formatted = (students as any[]).map((s: any) => ({
         id: s.id,
@@ -95,14 +50,14 @@ export class ChatController {
         admissionNo: s.admissionNo,
         rollNo: s.admissionNo,
         profilePhoto: s.user?.profilePhoto || null,
-        department: s.department?.name || 'N/A',
-        program: s.program?.name || 'N/A',
-        semester: s.semester?.name || 'N/A',
-        section: s.section?.name || 'N/A',
-        mentorName: s.mentor ? `${s.mentor.firstName} ${s.mentor.lastName}` : 'Not Assigned',
+        department: s.department?.name || null,
+        program: s.program?.name || null,
+        semester: s.semester?.name || null,
+        section: s.section?.name || null,
+        mentorName: s.mentor ? `${s.mentor.firstName} ${s.mentor.lastName}` : null,
       }));
 
-      res.status(200).json({ status: 'success', data: formatted, totalAssignments });
+      res.status(200).json({ status: 'success', data: formatted, totalAssignments: formatted.length });
     } catch (err) {
       next(err);
     }
@@ -122,25 +77,25 @@ export class ChatController {
       }
 
       // Query all faculty members
-      const mentorClause = student.mentorId ? { id: student.mentorId } : undefined;
+      const authorizedFaculty: any[] = [
+        { departmentId: student.departmentId },
+        {
+          subjectAssignments: {
+            some: {
+              OR: [
+                { sectionId: student.sectionId },
+                { semesterId: student.semesterId }
+              ]
+            }
+          }
+        }
+      ];
+      if (student.mentorId) authorizedFaculty.push({ id: student.mentorId });
 
       const facultyList = await prisma.faculty.findMany({
         where: {
           deleted: false,
-          OR: [
-            mentorClause || {},
-            { departmentId: student.departmentId || undefined },
-            {
-              subjectAssignments: {
-                some: {
-                  OR: [
-                    { sectionId: student.sectionId || undefined },
-                    { semesterId: student.semesterId || undefined }
-                  ]
-                }
-              }
-            }
-          ]
+          OR: authorizedFaculty
         },
         include: {
           department: { select: { name: true } },
@@ -152,7 +107,7 @@ export class ChatController {
         id: f.id,
         name: `${f.firstName} ${f.lastName}`,
         designation: f.designation,
-        department: f.department?.name || 'N/A',
+          department: f.department?.name || null,
         profilePhoto: f.user?.profilePhoto || null,
         isMentor: f.id === student.mentorId
       }));
@@ -170,7 +125,7 @@ export class ChatController {
 
       let facultyId: string | null = null;
       let studentId: string | null = null;
-      let assignedStudentIds: string[] = [];
+        let assignedStudentIds: string[] = [];
 
       if (user.role === 'Student') {
         const stud = await prisma.student.findFirst({ where: { userId: user.id } });
@@ -181,11 +136,9 @@ export class ChatController {
         if (!fac) return res.status(404).json({ status: 'error', message: 'Faculty profile not found.' });
         facultyId = fac.id;
 
-        const activeAssignments = await prisma.mentorAssignment.findMany({
-          where: { mentorId: facultyId, status: 'ACTIVE' },
-          select: { studentId: true }
-        });
-        assignedStudentIds = activeAssignments.map(a => a.studentId);
+        const visibilityWhere = await StudentAccessService.visibleStudentWhere({ id: user.id, role: user.role });
+        const visibleStudents = await prisma.student.findMany({ where: visibilityWhere as any, select: { id: true } });
+        assignedStudentIds = visibleStudents.map((student) => student.id);
       }
 
       const where: any = {};
@@ -226,7 +179,7 @@ export class ChatController {
           // Participant is Faculty
           const fac = await prisma.faculty.findUnique({
             where: { id: lastMsg.facultyId },
-            include: { department: true, user: { select: { profilePhoto: true } } }
+            include: { department: true, user: { select: { profilePhoto: true, presence: true } } }
           });
           if (fac) {
             participant = {
@@ -235,16 +188,16 @@ export class ChatController {
               role: 'Faculty',
               profilePhoto: fac.user?.profilePhoto || null,
               designation: fac.designation,
-              department: fac.department?.name || 'N/A',
-              employeeId: fac.employeeId || 'N/A',
-              online: true // Mock online status
+              department: fac.department?.name || null,
+              employeeId: fac.employeeId || null,
+              online: fac.user?.presence?.status === 'ONLINE'
             };
           }
         } else {
           // Participant is Student
           const stud = await prisma.student.findUnique({
             where: { id: lastMsg.studentId },
-            include: { department: true, semester: true, section: true, user: { select: { profilePhoto: true } } }
+            include: { department: true, semester: true, section: true, user: { select: { profilePhoto: true, presence: true } } }
           });
           if (stud) {
             participant = {
@@ -252,11 +205,11 @@ export class ChatController {
               name: `${stud.firstName} ${stud.lastName}`,
               role: 'Student',
               profilePhoto: stud.user?.profilePhoto || null,
-              registerNo: (stud as any).admissionNo || 'N/A',
-              department: stud.department?.name || 'N/A',
-              semester: stud.semester?.name || 'N/A',
-              section: stud.section?.name || 'N/A',
-              online: false // Mock status
+              registerNo: stud.admissionNo,
+              department: stud.department?.name || null,
+              semester: stud.semester?.name || null,
+              section: stud.section?.name || null,
+              online: stud.user?.presence?.status === 'ONLINE'
             };
           }
         }
@@ -303,7 +256,27 @@ export class ChatController {
         if (fac) facultyId = fac.id;
       }
 
-      // 2. Query messages
+      // Verify authorization before reading any messages.
+      if (facultyId) {
+        const parts = conversationId.split('_');
+        const cidFacultyId = parts[0];
+        const cidStudentId = parts[1];
+
+        if (cidFacultyId !== facultyId) {
+          return res.status(403).json({ status: 'error', message: 'You are not authorized to access this conversation.' });
+        }
+
+        await StudentAccessService.assertCanViewStudent({ id: user.id, role: user.role }, cidStudentId);
+      } else if (user.role === 'Student' && studentId) {
+        const parts = conversationId.split('_');
+        const cidStudentId = parts[1];
+        if (cidStudentId !== studentId) {
+          return res.status(403).json({ status: 'error', message: 'You are not authorized to access this conversation.' });
+        }
+      } else {
+        return res.status(403).json({ status: 'error', message: "You don't have permission to view this conversation." });
+      }
+
       const messages = await prisma.chatMessage.findMany({
         where: {
           conversationId,
@@ -314,30 +287,6 @@ export class ChatController {
         },
         orderBy: { sentTime: 'asc' }
       });
-
-      // Verify authorization
-      if (user.role === 'Faculty' && facultyId) {
-        const parts = conversationId.split('_');
-        const cidFacultyId = parts[0];
-        const cidStudentId = parts[1];
-
-        if (cidFacultyId !== facultyId) {
-          return res.status(403).json({ status: 'error', message: 'You are not authorized to access this conversation.' });
-        }
-
-        const isAssigned = await prisma.mentorAssignment.findFirst({
-          where: { mentorId: facultyId, studentId: cidStudentId, status: 'ACTIVE' }
-        });
-        if (!isAssigned) {
-          return res.status(403).json({ status: 'error', message: 'Access Denied: Mentor can only view conversations of assigned students.' });
-        }
-      } else if (user.role === 'Student' && studentId) {
-        const parts = conversationId.split('_');
-        const cidStudentId = parts[1];
-        if (cidStudentId !== studentId) {
-          return res.status(403).json({ status: 'error', message: 'You are not authorized to access this conversation.' });
-        }
-      }
 
       // Mark unread messages as read
       const unread = messages.filter(m => {
@@ -408,9 +357,7 @@ export class ChatController {
         const assignedSectionIds = assignments.map(a => a.sectionId);
         const assignedSemesterIds = assignments.map(a => a.semesterId);
         const isClassTeacher = assignedSectionIds.includes(stud.sectionId || '') || assignedSemesterIds.includes(stud.semesterId || '');
-        const isSameDept = stud.departmentId === facultyExists.departmentId;
-
-        if (!isAssignedMentor && !isClassTeacher && !isSameDept) {
+        if (!isAssignedMentor && !isClassTeacher) {
           return res.status(403).json({
             status: 'error',
             message: 'Access Denied: Students can only message or reply to their assigned mentors or class faculty.'
@@ -430,19 +377,7 @@ export class ChatController {
           return res.status(400).json({ status: 'error', message: 'Invalid student recipient.' });
         }
 
-        // Role-Based Message Restriction (Faculty can only message assigned students)
-        const isAdmin = ['SuperAdmin', 'HOD', 'Academic Dean', 'Principal', 'Vice Principal'].includes(user.role);
-        if (!isAdmin) {
-          const isAssigned = await prisma.mentorAssignment.findFirst({
-            where: { mentorId: facultyId, studentId, status: 'ACTIVE' }
-          });
-          if (!isAssigned) {
-            return res.status(403).json({
-              status: 'error',
-              message: 'Access Denied: Mentor can only message assigned students.'
-            });
-          }
-        }
+        await StudentAccessService.assertCanViewStudent({ id: user.id, role: user.role }, studentId);
       }
 
       // Process base64 attachment if provided
@@ -461,7 +396,7 @@ export class ChatController {
         }
 
         const ext = path.extname(attachmentName) || '.bin';
-        const fileName = `chat_${Date.now()}_${Math.round(Math.random() * 1000)}${ext}`;
+        const fileName = `chat_${randomUUID()}${ext}`;
         const filePath = path.join(uploadDir, fileName);
         fs.writeFileSync(filePath, buffer);
 
@@ -499,13 +434,14 @@ export class ChatController {
       }
 
       if (notificationRecipientUserId) {
-        await prisma.systemNotification.create({
-          data: {
-            title: `New Message from ${user.firstName}`,
-            content: message ? (message.substring(0, 50) + (message.length > 50 ? '...' : '')) : 'Sent an attachment.',
-            type: 'PUSH',
-            status: 'PENDING'
-          }
+        await NotificationService.sendNotification({
+          recipientId: notificationRecipientUserId,
+          eventType: 'MESSAGE_RECEIVED',
+          title: `New Message from ${user.firstName}`,
+          message: message ? (message.substring(0, 50) + (message.length > 50 ? '...' : '')) : 'Sent an attachment.',
+          relatedEntityType: 'CHAT_MESSAGE',
+          relatedEntityId: chatMsg.id,
+          deepLinkRoute: `/chat/${conversationId}`
         });
       }
 

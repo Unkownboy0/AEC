@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1028636410933",
+    "project_id": "geetorus-campusos",
+    "storage_bucket": "geetorus-campusos.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1028636410933:android:d5a36c18baa66ec7a45d7c",
+        "android_client_info": {
+          "package_name": "com.geetorus.campusos"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA8I0M_fc2PgsHTS0zlvqi8lxQTw_Vm5_A"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

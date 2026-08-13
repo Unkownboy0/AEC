@@ -8,8 +8,24 @@ const prisma_1 = require("../../lib/prisma");
 const exceptions_1 = require("../../utils/exceptions");
 const fs_1 = __importDefault(require("fs"));
 const path_1 = __importDefault(require("path"));
+const child_process_1 = require("child_process");
+const util_1 = require("util");
+const env_1 = require("../../config/env");
+const execFileAsync = (0, util_1.promisify)(child_process_1.execFile);
 class BackupController {
-    backupsDir = path_1.default.join(__dirname, '../../../backups');
+    backupsDir = path_1.default.resolve(env_1.env.BACKUP_ROOT);
+    postgresEnvironment() {
+        const databaseUrl = new URL(env_1.env.DATABASE_URL);
+        return {
+            ...process.env,
+            PGHOST: databaseUrl.hostname,
+            PGPORT: databaseUrl.port || '5432',
+            PGUSER: decodeURIComponent(databaseUrl.username),
+            PGPASSWORD: decodeURIComponent(databaseUrl.password),
+            PGDATABASE: databaseUrl.pathname.replace(/^\//, ''),
+            PGSSLMODE: databaseUrl.searchParams.get('sslmode') || process.env.PGSSLMODE,
+        };
+    }
     constructor() {
         // Ensure backups directory exists
         if (!fs_1.default.existsSync(this.backupsDir)) {
@@ -38,15 +54,15 @@ class BackupController {
      */
     trigger = async (req, res, next) => {
         try {
-            const dbPath = path_1.default.join(__dirname, '../../../prisma/dev.db');
-            if (!fs_1.default.existsSync(dbPath)) {
-                throw new exceptions_1.BadRequestException('Source SQLite database file dev.db not found');
-            }
             const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-            const fileName = `backup_${timestamp}.db`;
+            const fileName = `campusos_${timestamp}.dump`;
             const targetPath = path_1.default.join(this.backupsDir, fileName);
-            // Copy SQLite file
-            fs_1.default.copyFileSync(dbPath, targetPath);
+            await execFileAsync(env_1.env.PG_DUMP_PATH, [
+                '--format=custom',
+                '--no-owner',
+                '--no-privileges',
+                `--file=${targetPath}`,
+            ], { env: this.postgresEnvironment(), windowsHide: true });
             const stats = fs_1.default.statSync(targetPath);
             const log = await prisma_1.prisma.backupLog.create({
                 data: {
@@ -79,7 +95,7 @@ class BackupController {
             await prisma_1.prisma.backupLog.create({
                 data: {
                     filePath: '',
-                    fileName: 'Failed_Backup.db',
+                    fileName: 'Failed_PostgreSQL_Backup.dump',
                     backupType: 'MANUAL',
                     fileSize: 0,
                     triggeredBy: req.user?.email || 'SYSTEM',
@@ -109,9 +125,8 @@ class BackupController {
             next(error);
         }
     };
-    /**
-     * Simulate a database restore
-     */
+    /** Validate that pg_restore can read the archive. An actual restore is an
+     * offline runbook operation and is never performed against the live DB here. */
     restore = async (req, res, next) => {
         try {
             const log = await prisma_1.prisma.backupLog.findUnique({
@@ -123,23 +138,24 @@ class BackupController {
             if (!fs_1.default.existsSync(log.filePath)) {
                 throw new exceptions_1.NotFoundException('Backup physical file not found');
             }
-            // Restoring in production SQLite would mean overwriting the live dev.db.
-            // For development, we simulate a successful structural check and integrity verify.
-            // This protects database connections from getting corrupted in watch dev modes.
+            const configuredDirectory = path_1.default.dirname(env_1.env.PG_DUMP_PATH);
+            const pgRestoreExecutable = process.platform === 'win32' ? 'pg_restore.exe' : 'pg_restore';
+            const pgRestorePath = configuredDirectory === '.' ? pgRestoreExecutable : path_1.default.join(configuredDirectory, pgRestoreExecutable);
+            await execFileAsync(pgRestorePath, ['--list', log.filePath], { windowsHide: true });
             // Audit Log
             await prisma_1.prisma.userActivityLog.create({
                 data: {
                     userId: req.user.id,
                     action: 'UPDATE',
                     module: 'BACKUP',
-                    description: `Triggered database verification checks on backup: ${log.fileName}`,
+                    description: `Validated PostgreSQL backup archive: ${log.fileName}`,
                     ipAddress: req.ip,
                     userAgent: req.headers['user-agent'],
                 },
             });
             res.status(200).json({
                 status: 'success',
-                message: `Database integrity verified. Backup file ${log.fileName} is fully restorable.`,
+                message: `PostgreSQL archive ${log.fileName} passed pg_restore structural validation. A separate restore drill is still required.`,
             });
         }
         catch (error) {

@@ -29,9 +29,9 @@ export const CreateCircularSchema = z.object({
   targetSections: z.array(z.string()).default([]),
   selectedUserIds: z.array(z.string()).default([]),
   // Attachment & Links (handles empty string gracefully)
-  attachmentUrl: z.union([z.string().url(), z.literal('')]).optional().nullable().transform(val => val || undefined),
+  attachmentUrl: z.string().optional().nullable().transform(val => val || undefined),
   attachmentName: z.string().optional().nullable().transform(val => val || undefined),
-  referenceLink: z.union([z.string().url(), z.literal('')]).optional().nullable().transform(val => val || undefined),
+  referenceLink: z.string().optional().nullable().transform(val => val || undefined),
   // Scheduling
   publishDate: z.string().optional().nullable().transform(val => val || undefined),
   expiryDate: z.string().optional().nullable().transform(val => val || undefined),

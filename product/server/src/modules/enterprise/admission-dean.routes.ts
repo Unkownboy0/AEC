@@ -12,41 +12,45 @@ router.use(requireAuth);
 /**
  * GET /api/admission-dean/dashboard - Live KPI summary
  */
-router.get('/dashboard', requireRole(['Admission Dean', 'Super Admin', 'College Admin', 'Principal']), admissionController.getAnalytics);
+router.get('/dashboard', requireRole(['Admission Dean', 'Administration & Admission Dean', 'Super Admin', 'College Admin', 'Principal']), admissionController.getAnalytics);
+router.get('/analytics/funnel', requireRole(['Admission Dean', 'Administration & Admission Dean', 'Super Admin', 'College Admin', 'Principal']), admissionController.getFunnelAnalytics);
 
 /**
- * Admission Applications
+ * Admission Applications & Wizard
  */
-router.get('/applications', requireRole(['Admission Dean', 'Super Admin', 'College Admin', 'Principal']), admissionController.listApplications);
-router.get('/applications/:id', requireRole(['Admission Dean', 'Super Admin', 'College Admin', 'Principal']), admissionController.getApplication);
-router.put('/applications/:id/status', requireRole(['Admission Dean', 'Super Admin', 'College Admin', 'Principal']), admissionController.updateApplicationStatus);
-router.post('/applications/bulk-status', requireRole(['Admission Dean', 'Super Admin', 'College Admin', 'Principal']), admissionController.bulkUpdateStatus);
-router.post('/applications/:id/verify-document', requireRole(['Admission Dean', 'Super Admin', 'College Admin', 'Principal']), admissionController.verifyDocument);
+router.post('/wizard/check-duplicate', requireRole(['Admission Dean', 'Administration & Admission Dean', 'Super Admin', 'College Admin', 'Principal']), admissionController.checkDuplicate);
+router.post('/wizard/save-draft', requireRole(['Admission Dean', 'Administration & Admission Dean', 'Super Admin', 'College Admin', 'Principal']), admissionController.saveWizardProgress);
+router.get('/applications', requireRole(['Admission Dean', 'Administration & Admission Dean', 'Super Admin', 'College Admin', 'Principal']), admissionController.listApplications);
+router.get('/applications/:id', requireRole(['Admission Dean', 'Administration & Admission Dean', 'Super Admin', 'College Admin', 'Principal']), admissionController.getApplication);
+router.put('/applications/:id/status', requireRole(['Admission Dean', 'Administration & Admission Dean', 'Super Admin', 'College Admin', 'Principal']), admissionController.updateApplicationStatus);
+router.post('/applications/:id/confirm-admission', requireRole(['Admission Dean', 'Administration & Admission Dean', 'Super Admin', 'College Admin', 'Principal']), admissionController.confirmAdmission);
+router.post('/applications/bulk-status', requireRole(['Admission Dean', 'Administration & Admission Dean', 'Super Admin', 'College Admin', 'Principal']), admissionController.bulkUpdateStatus);
+router.post('/applications/:id/verify-document', requireRole(['Admission Dean', 'Administration & Admission Dean', 'Super Admin', 'College Admin', 'Principal']), admissionController.verifyDocument);
 
 /**
  * Seats & Quotas
  */
-router.get('/seats', requireRole(['Admission Dean', 'Super Admin', 'College Admin', 'Principal']), admissionController.listSeats);
-router.post('/seats/:id/allocate', requireRole(['Admission Dean', 'Super Admin', 'College Admin', 'Principal']), admissionController.allocateSeat);
-router.post('/seats/auto-allocate', requireRole(['Admission Dean', 'Super Admin', 'College Admin', 'Principal']), admissionController.autoAllocateMeritSeats);
-router.post('/seats/:id/transfer', requireRole(['Admission Dean', 'Super Admin', 'College Admin', 'Principal']), admissionController.transferDepartment);
+router.get('/seats', requireRole(['Admission Dean', 'Administration & Admission Dean', 'Super Admin', 'College Admin', 'Principal']), admissionController.listSeats);
+router.post('/seats/:id/allocate', requireRole(['Admission Dean', 'Administration & Admission Dean', 'Super Admin', 'College Admin', 'Principal']), admissionController.allocateSeat);
+router.post('/seats/auto-allocate', requireRole(['Admission Dean', 'Administration & Admission Dean', 'Super Admin', 'College Admin', 'Principal']), admissionController.autoAllocateMeritSeats);
+router.post('/seats/:id/transfer', requireRole(['Admission Dean', 'Administration & Admission Dean', 'Super Admin', 'College Admin', 'Principal']), admissionController.transferDepartment);
 
 /**
  * CRM Enquiries & Counselling
  */
-router.get('/enquiries', requireRole(['Admission Dean', 'Super Admin', 'College Admin', 'Principal']), admissionController.listEnquiries);
-router.post('/enquiries', requireRole(['Admission Dean', 'Super Admin', 'College Admin', 'Principal']), admissionController.createEnquiry);
-router.put('/enquiries/:id', requireRole(['Admission Dean', 'Super Admin', 'College Admin', 'Principal']), admissionController.updateEnquiry);
-router.post('/enquiries/:id/convert', requireRole(['Admission Dean', 'Super Admin', 'College Admin', 'Principal']), admissionController.convertEnquiry);
-router.get('/counselling', requireRole(['Admission Dean', 'Super Admin', 'College Admin', 'Principal']), admissionController.listCounselling);
-router.post('/counselling', requireRole(['Admission Dean', 'Super Admin', 'College Admin', 'Principal']), admissionController.createCounselling);
-router.get('/scholarships', requireRole(['Admission Dean', 'Super Admin', 'College Admin', 'Principal']), admissionController.listScholarships);
-router.get('/payments', requireRole(['Admission Dean', 'Super Admin', 'College Admin', 'Principal']), admissionController.listPayments);
+router.get('/enquiries', requireRole(['Admission Dean', 'Administration & Admission Dean', 'Super Admin', 'College Admin', 'Principal']), admissionController.listEnquiries);
+router.post('/enquiries', requireRole(['Admission Dean', 'Administration & Admission Dean', 'Super Admin', 'College Admin', 'Principal']), admissionController.createEnquiry);
+router.put('/enquiries/:id', requireRole(['Admission Dean', 'Administration & Admission Dean', 'Super Admin', 'College Admin', 'Principal']), admissionController.updateEnquiry);
+router.post('/enquiries/:id/convert', requireRole(['Admission Dean', 'Administration & Admission Dean', 'Super Admin', 'College Admin', 'Principal']), admissionController.convertEnquiry);
+router.get('/counselling', requireRole(['Admission Dean', 'Administration & Admission Dean', 'Super Admin', 'College Admin', 'Principal']), admissionController.listCounselling);
+router.post('/counselling', requireRole(['Admission Dean', 'Administration & Admission Dean', 'Super Admin', 'College Admin', 'Principal']), admissionController.createCounselling);
+router.get('/scholarships', requireRole(['Admission Dean', 'Administration & Admission Dean', 'Super Admin', 'College Admin', 'Principal']), admissionController.listScholarships);
+router.get('/payments', requireRole(['Admission Dean', 'Administration & Admission Dean', 'Super Admin', 'College Admin', 'Principal']), admissionController.listPayments);
 
 /**
  * Admission Coordination Requests (Admission Dean -> HOD)
  */
-router.get('/coordination', requireRole(['Admission Dean', 'Super Admin', 'College Admin', 'Principal']), async (req: Request, res: Response, next: NextFunction) => {
+router.get('/coordination', requireRole(['Admission Dean', 'Administration & Admission Dean', 'Super Admin', 'College Admin', 'Principal']), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const result = await AdmissionCoordinationService.getRequestsForDean(req.query as any);
     res.status(200).json({ status: 'success', ...result });
@@ -55,7 +59,7 @@ router.get('/coordination', requireRole(['Admission Dean', 'Super Admin', 'Colle
   }
 });
 
-router.post('/coordination', requireRole(['Admission Dean', 'Super Admin', 'College Admin', 'Principal']), async (req: Request, res: Response, next: NextFunction) => {
+router.post('/coordination', requireRole(['Admission Dean', 'Administration & Admission Dean', 'Super Admin', 'College Admin', 'Principal']), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const deanUserId = (req as any).user.id;
     const request = await AdmissionCoordinationService.createRequest(deanUserId, req.body);
@@ -65,7 +69,7 @@ router.post('/coordination', requireRole(['Admission Dean', 'Super Admin', 'Coll
   }
 });
 
-router.post('/coordination/:id/review', requireRole(['Admission Dean', 'Super Admin', 'College Admin', 'Principal']), async (req: Request, res: Response, next: NextFunction) => {
+router.post('/coordination/:id/review', requireRole(['Admission Dean', 'Administration & Admission Dean', 'Super Admin', 'College Admin', 'Principal']), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const deanUserId = (req as any).user.id;
     const { action, remarks } = req.body;
@@ -79,7 +83,7 @@ router.post('/coordination/:id/review', requireRole(['Admission Dean', 'Super Ad
 /**
  * HOD Admission Coordination Endpoints (Received by HOD)
  */
-router.get('/hod-coordination', requireRole(['HOD', 'Admission Dean', 'Super Admin']), async (req: Request, res: Response, next: NextFunction) => {
+router.get('/hod-coordination', requireRole(['HOD', 'Admission Dean', 'Administration & Admission Dean', 'Super Admin']), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const hodUserId = (req as any).user.id;
     const requests = await AdmissionCoordinationService.getRequestsForHod(hodUserId);
@@ -89,7 +93,7 @@ router.get('/hod-coordination', requireRole(['HOD', 'Admission Dean', 'Super Adm
   }
 });
 
-router.post('/hod-coordination/:id/respond', requireRole(['HOD', 'Admission Dean', 'Super Admin']), async (req: Request, res: Response, next: NextFunction) => {
+router.post('/hod-coordination/:id/respond', requireRole(['HOD', 'Admission Dean', 'Administration & Admission Dean', 'Super Admin']), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const hodUserId = (req as any).user.id;
     const result = await AdmissionCoordinationService.respondToRequest(req.params.id, req.body, hodUserId);
@@ -100,3 +104,4 @@ router.post('/hod-coordination/:id/respond', requireRole(['HOD', 'Admission Dean
 });
 
 export default router;
+

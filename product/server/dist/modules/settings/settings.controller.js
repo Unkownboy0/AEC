@@ -2,8 +2,37 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.SettingsController = void 0;
 const prisma_1 = require("../../lib/prisma");
-const exceptions_1 = require("../../utils/exceptions");
+const leavePolicy_1 = require("../../utils/leavePolicy");
+const settings_service_1 = require("./settings.service");
 class SettingsController {
+    service = new settings_service_1.SettingsService();
+    catalog = async (_req, res, next) => {
+        try {
+            res.status(200).json({ status: 'success', data: await this.service.catalog() });
+        }
+        catch (error) {
+            next(error);
+        }
+    };
+    preview = async (req, res, next) => {
+        try {
+            res.status(200).json({ status: 'success', data: this.service.preview(req.body?.changes) });
+        }
+        catch (error) {
+            next(error);
+        }
+    };
+    getRequestPolicy = async (_req, res, next) => {
+        try {
+            res.status(200).json({
+                status: 'success',
+                data: { odMinAdvanceDays: await (0, leavePolicy_1.getOdMinAdvanceDays)(), leaveMinAdvanceDays: 0 },
+            });
+        }
+        catch (error) {
+            next(error);
+        }
+    };
     /**
      * List all settings key-value pairs
      */
@@ -29,41 +58,8 @@ class SettingsController {
      */
     update = async (req, res, next) => {
         try {
-            const body = req.body;
-            if (typeof body !== 'object' || body === null) {
-                throw new exceptions_1.BadRequestException('Request body must be a JSON object of settings');
-            }
-            const keys = Object.keys(body);
-            const updatedList = [];
-            for (const key of keys) {
-                const val = String(body[key]);
-                const setting = await prisma_1.prisma.systemSetting.upsert({
-                    where: { key },
-                    update: { value: val },
-                    create: { key, value: val },
-                });
-                updatedList.push(setting);
-            }
-            // Write audit log
-            await prisma_1.prisma.userActivityLog.create({
-                data: {
-                    userId: req.user.id,
-                    action: 'UPDATE',
-                    module: 'SETTING',
-                    description: `Updated system configuration keys: ${keys.join(', ')}`,
-                    ipAddress: req.ip,
-                    userAgent: req.headers['user-agent'],
-                },
-            });
-            // Format response dictionary
-            const settingsDict = {};
-            updatedList.forEach((s) => {
-                settingsDict[s.key] = s.value;
-            });
-            res.status(200).json({
-                status: 'success',
-                data: settingsDict,
-            });
+            const result = await this.service.update(req.body?.changes ?? req.body, req.user, { ip: req.ip, userAgent: req.headers['user-agent'] });
+            res.status(200).json({ status: 'success', data: result });
         }
         catch (error) {
             next(error);

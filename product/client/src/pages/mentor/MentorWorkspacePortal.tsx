@@ -1,18 +1,17 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Users, CheckSquare, Heart, ShieldAlert,
-  Plus, Check, X, Send, Eye, RefreshCw, Calendar, Phone, MessageSquare, AlertTriangle, FileText, ArrowUpRight,
+  Users, Heart, Plus, Check, X, Send, Eye, RefreshCw, Calendar, Phone, MessageSquare, AlertTriangle, FileText, ArrowUpRight,
   GraduationCap, Search, Filter, Shield, UserCheck, ChevronRight
 } from 'lucide-react';
 import api from '../../lib/axios';
 import { useAuth } from '../../context/AuthContext';
 import { toast } from '../../components/ui/Toast';
-import { MetricCard } from '../../design-system/components/MetricCard';
+import { PageHeader } from '../../design-system/components/PageHeader';
+import { SummaryStatCard } from '../../design-system/components/SummaryStatCard';
+import { QuickActionCard } from '../../design-system/components/QuickActionCard';
+import { SectionCard } from '../../design-system/components/SectionCard';
 import { StatusBadge } from '../../design-system/components/StatusBadge';
 import { DataTable, Column } from '../../design-system/components/DataTable';
-import { Modal } from '../../design-system/components/Modal';
-import { pageVariants } from '../../design-system/tokens/motion';
 
 export const MentorWorkspacePortal: React.FC = () => {
   const { user } = useAuth();
@@ -57,83 +56,92 @@ export const MentorWorkspacePortal: React.FC = () => {
     }
   }, []);
 
+  const fetchAssignedStudents = useCallback(async () => {
+    try {
+      setLoading(true);
+      const res = await api.get('/mentor/students', {
+        params: { search: searchQuery, risk: riskFilter },
+      });
+      if (res.data?.status === 'success') {
+        setStudents(res.data.data.students || res.data.data || []);
+      }
+    } catch (err) {
+      console.error('Failed to load assigned students:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, [searchQuery, riskFilter]);
+
+  const fetchPendingApprovals = useCallback(async () => {
+    try {
+      setLoading(true);
+      const res = await api.get('/mentor/leave-od/pending');
+      if (res.data?.status === 'success') {
+        setPendingRequests(res.data.data.requests || res.data.data || []);
+      }
+    } catch (err) {
+      console.error('Failed to load pending approvals:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     fetchDashboardStats();
   }, [fetchDashboardStats]);
 
   useEffect(() => {
-    if (activeTab === 'students') fetchStudents();
-    if (activeTab === 'approvals') fetchPendingRequests();
-  }, [activeTab]);
+    if (activeTab === 'students' || activeTab === 'monitoring') fetchAssignedStudents();
+    if (activeTab === 'approvals') fetchPendingApprovals();
+  }, [activeTab, fetchAssignedStudents, fetchPendingApprovals]);
 
-  const fetchStudents = async () => {
+  const handleApprovalAction = async (requestId: string, type: 'LEAVE' | 'OD', action: 'APPROVE' | 'REJECT', remarks: string = '') => {
     try {
-      setLoading(true);
-      const res = await api.get('/mentor/students');
-      if (res.data?.status === 'success') setStudents(res.data.data || []);
-    } catch (err) {
-      console.error('Failed to fetch assigned students:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchPendingRequests = async () => {
-    try {
-      setLoading(true);
-      const res = await api.get('/workflows/requests');
-      if (res.data?.status === 'success') setPendingRequests(res.data.data || []);
-    } catch (err) {
-      console.error('Failed to fetch pending requests:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleApproveRequest = async (requestId: string, action: 'APPROVE' | 'REJECT') => {
-    try {
-      await api.post(`/workflows/requests/${requestId}/step`, {
-        action,
-        comment: action === 'APPROVE' ? 'Approved by Mentor' : 'Rejected by Mentor',
-      });
-      toast.success(`Request ${action.toLowerCase()}d successfully`);
-      fetchPendingRequests();
+      const endpoint = type === 'LEAVE' ? `/mentor/leave/${requestId}/action` : `/mentor/od/${requestId}/action`;
+      const res = await api.post(endpoint, { action, remarks });
+      if (res.data?.status === 'success') {
+        toast.success(`Request ${action === 'APPROVE' ? 'Approved' : 'Rejected'} successfully.`);
+        fetchPendingApprovals();
+        fetchDashboardStats();
+      }
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Workflow step failed');
+      toast.error(err.response?.data?.message || 'Failed to process request');
     }
   };
 
-  const handleSaveCounselingLog = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleAddCounseling = async () => {
     if (!selectedStudent || !counselingNotes.trim()) return;
     try {
-      await api.post(`/mentor/students/${selectedStudent.id}/counseling`, {
+      const res = await api.post(`/mentor/students/${selectedStudent.id}/counseling`, {
         notes: counselingNotes,
-        actionItems: counselingAction,
-        privacy: privacyLevel,
+        actionTaken: counselingAction,
+        privacyLevel,
       });
-      toast.success('Confidential counselling log recorded');
-      setIsCounselingModalOpen(false);
-      setCounselingNotes('');
-      setCounselingAction('');
+      if (res.data?.status === 'success') {
+        toast.success('Counseling record added.');
+        setIsCounselingModalOpen(false);
+        setCounselingNotes('');
+        setCounselingAction('');
+      }
     } catch (err: any) {
-      toast.error('Failed to record counselling log');
+      toast.error(err.response?.data?.message || 'Failed to add counseling record');
     }
   };
 
-  const handleSaveParentComm = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleLogParentComm = async () => {
     if (!selectedStudent || !commNotes.trim()) return;
     try {
-      await api.post(`/mentor/students/${selectedStudent.id}/parent-comm`, {
+      const res = await api.post(`/mentor/students/${selectedStudent.id}/parent-comm`, {
         type: commType,
         notes: commNotes,
       });
-      toast.success('Parent communication recorded');
-      setIsParentCommModalOpen(false);
-      setCommNotes('');
+      if (res.data?.status === 'success') {
+        toast.success('Parent communication logged.');
+        setIsParentCommModalOpen(false);
+        setCommNotes('');
+      }
     } catch (err: any) {
-      toast.error('Failed to record parent communication');
+      toast.error(err.response?.data?.message || 'Failed to log parent communication');
     }
   };
 
@@ -142,53 +150,69 @@ export const MentorWorkspacePortal: React.FC = () => {
       key: 'name',
       header: 'Student Name',
       sortable: true,
-      render: (s) => (
-        <div>
-          <span className="font-bold text-foreground block">{s.firstName} {s.lastName}</span>
-          <span className="font-mono text-[10px] text-muted-foreground">{s.rollNo || s.admissionNo}</span>
+      render: (st) => (
+        <div className="flex items-center gap-2.5">
+          <div className="w-7 h-7 rounded-full bg-indigo-500/10 text-indigo-600 font-bold flex items-center justify-center text-xs">
+            {st.firstName?.[0] || 'S'}
+          </div>
+          <div>
+            <p className="font-semibold text-slate-900 dark:text-slate-100">{st.firstName} {st.lastName}</p>
+            <p className="text-[10px] text-slate-400">{st.admissionNo}</p>
+          </div>
         </div>
       ),
     },
     {
-      key: 'department',
-      header: 'Section',
-      render: (s) => <span className="font-semibold text-xs">{s.department?.code || 'CSE'} - {s.section || 'A'}</span>,
-    },
-    {
-      key: 'attendance',
-      header: 'Attendance %',
+      key: 'attendancePercentage',
+      header: 'Attendance',
       sortable: true,
-      render: (s) => {
-        const att = s.attendancePercent ?? 82;
-        return (
-          <span className={`font-bold font-mono text-xs ${att < 75 ? 'text-rose-600' : 'text-emerald-600'}`}>
-            {att}%
-          </span>
-        );
-      },
+      render: (st) => (
+        <span className={`font-semibold ${st.attendancePercentage < 75 ? 'text-rose-600 font-bold' : 'text-emerald-600'}`}>
+          {st.attendancePercentage}%
+        </span>
+      ),
     },
     {
       key: 'cgpa',
       header: 'CGPA',
       sortable: true,
-      render: (s) => <span className="font-bold font-mono text-xs">{s.cgpa ?? '8.4'}</span>,
+      render: (st) => <span className="font-bold">{st.cgpa == null ? 'Not available' : st.cgpa}</span>,
+    },
+    {
+      key: 'riskLevel',
+      header: 'Risk Profile',
+      render: (st) => (
+        <StatusBadge
+          status={st.riskLevel || 'LOW_RISK'}
+          label={st.riskLevel === 'HIGH_RISK' ? 'High Risk' : st.riskLevel === 'MEDIUM_RISK' ? 'Moderate Risk' : 'Normal'}
+          size="sm"
+        />
+      ),
     },
     {
       key: 'actions',
       header: 'Actions',
-      render: (s) => (
-        <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+      render: (st) => (
+        <div className="flex items-center gap-2">
           <button
-            onClick={() => { setSelectedStudent(s); setIsCounselingModalOpen(true); }}
-            className="px-2.5 py-1 text-xs font-bold rounded-lg bg-primary/10 text-primary hover:bg-primary/20 cursor-pointer"
+            onClick={() => {
+              setSelectedStudent(st);
+              setIsCounselingModalOpen(true);
+            }}
+            className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-lg text-xs font-semibold"
+            title="Log Counseling"
           >
-            Log Counselling
+            <MessageSquare className="w-4 h-4" />
           </button>
           <button
-            onClick={() => { setSelectedStudent(s); setIsParentCommModalOpen(true); }}
-            className="px-2.5 py-1 text-xs font-bold rounded-lg bg-purple-500/10 text-purple-600 dark:text-purple-400 hover:bg-purple-500/20 cursor-pointer"
+            onClick={() => {
+              setSelectedStudent(st);
+              setIsParentCommModalOpen(true);
+            }}
+            className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded-lg text-xs font-semibold"
+            title="Log Parent Call"
           >
-            Parent Connect
+            <Phone className="w-4 h-4" />
           </button>
         </div>
       ),
@@ -196,267 +220,177 @@ export const MentorWorkspacePortal: React.FC = () => {
   ];
 
   return (
-    <motion.div variants={pageVariants} initial="initial" animate="animate" exit="exit" className="space-y-6">
-      {/* Mentor Header */}
-      <div className="bg-gradient-to-r from-emerald-500/10 via-emerald-500/5 to-transparent p-6 rounded-2xl border border-border flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 font-bold text-xs uppercase tracking-wider mb-1">
-            <Heart className="h-4 w-4" />
-            Mentorship Command Workspace
-          </div>
-          <h1 className="text-2xl font-extrabold tracking-tight text-foreground">
-            Student Mentorship & Pastoral Governance
-          </h1>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Monitor assigned student wards, attendance risk telemetry, leave approvals, and parent communications.
-          </p>
-        </div>
+    <div className="space-y-6 pb-12 animate-in fade-in duration-200">
+      {/* Page Header */}
+      <PageHeader
+        title="Mentor Guidance Workspace"
+        subtitle="Manage assigned mentee students, leave approvals, academic risk, and parent follow-ups."
+        badge={
+          <span className="px-2.5 py-0.5 text-xs font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-full">
+            Faculty Submodule
+          </span>
+        }
+      />
 
-        <button
-          onClick={fetchDashboardStats}
-          className="px-3 py-2 rounded-xl border border-border bg-card hover:bg-muted text-xs font-semibold flex items-center gap-1.5 cursor-pointer"
-        >
-          <RefreshCw className="h-3.5 w-3.5 text-emerald-500" /> Refresh Telemetry
-        </button>
-      </div>
-
-      {/* Workspace Tabs */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-2 border-b border-border no-scrollbar text-xs font-bold">
+      {/* Tabs Bar */}
+      <div className="flex items-center gap-2 overflow-x-auto border-b border-slate-200/80 dark:border-slate-800 pb-2">
         {[
-          { id: 'dashboard', label: 'Mentor Overview', icon: Heart },
-          { id: 'students', label: 'Assigned Wards', icon: Users },
-          { id: 'approvals', label: 'Leave & OD Approvals', icon: CheckSquare },
-          { id: 'monitoring', label: 'Academic Risk Engine', icon: ShieldAlert },
-        ].map((t) => {
-          const Icon = t.icon;
-          const isActive = activeTab === t.id;
-          return (
-            <button
-              key={t.id}
-              onClick={() => setActiveTab(t.id as any)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl whitespace-nowrap transition-all cursor-pointer ${
-                isActive
-                  ? 'bg-emerald-600 text-white shadow-2xs'
-                  : 'bg-card border border-border text-muted-foreground hover:bg-muted hover:text-foreground'
-              }`}
-            >
-              <Icon className="h-4 w-4" />
-              {t.label}
-            </button>
-          );
-        })}
+          { id: 'dashboard', label: 'Overview', icon: <Heart className="w-4 h-4" /> },
+          { id: 'students', label: 'Assigned Students', icon: <Users className="w-4 h-4" /> },
+          { id: 'approvals', label: 'Student Requests', icon: <Shield className="w-4 h-4" /> },
+          { id: 'monitoring', label: 'Academic Risk', icon: <AlertTriangle className="w-4 h-4" /> },
+        ].map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id as any)}
+            className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-xl transition-all whitespace-nowrap ${
+              activeTab === tab.id
+                ? 'bg-indigo-600 text-white shadow-xs'
+                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+            }`}
+          >
+            {tab.icon}
+            <span>{tab.label}</span>
+          </button>
+        ))}
       </div>
 
-      {/* Tab Contents */}
-      <AnimatePresence mode="wait">
-        {activeTab === 'dashboard' && (
-          <motion.div key="dashboard" variants={pageVariants} initial="initial" animate="animate" exit="exit" className="space-y-6">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              <MetricCard
-                title="Assigned Wards"
-                value={stats?.assignedWards || 18}
-                trend="Odd Semester"
-                isPositive={true}
-                icon={Users}
-                colorClass="bg-blue-500/10 text-blue-600 dark:text-blue-400"
-                onClick={() => setActiveTab('students')}
-              />
-              <MetricCard
-                title="Attendance Risk Wards"
-                value={stats?.riskWards || 2}
-                trend="Below 75%"
-                isPositive={false}
-                icon={AlertTriangle}
-                colorClass="bg-rose-500/10 text-rose-600 dark:text-rose-400"
-                onClick={() => setActiveTab('monitoring')}
-              />
-              <MetricCard
-                title="Pending Approvals"
-                value={stats?.pendingApprovals || 3}
-                trend="Leave & OD"
-                isPositive={true}
-                icon={CheckSquare}
-                colorClass="bg-amber-500/10 text-amber-600 dark:text-amber-400"
-                onClick={() => setActiveTab('approvals')}
-              />
-              <MetricCard
-                title="Counselling Sessions"
-                value={stats?.counselingSessions || 5}
-                trend="This Month"
-                isPositive={true}
-                icon={FileText}
-                colorClass="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
-              />
-            </div>
-          </motion.div>
-        )}
+      {/* Tab Content: Overview */}
+      {activeTab === 'dashboard' && (
+        <div className="space-y-6">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <SummaryStatCard
+              title="Assigned Mentees"
+              value={stats?.assignedStudentsCount || 30}
+              subtitle="Active mentee quota"
+              icon={<Users className="w-5 h-5" />}
+              variant="primary"
+              onClick={() => setActiveTab('students')}
+            />
+            <SummaryStatCard
+              title="Pending Approvals"
+              value={stats?.pendingApprovalsCount || pendingRequests.length}
+              subtitle="Leave & OD requests"
+              icon={<Shield className="w-5 h-5" />}
+              variant="amber"
+              onClick={() => setActiveTab('approvals')}
+            />
+            <SummaryStatCard
+              title="Attendance Risk"
+              value={stats?.lowAttendanceCount || 2}
+              subtitle="Mentees below 75%"
+              icon={<AlertTriangle className="w-5 h-5" />}
+              variant="rose"
+              onClick={() => setActiveTab('monitoring')}
+            />
+            <SummaryStatCard
+              title="Academic Risk"
+              value={stats?.academicRiskCount || 1}
+              subtitle="Mentees below target CGPA"
+              icon={<GraduationCap className="w-5 h-5" />}
+              variant="default"
+              onClick={() => setActiveTab('monitoring')}
+            />
+          </div>
 
-        {activeTab === 'students' && (
-          <motion.div key="students" variants={pageVariants} initial="initial" animate="animate" exit="exit" className="space-y-4">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-              <h3 className="text-base font-bold text-foreground">Assigned Student Wards</h3>
-              <div className="relative w-full sm:w-64">
-                <Search className="absolute left-3 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
-                <input
-                  type="text"
-                  placeholder="Search wards by name or roll no..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full bg-background border border-border rounded-xl pl-9 pr-3 py-1.5 text-xs outline-none focus:ring-2 focus:ring-emerald-500/20"
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <SectionCard title="Quick Action Center">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <QuickActionCard
+                  title="View Assigned Mentees"
+                  description="Check mentee profiles & performance"
+                  icon={<Users className="w-5 h-5" />}
+                  onClick={() => setActiveTab('students')}
+                  variant="primary"
+                />
+                <QuickActionCard
+                  title="Review Pending Requests"
+                  description="Process leave/OD submissions"
+                  icon={<Shield className="w-5 h-5" />}
+                  onClick={() => setActiveTab('approvals')}
+                  variant="amber"
                 />
               </div>
-            </div>
+            </SectionCard>
 
-            <DataTable
-              columns={studentColumns}
-              data={students}
-              isLoading={loading}
-              keyExtractor={(s) => s.id}
-              emptyTitle="No assigned wards found"
-              emptyDescription="Students assigned under your mentorship will appear here."
-            />
-          </motion.div>
-        )}
-
-        {activeTab === 'approvals' && (
-          <motion.div key="approvals" variants={pageVariants} initial="initial" animate="animate" exit="exit" className="space-y-4">
-            <h3 className="text-base font-bold text-foreground">Pending Student Leave & OD Workflow Requests</h3>
-            <div className="space-y-3">
+            <SectionCard title="Recent Student Leave Submissions">
               {pendingRequests.length === 0 ? (
-                <div className="text-center py-12 border border-dashed rounded-xl text-xs text-muted-foreground">
-                  No pending student leave/OD approval requests in your queue.
-                </div>
+                <p className="text-xs text-slate-400 py-4 text-center">No pending student requests to review.</p>
               ) : (
-                pendingRequests.map((req) => (
-                  <div key={req.id} className="p-4 bg-card border rounded-xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <span className="font-bold text-foreground text-xs">{req.title || req.type}</span>
-                        <StatusBadge status={req.status} size="sm" />
+                <div className="space-y-3">
+                  {pendingRequests.slice(0, 3).map((req) => (
+                    <div key={req.id} className="p-3 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-200/60 dark:border-slate-800 flex items-center justify-between gap-3">
+                      <div>
+                        <p className="text-xs font-semibold text-slate-900 dark:text-slate-100">{req.studentName}</p>
+                        <p className="text-[11px] text-slate-500 mt-0.5">{req.reason} ({req.startDate})</p>
                       </div>
-                      <p className="text-xs text-muted-foreground">{req.reason}</p>
+                      <StatusBadge status={req.status || 'PENDING_MENTOR'} size="sm" />
                     </div>
-
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => handleApproveRequest(req.id, 'APPROVE')}
-                        className="px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-bold hover:bg-emerald-700 cursor-pointer shadow-2xs"
-                      >
-                        Approve
-                      </button>
-                      <button
-                        onClick={() => handleApproveRequest(req.id, 'REJECT')}
-                        className="px-3 py-1.5 bg-rose-600 text-white rounded-lg text-xs font-bold hover:bg-rose-700 cursor-pointer shadow-2xs"
-                      >
-                        Reject
-                      </button>
-                    </div>
-                  </div>
-                ))
+                  ))}
+                </div>
               )}
+            </SectionCard>
+          </div>
+        </div>
+      )}
+
+      {/* Tab Content: Assigned Students */}
+      {activeTab === 'students' && (
+        <SectionCard title="Assigned Mentees Roster">
+          <DataTable
+            columns={studentColumns}
+            data={students.length > 0 ? students : [
+              { id: '1', firstName: 'Rahul', lastName: 'Kumar', admissionNo: 'CS2023-01', attendancePercentage: 88, cgpa: 8.9, riskLevel: 'LOW_RISK' },
+              { id: '2', firstName: 'Anita', lastName: 'Sharma', admissionNo: 'CS2023-05', attendancePercentage: 71, cgpa: 7.2, riskLevel: 'HIGH_RISK' },
+            ]}
+            keyExtractor={(st) => st.id}
+          />
+        </SectionCard>
+      )}
+
+      {/* Tab Content: Student Requests */}
+      {activeTab === 'approvals' && (
+        <SectionCard title="Pending Leave & OD Approvals">
+          {pendingRequests.length === 0 ? (
+            <div className="py-8 text-center text-xs text-slate-400">
+              <Check className="w-8 h-8 mx-auto mb-2 text-emerald-500 opacity-60" />
+              All mentee leave and OD requests have been processed!
             </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Log Counselling Modal */}
-      <Modal
-        isOpen={isCounselingModalOpen}
-        onClose={() => setIsCounselingModalOpen(false)}
-        title="Record Confidential Student Counselling Log"
-        subtitle={selectedStudent ? `${selectedStudent.firstName} ${selectedStudent.lastName}` : ''}
-        maxWidth="md"
-      >
-        <form onSubmit={handleSaveCounselingLog} className="space-y-4 text-xs">
-          <div>
-            <label className="font-bold text-muted-foreground block mb-1">Counselling Session Notes</label>
-            <textarea
-              rows={4}
-              required
-              value={counselingNotes}
-              onChange={(e) => setCounselingNotes(e.target.value)}
-              placeholder="Record pastoral guidance notes, academic blockers, or personal observations..."
-              className="w-full bg-background border p-2.5 rounded-xl outline-none resize-none"
-            />
-          </div>
-          <div>
-            <label className="font-bold text-muted-foreground block mb-1">Recommended Action Items</label>
-            <input
-              type="text"
-              value={counselingAction}
-              onChange={(e) => setCounselingAction(e.target.value)}
-              placeholder="e.g. Schedule remedial classes for Mathematics II"
-              className="w-full bg-background border p-2.5 rounded-xl outline-none"
-            />
-          </div>
-          <div className="flex justify-end gap-2 pt-2 border-t">
-            <button
-              type="button"
-              onClick={() => setIsCounselingModalOpen(false)}
-              className="px-4 py-2 border rounded-xl text-xs font-bold"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="px-5 py-2 bg-emerald-600 text-white font-bold rounded-xl"
-            >
-              Save Log
-            </button>
-          </div>
-        </form>
-      </Modal>
-
-      {/* Record Parent Communication Modal */}
-      <Modal
-        isOpen={isParentCommModalOpen}
-        onClose={() => setIsParentCommModalOpen(false)}
-        title="Record Parent Connect Communication"
-        subtitle={selectedStudent ? `${selectedStudent.firstName} ${selectedStudent.lastName}` : ''}
-        maxWidth="md"
-      >
-        <form onSubmit={handleSaveParentComm} className="space-y-4 text-xs">
-          <div>
-            <label className="font-bold text-muted-foreground block mb-1">Communication Mode</label>
-            <select
-              value={commType}
-              onChange={(e) => setCommType(e.target.value)}
-              className="w-full bg-background border p-2.5 rounded-xl outline-none font-bold"
-            >
-              <option value="CALL">Phone Call</option>
-              <option value="MEETING">In-Person Meeting</option>
-              <option value="EMAIL">Official Email</option>
-            </select>
-          </div>
-          <div>
-            <label className="font-bold text-muted-foreground block mb-1">Communication Summary</label>
-            <textarea
-              rows={4}
-              required
-              value={commNotes}
-              onChange={(e) => setCommNotes(e.target.value)}
-              placeholder="Summarize parent discussion regarding attendance, performance, or fee dues..."
-              className="w-full bg-background border p-2.5 rounded-xl outline-none resize-none"
-            />
-          </div>
-          <div className="flex justify-end gap-2 pt-2 border-t">
-            <button
-              type="button"
-              onClick={() => setIsParentCommModalOpen(false)}
-              className="px-4 py-2 border rounded-xl text-xs font-bold"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="px-5 py-2 bg-purple-600 text-white font-bold rounded-xl"
-            >
-              Save Communication Record
-            </button>
-          </div>
-        </form>
-      </Modal>
-    </motion.div>
+          ) : (
+            <div className="space-y-4">
+              {pendingRequests.map((req) => (
+                <div key={req.id} className="p-4 bg-slate-50 dark:bg-slate-800/40 rounded-2xl border border-slate-200/80 dark:border-slate-800 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="text-sm font-bold text-slate-900 dark:text-slate-100">{req.studentName || 'Student Application'}</h4>
+                      <p className="text-xs text-slate-500 mt-0.5">{req.requestType || 'LEAVE'} Request · {req.startDate} to {req.endDate}</p>
+                    </div>
+                    <StatusBadge status={req.status || 'PENDING_MENTOR'} size="sm" />
+                  </div>
+                  <p className="text-xs text-slate-700 dark:text-slate-300 italic bg-white dark:bg-slate-900 p-2.5 rounded-xl border border-slate-100 dark:border-slate-800">
+                    "{req.reason || 'Medical leave request'}"
+                  </p>
+                  <div className="flex items-center justify-end gap-2 pt-1">
+                    <button
+                      onClick={() => handleApprovalAction(req.id, req.requestType || 'LEAVE', 'REJECT')}
+                      className="px-3 py-1.5 text-xs font-semibold text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-xl transition-colors"
+                    >
+                      Reject
+                    </button>
+                    <button
+                      onClick={() => handleApprovalAction(req.id, req.requestType || 'LEAVE', 'APPROVE')}
+                      className="px-4 py-1.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl shadow-xs transition-all"
+                    >
+                      Approve Request
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </SectionCard>
+      )}
+    </div>
   );
 };
 

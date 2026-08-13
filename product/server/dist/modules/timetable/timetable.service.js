@@ -107,7 +107,9 @@ class TimetableService {
         return { success: true };
     }
     /**
-     * AI Timetable Optimization Draft Generation (Mock)
+     * Scheduling preview. This endpoint must never delete or mutate the live
+     * timetable. A real optimizer can consume configured period/workload policy
+     * later; until then we return the authoritative inputs and conflicts only.
      */
     async generateAIDraft(departmentId, semesterId, academicYearId) {
         const subjects = await prisma_1.prisma.subject.findMany({ where: { departmentId, semesterId } });
@@ -116,47 +118,22 @@ class TimetableService {
         if (subjects.length === 0 || faculties.length === 0 || sections.length === 0) {
             throw new exceptions_1.BadRequestException('No subjects, faculty, or sections configured for this department/semester');
         }
-        // Wipe existing slots first to perform clean optimization
-        await prisma_1.prisma.timetableSlot.deleteMany({ where: { departmentId, semesterId } });
-        const days = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY'];
-        const timeSlots = [
-            { start: '09:00', end: '09:50' },
-            { start: '10:00', end: '10:50' },
-            { start: '11:10', end: '12:00' },
-            { start: '12:10', end: '01:00' }
-        ];
-        let createdCount = 0;
-        for (const section of sections) {
-            let subjIdx = 0;
-            for (const d of days) {
-                for (let sIdx = 1; sIdx <= timeSlots.length; sIdx++) {
-                    const subject = subjects[subjIdx % subjects.length];
-                    const faculty = faculties[subjIdx % faculties.length];
-                    const timing = timeSlots[sIdx - 1];
-                    // Auto alloc room
-                    const roomNo = `Room ${100 + (subjIdx % 5) * 10 + sIdx}`;
-                    await prisma_1.prisma.timetableSlot.create({
-                        data: {
-                            dayOfWeek: d,
-                            slotIndex: sIdx,
-                            startTime: timing.start,
-                            endTime: timing.end,
-                            academicYearId,
-                            departmentId,
-                            semesterId,
-                            sectionId: section.id,
-                            subjectId: subject.id,
-                            facultyId: faculty.id,
-                            roomNo,
-                            isLab: subject.isLab,
-                        }
-                    });
-                    subjIdx++;
-                    createdCount++;
-                }
-            }
-        }
-        return { success: true, createdCount };
+        const existingSlots = await prisma_1.prisma.timetableSlot.findMany({
+            where: { departmentId, semesterId, academicYearId },
+            select: { id: true, dayOfWeek: true, slotIndex: true, facultyId: true, sectionId: true, roomNo: true },
+        });
+        return {
+            mode: 'PREVIEW_ONLY',
+            applied: false,
+            message: 'No live timetable was changed. Configure institution period and workload policies before generating an allocatable draft.',
+            inputs: {
+                subjectCount: subjects.length,
+                facultyCount: faculties.length,
+                sectionCount: sections.length,
+                existingSlotCount: existingSlots.length,
+            },
+            existingSlots,
+        };
     }
 }
 exports.TimetableService = TimetableService;

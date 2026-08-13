@@ -314,12 +314,15 @@ export class HodRepository {
   /**
    * Get Department Students
    */
-  async getDepartmentStudents(departmentId: string, filters: any) {
+  async getDepartmentStudents(departmentId: string | undefined, filters: any) {
     const page = Number(filters.page) || 1;
-    const limit = Number(filters.limit) || 20;
+    const limit = Number(filters.limit) || 100;
     const skip = (page - 1) * limit;
 
-    const where: any = { departmentId };
+    const where: any = { deleted: false };
+    if (departmentId && departmentId !== 'ALL') {
+      where.departmentId = departmentId;
+    }
 
     if (filters.year) {
       where.year = Number(filters.year);

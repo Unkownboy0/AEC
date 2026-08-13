@@ -82,7 +82,7 @@ export const Examinations: React.FC = () => {
       
       const initMap: Record<string, { internal: number; external: number; practical: number }> = {};
       (res.data?.data || []).forEach((s: any) => {
-        initMap[s.id] = { internal: 30, external: 50, practical: 15 };
+        initMap[s.id] = { internal: 0, external: 0, practical: 0 };
       });
       setMarksMap(initMap);
     } catch (err) {
@@ -109,11 +109,11 @@ export const Examinations: React.FC = () => {
           internalMarks: val.internal,
           externalMarks: val.external,
           practicalMarks: val.practical,
-          status: 'PUBLISHED',
+          status: 'DRAFT',
         });
         count++;
       }
-      toast.success(`Successfully uploaded marks sheets for ${count} students`);
+      toast.success(`Saved ${count} student mark records as draft`);
       setMarksRecord(null);
     } catch (err) {
       toast.error('Failed to save exam marks');

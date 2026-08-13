@@ -77,20 +77,20 @@ export const DepartmentAvailabilityBoard: React.FC<{ departmentId?: string }> = 
       {/* Summary KPI Pills */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl">
-          <span className="text-[10px] uppercase font-bold text-amber-700 block">Students On Leave</span>
-          <span className="text-xl font-black text-amber-900">{data.studentsOnLeaveToday.length}</span>
+          <span className="text-[10px] uppercase font-bold text-amber-700 dark:text-amber-300 block">Students On Leave</span>
+          <span className="text-xl font-black text-amber-600 dark:text-amber-400">{data.studentsOnLeaveToday.length}</span>
         </div>
         <div className="p-3 bg-blue-500/10 border border-blue-500/20 rounded-xl">
-          <span className="text-[10px] uppercase font-bold text-blue-700 block">Students On OD</span>
-          <span className="text-xl font-black text-blue-900">{data.studentsOnOdToday.length}</span>
+          <span className="text-[10px] uppercase font-bold text-blue-700 dark:text-blue-300 block">Students On OD</span>
+          <span className="text-xl font-black text-blue-600 dark:text-blue-400">{data.studentsOnOdToday.length}</span>
         </div>
         <div className="p-3 bg-rose-500/10 border border-rose-500/20 rounded-xl">
-          <span className="text-[10px] uppercase font-bold text-rose-700 block">Faculty On Leave</span>
-          <span className="text-xl font-black text-rose-900">{data.facultyOnLeaveToday.length}</span>
+          <span className="text-[10px] uppercase font-bold text-rose-700 dark:text-rose-300 block">Faculty On Leave</span>
+          <span className="text-xl font-black text-rose-600 dark:text-rose-400">{data.facultyOnLeaveToday.length}</span>
         </div>
         <div className="p-3 bg-purple-500/10 border border-purple-500/20 rounded-xl">
-          <span className="text-[10px] uppercase font-bold text-purple-700 block">Faculty On OD</span>
-          <span className="text-xl font-black text-purple-900">{data.facultyOnOdToday.length}</span>
+          <span className="text-[10px] uppercase font-bold text-purple-700 dark:text-purple-300 block">Faculty On OD</span>
+          <span className="text-xl font-black text-purple-600 dark:text-purple-400">{data.facultyOnOdToday.length}</span>
         </div>
       </div>
 

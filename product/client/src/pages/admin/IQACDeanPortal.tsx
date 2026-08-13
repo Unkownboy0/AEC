@@ -1,163 +1,190 @@
-import React, { useState, useEffect } from 'react';
-import {
-  ShieldCheck, Award, FileCheck, CheckSquare, Sparkles,
-  Download, FileSpreadsheet, Activity, Building, AlertCircle
-} from 'lucide-react';
-import { toast } from '../../components/ui/Toast';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { AlertCircle, CheckCircle2, ClipboardCheck, FileCheck2, Loader2, Plus, RefreshCw, ShieldCheck, Upload } from 'lucide-react';
 import api from '../../lib/axios';
+import { toast } from '../../components/ui/Toast';
 
-import { useAuth } from '../../context/AuthContext';
-
-interface IQACDeanPortalProps {
-  user?: any;
+interface Props { user?: any }
+interface Department { id: string; name: string; code?: string }
+interface AuditDepartment { departmentId: string; status: string; department: Department }
+interface Requirement { id: string; title: string; description?: string | null }
+interface Evidence {
+  id: string; departmentId: string; requirementId: string; originalFileName: string; fileReference: string;
+  version: number; status: string; submittedAt: string; remarks?: string | null; isCurrent: boolean;
+  department: Department; requirement: Requirement;
+}
+interface AuditRecord {
+  id: string; auditCode: string; title: string; auditType: string; description?: string | null; status: string;
+  startAt?: string | null; dueAt?: string | null; departments: AuditDepartment[]; requirements: Requirement[];
+  evidence?: Evidence[]; observations?: any[]; timeline?: any[]; _count?: { evidence: number; observations: number };
 }
 
-export const IQACDeanPortal: React.FC<IQACDeanPortalProps> = ({ user: propUser }) => {
-  const { user: authUser } = useAuth();
-  const user = propUser || authUser;
-  const [activeTab, setActiveTab] = useState<'overview' | 'accreditation' | 'audits' | 'evidence'>('overview');
-  const [accreditationScores, setAccreditationScores] = useState({
-    naacCGPA: '3.62 / 4.0 (A++)',
-    nbaAccreditedDepts: '5 out of 7',
-    nirfRank: 'Top 75 Category',
-    isoCompliance: '98.5%'
-  });
+const readFileBase64 = (file: File) => new Promise<string>((resolve, reject) => {
+  const reader = new FileReader();
+  reader.onerror = () => reject(new Error('The selected file could not be read.'));
+  reader.onload = () => resolve(String(reader.result || '').split(',')[1] || '');
+  reader.readAsDataURL(file);
+});
 
-  const [audits, setAudits] = useState([
-    { id: '1', dept: 'Computer Science & Engg', type: 'Academic & Administrative Audit', date: '2026-07-15', status: 'COMPLETED', auditor: 'Dr. R. Sharma' },
-    { id: '2', dept: 'Electronics & Comm', type: 'NAAC Criteria III Review', date: '2026-07-22', status: 'IN_PROGRESS', auditor: 'Prof. K. Venkatesh' },
-    { id: '3', dept: 'Mechanical Engineering', type: 'NBA Outcome Analysis', date: '2026-08-05', status: 'SCHEDULED', auditor: 'Internal IQAC Team' },
-  ]);
+const messageFrom = (error: any) => error?.response?.data?.message || error?.message || 'The request could not be completed.';
 
-  const [evidenceFiles, setEvidenceFiles] = useState([
-    { name: 'NAAC_Criterion_1_Curricular_Aspects.pdf', category: 'Criterion 1', uploadedBy: 'Academic Dean', date: '2026-07-10', status: 'VERIFIED' },
-    { name: 'NBA_Tier_1_Self_Assessment_CSE.pdf', category: 'NBA SAR', uploadedBy: 'HOD CSE', date: '2026-07-18', status: 'VERIFIED' },
-    { name: 'ISO_9001_Internal_Audit_Report.pdf', category: 'ISO Audit', uploadedBy: 'IQAC Cell', date: '2026-07-25', status: 'PENDING_REVIEW' },
-  ]);
+export const IQACDeanPortal: React.FC<Props> = () => {
+  const [tab, setTab] = useState<'overview' | 'audits' | 'evidence' | 'repository' | 'contributions'>('overview');
+  const [dashboard, setDashboard] = useState<any>(null);
+  const [audits, setAudits] = useState<AuditRecord[]>([]);
+  const [departments, setDepartments] = useState<Department[]>([]);
+  const [selectedAudit, setSelectedAudit] = useState<AuditRecord | null>(null);
+  const [repository, setRepository] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [showCreate, setShowCreate] = useState(false);
+  const [form, setForm] = useState({ title: '', auditType: 'ACADEMIC_AND_ADMINISTRATIVE', description: '', dueAt: '', requirements: '', departmentIds: [] as string[] });
+  const [upload, setUpload] = useState<{ departmentId: string; requirementId: string; file: File | null }>({ departmentId: '', requirementId: '', file: null });
+  const [comment, setComment] = useState('');
 
-  return (
-    <div className="space-y-6">
-      {/* Header Banner */}
-      <div className="border bg-card p-6 rounded-2xl shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-gradient-to-r from-emerald-900/10 via-teal-900/5 to-background border-emerald-500/20">
-        <div>
-          <div className="flex items-center gap-2">
-            <ShieldCheck className="h-6 w-6 text-emerald-600" />
-            <h1 className="text-xl font-black tracking-tight">IQAC Dean Quality Assurance Command Portal</h1>
-          </div>
-          <p className="text-xs text-muted-foreground mt-1">
-            Internal Quality Assurance Cell · NAAC · NBA · NIRF · ISO Compliance Engine
-          </p>
-        </div>
+  const load = useCallback(async () => {
+    setLoading(true); setError('');
+    try {
+      const [dashboardResponse, auditsResponse, departmentsResponse, repositoryResponse] = await Promise.all([
+        api.get('/iqac/dashboard'), api.get('/iqac/audits'), api.get('/academics/departments'), api.get('/iqac/repository'),
+      ]);
+      setDashboard(dashboardResponse.data.data);
+      setAudits(auditsResponse.data.data || []);
+      setDepartments(departmentsResponse.data.data || []);
+      setRepository(repositoryResponse.data.data || []);
+    } catch (loadError) {
+      setError(messageFrom(loadError));
+    } finally { setLoading(false); }
+  }, []);
 
-        {/* Tab Switcher */}
-        <div className="flex items-center gap-1.5 p-1 bg-muted rounded-xl border text-xs font-bold">
-          {(['overview', 'accreditation', 'audits', 'evidence'] as const).map(tab => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`px-3.5 py-1.5 rounded-lg capitalize transition-all ${
-                activeTab === tab ? 'bg-background shadow text-emerald-600 font-black' : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              {tab}
-            </button>
-          ))}
-        </div>
+  useEffect(() => { void load(); }, [load]);
+
+  const openAudit = async (id: string) => {
+    setSaving(true);
+    try {
+      const response = await api.get(`/iqac/audits/${id}`);
+      setSelectedAudit(response.data.data);
+      setTab('evidence');
+    } catch (requestError) { toast.error(messageFrom(requestError)); }
+    finally { setSaving(false); }
+  };
+
+  const createAudit = async (event: React.FormEvent) => {
+    event.preventDefault(); setSaving(true);
+    try {
+      await api.post('/iqac/audits', {
+        ...form,
+        dueAt: form.dueAt || undefined,
+        requirements: form.requirements.split('\n').map((title) => title.trim()).filter(Boolean),
+        publish: true,
+      });
+      toast.success('Audit created and evidence requests sent.');
+      setForm({ title: '', auditType: 'ACADEMIC_AND_ADMINISTRATIVE', description: '', dueAt: '', requirements: '', departmentIds: [] });
+      setShowCreate(false);
+      await load();
+    } catch (requestError) { toast.error(messageFrom(requestError)); }
+    finally { setSaving(false); }
+  };
+
+  const uploadEvidence = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!selectedAudit || !upload.file) return;
+    setSaving(true);
+    try {
+      const base64 = await readFileBase64(upload.file);
+      const fileResponse = await api.post('/files/upload', { name: upload.file.name, mimeType: upload.file.type || 'application/octet-stream', folder: '/iqac', base64 });
+      const stored = fileResponse.data.data;
+      await api.post(`/iqac/audits/${selectedAudit.id}/evidence`, {
+        departmentId: upload.departmentId,
+        requirementId: upload.requirementId,
+        fileReference: stored.path,
+        originalFileName: upload.file.name,
+        mimeType: upload.file.type || stored.mimeType,
+        fileSize: upload.file.size,
+      });
+      toast.success('Evidence uploaded and version history updated.');
+      setUpload({ departmentId: '', requirementId: '', file: null });
+      await openAudit(selectedAudit.id);
+      await load();
+    } catch (requestError) { toast.error(messageFrom(requestError)); }
+    finally { setSaving(false); }
+  };
+
+  const reviewEvidence = async (evidence: Evidence, action: 'VERIFIED' | 'CORRECTION_REQUIRED' | 'REJECTED') => {
+    const remarks = action === 'VERIFIED' ? '' : window.prompt('Enter the review remarks:')?.trim();
+    if (action !== 'VERIFIED' && !remarks) return;
+    setSaving(true);
+    try {
+      await api.patch(`/iqac/evidence/${evidence.id}/review`, { action, remarks });
+      toast.success(`Evidence marked ${action.toLowerCase().replace(/_/g, ' ')}.`);
+      if (selectedAudit) await openAudit(selectedAudit.id);
+      await load();
+    } catch (requestError) { toast.error(messageFrom(requestError)); }
+    finally { setSaving(false); }
+  };
+
+  const currentEvidence = useMemo(() => selectedAudit?.evidence?.filter((item) => item.isCurrent) || [], [selectedAudit]);
+
+  const addComment = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!selectedAudit || !comment.trim()) return;
+    setSaving(true);
+    try {
+      await api.post(`/iqac/audits/${selectedAudit.id}/observations`, { message: comment.trim(), category: 'COMMENT' });
+      setComment('');
+      await openAudit(selectedAudit.id);
+      toast.success('Comment added to the audit history.');
+    } catch (requestError) { toast.error(messageFrom(requestError)); }
+    finally { setSaving(false); }
+  };
+
+  if (loading) return <div className="min-h-[320px] grid place-items-center text-sm text-muted-foreground"><Loader2 className="h-5 w-5 animate-spin" /> Loading IQAC records…</div>;
+  if (error) return <div className="rounded-xl border border-red-200 bg-red-50 p-5 text-sm text-red-800"><AlertCircle className="mb-2 h-5 w-5" />{error}<button onClick={() => void load()} className="mt-4 block rounded-lg border px-3 py-2 font-semibold"><RefreshCw className="mr-2 inline h-4 w-4" />Retry</button></div>;
+
+  const metrics = [
+    ['Active audits', dashboard?.activeAudits ?? 0], ['Awaiting review', dashboard?.pendingVerification ?? 0],
+    ['Correction required', dashboard?.correctionRequired ?? 0], ['Verified today', dashboard?.verifiedToday ?? 0],
+  ];
+
+  return <div className="space-y-5">
+    <header className="rounded-2xl border bg-card p-5">
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div><h1 className="flex items-center gap-2 text-xl font-black"><ShieldCheck className="h-6 w-6 text-emerald-600" />IQAC quality assurance</h1><p className="mt-1 text-xs text-muted-foreground">NAAC · NBA · AQAR · SSR · evidence repository · verified quality metrics</p></div>
+        <div className="flex flex-wrap gap-2">{(['overview', 'audits', 'evidence', 'repository', 'contributions'] as const).map((item) => <button key={item} onClick={() => setTab(item)} className={`rounded-lg px-3 py-2 text-xs font-bold capitalize ${tab === item ? 'bg-emerald-600 text-white' : 'bg-muted text-muted-foreground'}`}>{item}</button>)}</div>
       </div>
+    </header>
 
-      {/* Overview KPIs */}
-      <div className="grid grid-cols-1 md:grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="border bg-card p-4 rounded-xl shadow-sm space-y-1">
-          <span className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">NAAC Grade</span>
-          <span className="text-xl font-black block text-emerald-600">{accreditationScores.naacCGPA}</span>
-          <span className="text-[9px] text-muted-foreground">Cycle 3 Assessment Score</span>
-        </div>
-        <div className="border bg-card p-4 rounded-xl shadow-sm space-y-1">
-          <span className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">NBA Tier 1 Accredited</span>
-          <span className="text-xl font-black block text-indigo-600">{accreditationScores.nbaAccreditedDepts}</span>
-          <span className="text-[9px] text-muted-foreground">Eligible Engineering Programs</span>
-        </div>
-        <div className="border bg-card p-4 rounded-xl shadow-sm space-y-1">
-          <span className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">NIRF India Ranking</span>
-          <span className="text-xl font-black block text-amber-600">{accreditationScores.nirfRank}</span>
-          <span className="text-[9px] text-muted-foreground">Engineering Institutions Band</span>
-        </div>
-        <div className="border bg-card p-4 rounded-xl shadow-sm space-y-1">
-          <span className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">ISO Compliance Index</span>
-          <span className="text-xl font-black block text-teal-600">{accreditationScores.isoCompliance}</span>
-          <span className="text-[9px] text-muted-foreground">Audit Compliance Verification</span>
-        </div>
-      </div>
+    {tab === 'overview' && <>
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">{metrics.map(([label, value]) => <div key={String(label)} className="rounded-xl border bg-card p-4"><p className="text-[11px] font-bold uppercase text-muted-foreground">{label}</p><p className="mt-2 text-2xl font-black">{value}</p></div>)}</div>
+      <section className="rounded-xl border bg-card p-5"><h2 className="font-extrabold">Upcoming compliance deadlines</h2>{dashboard?.upcomingDeadlines?.length ? <div className="mt-3 divide-y">{dashboard.upcomingDeadlines.map((item: any) => <button key={item.id} onClick={() => void openAudit(item.id)} className="flex w-full items-center justify-between py-3 text-left"><span><b>{item.title}</b><small className="block text-muted-foreground">{item.auditCode}</small></span><span className="text-xs">{item.dueAt ? new Date(item.dueAt).toLocaleDateString() : 'No due date'}</span></button>)}</div> : <p className="mt-4 text-sm text-muted-foreground">No upcoming deadlines.</p>}</section>
+      <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">{dashboard?.accreditation?.map((item: any) => <div key={item.type} className="rounded-xl bg-slate-950 p-4 text-white"><p className="text-xs font-bold text-emerald-400">{item.type.replace(/_/g, ' ')}</p><p className="mt-2 text-2xl font-black tabular-nums">{item.active}</p><p className="text-xs text-slate-500">active · {item.overdue} overdue</p></div>)}</section>
+      <section className="rounded-xl border bg-card p-5"><h2 className="font-extrabold">Connected quality sources</h2><div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">{Object.entries(dashboard?.sourceMetrics || {}).map(([key, value]) => <div key={key}><p className="text-xs capitalize text-muted-foreground">{key.replace(/([A-Z])/g, ' $1')}</p><b className="text-xl tabular-nums">{String(value)}</b></div>)}</div></section>
+    </>}
 
-      {/* Main Tab Content */}
-      {activeTab === 'overview' && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 text-xs font-semibold">
-          {/* Department Quality Audits Overview */}
-          <div className="lg:col-span-2 border bg-card p-5 rounded-xl shadow-sm space-y-4">
-            <h3 className="text-sm font-extrabold uppercase border-b pb-2 flex justify-between items-center">
-              <span>Department Quality Audit Register</span>
-              <button onClick={() => toast.success('Generated IQAC Audit Dossier')} className="text-xs text-primary font-bold hover:underline">
-                Export Audit Report
-              </button>
-            </h3>
-            <div className="space-y-3">
-              {audits.map(a => (
-                <div key={a.id} className="p-3 border rounded-xl bg-background flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
-                  <div>
-                    <h4 className="font-extrabold text-foreground">{a.dept}</h4>
-                    <p className="text-[10px] text-muted-foreground">{a.type} · Auditor: {a.auditor}</p>
-                  </div>
-                  <span className={`text-[9px] font-bold px-2 py-0.5 rounded border ${
-                    a.status === 'COMPLETED' ? 'bg-emerald-50 border-emerald-200 text-emerald-600' :
-                    a.status === 'IN_PROGRESS' ? 'bg-amber-50 border-amber-200 text-amber-600' : 'bg-muted text-muted-foreground'
-                  }`}>
-                    {a.status}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
+    {tab === 'audits' && <section className="rounded-xl border bg-card p-5">
+      <div className="flex items-center justify-between"><div><h2 className="font-extrabold">Audit register</h2><p className="text-xs text-muted-foreground">All values below come from the IQAC audit database.</p></div><button onClick={() => setShowCreate((value) => !value)} className="rounded-lg bg-emerald-600 px-3 py-2 text-xs font-bold text-white"><Plus className="mr-1 inline h-4 w-4" />Create audit</button></div>
+      {showCreate && <form onSubmit={createAudit} className="mt-4 grid gap-3 rounded-xl border bg-muted/30 p-4 md:grid-cols-2">
+        <input required value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="Audit title" className="rounded-lg border bg-background p-2.5 text-sm" />
+        <select value={form.auditType} onChange={(e) => setForm({ ...form, auditType: e.target.value })} className="rounded-lg border bg-background p-2.5 text-sm"><option value="ACADEMIC_AND_ADMINISTRATIVE">Academic & administrative</option><option value="NAAC">NAAC</option><option value="NBA">NBA</option><option value="AQAR">AQAR</option><option value="SSR">SSR</option><option value="ANNUAL_REPORT">Annual report</option><option value="BEST_PRACTICES">Best practices</option><option value="INSTITUTIONAL_VALUES">Institutional values</option></select>
+        <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Purpose and instructions" className="rounded-lg border bg-background p-2.5 text-sm" />
+        <textarea required value={form.requirements} onChange={(e) => setForm({ ...form, requirements: e.target.value })} placeholder={'Evidence requirements\nOne requirement per line'} className="rounded-lg border bg-background p-2.5 text-sm" />
+        <input type="datetime-local" value={form.dueAt} onChange={(e) => setForm({ ...form, dueAt: e.target.value })} className="rounded-lg border bg-background p-2.5 text-sm" />
+        <div className="rounded-lg border bg-background p-2.5"><p className="mb-2 text-xs font-bold">Departments</p><div className="max-h-28 space-y-1 overflow-auto">{departments.map((department) => <label key={department.id} className="flex gap-2 text-xs"><input type="checkbox" checked={form.departmentIds.includes(department.id)} onChange={(e) => setForm({ ...form, departmentIds: e.target.checked ? [...form.departmentIds, department.id] : form.departmentIds.filter((id) => id !== department.id) })} />{department.code || department.name} — {department.name}</label>)}</div></div>
+        <button disabled={saving} className="rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-bold text-white disabled:opacity-50 md:col-span-2">{saving ? 'Creating…' : 'Create and request evidence'}</button>
+      </form>}
+      {audits.length ? <div className="mt-4 space-y-2">{audits.map((audit) => <button key={audit.id} onClick={() => void openAudit(audit.id)} className="flex w-full flex-col gap-2 rounded-xl border p-4 text-left hover:bg-muted/40 md:flex-row md:items-center md:justify-between"><span><b>{audit.title}</b><small className="block text-muted-foreground">{audit.auditCode} · {audit.auditType.replace(/_/g, ' ')}</small><small className="block text-muted-foreground">{audit.departments.map((item) => item.department.code || item.department.name).join(', ')}</small></span><span className="rounded-full bg-muted px-2.5 py-1 text-[10px] font-bold">{audit.status.replace(/_/g, ' ')}</span></button>)}</div> : <p className="py-12 text-center text-sm text-muted-foreground">No IQAC audits have been created.</p>}
+    </section>}
 
-          {/* AI Quality Recommendations */}
-          <div className="border bg-card p-5 rounded-xl shadow-sm space-y-4">
-            <h3 className="text-sm font-extrabold uppercase border-b pb-2 flex items-center gap-1.5 text-purple-700">
-              <Sparkles className="h-4 w-4" /> IQAC AI Audit Insights
-            </h3>
-            <div className="space-y-3 text-[11px]">
-              <div className="p-3 border border-purple-100 rounded-xl bg-purple-50/30 space-y-1">
-                <p className="font-bold text-purple-900">Research Publication Index (Criterion 3)</p>
-                <p className="text-muted-foreground">Scopus indexed publications in ECE department increased by 14%. Recommend updating NIRF submission evidence files.</p>
-              </div>
-              <div className="p-3 border border-indigo-100 rounded-xl bg-indigo-50/30 space-y-1">
-                <p className="font-bold text-indigo-900">Outcome Based Education (OBE) Audit</p>
-                <p className="text-muted-foreground">Course Outcome (CO) to Program Outcome (PO) mapping for CSE Semester 4 achieves 94% alignment.</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {activeTab === 'evidence' && (
-        <div className="border bg-card p-5 rounded-xl shadow-sm space-y-4 text-xs">
-          <h3 className="text-sm font-extrabold uppercase border-b pb-2">Accreditation Evidence Repository</h3>
-          <div className="space-y-2">
-            {evidenceFiles.map((file, idx) => (
-              <div key={idx} className="p-3 border rounded-xl bg-background flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <FileCheck className="h-5 w-5 text-emerald-600" />
-                  <div>
-                    <p className="font-bold">{file.name}</p>
-                    <p className="text-[10px] text-muted-foreground">Category: {file.category} · Uploaded by: {file.uploadedBy}</p>
-                  </div>
-                </div>
-                <button onClick={() => toast.success(`Downloading ${file.name}`)} className="p-2 hover:bg-muted rounded-lg text-primary">
-                  <Download className="h-4 w-4" />
-                </button>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-    </div>
-  );
+    {tab === 'evidence' && <section className="rounded-xl border bg-card p-5">
+      {!selectedAudit ? <div className="py-12 text-center"><ClipboardCheck className="mx-auto h-8 w-8 text-muted-foreground" /><p className="mt-3 text-sm text-muted-foreground">Open an audit from the audit register to review its evidence.</p></div> : <div className="space-y-5">
+        <div><p className="text-xs font-bold text-emerald-700">{selectedAudit.auditCode}</p><h2 className="text-lg font-black">{selectedAudit.title}</h2><p className="text-xs text-muted-foreground">{selectedAudit.departments.map((item) => item.department.name).join(', ')}</p></div>
+        <form onSubmit={uploadEvidence} className="grid gap-2 rounded-xl border bg-muted/30 p-4 md:grid-cols-4"><select required value={upload.departmentId} onChange={(e) => setUpload({ ...upload, departmentId: e.target.value })} className="rounded-lg border bg-background p-2 text-xs"><option value="">Department</option>{selectedAudit.departments.map((item) => <option key={item.departmentId} value={item.departmentId}>{item.department.name}</option>)}</select><select required value={upload.requirementId} onChange={(e) => setUpload({ ...upload, requirementId: e.target.value })} className="rounded-lg border bg-background p-2 text-xs"><option value="">Requirement</option>{selectedAudit.requirements.map((item) => <option key={item.id} value={item.id}>{item.title}</option>)}</select><input required type="file" onChange={(e) => setUpload({ ...upload, file: e.target.files?.[0] || null })} className="rounded-lg border bg-background p-2 text-xs" /><button disabled={saving} className="rounded-lg bg-emerald-600 px-3 py-2 text-xs font-bold text-white"><Upload className="mr-1 inline h-4 w-4" />Upload evidence</button></form>
+        {currentEvidence.length ? <div className="space-y-2">{currentEvidence.map((item) => <div key={item.id} className="rounded-xl border p-4"><div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between"><span className="flex gap-3"><FileCheck2 className="h-5 w-5 text-emerald-600" /><span><button onClick={() => window.open(item.fileReference, '_blank', 'noopener,noreferrer')} className="font-bold hover:underline">{item.originalFileName}</button><small className="block text-muted-foreground">{item.department.code || item.department.name} · {item.requirement.title} · Version {item.version}</small>{item.remarks && <small className="mt-1 block text-amber-700">{item.remarks}</small>}</span></span><span className="flex flex-wrap items-center gap-2"><b className="rounded-full bg-muted px-2 py-1 text-[10px]">{item.status.replace(/_/g, ' ')}</b><button onClick={() => void reviewEvidence(item, 'VERIFIED')} className="rounded-lg border border-emerald-300 px-2 py-1 text-[10px] font-bold text-emerald-700"><CheckCircle2 className="mr-1 inline h-3 w-3" />Verify</button><button onClick={() => void reviewEvidence(item, 'CORRECTION_REQUIRED')} className="rounded-lg border border-amber-300 px-2 py-1 text-[10px] font-bold text-amber-700">Return</button><button onClick={() => void reviewEvidence(item, 'REJECTED')} className="rounded-lg border border-red-300 px-2 py-1 text-[10px] font-bold text-red-700">Reject</button></span></div></div>)}</div> : <p className="py-10 text-center text-sm text-muted-foreground">No evidence has been uploaded for this audit.</p>}
+        <form onSubmit={addComment} className="flex gap-2"><input value={comment} onChange={(event) => setComment(event.target.value)} placeholder="Comment on this audit or its evidence…" className="min-w-0 flex-1 rounded-lg border bg-background px-3 py-2 text-sm"/><button disabled={saving || !comment.trim()} className="rounded-lg bg-slate-900 px-4 py-2 text-xs font-bold text-white disabled:opacity-40">Add comment</button></form>
+        <div className="rounded-xl bg-muted/30 p-4"><h3 className="text-xs font-bold uppercase tracking-wide">Verification and comment history</h3><div className="mt-3 space-y-2">{selectedAudit.timeline?.map((entry: any) => <div key={entry.id} className="border-l-2 border-emerald-500 pl-3 text-xs"><b>{entry.eventType.replace(/_/g, ' ')}</b><p className="text-muted-foreground">{entry.description}</p><small className="text-muted-foreground">{entry.actor?.firstName} {entry.actor?.lastName} · {new Date(entry.createdAt).toLocaleString()}</small></div>)}</div></div>
+      </div>}
+    </section>}
+    {tab === 'repository' && <section className="rounded-xl border bg-card p-5"><div><h2 className="font-extrabold">Evidence Repository</h2><p className="text-xs text-muted-foreground">Upload once, reuse everywhere. Every row retains source, version and verification provenance.</p></div><div className="mt-4 space-y-2">{repository.length ? repository.map((item: any) => <button key={item.id} onClick={() => void openAudit(item.auditId)} className="grid w-full gap-2 rounded-xl border p-4 text-left md:grid-cols-[1fr_auto_auto]"><span><b>{item.originalFileName}</b><small className="block text-muted-foreground">{item.audit.auditType} · {item.requirement.metricCode || item.requirement.title} · {item.department.code || item.department.name}</small></span><span className="text-xs">{item.sourceType} · v{item.version}</span><span className="text-xs font-bold text-emerald-700">{item.status.replace(/_/g, ' ')}</span></button>) : <p className="py-10 text-center text-sm text-muted-foreground">No evidence has been contributed yet.</p>}</div></section>}
+    {tab === 'contributions' && <section className="rounded-xl border bg-card p-5"><h2 className="font-extrabold">Department contribution progress</h2><div className="mt-4 space-y-4">{dashboard?.departmentProgress?.length ? dashboard.departmentProgress.map((item: any) => <div key={item.id}><div className="mb-1 flex justify-between text-xs"><b>{item.code || item.name} · {item.name}</b><span>{item.verified}/{item.expected} verified · {item.progress}%</span></div><div className="h-2 overflow-hidden rounded bg-muted"><div className="h-full bg-emerald-600" style={{ width: `${item.progress}%` }} /></div></div>) : <p className="text-sm text-muted-foreground">No department evidence requests are active.</p>}</div><h3 className="mt-8 font-extrabold">Evidence task deadlines</h3><div className="mt-3 divide-y">{dashboard?.evidenceTasks?.map((task: any) => <div key={task.id} className="flex justify-between py-3 text-xs"><span><b>{task.title}</b><small className="block text-muted-foreground">{task.taskNumber} · {task.category} · {task.department?.code || 'Institution'}</small></span><span>{task.dueDate ? new Date(task.dueDate).toLocaleDateString() : 'No deadline'}</span></div>)}</div></section>}
+  </div>;
 };

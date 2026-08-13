@@ -1,5 +1,9 @@
 import { Request, Response, NextFunction } from 'express';
 export declare class SettingsController {
+    private service;
+    catalog: (_req: Request, res: Response, next: NextFunction) => Promise<void>;
+    preview: (req: Request, res: Response, next: NextFunction) => Promise<void>;
+    getRequestPolicy: (_req: Request, res: Response, next: NextFunction) => Promise<void>;
     /**
      * List all settings key-value pairs
      */

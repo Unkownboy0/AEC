@@ -7,7 +7,7 @@ const rbacService = new RbacService();
 export class RbacController {
   // SSE stream for real-time synchronization
   async streamRealtimeEvents(req: Request, res: Response) {
-    const userId = (req as any).user?.id || (req.query.userId as string);
+    const userId = (req as any).user?.id;
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache, no-transform');
     res.setHeader('Connection', 'keep-alive');
@@ -56,7 +56,8 @@ export class RbacController {
   async getMyRBAC(req: Request, res: Response, next: NextFunction) {
     try {
       const userId = (req as any).user?.id || (req as any).userId;
-      const data = await rbacService.evaluateUserRBAC(userId);
+      const activeRole = String((req as any).user?.role || '');
+      const data = await rbacService.evaluateUserRBAC(userId, activeRole);
       res.status(200).json({ status: 'success', data });
     } catch (err) {
       next(err);

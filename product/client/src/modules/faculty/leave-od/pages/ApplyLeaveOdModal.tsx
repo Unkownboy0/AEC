@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { X, Send, AlertCircle, Calendar } from 'lucide-react';
 import { submitFacultyLeaveOd } from '../api/facultyLeaveApi';
 import { LeaveCategory, OdCategory, RequestType } from '../types/facultyLeave.types';
+import { minimumRequestDate, useRequestPolicy } from '../../../../shared/config/requestPolicy';
 
 const LEAVE_CATEGORIES: LeaveCategory[] = [
   'Casual Leave', 'Medical Leave', 'Earned Leave', 'Emergency Leave',
@@ -20,6 +21,7 @@ interface ApplyLeaveOdModalProps {
 }
 
 export const ApplyLeaveOdModal: React.FC<ApplyLeaveOdModalProps> = ({ onClose, onSuccess }) => {
+  const requestPolicy = useRequestPolicy();
   const [requestType, setRequestType] = useState<RequestType>('LEAVE');
   const [category, setCategory] = useState<string>('Casual Leave');
   const [startDate, setStartDate] = useState('');
@@ -149,16 +151,21 @@ export const ApplyLeaveOdModal: React.FC<ApplyLeaveOdModalProps> = ({ onClose, o
               <input
                 type="date"
                 required
+                min={minimumRequestDate(requestType, requestPolicy)}
                 className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white dark:bg-gray-800"
                 value={startDate}
                 onChange={e => setStartDate(e.target.value)}
               />
+              {requestType === 'OD' && (
+                <p className="text-[10px] text-gray-400 mt-1">OD requests must be submitted at least {requestPolicy.odMinAdvanceDays} days in advance.</p>
+              )}
             </div>
             <div>
               <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">To Date *</label>
               <input
                 type="date"
                 required
+                min={startDate || minimumRequestDate(requestType, requestPolicy)}
                 className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white dark:bg-gray-800"
                 value={endDate}
                 onChange={e => setEndDate(e.target.value)}

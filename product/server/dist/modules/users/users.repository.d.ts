@@ -10,6 +10,7 @@ export declare class UsersRepository {
         status?: string;
         sortBy?: string;
         sortOrder?: 'asc' | 'desc';
+        scopeWhere?: Record<string, unknown>;
     }): Promise<{
         users: ({
             role: {

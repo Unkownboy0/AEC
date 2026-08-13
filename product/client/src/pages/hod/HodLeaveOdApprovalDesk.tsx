@@ -97,14 +97,18 @@ export const HodLeaveOdApprovalDesk: React.FC = () => {
   const fetchRequests = async () => {
     try {
       setLoading(true);
-      const res = await api.get(`/hod/leave-od?status=${activeTab}`);
-      if (res.data?.data) {
-        setRequests(res.data.data);
+      const res: any = await api.get(`/hod/leave-od?status=${activeTab}`);
+      const dataList = res?.data?.data || res?.data || (Array.isArray(res) ? res : []);
+      if (Array.isArray(dataList)) {
+        setRequests(dataList);
       } else {
         setRequests([]);
       }
     } catch (err: any) {
-      showToast(err.response?.data?.message || err.message || 'Failed to load requests', 'error');
+      console.error('[HOD Leave/OD Desk] Error fetching requests:', err);
+      const errMsg = err?.response?.data?.message || err?.message || 'Failed to load requests';
+      showToast(errMsg, 'error');
+      setRequests([]);
     } finally {
       setLoading(false);
     }
@@ -115,12 +119,19 @@ export const HodLeaveOdApprovalDesk: React.FC = () => {
   }, [activeTab]);
 
   const filteredRequests = useMemo(() => {
+    if (!Array.isArray(requests)) return [];
     return requests.filter(req => {
+      if (!req) return false;
+      const reqNum = req.requestNumber || req.id || '';
+      const studentName = req.student ? `${req.student.firstName || ''} ${req.student.lastName || ''}` : '';
+      const admissionNo = req.student?.admissionNo || '';
+      const reason = req.reason || '';
+
       const matchSearch =
-        req.requestNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        `${req.student.firstName} ${req.student.lastName}`.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        req.student.admissionNo.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        req.reason.toLowerCase().includes(searchQuery.toLowerCase());
+        reqNum.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        studentName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        admissionNo.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        reason.toLowerCase().includes(searchQuery.toLowerCase());
 
       const matchType = selectedType === 'ALL' || req.type === selectedType;
 
@@ -134,6 +145,11 @@ export const HodLeaveOdApprovalDesk: React.FC = () => {
       return;
     }
 
+    // Optimistic UI Update: Instantly remove/update request state in frontend UI
+    const targetRequest = requests.find((r) => r.id === id);
+    const updatedStatus = action === 'approve' ? 'APPROVED_HOD' : action === 'reject' ? 'REJECTED_HOD' : 'RETURNED';
+    setRequests((prev) => prev.filter((r) => r.id !== id));
+
     try {
       setSubmittingAction(true);
       await api.post(`/hod/leave-od/${id}/${action}`, {
@@ -143,13 +159,17 @@ export const HodLeaveOdApprovalDesk: React.FC = () => {
       showToast(`Request successfully processed (${action.toUpperCase()})`, 'success');
       setShowDetailModal(false);
       setActionRemarks('');
-      fetchRequests();
     } catch (err: any) {
+      // Rollback optimistic change on network failure
+      if (targetRequest) {
+        setRequests((prev) => [targetRequest, ...prev]);
+      }
       showToast(err.response?.data?.message || err.message || 'Failed to process request', 'error');
     } finally {
       setSubmittingAction(false);
     }
   };
+
 
   const handleBulkActionSubmit = async () => {
     if (selectedIds.length === 0) return;

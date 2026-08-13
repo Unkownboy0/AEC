@@ -13,8 +13,18 @@ const env_1 = require("../../config/env");
 const uaParser_1 = require("../../utils/uaParser");
 const security_1 = require("../../utils/security");
 const exceptions_1 = require("../../utils/exceptions");
+const workspace_access_1 = require("./workspace-access");
 const MAX_FAILED_ATTEMPTS = 5;
 const LOCKOUT_DURATION_MINUTES = 15;
+const durationToMilliseconds = (value) => {
+    const match = /^(\d+)(m|h|d)$/.exec(value.trim());
+    if (!match)
+        throw new Error(`Unsupported token duration: ${value}`);
+    const amount = Number(match[1]);
+    const unitMs = match[2] === 'm' ? 60_000 : match[2] === 'h' ? 3_600_000 : 86_400_000;
+    return amount * unitMs;
+};
+const hashResetToken = (token) => crypto_1.default.createHash('sha256').update(token).digest('hex');
 class AuthService {
     repo = new auth_repository_1.AuthRepository();
     /**
@@ -76,10 +86,10 @@ class AuthService {
         }
         // Flatten permissions
         const permissions = user.role.permissions.map((rp) => rp.permission.name);
-        // Create session duration
-        const sessionDays = rememberMe ? 30 : 7;
-        const expiresAt = new Date();
-        expiresAt.setDate(expiresAt.getDate() + sessionDays);
+        const refreshLifetime = rememberMe
+            ? env_1.env.REMEMBER_ME_REFRESH_TOKEN_EXPIRES_IN
+            : env_1.env.REFRESH_TOKEN_EXPIRES_IN;
+        const expiresAt = new Date(Date.now() + durationToMilliseconds(refreshLifetime));
         // Generate token payloads
         const accessPayload = {
             id: user.id,
@@ -88,9 +98,9 @@ class AuthService {
             permissions,
         };
         const accessToken = jsonwebtoken_1.default.sign(accessPayload, env_1.env.JWT_SECRET, {
-            expiresIn: '15m',
+            expiresIn: env_1.env.JWT_EXPIRES_IN,
         });
-        const refreshToken = jsonwebtoken_1.default.sign({ userId: user.id }, env_1.env.JWT_SECRET, { expiresIn: `${sessionDays}d` });
+        const refreshToken = jsonwebtoken_1.default.sign({ userId: user.id }, env_1.env.JWT_SECRET, { expiresIn: refreshLifetime });
         // Store Session
         await this.repo.createSession({
             userId: user.id,
@@ -111,42 +121,8 @@ class AuthService {
             status: 'SUCCESS',
         });
         const menus = await security_1.SecurityHelper.getPermittedMenus(permissions, user.role.name);
-        const workspaces = [user.role.name];
-        // Query UserWorkspace relational table
-        const dbWorkspaces = await prisma_1.prisma.userWorkspace.findMany({
-            where: { userId: user.id, status: 'ACTIVE' }
-        });
-        dbWorkspaces.forEach(w => {
-            if (!workspaces.includes(w.roleName))
-                workspaces.push(w.roleName);
-        });
-        // Check assigned secondary roles in UserRole
-        const userRoles = await prisma_1.prisma.userRole.findMany({
-            where: { userId: user.id },
-            include: { role: true },
-        });
-        userRoles.forEach(ur => {
-            if (ur.role && !workspaces.includes(ur.role.name)) {
-                workspaces.push(ur.role.name);
-            }
-        });
-        // Role hierarchy workspace derivations
-        if (['HOD', 'Head of Department'].includes(user.role.name)) {
-            if (!workspaces.includes('HOD'))
-                workspaces.push('HOD');
-            if (!workspaces.includes('Faculty'))
-                workspaces.push('Faculty');
-        }
-        if (['Faculty', 'Mentor'].includes(user.role.name)) {
-            if (!workspaces.includes('Faculty'))
-                workspaces.push('Faculty');
-            if (!workspaces.includes('Mentor'))
-                workspaces.push('Mentor');
-        }
-        if (['Academic Dean', 'Admission Dean', 'IQAC Dean', 'Examination Cell'].includes(user.role.name)) {
-            if (!workspaces.includes('Faculty'))
-                workspaces.push('Faculty');
-        }
+        const workspaceAccess = await (0, workspace_access_1.resolveUserWorkspaceAccess)(user.id);
+        const workspaces = workspaceAccess?.workspaces.map((workspace) => workspace.name) || [user.role.name];
         return {
             accessToken,
             refreshToken,
@@ -173,7 +149,9 @@ class AuthService {
         // If an already-revoked token is used (replay attack), all sessions for that user are terminated.
         let decoded;
         try {
-            decoded = jsonwebtoken_1.default.verify(refreshToken, env_1.env.JWT_SECRET);
+            decoded = jsonwebtoken_1.default.verify(refreshToken, env_1.env.JWT_SECRET, {
+                maxAge: env_1.env.REMEMBER_ME_REFRESH_TOKEN_EXPIRES_IN,
+            });
         }
         catch {
             throw new exceptions_1.UnauthorizedException('Invalid refresh token');
@@ -201,14 +179,15 @@ class AuthService {
         }
         // Rotate: delete old session, create new one
         await this.repo.deleteSession(refreshToken);
-        const remainingMs = session.expiresAt.getTime() - Date.now();
-        const remainingDays = Math.max(1, Math.ceil(remainingMs / (1000 * 60 * 60 * 24)));
-        const newRefreshToken = jsonwebtoken_1.default.sign({ userId: user.id }, env_1.env.JWT_SECRET, { expiresIn: `${remainingDays}d` });
+        const remainingMs = Math.min(session.expiresAt.getTime() - Date.now(), durationToMilliseconds(env_1.env.REMEMBER_ME_REFRESH_TOKEN_EXPIRES_IN));
+        const refreshLifetimeSeconds = Math.max(1, Math.floor(remainingMs / 1000));
+        const newRefreshToken = jsonwebtoken_1.default.sign({ userId: user.id }, env_1.env.JWT_SECRET, { expiresIn: refreshLifetimeSeconds });
         const ua = (0, uaParser_1.parseUserAgent)(userAgent);
+        const newExpiresAt = new Date(Date.now() + remainingMs);
         await this.repo.createSession({
             userId: user.id,
             refreshToken: newRefreshToken,
-            expiresAt: session.expiresAt, // Preserve original session expiry
+            expiresAt: newExpiresAt,
             ipAddress,
             userAgent,
             device: ua.device,
@@ -222,7 +201,7 @@ class AuthService {
             permissions,
         };
         const accessToken = jsonwebtoken_1.default.sign(accessPayload, env_1.env.JWT_SECRET, {
-            expiresIn: '15m',
+            expiresIn: env_1.env.JWT_EXPIRES_IN,
         });
         return { accessToken, refreshToken: newRefreshToken };
     }
@@ -252,52 +231,14 @@ class AuthService {
         if (!user || user.status !== 'ACTIVE') {
             throw new exceptions_1.NotFoundException('User account not found');
         }
-        // Determine allowed workspaces for this user
-        const allowedRoles = [user.role.name];
-        // Query UserWorkspace relational table
-        const dbWorkspaces = await prisma_1.prisma.userWorkspace.findMany({
-            where: { userId, status: 'ACTIVE' }
-        });
-        dbWorkspaces.forEach(w => {
-            if (!allowedRoles.includes(w.roleName))
-                allowedRoles.push(w.roleName);
-        });
-        if (['HOD', 'Head of Department'].includes(user.role.name)) {
-            if (!allowedRoles.includes('HOD'))
-                allowedRoles.push('HOD');
-            if (!allowedRoles.includes('Faculty'))
-                allowedRoles.push('Faculty');
-        }
-        if (['Faculty', 'Mentor'].includes(user.role.name)) {
-            if (!allowedRoles.includes('Faculty'))
-                allowedRoles.push('Faculty');
-            if (!allowedRoles.includes('Mentor'))
-                allowedRoles.push('Mentor');
-        }
-        if (['Academic Dean', 'Admission Dean', 'IQAC Dean', 'Examination Cell'].includes(user.role.name)) {
-            if (!allowedRoles.includes('Faculty'))
-                allowedRoles.push('Faculty');
-        }
-        // Also check assigned secondary roles in UserRole
-        const userRoles = await prisma_1.prisma.userRole.findMany({
-            where: { userId },
-            include: { role: true },
-        });
-        userRoles.forEach(ur => {
-            if (ur.role && !allowedRoles.includes(ur.role.name)) {
-                allowedRoles.push(ur.role.name);
-            }
-        });
-        if (!allowedRoles.includes(targetRole)) {
+        const workspaceAccess = await (0, workspace_access_1.resolveUserWorkspaceAccess)(userId);
+        const targetWorkspace = workspaceAccess?.workspaces.find((workspace) => workspace.name === targetRole);
+        const allowedRoles = workspaceAccess?.workspaces.map((workspace) => workspace.name) || [];
+        if (!targetWorkspace) {
             throw new exceptions_1.BadRequestException(`Workspace '${targetRole}' is not authorized for your account`);
         }
-        // Fetch target role definition and permissions
-        const roleData = await prisma_1.prisma.role.findFirst({
-            where: { name: targetRole },
-            include: { permissions: { include: { permission: true } } }
-        });
-        const roleName = roleData ? roleData.name : targetRole;
-        const permissions = roleData ? roleData.permissions.map(p => p.permission.name) : user.role.permissions.map(rp => rp.permission.name);
+        const roleName = targetWorkspace.name;
+        const permissions = targetWorkspace.permissions;
         // Update activeWorkspace in database
         await prisma_1.prisma.user.update({
             where: { id: userId },
@@ -311,7 +252,7 @@ class AuthService {
             permissions,
         };
         const accessToken = jsonwebtoken_1.default.sign(accessPayload, env_1.env.JWT_SECRET, {
-            expiresIn: '15m',
+            expiresIn: env_1.env.JWT_EXPIRES_IN,
         });
         const menus = await security_1.SecurityHelper.getPermittedMenus(permissions, roleName);
         return {
@@ -339,31 +280,12 @@ class AuthService {
         if (!user || user.status !== 'ACTIVE') {
             throw new exceptions_1.NotFoundException('User profile not found');
         }
-        let roleName = user.role.name;
-        let permissions = user.role.permissions.map((rp) => rp.permission.name);
-        if (activeRole && activeRole !== user.role.name) {
-            const allowedRoles = [user.role.name];
-            const dbWorkspaces = await prisma_1.prisma.userWorkspace.findMany({
-                where: { userId, status: 'ACTIVE' }
-            });
-            dbWorkspaces.forEach(w => {
-                if (!allowedRoles.includes(w.roleName))
-                    allowedRoles.push(w.roleName);
-            });
-            if (['Faculty', 'HOD', 'Academic Dean', 'Vice Principal', 'Principal', 'Admission Dean', 'IQAC Dean'].includes(user.role.name)) {
-                allowedRoles.push('Faculty', 'Mentor');
-            }
-            if (allowedRoles.includes(activeRole)) {
-                const roleData = await prisma_1.prisma.role.findFirst({
-                    where: { name: activeRole },
-                    include: { permissions: { include: { permission: true } } }
-                });
-                if (roleData) {
-                    roleName = roleData.name;
-                    permissions = roleData.permissions.map(p => p.permission.name);
-                }
-            }
-        }
+        const workspaceAccess = await (0, workspace_access_1.resolveUserWorkspaceAccess)(userId);
+        const workspaces = workspaceAccess?.workspaces.map((workspace) => workspace.name) || [user.role.name];
+        const activeWorkspace = workspaceAccess?.workspaces.find((workspace) => workspace.name === activeRole)
+            || workspaceAccess?.workspaces.find((workspace) => workspace.name === user.role.name);
+        const roleName = activeWorkspace?.name || user.role.name;
+        const permissions = activeWorkspace?.permissions || user.role.permissions.map((rp) => rp.permission.name);
         const menus = await security_1.SecurityHelper.getPermittedMenus(permissions, roleName);
         // Fetch faculty record with department
         let faculty = null;
@@ -376,39 +298,6 @@ class AuthService {
         catch (_) {
             // Silently ignore
         }
-        // Resolve workspaces from UserWorkspace table
-        const dbWorkspaces = await prisma_1.prisma.userWorkspace.findMany({
-            where: { userId, status: 'ACTIVE' }
-        });
-        const workspacesSet = new Set();
-        workspacesSet.add(user.role.name);
-        dbWorkspaces.forEach(w => workspacesSet.add(w.roleName));
-        if (user.role.name === 'Admission Dean') {
-            workspacesSet.add('Admission Dean');
-            workspacesSet.add('Faculty');
-            workspacesSet.add('Administration');
-        }
-        else if (user.role.name === 'Academic Dean') {
-            workspacesSet.add('Academic Dean');
-            workspacesSet.add('Faculty');
-        }
-        else if (user.role.name === 'IQAC Dean') {
-            workspacesSet.add('IQAC Dean');
-            workspacesSet.add('Faculty');
-        }
-        else if (user.role.name === 'Vice Principal') {
-            workspacesSet.add('Vice Principal');
-            workspacesSet.add('Faculty');
-        }
-        else if (user.role.name === 'HOD') {
-            workspacesSet.add('HOD');
-            workspacesSet.add('Faculty');
-        }
-        else if (user.role.name === 'Faculty') {
-            workspacesSet.add('Faculty');
-            workspacesSet.add('Mentor');
-        }
-        const workspaces = Array.from(workspacesSet);
         return {
             id: user.id,
             email: user.email,
@@ -423,6 +312,7 @@ class AuthService {
             forcePasswordChange: user.forcePasswordChange,
             faculty,
             workspaces,
+            activeWorkspace: roleName,
         };
     }
     /**
@@ -443,35 +333,41 @@ class AuthService {
         // Auto logout on all other devices on security credential changes
         await this.repo.deleteAllSessions(userId);
     }
-    /**
-     * Forgot password: create reset token and mock mail log
-     */
     async forgotPassword(email) {
         const user = await this.repo.findByEmail(email);
         if (!user) {
-            // Standard security best practice: do not leak if user exists or not.
-            // We generate a dummy response for external observers, but internally we do not write DB rows.
-            return { resetToken: 'mock-token-dispatched' };
+            // Keep the externally observable response identical for unknown accounts.
+            crypto_1.default.randomBytes(32);
+            return;
         }
         const resetToken = crypto_1.default.randomBytes(32).toString('hex');
-        const expiresAt = new Date();
-        expiresAt.setHours(expiresAt.getHours() + 1); // 1 hour token validity
-        await this.repo.createPasswordResetToken(user.id, resetToken, expiresAt);
-        console.log(`✉️ [SMTP MOCK] Password reset link sent to ${email}: http://localhost:5173/reset-password?token=${resetToken}`);
-        return { resetToken };
+        const expiresAt = new Date(Date.now() + env_1.env.PASSWORD_RESET_TOKEN_MINUTES * 60_000);
+        await this.repo.createPasswordResetToken(user.id, hashResetToken(resetToken), expiresAt);
+        // Delivery is intentionally delegated to the production mail integration.
+        // Never log or return the one-time credential.
+        await (0, security_1.auditLog)({
+            userId: user.id,
+            userEmail: user.email,
+            userRole: user.role.name,
+            action: 'PASSWORD_RESET_REQUESTED',
+            module: 'AUTH',
+            description: 'A password reset was requested for this account.',
+            statusCode: 200,
+        });
     }
     /**
      * Reset password using token
      */
     async resetPassword(input) {
         const { token, newPassword } = input;
-        const dbToken = await this.repo.findResetToken(token);
+        const tokenHash = hashResetToken(token);
+        const dbToken = await this.repo.findResetToken(tokenHash);
         if (!dbToken || dbToken.used || dbToken.expiresAt < new Date()) {
             throw new exceptions_1.BadRequestException('Reset token is invalid or has expired');
         }
         const passwordHash = await bcryptjs_1.default.hash(newPassword, 10);
         await this.repo.updatePassword(dbToken.userId, passwordHash);
-        await this.repo.markResetTokenAsUsed(token);
+        await this.repo.markResetTokenAsUsed(tokenHash);
         // Terminate all sessions since security details updated
         await this.repo.deleteAllSessions(dbToken.userId);
     }

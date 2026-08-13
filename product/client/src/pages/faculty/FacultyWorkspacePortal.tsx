@@ -4,11 +4,10 @@ import {
   BookOpen, Clock, Users, CheckSquare, Award, FileText, Send, Calendar,
   AlertTriangle, Upload, RefreshCw, Eye, Plus, CheckCircle2, ChevronRight, MessageSquare, Download,
   Sparkles, Layers, Filter, Search, Bell, Shield, ArrowUpRight, BarChart2, Heart, UserCheck, Ban, User,
-  Menu, Paperclip, X, Search as SearchIcon
+  Paperclip, X
 } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import api from '../../lib/axios';
-import { useAuth } from '../../context/AuthContext';
 import { toast } from '../../components/ui/Toast';
 import { MetricCard } from '../../design-system/components/MetricCard';
 import { StatusBadge } from '../../design-system/components/StatusBadge';
@@ -16,16 +15,13 @@ import { DataTable, Column } from '../../design-system/components/DataTable';
 import { pageVariants } from '../../design-system/tokens/motion';
 import { DepartmentAvailabilityBoard } from '../../components/department/DepartmentAvailabilityBoard';
 import { MentorWorkspacePortal } from '../mentor/MentorWorkspacePortal';
-import { FacultySidebar } from '../../components/faculty/FacultySidebar';
 import { Modal } from '../../design-system/components/Modal';
 
 export const FacultyWorkspacePortal: React.FC = () => {
-  const { user } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
 
   const [activeTab, setActiveTab] = useState<string>('dashboard');
-  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [workspaceType, setWorkspaceType] = useState<'FACULTY' | 'MENTOR'>('FACULTY');
 
   // Submodule Loading States
@@ -45,15 +41,14 @@ export const FacultyWorkspacePortal: React.FC = () => {
   const [selectedPeriod, setSelectedPeriod] = useState<string>('1');
   const [attendanceRecords, setAttendanceRecords] = useState<Record<string, 'PRESENT' | 'ABSENT'>>({});
   const [isSubmittingAttendance, setIsSubmittingAttendance] = useState(false);
+  const [attendanceSessions, setAttendanceSessions] = useState<any[]>([]);
+  const [activeSession, setActiveSession] = useState<any | null>(null);
 
   // Assignment Modal
   const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
   const [assignTitle, setAssignTitle] = useState('');
   const [assignDesc, setAssignDesc] = useState('');
   const [assignDueDate, setAssignDueDate] = useState('');
-
-  // Global Search
-  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     const path = location.pathname;
@@ -70,13 +65,14 @@ export const FacultyWorkspacePortal: React.FC = () => {
       setWorkspaceType('MENTOR');
       setActiveTab('dashboard');
     }
+    else setActiveTab('dashboard');
   }, [location.pathname]);
 
   const fetchDashboardStats = useCallback(async () => {
     try {
       setLoading(true);
       const res = await api.get('/faculty/dashboard');
-      if (res.data?.status === 'success') {
+      if (res.data?.status === 'success' || res.data?.success) {
         setStats(res.data.data);
       }
     } catch (err) {
@@ -97,12 +93,40 @@ export const FacultyWorkspacePortal: React.FC = () => {
     if (activeTab === 'assignments') fetchAssignments();
     if (activeTab === 'circulars') fetchCirculars();
     if (activeTab === 'tasks') fetchTasks();
+    if (activeTab === 'attendance') fetchAttendanceSessions();
   }, [activeTab]);
+
+  const fetchAttendanceSessions = async () => {
+    try {
+      const res = await api.get('/faculty/attendance/sessions/today');
+      setAttendanceSessions(res.data?.data || []);
+    } catch { toast.error('Could not load today’s scheduled classes'); }
+  };
+
+  const openAttendanceSession = async (slotId: string) => {
+    try {
+      const res = await api.get(`/faculty/attendance/sessions/${slotId}`);
+      setActiveSession(res.data.data);
+      setAttendanceRecords(Object.fromEntries(res.data.data.students.map((student: any) => [student.id, 'PRESENT'])));
+    } catch (err: any) { toast.error(err.response?.data?.message || 'Could not open this class'); }
+  };
+
+  const submitAttendance = async () => {
+    if (!activeSession) return;
+    try {
+      setIsSubmittingAttendance(true);
+      await api.post(`/faculty/attendance/sessions/${activeSession.slot.id}/submit`, { date: activeSession.slot.date, groupId: activeSession.teachingGroup?.id, records: activeSession.students.map((student: any) => ({ studentId: student.id, status: attendanceRecords[student.id] || 'PRESENT' })) });
+      toast.success('Attendance submitted');
+      setActiveSession(null);
+      fetchDashboardStats();
+    } catch (err: any) { toast.error(err.response?.data?.message || 'Attendance submission failed'); }
+    finally { setIsSubmittingAttendance(false); }
+  };
 
   const fetchTimetable = async () => {
     try {
       const res = await api.get('/faculty/timetable');
-      if (res.data?.status === 'success') setTimetable(res.data.data || []);
+      if (res.data?.status === 'success' || res.data?.success) setTimetable(res.data.data || []);
     } catch (err) {
       console.error('Timetable error:', err);
     }
@@ -111,7 +135,7 @@ export const FacultyWorkspacePortal: React.FC = () => {
   const fetchSubjects = async () => {
     try {
       const res = await api.get('/faculty/subjects');
-      if (res.data?.status === 'success') setSubjects(res.data.data || []);
+      if (res.data?.status === 'success' || res.data?.success) setSubjects(res.data.data || []);
     } catch (err) {
       console.error('Subjects error:', err);
     }
@@ -187,74 +211,12 @@ export const FacultyWorkspacePortal: React.FC = () => {
   };
 
   if (workspaceType === 'MENTOR') {
-    return (
-      <div className="flex h-screen overflow-hidden bg-background">
-        <FacultySidebar
-          activeTab={activeTab}
-          onSelectTab={setActiveTab}
-          workspaceType="MENTOR"
-          onSwitchWorkspace={(type) => setWorkspaceType(type)}
-        />
-        <div className="flex-1 overflow-y-auto p-4 md:p-6">
-          <MentorWorkspacePortal />
-        </div>
-      </div>
-    );
+    return <MentorWorkspacePortal />;
   }
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background text-foreground">
-      {/* Responsive Navigation Sidebar */}
-      <FacultySidebar
-        activeTab={activeTab}
-        onSelectTab={setActiveTab}
-        isMobileOpen={isMobileSidebarOpen}
-        onMobileClose={() => setIsMobileSidebarOpen(false)}
-        workspaceType="FACULTY"
-        onSwitchWorkspace={(type) => setWorkspaceType(type)}
-      />
-
-      {/* Main Content Viewport */}
-      <div className="flex-1 flex flex-col h-full overflow-hidden">
-        {/* Top Sticky Header */}
-        <header className="h-14 border-b border-border bg-card/80 backdrop-blur-md px-4 flex items-center justify-between shrink-0">
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => setIsMobileSidebarOpen(true)}
-              className="md:hidden p-1.5 rounded-lg border border-border text-muted-foreground hover:text-foreground"
-            >
-              <Menu className="h-4 w-4" />
-            </button>
-
-            <div className="relative w-48 sm:w-64">
-              <SearchIcon className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
-              <input
-                type="text"
-                placeholder="Global Search (Ctrl+K)..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full text-xs bg-muted/50 border border-border rounded-xl pl-8 pr-3 py-1.5 outline-none focus:ring-2 focus:ring-primary/20"
-              />
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <button
-              onClick={fetchDashboardStats}
-              className="p-2 rounded-xl border border-border hover:bg-muted text-xs font-semibold flex items-center gap-1.5"
-            >
-              <RefreshCw className="h-3.5 w-3.5 text-primary" />
-            </button>
-            <div className="px-3 py-1 bg-primary/10 border border-primary/20 rounded-xl text-primary font-bold text-xs flex items-center gap-1.5">
-              <Sparkles className="h-3.5 w-3.5" />
-              {(user as any)?.department?.code || (user as any)?.role || 'Faculty Workspace'}
-            </div>
-
-          </div>
-        </header>
-
-        {/* Viewport Content */}
-        <main className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6">
+    <div className="space-y-6 bg-background text-foreground">
+        <main className="space-y-6">
           <AnimatePresence mode="wait">
             {activeTab === 'dashboard' && (
               <motion.div key="dashboard" variants={pageVariants} initial="initial" animate="animate" exit="exit" className="space-y-6">
@@ -274,7 +236,7 @@ export const FacultyWorkspacePortal: React.FC = () => {
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                   <MetricCard
                     title="Today's Classes"
-                    value={stats?.metrics?.todayClasses || 4}
+                    value={stats?.metrics?.todayClassesCount ?? 0}
                     trend="Schedule Active"
                     isPositive={true}
                     icon={Clock}
@@ -283,7 +245,7 @@ export const FacultyWorkspacePortal: React.FC = () => {
                   />
                   <MetricCard
                     title="Assigned Subjects"
-                    value={stats?.metrics?.totalSubjects || 3}
+                    value={stats?.metrics?.assignedSubjectsCount ?? 0}
                     trend="Odd Semester"
                     isPositive={true}
                     icon={BookOpen}
@@ -292,7 +254,7 @@ export const FacultyWorkspacePortal: React.FC = () => {
                   />
                   <MetricCard
                     title="Mentorship Wards"
-                    value={stats?.metrics?.wardCount || 18}
+                    value={stats?.metrics?.mentorStudentsCount ?? 0}
                     trend="Active Students"
                     isPositive={true}
                     icon={Heart}
@@ -301,8 +263,8 @@ export const FacultyWorkspacePortal: React.FC = () => {
                   />
                   <MetricCard
                     title="Leave Balance"
-                    value={stats?.metrics?.leaveBalance || '12 Days'}
-                    trend="Available"
+                    value={stats?.metrics?.pendingLeaveReviewsCount ?? 0}
+                    trend="Pending reviews"
                     isPositive={true}
                     icon={Calendar}
                     colorClass="bg-amber-500/10 text-amber-600 dark:text-amber-400"
@@ -367,24 +329,27 @@ export const FacultyWorkspacePortal: React.FC = () => {
                     <h3 className="text-base font-bold text-foreground">Student Attendance Marker</h3>
                     <p className="text-xs text-muted-foreground">Select class period and record daily attendance status.</p>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <select
-                      value={selectedPeriod}
-                      onChange={(e) => setSelectedPeriod(e.target.value)}
-                      className="bg-background border rounded-xl px-3 py-1.5 text-xs font-bold"
-                    >
-                      <option value="1">Period 1 (09:30 - 10:30)</option>
-                      <option value="2">Period 2 (10:30 - 11:30)</option>
-                      <option value="3">Period 3 (11:30 - 12:30)</option>
-                    </select>
-                    <button
-                      onClick={() => toast.success('Attendance submitted cleanly')}
-                      className="px-4 py-1.5 bg-primary text-primary-foreground text-xs font-bold rounded-xl"
-                    >
-                      Submit Attendance
-                    </button>
-                  </div>
+                  {!activeSession && <span className="text-xs text-muted-foreground">Open a scheduled class below</span>}
                 </div>
+                {!activeSession ? (
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    {attendanceSessions.map((slot) => (
+                      <button key={slot.id} onClick={() => openAttendanceSession(slot.id)} className="text-left rounded-xl border border-border bg-card p-4 transition hover:border-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
+                        <span className="block font-semibold">{slot.subject?.name}</span>
+                        <span className="mt-1 block text-xs text-muted-foreground">Period {slot.slotIndex} · {slot.section?.name} · {slot.roomNo} · {slot.startTime}–{slot.endTime}</span>
+                      </button>
+                    ))}
+                    {attendanceSessions.length === 0 && <div className="rounded-xl border border-dashed p-10 text-center text-sm text-muted-foreground sm:col-span-2">No scheduled classes today.</div>}
+                  </div>
+                ) : (
+                  <div className="rounded-xl border border-border bg-card">
+                    <div className="flex flex-wrap items-center justify-between gap-3 border-b p-4">
+                      <div><h4 className="font-semibold">{activeSession.slot.subject.name}</h4><p className="text-xs text-muted-foreground">{activeSession.slot.section.name} · Period {activeSession.slot.period} · {activeSession.slot.room}</p></div>
+                      <button onClick={submitAttendance} disabled={isSubmittingAttendance} className="rounded-lg bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground disabled:opacity-50">{isSubmittingAttendance ? 'Submitting…' : 'Submit attendance'}</button>
+                    </div>
+                    <div className="divide-y">{activeSession.students.map((student: any) => <div key={student.id} className="flex items-center justify-between gap-3 p-3"><div><p className="text-sm font-medium">{student.name}</p><p className="text-xs text-muted-foreground">{student.admissionNo}</p></div><button onClick={() => setAttendanceRecords((current) => ({ ...current, [student.id]: current[student.id] === 'ABSENT' ? 'PRESENT' : 'ABSENT' }))} className={`min-w-24 rounded-lg px-3 py-2 text-xs font-semibold ${attendanceRecords[student.id] === 'ABSENT' ? 'bg-rose-500/10 text-rose-500' : 'bg-emerald-500/10 text-emerald-500'}`}>{attendanceRecords[student.id] || 'PRESENT'}</button></div>)}</div>
+                  </div>
+                )}
               </motion.div>
             )}
 
@@ -497,7 +462,6 @@ export const FacultyWorkspacePortal: React.FC = () => {
             )}
           </AnimatePresence>
         </main>
-      </div>
 
       {/* Create Assignment Modal */}
       <Modal

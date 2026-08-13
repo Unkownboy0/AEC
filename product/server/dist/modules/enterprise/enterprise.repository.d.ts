@@ -100,10 +100,10 @@ export declare class EnterpriseRepository {
                 deleted: boolean;
                 deletedAt: Date | null;
                 name: string;
-                duration: number;
-                level: string;
                 credits: number;
+                duration: number;
                 coordinator: string | null;
+                level: string;
             };
             course: {
                 code: string;
@@ -120,10 +120,10 @@ export declare class EnterpriseRepository {
                 deletedAt: Date | null;
                 name: string;
                 description: string | null;
-                duration: number;
                 credits: number;
-                coordinator: string | null;
                 courseOutcomes: string;
+                duration: number;
+                coordinator: string | null;
             };
             semester: {
                 number: number;
@@ -141,8 +141,8 @@ export declare class EnterpriseRepository {
                 name: string;
                 startDate: Date;
                 endDate: Date;
-                isCurrent: boolean;
                 credits: number;
+                isCurrent: boolean;
             };
             section: {
                 status: string;
@@ -357,10 +357,10 @@ export declare class EnterpriseRepository {
             deleted: boolean;
             deletedAt: Date | null;
             name: string;
-            duration: number;
-            level: string;
             credits: number;
+            duration: number;
             coordinator: string | null;
+            level: string;
         };
         course: {
             code: string;
@@ -377,10 +377,10 @@ export declare class EnterpriseRepository {
             deletedAt: Date | null;
             name: string;
             description: string | null;
-            duration: number;
             credits: number;
-            coordinator: string | null;
             courseOutcomes: string;
+            duration: number;
+            coordinator: string | null;
         };
         semester: {
             number: number;
@@ -398,8 +398,8 @@ export declare class EnterpriseRepository {
             name: string;
             startDate: Date;
             endDate: Date;
-            isCurrent: boolean;
             credits: number;
+            isCurrent: boolean;
         };
         section: {
             status: string;
@@ -1180,8 +1180,8 @@ export declare class EnterpriseRepository {
             deleted: boolean;
             deletedAt: Date | null;
             subjectId: string | null;
-            date: Date;
             studentId: string | null;
+            date: Date;
             remarks: string | null;
         })[];
         totalCount: number;
@@ -1198,8 +1198,8 @@ export declare class EnterpriseRepository {
         deleted: boolean;
         deletedAt: Date | null;
         subjectId: string | null;
-        date: Date;
         studentId: string | null;
+        date: Date;
         remarks: string | null;
     }>;
     updateAttendance(id: string, data: any): Promise<{
@@ -1214,8 +1214,8 @@ export declare class EnterpriseRepository {
         deleted: boolean;
         deletedAt: Date | null;
         subjectId: string | null;
-        date: Date;
         studentId: string | null;
+        date: Date;
         remarks: string | null;
     }>;
     findExams(params: any, user?: UserPayload): Promise<{
@@ -1249,10 +1249,10 @@ export declare class EnterpriseRepository {
                 deletedAt: Date | null;
                 name: string;
                 description: string | null;
-                duration: number;
                 credits: number;
-                coordinator: string | null;
                 courseOutcomes: string;
+                duration: number;
+                coordinator: string | null;
             };
             semester: {
                 number: number;
@@ -1270,8 +1270,8 @@ export declare class EnterpriseRepository {
                 name: string;
                 startDate: Date;
                 endDate: Date;
-                isCurrent: boolean;
                 credits: number;
+                isCurrent: boolean;
             };
             coordinator: {
                 status: string;
@@ -1390,10 +1390,10 @@ export declare class EnterpriseRepository {
             deletedAt: Date | null;
             name: string;
             description: string | null;
-            duration: number;
             credits: number;
-            coordinator: string | null;
             courseOutcomes: string;
+            duration: number;
+            coordinator: string | null;
         };
         semester: {
             number: number;
@@ -1411,8 +1411,8 @@ export declare class EnterpriseRepository {
             name: string;
             startDate: Date;
             endDate: Date;
-            isCurrent: boolean;
             credits: number;
+            isCurrent: boolean;
         };
         coordinator: {
             status: string;
@@ -1678,9 +1678,9 @@ export declare class EnterpriseRepository {
             deleted: boolean;
             deletedAt: Date | null;
             subjectId: string;
+            studentId: string;
             internalMarks: number;
             externalMarks: number;
-            studentId: string;
             examId: string;
             practicalMarks: number;
             grade: string;
@@ -1699,9 +1699,9 @@ export declare class EnterpriseRepository {
         deleted: boolean;
         deletedAt: Date | null;
         subjectId: string;
+        studentId: string;
         internalMarks: number;
         externalMarks: number;
-        studentId: string;
         examId: string;
         practicalMarks: number;
         grade: string;
@@ -1718,9 +1718,9 @@ export declare class EnterpriseRepository {
         deleted: boolean;
         deletedAt: Date | null;
         subjectId: string;
+        studentId: string;
         internalMarks: number;
         externalMarks: number;
-        studentId: string;
         examId: string;
         practicalMarks: number;
         grade: string;
@@ -1847,15 +1847,19 @@ export declare class EnterpriseRepository {
             archivedAt: Date | null;
             deleted: boolean;
             deletedAt: Date | null;
+            studentId: string;
             paidAmount: number;
             amount: number;
             scholarshipDiscount: number;
             fine: number;
-            studentId: string;
             billingDate: Date;
             dueDate: Date;
             paymentHistory: string;
             receipts: string;
+            invoiceNumber: string | null;
+            academicYearLabel: string | null;
+            semesterLabel: string | null;
+            allowPartialPayment: boolean;
             categoryId: string;
         })[];
         totalCount: number;
@@ -1869,15 +1873,19 @@ export declare class EnterpriseRepository {
         archivedAt: Date | null;
         deleted: boolean;
         deletedAt: Date | null;
+        studentId: string;
         paidAmount: number;
         amount: number;
         scholarshipDiscount: number;
         fine: number;
-        studentId: string;
         billingDate: Date;
         dueDate: Date;
         paymentHistory: string;
         receipts: string;
+        invoiceNumber: string | null;
+        academicYearLabel: string | null;
+        semesterLabel: string | null;
+        allowPartialPayment: boolean;
         categoryId: string;
     }>;
     updateFeeBill(id: string, data: any): Promise<{
@@ -1889,15 +1897,19 @@ export declare class EnterpriseRepository {
         archivedAt: Date | null;
         deleted: boolean;
         deletedAt: Date | null;
+        studentId: string;
         paidAmount: number;
         amount: number;
         scholarshipDiscount: number;
         fine: number;
-        studentId: string;
         billingDate: Date;
         dueDate: Date;
         paymentHistory: string;
         receipts: string;
+        invoiceNumber: string | null;
+        academicYearLabel: string | null;
+        semesterLabel: string | null;
+        allowPartialPayment: boolean;
         categoryId: string;
     }>;
     findLibraryBooks(params: any): Promise<{
@@ -2226,6 +2238,11 @@ export declare class EnterpriseRepository {
                 orcidId: string | null;
                 portfolioWebsite: string | null;
             } | null;
+            assignedTo: {
+                id: string;
+                firstName: string;
+                lastName: string;
+            } | null;
         } & {
             status: string;
             id: string;
@@ -2239,9 +2256,12 @@ export declare class EnterpriseRepository {
             deletedAt: Date | null;
             description: string;
             priority: string;
-            title: string;
             studentId: string | null;
+            title: string;
             replies: string;
+            assignedToUserId: string | null;
+            routedAt: Date | null;
+            resolutionRemarks: string | null;
         })[];
         totalCount: number;
     }>;
@@ -2377,6 +2397,11 @@ export declare class EnterpriseRepository {
             orcidId: string | null;
             portfolioWebsite: string | null;
         } | null;
+        assignedTo: {
+            id: string;
+            firstName: string;
+            lastName: string;
+        } | null;
     } & {
         status: string;
         id: string;
@@ -2390,9 +2415,12 @@ export declare class EnterpriseRepository {
         deletedAt: Date | null;
         description: string;
         priority: string;
-        title: string;
         studentId: string | null;
+        title: string;
         replies: string;
+        assignedToUserId: string | null;
+        routedAt: Date | null;
+        resolutionRemarks: string | null;
     }) | null>;
     createTicket(data: any): Promise<{
         status: string;
@@ -2407,9 +2435,12 @@ export declare class EnterpriseRepository {
         deletedAt: Date | null;
         description: string;
         priority: string;
-        title: string;
         studentId: string | null;
+        title: string;
         replies: string;
+        assignedToUserId: string | null;
+        routedAt: Date | null;
+        resolutionRemarks: string | null;
     }>;
     updateTicket(id: string, data: any): Promise<{
         status: string;
@@ -2424,9 +2455,12 @@ export declare class EnterpriseRepository {
         deletedAt: Date | null;
         description: string;
         priority: string;
-        title: string;
         studentId: string | null;
+        title: string;
         replies: string;
+        assignedToUserId: string | null;
+        routedAt: Date | null;
+        resolutionRemarks: string | null;
     }>;
     bulkDelete(modelName: string, ids: string[]): Promise<any>;
     bulkArchive(modelName: string, ids: string[]): Promise<any>;

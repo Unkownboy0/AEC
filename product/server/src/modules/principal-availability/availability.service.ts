@@ -6,6 +6,7 @@ import { HandoverService } from './handover.service';
 import { availabilityEvents } from './availability.events';
 import { AvailabilityNotificationService } from './availability.notifications';
 import { logger } from '../../utils/logger';
+import { env } from '../../config/env';
 
 export class PrincipalAvailabilityService {
   /**
@@ -179,12 +180,22 @@ export class PrincipalAvailabilityService {
       'TASK_APPROVAL',
     ];
 
-    const permissions = [
-      'principal.approvals.view',
-      'principal.approvals.approve',
-      'principal.approvals.reject',
-      'principal.approvals.return',
-    ];
+    const permissionDomainForCategory = (category: string) => category.includes('OD') ? 'od'
+      : category.includes('LEAVE') ? 'leave'
+      : category.includes('CIRCULAR') ? 'circular'
+      : category.includes('DOCUMENT') ? 'document'
+      : category.includes('FINANCE') ? 'finance'
+      : category.includes('TASK') ? 'task'
+      : category.toLowerCase();
+    const permissions = dto.delegatedPermissions || Array.from(new Set(categories.flatMap((category) => {
+      const domain = permissionDomainForCategory(category);
+      if (domain === 'leave') {
+        return ['leave.approve', 'leave.reject', 'leave.return', 'leave.request-info', 'od.approve', 'od.reject', 'od.return', 'od.request-info'];
+      }
+      return domain === 'circular'
+        ? ['circular.publish', 'circular.reject', 'circular.return', 'circular.request-info']
+        : [`${domain}.approve`, `${domain}.reject`, `${domain}.return`, `${domain}.request-info`];
+    })));
 
     // Close any previous active delegation
     await (prisma as any).principalDelegation.updateMany({
@@ -210,6 +221,8 @@ export class PrincipalAvailabilityService {
         reason: dto.reason || (dto.status === 'BUSY' ? 'Principal busy with meetings' : 'Principal offline on leave'),
         delegatedCategories: JSON.stringify(categories),
         delegatedPermissions: JSON.stringify(permissions),
+        delegatedScope: JSON.stringify({ workflowStages: ['PRINCIPAL'], ...(dto.delegatedScope || {}), tenantId: env.CAMPUS_TENANT_ID }),
+        financialThreshold: dto.financialThreshold ?? null,
         messageToVp: dto.messageToVp || null,
         createdBy: principalUserId,
         version: 1,
@@ -240,17 +253,22 @@ export class PrincipalAvailabilityService {
     });
 
     // Transfer eligible pending requests to VP
-    const pendingTransferredCount = await RequestTransferService.transferPendingRequestsToVp({
-      principalUserId,
-      vpUserId: dto.actingUserId,
-      delegationId: delegation.id,
-      categories,
-    });
+    const pendingTransferredCount = startDate <= now
+      ? await RequestTransferService.transferPendingRequestsToVp({
+          principalUserId,
+          vpUserId: dto.actingUserId,
+          delegationId: delegation.id,
+          categories,
+          permissions,
+          scope: { workflowStages: ['PRINCIPAL'], ...(dto.delegatedScope || {}), tenantId: env.CAMPUS_TENANT_ID },
+          financialThreshold: dto.financialThreshold ?? null,
+        })
+      : 0;
 
     // Emit events
     availabilityEvents.emitAvailabilityChanged({
       principalUserId,
-      principalStatus: dto.status,
+      principalStatus: dto.status as any,
       delegationStatus: 'ACTIVE',
       actingPrincipalUserId: dto.actingUserId,
       version: statusRecord.version,
@@ -275,5 +293,32 @@ export class PrincipalAvailabilityService {
     logger.info(`Successfully set Principal status to ${dto.status} with active delegation to VP (${dto.actingUserId})`);
 
     return await PrincipalAvailabilityResolver.resolveContext(principalUserId);
+  }
+
+  /**
+   * Fetch eligible delegation roles (Vice Principal ONLY)
+   */
+  static async getEligibleDelegates() {
+    const users = await prisma.user.findMany({
+      where: {
+        OR: [
+          { role: { name: { in: ['Vice Principal', 'VICE_PRINCIPAL', 'VP'] } } },
+          { designation: { contains: 'Vice Principal' } },
+          { email: { contains: 'vp' } },
+        ],
+      },
+      include: { role: true },
+    });
+
+    const mapped = users.map((u) => ({
+      id: u.id,
+      name: `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.username,
+      role: u.role?.name || 'Vice Principal',
+      designation: u.designation || 'Vice Principal',
+      email: u.email,
+      priority: 1,
+    }));
+
+    return mapped;
   }
 }

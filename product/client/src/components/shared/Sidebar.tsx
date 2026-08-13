@@ -14,6 +14,12 @@ interface SidebarProps {
 const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed }) => {
   const location = useLocation();
   const { user, logout } = useAuth();
+  const roleName = String(
+    typeof user?.role === 'object'
+      ? (user.role as any)?.name || (user.role as any)?.roleCode || ''
+      : user?.role || ''
+  ).trim();
+  const normalizedRole = roleName.toUpperCase().replace(/[\s-]+/g, '_');
   const { principalStatus, delegationStatus } = useDelegationContext();
   const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false);
   const [pendingWfCount, setPendingWfCount] = useState(0);
@@ -50,14 +56,13 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed }) => {
   // Permitted menus from DB
   const menus = user?.menus || [];
 
-  // Helper to determine active state including search parameters
+  // Helper to determine active state
   const checkIsActive = (path: string) => {
-    const currentSearch = location.search || '?tab=overview';
     if (path.includes('?')) {
-      const targetSearch = path.substring(path.indexOf('?'));
-      return location.pathname === '/' && currentSearch === targetSearch;
+      const basePath = path.split('?')[0];
+      return location.pathname === basePath;
     }
-    return location.pathname === path;
+    return location.pathname === path || (path !== '/' && location.pathname.startsWith(path));
   };
 
   return (
@@ -208,6 +213,51 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed }) => {
             return renderedList;
           }
 
+          if (normalizedRole === 'SUPER_ADMIN') {
+            const adminGroups = [
+              { label: 'Overview', items: [
+                { name: 'Control centre', path: '/admin/dashboard', icon: LucideIcons.LayoutDashboard },
+                { name: 'System health', path: '/admin/dashboard', icon: LucideIcons.Activity },
+              ]},
+              { label: 'People', items: [
+                { name: 'All users', path: '/admin/people', icon: LucideIcons.Users },
+                { name: 'Students', path: '/students', icon: LucideIcons.GraduationCap },
+              ]},
+              { label: 'Organization', items: [
+                { name: 'Institution', path: '/institution', icon: LucideIcons.Building2 },
+                { name: 'Academic structure', path: '/academics', icon: LucideIcons.Network },
+                { name: 'Master lists', path: '/master-lists', icon: LucideIcons.Database },
+              ]},
+              { label: 'Access control', items: [
+                { name: 'Roles & permissions', path: '/admin/iam', icon: LucideIcons.ShieldCheck },
+                { name: 'Workspaces', path: '/admin/rbac', icon: LucideIcons.Layers3 },
+              ]},
+              { label: 'Workflows', items: [
+                { name: 'Workflow monitor', path: '/work-management', icon: LucideIcons.Workflow },
+                { name: 'Approval centre', path: '/approval-center', icon: LucideIcons.FileCheck2 },
+                { name: 'Governance suite', path: '/governance', icon: LucideIcons.GitBranch },
+              ]},
+              { label: 'Configuration', items: [
+                { name: 'Settings', path: '/settings', icon: LucideIcons.Settings2 },
+                { name: 'Backup', path: '/backups', icon: LucideIcons.HardDriveDownload },
+                { name: 'Audit & security', path: '/security-logs', icon: LucideIcons.ScrollText },
+              ]},
+            ];
+
+            return adminGroups.map(group => (
+              <section key={group.label} className="mb-4">
+                {!isCollapsed && <p className="mb-1.5 px-3 text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground/80">{group.label}</p>}
+                <div className="space-y-0.5">
+                  {group.items.map(item => {
+                    const Icon = item.icon;
+                    const active = checkIsActive(item.path);
+                    return <NavLink key={`${group.label}-${item.name}`} to={item.path} title={isCollapsed ? item.name : undefined} className={cn('group flex min-h-10 items-center gap-3 rounded-lg px-3 text-xs font-semibold transition-colors', active ? 'bg-primary/12 text-primary' : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground')}><Icon className="h-4 w-4 shrink-0" />{!isCollapsed && <span className="truncate">{item.name}</span>}</NavLink>;
+                  })}
+                </div>
+              </section>
+            ));
+          }
+
           return (
             <>
               {(String(typeof user?.role === 'object' ? (user?.role as any)?.name : user?.role || '').toLowerCase().includes('principal') && !String(typeof user?.role === 'object' ? (user?.role as any)?.name : user?.role || '').toLowerCase().includes('vice')) && (
@@ -291,6 +341,45 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed }) => {
                 </div>
               )}
 
+              {(user?.activeWorkspace === 'Mentor' || (user?.role === 'Mentor' && (!user?.activeWorkspace || user?.activeWorkspace === 'Mentor'))) && (
+                <div className="space-y-0.5 my-1 border-b border-border/50 pb-2">
+                  <div className="px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-purple-400">
+                    Mentor Workspace
+                  </div>
+                  {[
+                    { name: 'Dashboard', path: '/faculty/mentor/dashboard', icon: LucideIcons.Heart },
+                    { name: 'Assigned Students', path: '/faculty/mentor/students', icon: LucideIcons.Users },
+                    { name: 'Leave & OD Approvals', path: '/faculty/mentor/leave-od', icon: LucideIcons.FileCheck },
+                    { name: 'Attendance Risk', path: '/faculty/mentor/attendance', icon: LucideIcons.Clock },
+                    { name: 'Academic Risk', path: '/faculty/mentor/academics', icon: LucideIcons.BookOpen },
+                    { name: 'Counselling Cases', path: '/faculty/mentor/counselling', icon: LucideIcons.MessageSquare },
+                    { name: 'Parent Communication', path: '/faculty/mentor/parents', icon: LucideIcons.UserCheck },
+                    { name: 'Meetings', path: '/faculty/mentor/meetings', icon: LucideIcons.Calendar },
+                    { name: 'Department Board', path: '/faculty/mentor/department-availability', icon: LucideIcons.Building2 },
+                  ].map((menItem) => {
+                    const MenIcon = menItem.icon || LucideIcons.Layers;
+                    const isMenActive = checkIsActive(menItem.path);
+                    return (
+                      <NavLink
+                        key={menItem.path}
+                        to={menItem.path}
+                        className={cn(
+                          'relative flex items-center gap-3 py-2 px-3 text-xs font-semibold transition-all duration-200 ease-in-out',
+                          isMenActive
+                            ? 'bg-purple-600/15 text-purple-500 font-bold border-l-[3px] border-purple-500 pl-[9px] rounded-r-lg rounded-l-none'
+                            : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground pl-3 rounded-lg'
+                        )}
+                      >
+                        <div className="relative">
+                          <MenIcon className={cn('h-4.5 w-4.5 flex-shrink-0 transition-colors duration-200', isMenActive ? 'text-purple-500' : 'text-muted-foreground')} />
+                        </div>
+                        {!isCollapsed && <span className="truncate">{menItem.name}</span>}
+                      </NavLink>
+                    );
+                  })}
+                </div>
+              )}
+
               {(user?.activeWorkspace === 'Faculty' || (user?.role === 'Faculty' && (!user?.activeWorkspace || user?.activeWorkspace === 'Faculty'))) && (
                 <div className="space-y-0.5 my-1 border-b border-border/50 pb-2">
                   <div className="px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
@@ -303,8 +392,10 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed }) => {
                     { name: 'Period Attendance', path: '/faculty/attendance', icon: LucideIcons.CheckSquare },
                     { name: 'Assignments', path: '/faculty/assignments', icon: LucideIcons.FileText },
                     { name: 'Internal Marks', path: '/faculty/internal-marks', icon: LucideIcons.Award },
-                    { name: 'Mentor Module', path: '/faculty/mentor', icon: LucideIcons.Heart },
-                    { name: 'Department Board', path: '/faculty/availability', icon: LucideIcons.Calendar },
+                    { name: 'Leave & OD', path: '/faculty/leave-od', icon: LucideIcons.FileCheck },
+                    { name: 'Tasks Workspace', path: '/faculty/tasks', icon: LucideIcons.CheckSquare },
+                    { name: 'Circulars', path: '/faculty/circulars', icon: LucideIcons.Megaphone },
+                    { name: 'Department Board', path: '/faculty/department-availability', icon: LucideIcons.Calendar },
                   ].map((facItem) => {
                     const FacIcon = facItem.icon || LucideIcons.Layers;
                     const isFacActive = checkIsActive(facItem.path);
@@ -362,7 +453,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed }) => {
       {/* Footer Profile & Logout Section */}
       <div className="border-t p-2 space-y-1 bg-muted/10">
 
-        {(user?.role === 'Super Admin' || user?.role === 'College Admin' || user?.role === 'Principal') && (
+        {(user?.role === 'College Admin' || user?.role === 'Principal') && (
           <NavLink
             to="/iam"
             className={cn(
@@ -377,7 +468,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed }) => {
           </NavLink>
         )}
 
-        {(user?.role === 'Super Admin' || user?.role === 'College Admin') && (
+        {user?.role === 'College Admin' && (
           <NavLink
             to="/settings"
             className={cn(

@@ -1,6 +1,14 @@
 import { Request, Response, NextFunction } from 'express';
 import { TimetableService } from './timetable.service';
 import { prisma } from '../../lib/prisma';
+import { ForbiddenException } from '../../utils/exceptions';
+
+const assertHodDepartment = async (req: Request, departmentId: string) => {
+  const role = String((req as any).user?.role || '').toUpperCase().replace(/[^A-Z]/g, '');
+  if (!['HOD', 'HEADOFDEPARTMENT'].includes(role)) return;
+  const assigned = await prisma.departmentHodAssignment.count({ where: { hodUserId: (req as any).user.id, departmentId, isActive: true, effectiveFrom: { lte: new Date() }, OR: [{ effectiveTo: null }, { effectiveTo: { gt: new Date() } }] } });
+  if (!assigned) throw new ForbiddenException('Cross-department timetable access denied');
+};
 
 export class TimetableController {
   private service = new TimetableService();
@@ -16,6 +24,7 @@ export class TimetableController {
 
   createSlot = async (req: Request, res: Response, next: NextFunction) => {
     try {
+      await assertHodDepartment(req, req.body.departmentId);
       const data = await this.service.createSlot(req.body);
       res.status(201).json({ status: 'success', data });
     } catch (error) {
@@ -26,6 +35,8 @@ export class TimetableController {
   deleteSlot = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { id } = req.params;
+      const slot = await prisma.timetableSlot.findUnique({ where: { id }, select: { departmentId: true } });
+      if (slot) await assertHodDepartment(req, slot.departmentId);
       const data = await this.service.deleteSlot(id);
       res.status(200).json({ status: 'success', data });
     } catch (error) {
@@ -36,6 +47,7 @@ export class TimetableController {
   generateAIDraft = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { departmentId, semesterId, academicYearId } = req.body;
+      await assertHodDepartment(req, departmentId);
       const data = await this.service.generateAIDraft(departmentId, semesterId, academicYearId);
       res.status(200).json({ status: 'success', data });
     } catch (error) {
@@ -189,6 +201,7 @@ export class TimetableController {
   submitForReview = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { departmentId, semesterId, academicYearId } = req.body;
+      await assertHodDepartment(req, departmentId);
       const record = await prisma.timetablePublish.upsert({
         where: { id: `${departmentId}_${semesterId}_${academicYearId}` },
         update: { status: 'HOD_REVIEW' },

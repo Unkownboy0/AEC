@@ -1,11 +1,13 @@
-import React, { useState, useCallback } from 'react';
-import { Plus, RefreshCw, FileText, ChevronRight, ChevronLeft, Send, Eye } from 'lucide-react';
+import React, { useState, useCallback, useMemo } from 'react';
+import { Plus, RefreshCw, FileText, ChevronRight, ChevronLeft, Send, Eye, Search, CheckCheck, Trash2, Archive, X } from 'lucide-react';
 import { useCirculars } from '../hooks/useCirculars';
 import { CircularCard } from '../components/CircularCard';
 import { CircularDetail } from '../components/CircularDetail';
 import { createHodCircular } from '../api/circularApi';
 import { Circular, CreateCircularPayload, CircularCategory, CircularPriority } from '../types/circular.types';
 import { PriorityBadge, CategoryBadge } from '../components/CircularBadge';
+import { toast } from '../../../components/ui/Toast';
+import { useAuth } from '../../../context/AuthContext';
 
 const CATEGORIES: CircularCategory[] = [
   'GENERAL', 'ACADEMIC', 'EXAMINATION', 'PLACEMENT', 'INTERNSHIP',
@@ -49,7 +51,8 @@ const toggle = (arr: string[], val: string) =>
   arr.includes(val) ? arr.filter(v => v !== val) : [...arr, val];
 
 export const HodCircularPage: React.FC = () => {
-  const { circulars, loading, error, refresh, acknowledge } = useCirculars();
+  const { user } = useAuth();
+  const { circulars, loading, error, unreadCount, refresh, acknowledge, markRead, clear, removeDraft, cancelPublished } = useCirculars();
   const [selected, setSelected] = useState<Circular | null>(null);
   const [showWizard, setShowWizard] = useState(false);
   const [step, setStep] = useState(0);
@@ -58,6 +61,10 @@ export const HodCircularPage: React.FC = () => {
   const [publishError, setPublishError] = useState('');
   const [publishSuccess, setPublishSuccess] = useState(false);
   const [acknowledging, setAcknowledging] = useState(false);
+  const [search, setSearch] = useState('');
+  const [filter, setFilter] = useState<'ALL' | 'UNREAD' | 'PINNED' | 'URGENT'>('ALL');
+  const [pendingAction, setPendingAction] = useState<{ circular: Circular; action: 'clear' | 'delete' | 'cancel' } | null>(null);
+  const [actionBusy, setActionBusy] = useState(false);
 
   const [publishResult, setPublishResult] = useState<any>(null);
 
@@ -76,14 +83,54 @@ export const HodCircularPage: React.FC = () => {
     setAcknowledging(false);
   }, [acknowledge]);
 
+  const handleOpen = useCallback(async (circular: Circular) => {
+    setSelected(circular.isRead ? circular : { ...circular, isRead: true, userReadAt: new Date().toISOString() });
+    if (!circular.isRead) {
+      try { await markRead(circular.id); } catch { toast.error('Could not mark this circular as read'); }
+    }
+  }, [markRead]);
+
+  const visibleCirculars = useMemo(() => circulars.filter((circular) => {
+    const needle = search.trim().toLowerCase();
+    const matchesSearch = !needle || `${circular.title} ${circular.circularNumber} ${circular.description || ''} ${circular.author?.firstName || ''} ${circular.author?.lastName || ''}`.toLowerCase().includes(needle);
+    if (!matchesSearch) return false;
+    if (filter === 'UNREAD') return !circular.isRead;
+    if (filter === 'PINNED') return circular.isPinned;
+    if (filter === 'URGENT') return circular.priority === 'URGENT' || circular.isEmergency;
+    return true;
+  }), [circulars, filter, search]);
+
+  const runPendingAction = async () => {
+    if (!pendingAction) return;
+    setActionBusy(true);
+    try {
+      if (pendingAction.action === 'clear') await clear(pendingAction.circular.id);
+      if (pendingAction.action === 'delete') await removeDraft(pendingAction.circular.id);
+      if (pendingAction.action === 'cancel') await cancelPublished(pendingAction.circular.id);
+      setSelected(null);
+      toast.success(pendingAction.action === 'clear' ? 'Circular cleared from your feed' : pendingAction.action === 'delete' ? 'Draft circular deleted' : 'Published circular cancelled');
+      setPendingAction(null);
+    } catch (err: any) {
+      toast.error(err?.response?.data?.error || err?.message || 'Circular action failed');
+    } finally { setActionBusy(false); }
+  };
+
   const handlePublish = async () => {
     setPublishing(true);
     setPublishError('');
     setPublishResult(null);
     try {
       const res = await createHodCircular(form);
-      if (res.success && res.circular && (res.recipients?.total ?? 0) > 0) {
-        setPublishResult(res);
+      const circularObj = res.circular || (res as any).data?.circular;
+      const recipientsObj = res.recipients || (res as any).data?.recipients;
+      const totalRecipients = recipientsObj?.total ?? 0;
+
+      if (res.success && (circularObj || (res as any).data) && totalRecipients > 0) {
+        setPublishResult({
+          ...res,
+          circular: circularObj,
+          recipients: recipientsObj,
+        });
         setPublishSuccess(true);
         refresh();
       } else {
@@ -404,72 +451,66 @@ export const HodCircularPage: React.FC = () => {
   // ─── Main Render ──────────────────────────────────────────────
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
-      {/* Header */}
-      <div className="sticky top-0 z-10 bg-white dark:bg-gray-900 border-b border-gray-100 dark:border-gray-800 px-4 py-3 flex items-center justify-between">
+    <main className="mx-auto min-h-full w-full max-w-[1440px] space-y-5 pb-10">
+      <header className="flex flex-col gap-5 rounded-[1.75rem] border border-border/70 bg-card p-6 md:flex-row md:items-end md:justify-between md:p-8">
         <div>
-          <h1 className="text-lg font-bold text-gray-900 dark:text-white">Department Circulars</h1>
-          <p className="text-xs text-gray-400">{circulars.filter(c => !c.isRead).length} unread</p>
+          <p className="text-sm font-semibold text-primary">Department communication</p>
+          <h1 className="mt-2 text-2xl font-extrabold tracking-[-0.035em] md:text-3xl">Circulars</h1>
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">Publish department notices, track what needs attention, and manage previous circulars from one workspace.</p>
         </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={refresh}
-            className="p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-            title="Refresh"
-          >
-            <RefreshCw className="w-5 h-5 text-gray-500" />
-          </button>
-          <button
-            onClick={() => { setShowWizard(true); setStep(0); setForm(emptyForm()); }}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 active:scale-[0.97] transition-all"
-          >
-            <Plus className="w-4 h-4" />
-            <span className="hidden sm:inline">New Circular</span>
-          </button>
+        <div className="flex flex-wrap gap-2">
+          <button onClick={refresh} disabled={loading} className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-border bg-background px-4 text-sm font-semibold transition hover:border-primary/45 hover:text-primary active:scale-[.98] disabled:opacity-60"><RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />Refresh</button>
+          <button onClick={() => { setShowWizard(true); setStep(0); setForm(emptyForm()); }} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90 active:scale-[.98]"><Plus className="h-4 w-4" />New circular</button>
         </div>
-      </div>
+      </header>
 
-      <div className="max-w-2xl mx-auto px-4 py-4">
+      <section className="grid gap-3 sm:grid-cols-3" aria-label="Circular summary">
+        <article className="rounded-2xl bg-muted/45 p-5"><p className="text-sm text-muted-foreground">All circulars</p><p className="mt-3 text-3xl font-extrabold tabular-nums">{circulars.length}</p></article>
+        <article className="rounded-2xl bg-muted/45 p-5"><p className="text-sm text-muted-foreground">Unread</p><p className="mt-3 text-3xl font-extrabold tabular-nums text-primary">{unreadCount}</p></article>
+        <article className="rounded-2xl bg-muted/45 p-5"><p className="text-sm text-muted-foreground">Pinned</p><p className="mt-3 text-3xl font-extrabold tabular-nums">{circulars.filter(c => c.isPinned).length}</p></article>
+      </section>
+
+      <section className="space-y-4">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex gap-2 overflow-x-auto pb-1">{(['ALL', 'UNREAD', 'PINNED', 'URGENT'] as const).map(value => <button key={value} onClick={() => setFilter(value)} className={`min-h-10 shrink-0 rounded-xl px-4 text-sm font-semibold transition ${filter === value ? 'bg-foreground text-background' : 'bg-muted/55 text-muted-foreground hover:text-foreground'}`}>{value === 'ALL' ? 'All' : value === 'UNREAD' ? 'Unread' : value === 'PINNED' ? 'Pinned' : 'Urgent'}</button>)}</div>
+          <label className="relative w-full lg:w-80"><Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><span className="sr-only">Search circulars</span><input value={search} onChange={event => setSearch(event.target.value)} placeholder="Search title, number or author" className="h-11 w-full rounded-xl border border-border bg-card pl-10 pr-3 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/15" /></label>
+        </div>
+
+      <div>
         {/* Loading */}
         {loading && (
-          <div className="space-y-3">
+          <div className="grid gap-4 lg:grid-cols-2">
             {[1, 2, 3].map(i => (
-              <div key={i} className="h-28 rounded-2xl bg-gray-100 animate-pulse" />
+              <div key={i} className="h-64 rounded-2xl bg-muted/45 animate-pulse" />
             ))}
           </div>
         )}
 
         {/* Error */}
         {error && !loading && (
-          <div className="text-center py-12">
-            <p className="text-gray-500 mb-3">{error}</p>
-            <button onClick={refresh} className="px-4 py-2 rounded-xl bg-blue-600 text-white text-sm font-semibold">Retry</button>
+          <div className="rounded-2xl border border-danger/25 bg-danger-light/20 py-12 text-center" role="alert">
+            <p className="mb-3 text-sm text-muted-foreground">{error}</p>
+            <button onClick={refresh} className="rounded-xl bg-foreground px-4 py-2.5 text-sm font-semibold text-background">Retry</button>
           </div>
         )}
 
         {/* Empty */}
-        {!loading && !error && circulars.length === 0 && (
-          <div className="text-center py-16">
-            <FileText className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-            <p className="text-gray-500 font-medium">No circulars yet</p>
-            <p className="text-gray-400 text-sm mt-1">Publish a new circular for your department</p>
+        {!loading && !error && visibleCirculars.length === 0 && (
+          <div className="rounded-2xl border border-dashed border-border py-16 text-center">
+            <FileText className="mx-auto mb-3 h-9 w-9 text-muted-foreground" />
+            <p className="font-semibold">{circulars.length ? 'No matching circulars' : 'No circulars yet'}</p>
+            <p className="mt-1 text-sm text-muted-foreground">{circulars.length ? 'Change the search or filter to see more results.' : 'Publish a circular when your department has an update.'}</p>
           </div>
         )}
 
         {/* List */}
-        {!loading && circulars.length > 0 && (
-          <div className="space-y-3">
-            {circulars.map(c => (
-              <CircularCard
-                key={c.id}
-                circular={c}
-                onClick={setSelected}
-                onAcknowledge={handleAcknowledge}
-              />
-            ))}
+        {!loading && visibleCirculars.length > 0 && (
+          <div className="grid items-stretch gap-4 lg:grid-cols-2">
+            {visibleCirculars.map(c => <div key={c.id} className="relative"><CircularCard circular={c} onClick={handleOpen} /><div className="absolute bottom-4 right-4 flex items-center gap-1"><button type="button" onClick={(event) => { event.stopPropagation(); setPendingAction({ circular: c, action: 'clear' }); }} className="rounded-lg p-2 text-muted-foreground transition hover:bg-muted hover:text-foreground" title="Clear from my feed"><CheckCheck className="h-4 w-4" /></button>{c.authorId === user?.id && c.status === 'DRAFT' && <button type="button" onClick={(event) => { event.stopPropagation(); setPendingAction({ circular: c, action: 'delete' }); }} className="rounded-lg p-2 text-muted-foreground transition hover:bg-danger-light hover:text-danger" title="Delete draft"><Trash2 className="h-4 w-4" /></button>}{c.authorId === user?.id && c.status === 'PUBLISHED' && <button type="button" onClick={(event) => { event.stopPropagation(); setPendingAction({ circular: c, action: 'cancel' }); }} className="rounded-lg p-2 text-muted-foreground transition hover:bg-danger-light hover:text-danger" title="Cancel published circular"><Archive className="h-4 w-4" /></button>}</div></div>)}
           </div>
         )}
       </div>
+      </section>
 
       {/* Detail Sheet */}
       {selected && (
@@ -484,6 +525,8 @@ export const HodCircularPage: React.FC = () => {
           </div>
         </div>
       )}
+
+      {pendingAction && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 p-4 backdrop-blur-sm"><section role="dialog" aria-modal="true" aria-labelledby="circular-action-title" className="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-2xl"><div className="flex items-start justify-between gap-3"><div><p className="text-sm font-semibold text-danger">Confirm action</p><h2 id="circular-action-title" className="mt-1 text-xl font-bold">{pendingAction.action === 'clear' ? 'Clear circular?' : pendingAction.action === 'delete' ? 'Delete this draft?' : 'Cancel published circular?'}</h2></div><button onClick={() => setPendingAction(null)} className="rounded-lg p-2 text-muted-foreground hover:bg-muted" aria-label="Close confirmation"><X className="h-4 w-4" /></button></div><p className="mt-3 text-sm leading-6 text-muted-foreground">{pendingAction.action === 'clear' ? 'This removes the circular from your personal feed only.' : pendingAction.action === 'delete' ? 'The draft will be permanently deleted.' : 'Recipients will no longer see this published circular as active.'}</p><p className="mt-3 rounded-xl bg-muted/50 p-3 text-sm font-semibold">{pendingAction.circular.title}</p><div className="mt-6 flex justify-end gap-2"><button onClick={() => setPendingAction(null)} disabled={actionBusy} className="rounded-xl px-4 py-2.5 text-sm font-semibold hover:bg-muted">Keep it</button><button onClick={runPendingAction} disabled={actionBusy} className="rounded-xl bg-danger px-4 py-2.5 text-sm font-semibold text-danger-foreground disabled:opacity-60">{actionBusy ? 'Working...' : pendingAction.action === 'clear' ? 'Clear' : pendingAction.action === 'delete' ? 'Delete draft' : 'Cancel circular'}</button></div></section></div>}
 
       {/* Wizard Modal */}
       {showWizard && (
@@ -555,6 +598,6 @@ export const HodCircularPage: React.FC = () => {
           </div>
         </div>
       )}
-    </div>
+    </main>
   );
 };

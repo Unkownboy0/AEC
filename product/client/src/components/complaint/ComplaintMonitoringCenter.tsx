@@ -1,13 +1,13 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import {
   AlertTriangle, CheckCircle2, Clock, ShieldAlert, FileText,
-  Filter, Search, RefreshCw, Printer, Download, UserCheck,
-  Building2, ChevronRight, X, Sparkles, MessageSquare,
-  Send, ShieldCheck, User, Users, FolderCheck, BarChart3, Lock
+  Filter, Search, RefreshCw, Download, ChevronRight, X,
+  Sparkles, MessageSquare, Send, ShieldCheck, FolderCheck, BarChart3
 } from 'lucide-react';
 import { toast } from '../ui/Toast';
 import api from '../../lib/axios';
 import { useDevice } from '../../context/DeviceContext';
+import { useAuth } from '../../context/AuthContext';
 
 interface ComplaintMonitoringCenterProps {
   readOnly?: boolean;
@@ -15,12 +15,17 @@ interface ComplaintMonitoringCenterProps {
 
 export const ComplaintMonitoringCenter: React.FC<ComplaintMonitoringCenterProps> = () => {
   const { isMobile, isTablet } = useDevice();
+  const { user } = useAuth();
   const isMobileView = isMobile || isTablet;
+  const role = String(user?.role || '').toUpperCase().replace(/[\s_-]+/g, '');
+  const isHod = role === 'HOD' || role === 'HEADOFDEPARTMENT';
+  const scopeLabel = isHod ? 'Department grievance desk' : 'Institution grievance oversight';
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [analytics, setAnalytics] = useState<any>(null);
   const [feed, setFeed] = useState<any[]>([]);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   // Filter States
   const [selectedYear, setSelectedYear] = useState('2026-2027');
@@ -49,16 +54,17 @@ export const ComplaintMonitoringCenter: React.FC<ComplaintMonitoringCenterProps>
     if (isManualRefresh) setRefreshing(true);
     else setLoading(true);
 
+    setLoadError(null);
     try {
       api.post('/enterprise/complaints/audit', {
         action: 'VIEW',
-        description: 'Principal accessed Complaint Monitoring Center.'
+        description: `${role || 'USER'} accessed Complaint Monitoring Center.`
       }).catch(() => null);
 
       const [analyticsRes, feedRes] = await Promise.all([
         api.get('/enterprise/complaints/analytics', {
           params: { academicYear: selectedYear, departmentId: selectedDept }
-        }).catch(() => null),
+        }),
         api.get('/enterprise/complaints/feed', {
           params: {
             department: selectedDept,
@@ -67,7 +73,7 @@ export const ComplaintMonitoringCenter: React.FC<ComplaintMonitoringCenterProps>
             status: selectedStatus,
             priority: selectedPriority
           }
-        }).catch(() => null)
+        })
       ]);
 
       if (analyticsRes?.data?.status === 'success') {
@@ -76,9 +82,11 @@ export const ComplaintMonitoringCenter: React.FC<ComplaintMonitoringCenterProps>
       if (feedRes?.data?.status === 'success') {
         setFeed(feedRes.data.data.feed);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to load complaint monitoring data:', err);
-      toast.error('Failed to sync complaint monitoring feed.');
+      setAnalytics(null);
+      setFeed([]);
+      setLoadError(err?.response?.data?.message || 'Complaint records could not be loaded.');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -97,10 +105,10 @@ export const ComplaintMonitoringCenter: React.FC<ComplaintMonitoringCenterProps>
         c.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
         c.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
         c.submittedByName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        c.departmentCode.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (c.departmentCode || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
         c.category.toLowerCase().includes(searchQuery.toLowerCase());
 
-      const matchesDept = selectedDept === 'ALL' || c.departmentCode.toUpperCase() === selectedDept.toUpperCase();
+      const matchesDept = selectedDept === 'ALL' || (c.departmentCode || '').toUpperCase() === selectedDept.toUpperCase();
       const matchesRole = selectedRole === 'ALL' || c.submittedByRole.toUpperCase() === selectedRole.toUpperCase();
       const matchesCat = selectedCategory === 'ALL' || c.category.toUpperCase() === selectedCategory.toUpperCase();
       const matchesStat = selectedStatus === 'ALL' || c.status.toUpperCase() === selectedStatus.toUpperCase();
@@ -122,7 +130,7 @@ export const ComplaintMonitoringCenter: React.FC<ComplaintMonitoringCenterProps>
       });
 
       if (res.data?.status === 'success') {
-        toast.success('Internal oversight remark attached successfully.');
+        toast.success('Internal note saved.');
         setRemarkText('');
         fetchComplaintData(true);
         setSelectedComplaint((prev: any) => ({
@@ -131,8 +139,8 @@ export const ComplaintMonitoringCenter: React.FC<ComplaintMonitoringCenterProps>
             ...(prev.replies || []),
             {
               id: `REMARK-${Date.now()}`,
-              author: 'Principal',
-              role: 'PRINCIPAL',
+              author: isHod ? 'HOD' : 'Principal',
+              role: role || 'MANAGEMENT',
               content: remarkText.trim(),
               isInternalRemark: true,
               createdAt: new Date().toISOString()
@@ -175,20 +183,6 @@ export const ComplaintMonitoringCenter: React.FC<ComplaintMonitoringCenterProps>
       toast.error('Failed to dispatch escalation.');
     } finally {
       setSubmittingEscalation(false);
-    }
-  };
-
-  // Export PDF Report
-  const handleExportPDF = async () => {
-    try {
-      await api.post('/enterprise/complaints/audit', {
-        action: 'EXPORT',
-        description: 'Principal exported PDF Complaint Audit Summary.'
-      });
-      toast.success('Generating Institution-wide Complaint Summary PDF...');
-      window.print();
-    } catch {
-      toast.error('Export PDF failed.');
     }
   };
 
@@ -349,36 +343,15 @@ export const ComplaintMonitoringCenter: React.FC<ComplaintMonitoringCenterProps>
     }
   };
 
-  // Print Report
-  const handlePrint = async () => {
-    try {
-      await api.post('/enterprise/complaints/audit', {
-        action: 'PRINT',
-        description: 'Principal printed Complaint Monitoring Report.'
-      });
-      window.print();
-    } catch {
-      toast.error('Print request failed.');
-    }
-  };
-
   const kpis = analytics?.kpis || {
-    totalComplaints: 142,
-    pendingComplaints: 28,
-    underInvestigation: 18,
-    resolvedComplaints: 84,
-    escalatedComplaints: 12,
-    highPriority: 22,
-    criticalComplaints: 6,
-    studentComplaints: 95,
-    facultyComplaints: 32,
-    mentorComplaints: 12,
-    hodComplaints: 8,
-    anonymousComplaints: 5
+    totalComplaints: 0, pendingComplaints: 0, underInvestigation: 0,
+    resolvedComplaints: 0, escalatedComplaints: 0, highPriority: 0,
+    criticalComplaints: 0, studentComplaints: 0, facultyComplaints: 0,
+    mentorComplaints: 0, hodComplaints: 0, anonymousComplaints: 0,
   };
 
   const departmentDistribution = analytics?.departmentDistribution || [];
-  const categoryBreakdown = analytics?.categoryBreakdown || [];
+  const categoryBreakdown = (analytics?.categoryBreakdown || []).filter((item: any) => Number(item.count) > 0);
 
   if (loading && !analytics) {
     return (
@@ -389,94 +362,77 @@ export const ComplaintMonitoringCenter: React.FC<ComplaintMonitoringCenterProps>
     );
   }
 
+  if (loadError) {
+    return (
+      <section role="alert" className="rounded-2xl border border-danger/25 bg-card p-10 text-center">
+        <AlertTriangle className="mx-auto h-8 w-8 text-danger" />
+        <h2 className="mt-3 text-lg font-bold">Complaint data unavailable</h2>
+        <p className="mx-auto mt-2 max-w-xl text-sm text-muted-foreground">{loadError}</p>
+        <button onClick={() => fetchComplaintData(true)} className="mt-5 inline-flex min-h-10 items-center gap-2 rounded-xl bg-foreground px-4 text-sm font-semibold text-background"><RefreshCw className="h-4 w-4" />Retry</button>
+      </section>
+    );
+  }
+
   return (
     <div className="space-y-6 animate-in fade-in-50 duration-200">
       
-      {/* Header Banner */}
-      <div className="bg-gradient-to-r from-rose-950 via-slate-900 to-indigo-950 p-6 rounded-2xl text-white shadow-xl relative overflow-hidden">
-        <div className="absolute right-0 bottom-0 opacity-10 transform translate-y-8 translate-x-8">
-          <ShieldAlert className="h-64 w-64" />
-        </div>
-
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="space-y-2">
-            <div className="inline-flex flex-wrap items-center gap-1.5 bg-rose-500/20 border border-rose-400/30 px-3 py-1 rounded-full text-xs font-bold backdrop-blur-md uppercase tracking-wider text-rose-200">
-              <ShieldCheck className="h-3.5 w-3.5 text-emerald-400" /> Institution Monitoring Center (Read-Only Oversight)
+      <section className="rounded-2xl border bg-card p-6 shadow-sm">
+        <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
+          <div className="max-w-2xl space-y-2">
+            <div className="inline-flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.14em] text-primary">
+              <ShieldCheck className="h-4 w-4" /> {scopeLabel}
             </div>
-            <h2 className="text-2xl md:text-3xl font-extrabold tracking-tight">Complaint Monitoring Center</h2>
-            <p className="text-xs md:text-sm opacity-90 font-medium">
-              Real-time campus-wide grievance tracking, priority escalations & departmental resolution compliance
+            <h2 className="text-2xl font-bold tracking-tight text-foreground">{isHod ? 'Department complaints' : 'Complaint monitoring'}</h2>
+            <p className="text-sm leading-6 text-muted-foreground">
+              {isHod ? 'Live complaints from your department only. Review, add internal notes, and escalate records that need wider action.' : 'Live institution-wide complaint status, resolution progress, and escalation oversight.'}
             </p>
           </div>
-
-          {/* Action Buttons */}
           <div className="flex flex-wrap items-center gap-2">
             <button
-              onClick={handleExportPDF}
-              className="px-3 py-1.5 bg-white/10 hover:bg-white/20 border border-white/20 rounded-lg text-xs font-extrabold flex flex-wrap items-center gap-1.5 transition-colors"
-            >
-              <FileText className="h-3.5 w-3.5" /> Export PDF
-            </button>
-            <button
               onClick={handleExportCSV}
-              className="px-3 py-1.5 bg-emerald-600/80 hover:bg-emerald-600 border border-emerald-500/30 rounded-lg text-xs font-extrabold flex flex-wrap items-center gap-1.5 transition-colors"
+              className="inline-flex min-h-10 items-center gap-2 rounded-xl border bg-background px-4 text-sm font-semibold text-foreground hover:bg-muted"
             >
-              <Download className="h-3.5 w-3.5" /> Export CSV
-            </button>
-            <button
-              onClick={handlePrint}
-              className="px-3 py-1.5 bg-white/10 hover:bg-white/20 border border-white/20 rounded-lg text-xs font-extrabold flex flex-wrap items-center gap-1.5 transition-colors"
-            >
-              <Printer className="h-3.5 w-3.5" /> Print
+              <Download className="h-4 w-4" /> Export CSV
             </button>
             <button
               onClick={() => fetchComplaintData(true)}
               disabled={refreshing}
-              className="p-2 bg-white/10 hover:bg-white/20 border border-white/20 rounded-lg transition-colors"
-              title="Refresh Live Feed"
+              className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground disabled:opacity-60"
             >
-              <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+              <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} /> Refresh
             </button>
           </div>
         </div>
-      </div>
+      </section>
 
-      {/* 12 EXECUTIVE DASHBOARD CARDS GRID */}
-      <div className="grid grid-cols-1 md:grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-6">
         {[
           { label: 'Total Complaints', value: kpis.totalComplaints, icon: FileText, color: 'text-indigo-600 bg-indigo-50 border-indigo-100' },
           { label: 'Pending Review', value: kpis.pendingComplaints, icon: Clock, color: 'text-amber-600 bg-amber-50 border-amber-100' },
           { label: 'Under Investigation', value: kpis.underInvestigation, icon: Search, color: 'text-cyan-600 bg-cyan-50 border-cyan-100' },
           { label: 'Resolved Complaints', value: kpis.resolvedComplaints, icon: CheckCircle2, color: 'text-emerald-600 bg-emerald-50 border-emerald-100' },
           { label: 'Escalated Cases', value: kpis.escalatedComplaints, icon: ShieldAlert, color: 'text-rose-600 bg-rose-50 border-rose-100' },
-          { label: 'High Priority', value: kpis.highPriority, icon: AlertTriangle, color: 'text-orange-600 bg-orange-50 border-orange-100' },
-          { label: 'Critical Urgent', value: kpis.criticalComplaints, icon: ShieldAlert, color: 'text-purple-600 bg-purple-50 border-purple-100' },
-          { label: 'Student Complaints', value: kpis.studentComplaints, icon: Users, color: 'text-blue-600 bg-blue-50 border-blue-100' },
-          { label: 'Faculty Complaints', value: kpis.facultyComplaints, icon: UserCheck, color: 'text-teal-600 bg-teal-50 border-teal-100' },
-          { label: 'Mentor Complaints', value: kpis.mentorComplaints, icon: User, color: 'text-violet-600 bg-violet-50 border-violet-100' },
-          { label: 'HOD Complaints', value: kpis.hodComplaints, icon: Building2, color: 'text-pink-600 bg-pink-50 border-pink-100' },
-          { label: 'Anonymous Cases', value: kpis.anonymousComplaints, icon: Lock, color: 'text-slate-600 bg-slate-50 border-slate-100' }
+          { label: 'High / Critical', value: kpis.highPriority + kpis.criticalComplaints, icon: AlertTriangle, color: 'text-orange-600 bg-orange-50 border-orange-100' }
         ].map((kpi, idx) => {
           const Icon = kpi.icon;
           return (
-            <div key={idx} className="border bg-card p-3 rounded-xl shadow-sm space-y-1 text-xs font-semibold flex flex-col justify-between hover:border-primary/30 transition-all">
+            <div key={idx} className="flex min-h-24 flex-col justify-between rounded-2xl border bg-card p-4 shadow-sm transition-colors hover:border-primary/30">
               <div className="flex items-center justify-between">
-                <span className="text-[10px] text-muted-foreground uppercase font-extrabold truncate">{kpi.label}</span>
+                <span className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">{kpi.label}</span>
                 <div className={`p-1.5 rounded-lg border ${kpi.color}`}>
                   <Icon className="h-3.5 w-3.5" />
                 </div>
               </div>
-              <span className="text-lg font-black tracking-tight block text-foreground">{kpi.value}</span>
+              <span className="block text-2xl font-bold tracking-tight text-foreground">{kpi.value}</span>
             </div>
           );
         })}
       </div>
 
-      {/* FILTER & SEARCH CONTROL ENGINE */}
-      <div className="border bg-card p-4 rounded-xl shadow-sm space-y-3 text-xs font-semibold">
+      <div className="space-y-3 rounded-2xl border bg-card p-4 text-xs font-semibold shadow-sm">
         <div className="flex items-center justify-between border-b pb-2">
           <h3 className="text-xs uppercase font-extrabold tracking-wider flex flex-wrap items-center gap-1.5 text-foreground">
-            <Filter className="h-3.5 w-3.5 text-primary" /> Complaint Filtering Engine
+            <Filter className="h-3.5 w-3.5 text-primary" /> Filters
           </h3>
           <button
             onClick={() => {
@@ -493,9 +449,9 @@ export const ComplaintMonitoringCenter: React.FC<ComplaintMonitoringCenterProps>
           </button>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-2.5">
+        <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-6">
           {/* Academic Year */}
-          <div>
+          {!isHod && <div>
             <label className="text-[9px] uppercase font-bold text-muted-foreground block mb-1">Academic Year</label>
             <select
               value={selectedYear}
@@ -506,10 +462,10 @@ export const ComplaintMonitoringCenter: React.FC<ComplaintMonitoringCenterProps>
               <option value="2025-2026">2025-2026</option>
               <option value="2024-2025">2024-2025</option>
             </select>
-          </div>
+          </div>}
 
           {/* Dept */}
-          <div>
+          {!isHod && <div>
             <label className="text-[9px] uppercase font-bold text-muted-foreground block mb-1">Department</label>
             <select
               value={selectedDept}
@@ -521,7 +477,7 @@ export const ComplaintMonitoringCenter: React.FC<ComplaintMonitoringCenterProps>
                 <option key={d} value={d}>{d}</option>
               ))}
             </select>
-          </div>
+          </div>}
 
           {/* Role */}
           <div>
@@ -594,7 +550,7 @@ export const ComplaintMonitoringCenter: React.FC<ComplaintMonitoringCenterProps>
           </div>
 
           {/* Search Input (2 cols) */}
-          <div className="md:col-span-2">
+          <div className="sm:col-span-2">
             <label className="text-[9px] uppercase font-bold text-muted-foreground block mb-1">Search Feed</label>
             <div className="relative">
               <Search className="h-3.5 w-3.5 absolute left-2.5 top-2.5 text-muted-foreground" />
@@ -615,10 +571,10 @@ export const ComplaintMonitoringCenter: React.FC<ComplaintMonitoringCenterProps>
         <div className="flex justify-between items-center border-b pb-2">
           <div>
             <h3 className="text-sm font-extrabold uppercase tracking-wider text-foreground flex flex-wrap items-center gap-2">
-              <MessageSquare className="h-4 w-4 text-rose-600" /> Institutional Live Complaint Feed ({filteredFeed.length} Items)
+              <MessageSquare className="h-4 w-4 text-primary" /> {isHod ? 'Department complaint feed' : 'Institution complaint feed'} ({filteredFeed.length})
             </h3>
             <p className="text-[10px] text-muted-foreground font-semibold">
-              Sorted newest first. Principal has monitoring, escalation, internal remarking & reporting privileges.
+              Newest first. Select a record to review its full timeline or add an internal note.
             </p>
           </div>
           <span className="text-[9px] bg-rose-50 text-rose-700 font-extrabold px-2.5 py-1 rounded border border-rose-200 uppercase tracking-wider">
@@ -628,6 +584,13 @@ export const ComplaintMonitoringCenter: React.FC<ComplaintMonitoringCenterProps>
 
         {/* Complaint Cards Feed */}
         <div className={`space-y-3 ${isMobileView ? 'touch-pan-y' : ''}`}>
+          {filteredFeed.length === 0 && (
+            <div className="rounded-xl border border-dashed bg-background px-6 py-12 text-center">
+              <MessageSquare className="mx-auto h-7 w-7 text-muted-foreground" />
+              <h4 className="mt-3 text-sm font-semibold text-foreground">No complaints found</h4>
+              <p className="mt-1 text-xs text-muted-foreground">There are no real complaint records matching the current filters.</p>
+            </div>
+          )}
           {filteredFeed.map((c: any, idx: number) => (
             <div
               key={c.id || idx}
@@ -758,7 +721,7 @@ export const ComplaintMonitoringCenter: React.FC<ComplaintMonitoringCenterProps>
               </thead>
               <tbody className="divide-y text-xs">
                 {departmentDistribution.map((d: any, idx: number) => {
-                  const rate = d.total > 0 ? Math.round((d.resolved / d.total) * 100) : 80;
+                  const rate = d.total > 0 ? Math.round((d.resolved / d.total) * 100) : 0;
                   return (
                     <tr key={idx} className="hover:bg-muted/10">
                       <td className="py-2.5 font-extrabold text-foreground">{d.name} ({d.code})</td>
@@ -833,7 +796,7 @@ export const ComplaintMonitoringCenter: React.FC<ComplaintMonitoringCenterProps>
               {[
                 { key: 'details', label: 'Complaint Overview' },
                 { key: 'timeline', label: 'Investigation Timeline' },
-                { key: 'remarks', label: 'Principal Internal Remarks' },
+                { key: 'remarks', label: 'Internal notes' },
                 { key: 'escalate', label: 'Escalate Complaint' }
               ].map(t => (
                 <button
@@ -923,10 +886,10 @@ export const ComplaintMonitoringCenter: React.FC<ComplaintMonitoringCenterProps>
                 <div className="space-y-4">
                   <div className="p-4 border rounded-xl bg-indigo-50/40 space-y-2">
                     <h4 className="font-extrabold text-indigo-950 text-xs flex flex-wrap items-center gap-1.5 uppercase">
-                      <Sparkles className="h-4 w-4 text-indigo-600" /> Principal Internal Remarks (Oversight Notes)
+                      <Sparkles className="h-4 w-4 text-indigo-600" /> Internal management notes
                     </h4>
                     <p className="text-[11px] text-indigo-900 font-medium leading-relaxed">
-                      Attach internal remarks or instructions for the Dean without modifying the original complaint submitted by the user.
+                      Add a private operational note without changing the original complaint.
                     </p>
                   </div>
 
@@ -934,7 +897,7 @@ export const ComplaintMonitoringCenter: React.FC<ComplaintMonitoringCenterProps>
                     <textarea
                       required
                       rows={4}
-                      placeholder="Type Principal oversight remark or special instructions for Dean..."
+                      placeholder="Add an internal note or follow-up instruction..."
                       value={remarkText}
                       onChange={e => setRemarkText(e.target.value)}
                       className="w-full p-3 border rounded-xl bg-background text-xs font-medium focus:outline-none focus:border-primary resize-none"
@@ -958,7 +921,7 @@ export const ComplaintMonitoringCenter: React.FC<ComplaintMonitoringCenterProps>
                       <ShieldAlert className="h-4 w-4 text-rose-600" /> Escalate Institutional Complaint
                     </h4>
                     <p className="text-[11px] text-rose-900 font-medium leading-relaxed">
-                      Escalating this complaint will elevate its priority status to Critical/Urgent and notify the Dean and Executive Management.
+                      Escalating this complaint raises its priority and notifies the responsible management team.
                     </p>
                   </div>
 

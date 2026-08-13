@@ -6,6 +6,7 @@ const router = Router();
 const controller = new FilesController();
 
 router.get('/', requireAuth, requirePermission('files:read'), controller.list);
+router.get('/:id/download', requireAuth, requirePermission('files:read'), controller.download);
 router.post('/upload', requireAuth, (req, res, next) => {
   const user = (req as any).user;
   if (user && ['Student', 'HOD', 'Faculty', 'Super Admin', 'College Admin', 'Principal', 'Vice Principal'].includes(user.role)) {

@@ -1,50 +1,126 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import { Capacitor } from '@capacitor/core';
+import { StatusBar, Style } from '@capacitor/status-bar';
 
-type Theme = 'light' | 'dark' | 'system';
+/*
+  CAMPUSOS THEME SYSTEM v2
+  
+  Storage key: 'campusos_theme' (matches the flash-prevention script in index.html)
+  Supported values: 'light' | 'dark' | 'system'
+  
+  The .dark class is applied to <html> which drives all CSS tokens.
+  On Capacitor, the status bar is updated to match the active theme.
+*/
+
+export type ThemePreference = 'light' | 'dark' | 'system';
+export type ResolvedTheme = 'light' | 'dark';
+
+const STORAGE_KEY = 'campusos_theme';
+
+function getStoredPreference(): ThemePreference {
+  try {
+    const v = localStorage.getItem(STORAGE_KEY);
+    if (v === 'light' || v === 'dark' || v === 'system') return v;
+  } catch {}
+  return 'system';
+}
+
+function resolveTheme(preference: ThemePreference): ResolvedTheme {
+  if (preference === 'light') return 'light';
+  if (preference === 'dark') return 'dark';
+  // system
+  try {
+    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  } catch {
+    return 'light';
+  }
+}
+
+async function applyNativeStatusBar(resolved: ResolvedTheme): Promise<void> {
+  if (!Capacitor.isNativePlatform()) return;
+  try {
+    if (resolved === 'dark') {
+      await StatusBar.setStyle({ style: Style.Dark });
+      await StatusBar.setBackgroundColor({ color: '#0D1016' });
+    } else {
+      await StatusBar.setStyle({ style: Style.Light });
+      await StatusBar.setBackgroundColor({ color: '#FFFFFF' });
+    }
+  } catch (err) {
+    console.warn('[Theme] Status bar update failed:', err);
+  }
+}
+
+function applyDomTheme(resolved: ResolvedTheme): void {
+  const root = document.documentElement;
+  if (resolved === 'dark') {
+    root.classList.add('dark');
+  } else {
+    root.classList.remove('dark');
+  }
+  // Update theme-color meta for PWA
+  const lightMeta = document.querySelector('meta[name="theme-color"][media*="light"]');
+  const darkMeta = document.querySelector('meta[name="theme-color"][media*="dark"]');
+  if (lightMeta) lightMeta.setAttribute('content', '#F7F8FC');
+  if (darkMeta) darkMeta.setAttribute('content', '#090B10');
+}
 
 interface ThemeContextProps {
-  theme: Theme;
-  setTheme: (theme: Theme) => void;
+  preference: ThemePreference;
+  resolved: ResolvedTheme;
+  setTheme: (preference: ThemePreference) => void;
+  toggleTheme: () => void;
 }
 
 const ThemeContext = createContext<ThemeContextProps | undefined>(undefined);
 
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [theme, setTheme] = useState<Theme>(() => {
-    return (localStorage.getItem('geetorus_campusos_theme') as Theme) || 'system';
-  });
+  const [preference, setPreference] = useState<ThemePreference>(getStoredPreference);
+  const [resolved, setResolved] = useState<ResolvedTheme>(() => resolveTheme(getStoredPreference()));
 
+  const applyTheme = useCallback(async (pref: ThemePreference) => {
+    const res = resolveTheme(pref);
+    setResolved(res);
+    applyDomTheme(res);
+    await applyNativeStatusBar(res);
+  }, []);
+
+  // Initial apply
   useEffect(() => {
-    const root = window.document.documentElement;
-    root.classList.remove('light', 'dark');
+    applyTheme(preference);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-    if (theme === 'system') {
-      const systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches
-        ? 'dark'
-        : 'light';
-      root.classList.add(systemTheme);
-      return;
-    }
+  // Listen for OS appearance change when preference is 'system'
+  useEffect(() => {
+    if (preference !== 'system') return;
+    const mq = window.matchMedia('(prefers-color-scheme: dark)');
+    const handler = () => applyTheme('system');
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, [preference, applyTheme]);
 
-    root.classList.add(theme);
-  }, [theme]);
+  const setTheme = useCallback((pref: ThemePreference) => {
+    try {
+      localStorage.setItem(STORAGE_KEY, pref);
+    } catch {}
+    setPreference(pref);
+    applyTheme(pref);
+  }, [applyTheme]);
 
-  const handleSetTheme = (newTheme: Theme) => {
-    localStorage.setItem('geetorus_campusos_theme', newTheme);
-    setTheme(newTheme);
-  };
+  const toggleTheme = useCallback(() => {
+    const next: ThemePreference = resolved === 'dark' ? 'light' : 'dark';
+    setTheme(next);
+  }, [resolved, setTheme]);
 
   return (
-    <ThemeContext.Provider value={{ theme, setTheme: handleSetTheme }}>
+    <ThemeContext.Provider value={{ preference, resolved, setTheme, toggleTheme }}>
       {children}
     </ThemeContext.Provider>
   );
 };
 
-export const useTheme = () => {
-  const context = useContext(ThemeContext);
-  if (!context) {
-    throw new Error('useTheme must be used within a ThemeProvider');
-  }
-  return context;
+export const useTheme = (): ThemeContextProps => {
+  const ctx = useContext(ThemeContext);
+  if (!ctx) throw new Error('useTheme must be used within ThemeProvider');
+  return ctx;
 };

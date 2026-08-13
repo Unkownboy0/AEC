@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { IamController } from './iam.controller';
 import { requireAuth } from '../../core/middlewares/auth.middleware';
+import { requireSuperAdmin } from '../../core/middlewares/rbac.middleware';
 
 const router = Router();
 const controller = new IamController();
@@ -8,6 +9,7 @@ const controller = new IamController();
 router.use(requireAuth as any);
 
 router.get('/my-iam', controller.getMyIAM as any);
+router.use(requireSuperAdmin() as any);
 router.get('/directory', controller.getMasterUserDirectory as any);
 router.get('/designations', controller.getDesignations as any);
 router.post('/designations', controller.createDesignation as any);

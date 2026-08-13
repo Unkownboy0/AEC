@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { PrincipalAvailabilityController } from './availability.controller';
-import { requireAuth } from '../../core/middlewares/auth.middleware';
+import { requireAuth, requireRole } from '../../core/middlewares/auth.middleware';
 import { ActingPrincipalGuard } from './delegation.guard';
 
 const router = Router();
@@ -9,15 +9,22 @@ router.use(requireAuth);
 
 // Principal Routes
 router.get('/principal/availability/context', PrincipalAvailabilityController.getContext);
-router.post('/principal/availability', PrincipalAvailabilityController.updateAvailability);
-router.get('/principal/approval-center', PrincipalAvailabilityController.getPrincipalApprovalCenter);
+router.get('/principal/availability/eligible-delegates', requireRole(['Principal']), PrincipalAvailabilityController.getEligibleDelegates);
+router.post('/principal/availability', requireRole(['Principal']), PrincipalAvailabilityController.updateAvailability);
+router.get('/principal/approval-center', requireRole(['Principal']), PrincipalAvailabilityController.getPrincipalApprovalCenter);
+router.post('/principal/approval-center/requests/:id/approve', requireRole(['Principal']), PrincipalAvailabilityController.approvePrincipalRequest);
+router.post('/principal/approval-center/requests/:id/reject', requireRole(['Principal']), PrincipalAvailabilityController.rejectPrincipalRequest);
+router.post('/principal/approval-center/requests/:id/return', requireRole(['Principal']), PrincipalAvailabilityController.returnPrincipalRequest);
+router.post('/approval-requests/:id/approve', requireRole(['Principal']), PrincipalAvailabilityController.approvePrincipalRequest);
+router.post('/approval-requests/:id/reject', requireRole(['Principal']), PrincipalAvailabilityController.rejectPrincipalRequest);
+router.post('/approval-requests/:id/return', requireRole(['Principal']), PrincipalAvailabilityController.returnPrincipalRequest);
 
 // Principal Handover Routes
 router.get('/principal/handover/latest', PrincipalAvailabilityController.getLatestHandover);
 router.post('/principal/handover/:id/acknowledge', PrincipalAvailabilityController.acknowledgeHandover);
 
 // Vice Principal Acting Principal Routes
-router.get('/vp/acting-principal/context', PrincipalAvailabilityController.getContext);
+router.get('/vp/acting-principal/context', requireRole(['VP', 'Vice Principal']), PrincipalAvailabilityController.getContext);
 router.get(
   '/vp/acting-principal/approvals',
   ActingPrincipalGuard.requireActiveDelegation,

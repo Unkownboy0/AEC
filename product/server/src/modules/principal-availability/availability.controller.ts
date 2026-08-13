@@ -1,5 +1,5 @@
 import { Response } from 'express';
-import { AuthenticatedRequest } from './delegation.guard';
+import { AuthenticatedRequest, authorizeDelegatedAssignmentAction, authorizeDirectPrincipalAction, DelegatedAction } from './delegation.guard';
 import { PrincipalAvailabilityResolver } from './availability.resolver';
 import { PrincipalAvailabilityService } from './availability.service';
 import { PrincipalRequestRoutingService } from './request-routing.service';
@@ -7,17 +7,71 @@ import { ApprovalTimelineService } from '../approvals/approval-timeline.service'
 import { HandoverService } from './handover.service';
 import { prisma } from '../../lib/prisma';
 import { logger } from '../../utils/logger';
+import { NotificationService } from '../notifications/notification.service';
+import { broadcastRBACUpdate } from '../../lib/socket';
 
 export class PrincipalAvailabilityController {
+  private static async completeDirectActionSideEffects(params: { requestId: string; assignmentId?: string; action: 'APPROVED' | 'REJECTED' | 'RETURNED'; actorId: string; remarks: string; ip?: string; userAgent?: string }) {
+    const [workflow, leave] = await Promise.all([
+      prisma.workflowRequest.findUnique({ where: { id: params.requestId }, include: { student: { include: { user: true } }, facultyRequester: { include: { user: true } } } }),
+      (prisma as any).facultyLeaveRequest.findFirst({ where: { OR: [{ id: params.requestId }, { requestNumber: params.requestId }] }, include: { faculty: { include: { user: true } } } }),
+    ]);
+    const applicantRecipientId = workflow?.student?.user?.id || workflow?.facultyRequester?.user?.id || leave?.faculty?.user?.id;
+    const recipientId = applicantRecipientId || params.actorId;
+    await NotificationService.sendNotification({
+        recipientId,
+        eventType: `PRINCIPAL_REQUEST_${params.action}`,
+        title: applicantRecipientId ? `Request ${params.action.toLowerCase()}` : `Principal action recorded`,
+        message: applicantRecipientId
+          ? `The Principal ${params.action.toLowerCase()} your request. ${params.remarks}`
+          : `Request ${params.requestId} was ${params.action.toLowerCase()}. The legacy request has no linked recipient account.`,
+        relatedEntityType: 'APPROVAL_REQUEST', relatedEntityId: params.requestId,
+        deepLinkRoute: workflow?.studentId ? '/student/leave-od' : '/faculty/leave-od',
+        deliveryChannel: 'IN_APP',
+      });
+    await prisma.auditLog.create({ data: {
+      actorId: params.actorId, action: params.action, entityType: 'APPROVAL_REQUEST', entityId: params.requestId,
+      description: `Principal ${params.action.toLowerCase()} request ${params.requestId}`,
+      newValues: JSON.stringify({ status: params.action, remarks: params.remarks, notificationRecipientId: recipientId, applicantRecipientResolved: Boolean(applicantRecipientId) }),
+      ipAddress: params.ip, userAgent: params.userAgent,
+    } });
+    broadcastRBACUpdate({ type: 'APPROVAL_UPDATED', userId: recipientId, payload: { requestId: params.requestId, status: params.action } });
+    broadcastRBACUpdate({ type: 'DASHBOARD_UPDATED', userId: params.actorId, payload: { source: 'PRINCIPAL_APPROVAL', requestId: params.requestId } });
+  }
+  /**
+   * GET /api/principal/availability/eligible-delegates
+   */
+  static async getEligibleDelegates(req: AuthenticatedRequest, res: Response) {
+    try {
+      const delegates = await PrincipalAvailabilityService.getEligibleDelegates();
+      return res.status(200).json({
+        success: true,
+        data: delegates,
+      });
+    } catch (error: any) {
+      logger.error('Error fetching eligible delegates:', error);
+      return res.status(500).json({
+        success: false,
+        error: error.message || 'Failed to fetch eligible delegates',
+      });
+    }
+  }
+
   /**
    * GET /api/principal/availability/context & GET /api/vp/acting-principal/context
    */
   static async getContext(req: AuthenticatedRequest, res: Response) {
     try {
-      const context = await PrincipalAvailabilityResolver.resolveContext(req.user?.id);
+      const context = await PrincipalAvailabilityResolver.resolveContext();
+      const role = String(req.user?.role || '').toUpperCase().replace(/[\s_]+/g, '');
+      const isVpRequest = role === 'VP' || role === 'VICEPRINCIPAL';
+      const isDesignatedVp = Boolean(isVpRequest && context.actingPrincipal?.userId === req.user?.id && context.delegationStatus === 'ACTIVE');
+      const personalizedContext = isVpRequest && !isDesignatedVp
+        ? { ...context, actingPrincipal: null, delegation: null, canVpActAsPrincipal: false, pendingActingRequests: 0 }
+        : context;
       return res.status(200).json({
         success: true,
-        data: context,
+        data: personalizedContext,
       });
     } catch (error: any) {
       logger.error('Error fetching principal availability context:', error);
@@ -47,6 +101,43 @@ export class PrincipalAvailabilityController {
         error: error.message || 'Failed to update availability status',
       });
     }
+  }
+
+  /**
+   * Deny-by-default check that the current VP is actually entitled to act on this specific
+   * delegated assignment right now (active delegation, correct delegate, category actually
+   * delegated, assignment still pending). Writes a denial audit row and 403/409 response on failure.
+   */
+  private static async authorizeDelegatedAction(
+    res: Response,
+    assignment: { id: string; assignedUserId: string; assignedRole: string; requestType: string; status: string; delegationId?: string | null; departmentId?: string | null; workflowStage?: string | null; financialAmount?: number | null },
+    vpUserId: string,
+    action: DelegatedAction
+  ): Promise<boolean> {
+    const context = await PrincipalAvailabilityResolver.resolveContext();
+    const result = authorizeDelegatedAssignmentAction(context, assignment, vpUserId, action);
+
+    if (!result.ok) {
+      try {
+        await (prisma as any).delegationActionLog.create({
+          data: {
+            delegationId: assignment.delegationId || context.delegation?.id || null,
+            module: assignment.requestType,
+            recordId: assignment.id,
+            actionType: 'DENIED',
+            performedByUserId: vpUserId,
+            performedByRole: 'VICE_PRINCIPAL',
+            performedAsRole: 'ACTING_PRINCIPAL',
+            remarks: `${result.code}: ${result.error}`,
+          },
+        });
+      } catch (err) {}
+
+      res.status(result.status).json({ success: false, code: result.code, error: result.error });
+      return false;
+    }
+
+    return true;
   }
 
   /**
@@ -146,10 +237,30 @@ export class PrincipalAvailabilityController {
         include: { delegation: true },
       });
 
-      const pending = assignments.filter((a: any) => a.status === 'PENDING');
-      const approved = assignments.filter((a: any) => a.status === 'APPROVED');
-      const rejected = assignments.filter((a: any) => a.status === 'REJECTED');
-      const returned = assignments.filter((a: any) => a.assignmentType === 'RETURNED_TO_PRINCIPAL' || a.status === 'RETURNED');
+      // Enrich assignments with applicant's leave reason
+      const reqIds = assignments.map((a: any) => a.requestId);
+      const leaves = await (prisma as any).facultyLeaveRequest.findMany({
+        where: { OR: [{ id: { in: reqIds } }, { requestNumber: { in: reqIds } }] },
+      });
+      const leaveMap = new Map();
+      leaves.forEach((l: any) => {
+        leaveMap.set(l.id, l);
+        leaveMap.set(l.requestNumber, l);
+      });
+
+      const enrichedRequests = assignments.map((a: any) => {
+        const matchNo = (a.title || '').match(/([A-Z]+-\d{4}-\d+)/i);
+        const l = leaveMap.get(a.requestId) || (matchNo ? leaveMap.get(matchNo[1]) : null);
+        return {
+          ...a,
+          reason: l?.reason || a.actionRemarks || `Leave Application for ${a.title?.replace(/\[.*?\]\s*/g, '') || 'Official Authorization'}`,
+        };
+      });
+
+      const pending = enrichedRequests.filter((a: any) => a.status === 'PENDING');
+      const approved = enrichedRequests.filter((a: any) => a.status === 'APPROVED');
+      const rejected = enrichedRequests.filter((a: any) => a.status === 'REJECTED');
+      const returned = enrichedRequests.filter((a: any) => a.assignmentType === 'RETURNED_TO_PRINCIPAL' || a.status === 'RETURNED');
 
       return res.status(200).json({
         success: true,
@@ -162,7 +273,7 @@ export class PrincipalAvailabilityController {
             returnedCount: returned.length,
             urgentCount: pending.filter((p: any) => (p.title || '').toLowerCase().includes('urgent')).length,
           },
-          requests: assignments,
+          requests: enrichedRequests,
         },
       });
     } catch (error: any) {
@@ -190,20 +301,37 @@ export class PrincipalAvailabilityController {
 
       const vpUserId = req.user?.id || context.actingPrincipal.userId;
 
+      // Scoped to this VP only — assignedRole alone is not sufficient since a different VP's
+      // historical delegated assignments would otherwise leak into this VP's queue.
       const assignments = await (prisma as any).approvalAssignment.findMany({
-        where: {
-          OR: [
-            { assignedUserId: vpUserId },
-            { assignedRole: 'ACTING_PRINCIPAL' },
-          ],
-        },
+        where: { assignedUserId: vpUserId },
         orderBy: { createdAt: 'desc' },
       });
 
-      const pending = assignments.filter((a: any) => a.status === 'PENDING');
-      const approvedToday = assignments.filter((a: any) => a.status === 'APPROVED');
-      const rejectedToday = assignments.filter((a: any) => a.status === 'REJECTED');
-      const returned = assignments.filter((a: any) => a.status === 'RETURNED' || a.status === 'NEEDS_INFORMATION');
+      // Enrich assignments with applicant's leave reason
+      const reqIds = assignments.map((a: any) => a.requestId);
+      const leaves = await (prisma as any).facultyLeaveRequest.findMany({
+        where: { OR: [{ id: { in: reqIds } }, { requestNumber: { in: reqIds } }] },
+      });
+      const leaveMap = new Map();
+      leaves.forEach((l: any) => {
+        leaveMap.set(l.id, l);
+        leaveMap.set(l.requestNumber, l);
+      });
+
+      const enrichedRequests = assignments.map((a: any) => {
+        const matchNo = (a.title || '').match(/([A-Z]+-\d{4}-\d+)/i);
+        const l = leaveMap.get(a.requestId) || (matchNo ? leaveMap.get(matchNo[1]) : null);
+        return {
+          ...a,
+          reason: l?.reason || a.actionRemarks || `Leave Application for ${a.title?.replace(/\[.*?\]\s*/g, '') || 'Official Authorization'}`,
+        };
+      });
+
+      const pending = enrichedRequests.filter((a: any) => a.status === 'PENDING');
+      const approvedToday = enrichedRequests.filter((a: any) => a.status === 'APPROVED');
+      const rejectedToday = enrichedRequests.filter((a: any) => a.status === 'REJECTED');
+      const returned = enrichedRequests.filter((a: any) => a.status === 'RETURNED' || a.status === 'NEEDS_INFORMATION');
       const urgent = pending.filter((p: any) => (p.title || '').toLowerCase().includes('urgent') || p.isUrgent);
 
       return res.status(200).json({
@@ -218,8 +346,8 @@ export class PrincipalAvailabilityController {
             returned: returned.length,
           },
           pendingRequests: pending,
-          processedRequests: assignments.filter((a: any) => a.status !== 'PENDING'),
-          requests: assignments,
+          processedRequests: enrichedRequests.filter((a: any) => a.status !== 'PENDING'),
+          requests: enrichedRequests,
         },
       });
     } catch (error: any) {
@@ -247,6 +375,15 @@ export class PrincipalAvailabilityController {
 
       if (!assignment) {
         return res.status(404).json({ success: false, error: 'Approval request not found' });
+      }
+
+      const vpUserId = req.user?.id || '';
+      if (assignment.assignedUserId !== vpUserId) {
+        return res.status(403).json({ success: false, code: 'ASSIGNMENT_NOT_DELEGATED', error: 'This request is not assigned to you.' });
+      }
+
+      if (!req.actingDelegationId || assignment.delegationId !== req.actingDelegationId) {
+        return res.status(403).json({ success: false, code: 'DELEGATION_MISMATCH', error: 'This request is outside the current active delegation.' });
       }
 
       return res.status(200).json({
@@ -277,6 +414,10 @@ export class PrincipalAvailabilityController {
 
       if (!assignment) {
         return res.status(404).json({ success: false, error: 'Approval assignment not found' });
+      }
+
+      if (!(await PrincipalAvailabilityController.authorizeDelegatedAction(res, assignment, vpUserId, 'approve'))) {
+        return;
       }
 
       // Update assignment record
@@ -376,6 +517,10 @@ export class PrincipalAvailabilityController {
         return res.status(404).json({ success: false, error: 'Approval assignment not found' });
       }
 
+      if (!(await PrincipalAvailabilityController.authorizeDelegatedAction(res, assignment, vpUserId, 'reject'))) {
+        return;
+      }
+
       const updatedAssignment = await (prisma as any).approvalAssignment.update({
         where: { id: assignment.id },
         data: {
@@ -470,6 +615,10 @@ export class PrincipalAvailabilityController {
         return res.status(404).json({ success: false, error: 'Approval assignment not found' });
       }
 
+      if (!(await PrincipalAvailabilityController.authorizeDelegatedAction(res, assignment, vpUserId, 'return'))) {
+        return;
+      }
+
       const updatedAssignment = await (prisma as any).approvalAssignment.update({
         where: { id: assignment.id },
         data: {
@@ -525,6 +674,10 @@ export class PrincipalAvailabilityController {
         return res.status(404).json({ success: false, error: 'Approval assignment not found' });
       }
 
+      if (!(await PrincipalAvailabilityController.authorizeDelegatedAction(res, assignment, vpUserId, 'request-info'))) {
+        return;
+      }
+
       const updatedAssignment = await (prisma as any).approvalAssignment.update({
         where: { id: assignment.id },
         data: {
@@ -534,6 +687,10 @@ export class PrincipalAvailabilityController {
           actionAsRole: 'ACTING_PRINCIPAL',
           actionRemarks: remarks,
         },
+      });
+
+      await (prisma as any).delegationActionLog.create({
+        data: { delegationId: assignment.delegationId, module: assignment.requestType, recordId: assignment.requestId, actionType: 'REQUESTED_INFORMATION', performedByUserId: vpUserId, performedByRole: 'VICE_PRINCIPAL', performedAsRole: 'ACTING_PRINCIPAL', remarks },
       });
 
       return res.status(200).json({
@@ -604,5 +761,233 @@ export class PrincipalAvailabilityController {
         error: error.message || 'Failed to acknowledge handover',
       });
     }
+  }
+
+  /**
+   * POST /api/principal/approval-center/requests/:id/approve
+   */
+  static async approvePrincipalRequest(req: AuthenticatedRequest, res: Response) {
+    try {
+      const assignmentId = req.params.id;
+      const principalUserId = req.user?.id || 'SYSTEM_PRINCIPAL';
+      const principalName = req.user ? `${req.user.email}` : 'Principal Executive';
+      const remarks = req.body.remarks || 'Approved by Principal Executive';
+
+      const assignment = await (prisma as any).approvalAssignment.findFirst({
+        where: {
+          OR: [
+            { id: assignmentId },
+            { requestId: assignmentId },
+          ],
+        },
+      });
+
+      const authResult = authorizeDirectPrincipalAction(req.user?.role, principalUserId, assignment);
+      if (!authResult.ok) {
+        return res.status(authResult.status).json({ success: false, code: authResult.code, error: authResult.error });
+      }
+
+      const targetReqId = assignment?.requestId || assignmentId;
+      const matchNo = (assignment?.title || assignmentId || '').match(/([A-Z]+-\d{4}-\d+)/i);
+      const reqNo = matchNo ? matchNo[1] : null;
+
+      if (assignment) {
+        await (prisma as any).approvalAssignment.update({
+          where: { id: assignment.id },
+          data: {
+            status: 'APPROVED',
+            completedAt: new Date(),
+            actionByUserId: principalUserId,
+            actionByRole: 'PRINCIPAL',
+            actionAsRole: 'PRINCIPAL',
+            actionRemarks: remarks,
+          },
+        });
+      }
+
+      try {
+        await (prisma as any).facultyLeaveRequest.updateMany({
+          where: {
+            OR: [
+              { id: targetReqId },
+              { requestNumber: targetReqId },
+              ...(reqNo ? [{ requestNumber: reqNo }, { id: reqNo }] : []),
+            ],
+          },
+          data: {
+            status: 'APPROVED_PRINCIPAL',
+            principalApprovedAt: new Date(),
+            principalRemarks: remarks,
+          },
+        });
+      } catch (err) {}
+
+      try {
+        await prisma.workflowRequest.updateMany({
+          where: {
+            OR: [
+              { id: targetReqId },
+              ...(reqNo ? [{ id: reqNo }] : []),
+            ],
+          },
+          data: {
+            status: 'APPROVED',
+          },
+        });
+      } catch (err) {}
+
+      await ApprovalTimelineService.recordEvent({
+        requestId: targetReqId,
+        eventType: 'APPROVED',
+        fromStage: 'PRINCIPAL',
+        toStage: 'APPROVED',
+        fromStatus: 'PENDING',
+        toStatus: 'APPROVED',
+        actorUserId: principalUserId,
+        actorNameSnapshot: principalName,
+        actorRole: 'PRINCIPAL',
+        actorDisplayRole: 'Principal Executive',
+        performedAsRole: 'PRINCIPAL',
+        remarks,
+        idempotencyKey: `${targetReqId}:APPROVED:${Date.now()}`,
+      });
+
+      await PrincipalAvailabilityController.completeDirectActionSideEffects({ requestId: targetReqId, assignmentId: assignment?.id, action: 'APPROVED', actorId: principalUserId, remarks, ip: req.ip, userAgent: req.headers['user-agent'] });
+
+      return res.status(200).json({
+        success: true,
+        message: 'Request successfully approved by Principal',
+      });
+    } catch (error: any) {
+      return res.status(500).json({
+        success: false,
+        error: error.message || 'Failed to approve request',
+      });
+    }
+  }
+
+  /**
+   * POST /api/principal/approval-center/requests/:id/reject
+   */
+  static async rejectPrincipalRequest(req: AuthenticatedRequest, res: Response) {
+    try {
+      const assignmentId = req.params.id;
+      const principalUserId = req.user?.id || 'SYSTEM_PRINCIPAL';
+      const principalName = req.user ? `${req.user.email}` : 'Principal Executive';
+      const remarks = req.body.remarks || 'Rejected by Principal Executive';
+
+      const assignment = await (prisma as any).approvalAssignment.findFirst({
+        where: {
+          OR: [
+            { id: assignmentId },
+            { requestId: assignmentId },
+          ],
+        },
+      });
+
+      const authResult = authorizeDirectPrincipalAction(req.user?.role, principalUserId, assignment);
+      if (!authResult.ok) {
+        return res.status(authResult.status).json({ success: false, code: authResult.code, error: authResult.error });
+      }
+
+      const targetReqId = assignment?.requestId || assignmentId;
+      const matchNo = (assignment?.title || assignmentId || '').match(/([A-Z]+-\d{4}-\d+)/i);
+      const reqNo = matchNo ? matchNo[1] : null;
+
+      if (assignment) {
+        await (prisma as any).approvalAssignment.update({
+          where: { id: assignment.id },
+          data: {
+            status: 'REJECTED',
+            completedAt: new Date(),
+            actionByUserId: principalUserId,
+            actionByRole: 'PRINCIPAL',
+            actionAsRole: 'PRINCIPAL',
+            actionRemarks: remarks,
+          },
+        });
+      }
+
+      try {
+        await (prisma as any).facultyLeaveRequest.updateMany({
+          where: {
+            OR: [
+              { id: targetReqId },
+              { requestNumber: targetReqId },
+              ...(reqNo ? [{ requestNumber: reqNo }, { id: reqNo }] : []),
+            ],
+          },
+          data: {
+            status: 'REJECTED_PRINCIPAL',
+            principalRemarks: remarks,
+          },
+        });
+      } catch (err) {}
+
+      try {
+        await prisma.workflowRequest.updateMany({
+          where: {
+            OR: [
+              { id: targetReqId },
+              ...(reqNo ? [{ id: reqNo }] : []),
+            ],
+          },
+          data: {
+            status: 'REJECTED',
+          },
+        });
+      } catch (err) {}
+
+      await ApprovalTimelineService.recordEvent({
+        requestId: targetReqId,
+        eventType: 'REJECTED',
+        fromStage: 'PRINCIPAL',
+        toStage: 'REJECTED',
+        fromStatus: 'PENDING',
+        toStatus: 'REJECTED',
+        actorUserId: principalUserId,
+        actorNameSnapshot: principalName,
+        actorRole: 'PRINCIPAL',
+        actorDisplayRole: 'Principal Executive',
+        performedAsRole: 'PRINCIPAL',
+        remarks,
+        idempotencyKey: `${targetReqId}:REJECTED:${Date.now()}`,
+      });
+
+      await PrincipalAvailabilityController.completeDirectActionSideEffects({ requestId: targetReqId, assignmentId: assignment?.id, action: 'REJECTED', actorId: principalUserId, remarks, ip: req.ip, userAgent: req.headers['user-agent'] });
+
+      return res.status(200).json({
+        success: true,
+        message: 'Request rejected by Principal',
+      });
+    } catch (error: any) {
+      return res.status(500).json({
+        success: false,
+        error: error.message || 'Failed to reject request',
+      });
+    }
+  }
+
+  /** POST /api/principal/approval-center/requests/:id/return */
+  static async returnPrincipalRequest(req: AuthenticatedRequest, res: Response) {
+    try {
+      const assignmentId = req.params.id;
+      const principalUserId = req.user?.id || 'SYSTEM_PRINCIPAL';
+      const remarks = String(req.body?.remarks || '').trim();
+      if (remarks.length < 3) return res.status(400).json({ success: false, error: 'Return remarks are required' });
+      const assignment = await (prisma as any).approvalAssignment.findFirst({ where: { OR: [{ id: assignmentId }, { requestId: assignmentId }] } });
+      const authResult = authorizeDirectPrincipalAction(req.user?.role, principalUserId, assignment);
+      if (!authResult.ok) return res.status(authResult.status).json({ success: false, code: authResult.code, error: authResult.error });
+      const targetReqId = assignment.requestId;
+
+      await prisma.$transaction(async (tx) => {
+        await (tx as any).approvalAssignment.update({ where: { id: assignment.id }, data: { status: 'RETURNED', returnedAt: new Date(), completedAt: new Date(), actionByUserId: principalUserId, actionByRole: 'PRINCIPAL', actionAsRole: 'PRINCIPAL', actionRemarks: remarks } });
+        await (tx as any).facultyLeaveRequest.updateMany({ where: { OR: [{ id: targetReqId }, { requestNumber: targetReqId }] }, data: { status: 'RETURNED_BY_PRINCIPAL', principalRemarks: remarks } });
+        await tx.workflowRequest.updateMany({ where: { id: targetReqId }, data: { status: 'CLARIFICATION_REQUESTED', currentStep: 'HOD' } });
+      });
+      await ApprovalTimelineService.recordEvent({ requestId: targetReqId, eventType: 'RETURNED', fromStage: 'PRINCIPAL', toStage: 'HOD', fromStatus: 'PENDING', toStatus: 'CLARIFICATION_REQUESTED', actorUserId: principalUserId, actorNameSnapshot: req.user?.email || 'Principal Executive', actorRole: 'PRINCIPAL', actorDisplayRole: 'Principal Executive', performedAsRole: 'PRINCIPAL', remarks, idempotencyKey: `${targetReqId}:RETURNED:${Date.now()}` });
+      await PrincipalAvailabilityController.completeDirectActionSideEffects({ requestId: targetReqId, assignmentId: assignment.id, action: 'RETURNED', actorId: principalUserId, remarks, ip: req.ip, userAgent: req.headers['user-agent'] });
+      return res.status(200).json({ success: true, message: 'Request returned for correction' });
+    } catch (error: any) { return res.status(500).json({ success: false, error: error.message || 'Failed to return request' }); }
   }
 }

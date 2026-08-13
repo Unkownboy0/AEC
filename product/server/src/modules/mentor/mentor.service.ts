@@ -4,6 +4,38 @@ import { NotificationService } from '../notifications/notification.service';
 import { AuditService } from '../security/audit.service';
 
 export class MentorService {
+  private async requireFaculty(userId: string) {
+    const faculty = await prisma.faculty.findFirst({ where: { userId } });
+    if (!faculty) throw new NotFoundException('Mentor faculty profile not found');
+    return faculty;
+  }
+
+  private async requireMentee(facultyId: string, studentId: string) {
+    const student = await prisma.student.findFirst({
+      where: {
+        id: studentId,
+        deleted: false,
+        OR: [{ mentorId: facultyId }, { mentorAssignments: { some: { mentorId: facultyId, status: 'ACTIVE' } } }],
+      },
+    });
+    if (!student) throw new ForbiddenException('Access denied: this student is not assigned to you');
+    return student;
+  }
+
+  async getCounselingRecords(userId: string) {
+    const faculty = await this.requireFaculty(userId);
+    const records = await prisma.counselingRecord.findMany({
+      where: { mentorId: faculty.id },
+      include: { student: true },
+      orderBy: { createdAt: 'desc' },
+    });
+    return records.map((record) => ({
+      ...record,
+      studentName: `${record.student.firstName} ${record.student.lastName}`,
+      date: record.createdAt.toISOString(),
+    }));
+  }
+
   /**
    * 1. Get Mentor Dashboard Stats
    */
@@ -18,7 +50,7 @@ export class MentorService {
       : null;
 
     const assignedStudents = await prisma.student.findMany({
-      where: { mentorId: faculty.id, deleted: false },
+      where: { deleted: false, OR: [{ mentorId: faculty.id }, { mentorAssignments: { some: { mentorId: faculty.id, status: 'ACTIVE' } } }] },
       include: {
         department: true,
         program: true,
@@ -116,7 +148,7 @@ export class MentorService {
     if (!faculty) throw new NotFoundException('Mentor faculty profile not found');
 
     const students = await prisma.student.findMany({
-      where: { mentorId: faculty.id, deleted: false },
+      where: { deleted: false, OR: [{ mentorId: faculty.id }, { mentorAssignments: { some: { mentorId: faculty.id, status: 'ACTIVE' } } }] },
       include: {
         department: true,
         program: true,
@@ -177,9 +209,7 @@ export class MentorService {
     });
 
     if (!student) throw new NotFoundException('Student record not found');
-    if (student.mentorId !== faculty.id) {
-      throw new ForbiddenException('Access denied: You can only view details of your assigned mentor students');
-    }
+    await this.requireMentee(faculty.id, studentId);
 
     const [attendance, marks, leaveRequests, counseling] = await Promise.all([
       prisma.attendance.findMany({
@@ -219,7 +249,7 @@ export class MentorService {
 
     const requests = await prisma.studentLeaveRequest.findMany({
       where: {
-        student: { mentorId: faculty.id },
+        student: { OR: [{ mentorId: faculty.id }, { mentorAssignments: { some: { mentorId: faculty.id, status: 'ACTIVE' } } }] },
         status: 'PENDING_MENTOR',
       },
       include: {
@@ -266,6 +296,8 @@ export class MentorService {
     });
 
     if (!request) throw new NotFoundException('Leave/OD request not found');
+    await this.requireMentee(faculty.id, request.studentId);
+    if (request.status !== 'PENDING_MENTOR') throw new BadRequestException('This request is not pending Mentor review');
 
     if (payload.action === 'APPROVE') {
       const hodUser = await prisma.user.findFirst({
@@ -337,6 +369,8 @@ export class MentorService {
   }) {
     const faculty = await prisma.faculty.findFirst({ where: { userId } });
     if (!faculty) throw new NotFoundException('Mentor faculty profile not found');
+    await this.requireMentee(faculty.id, studentId);
+    if (!payload.notes?.trim()) throw new BadRequestException('Mentor note is required');
 
     const note = await prisma.counselingRecord.create({
       data: {

@@ -40,7 +40,7 @@ export const ApprovalCategoryFilter: React.FC<ApprovalCategoryFilterProps> = ({
   counts,
 }) => {
   return (
-    <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-6 bg-slate-900/50 p-2 rounded-2xl border border-slate-800">
+    <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-6 bg-surface p-2 rounded-2xl border border-border shadow-xs">
       {/* Main Tabs */}
       <div className="flex items-center gap-1.5 overflow-x-auto w-full md:w-auto p-1">
         {MAIN_TABS.map((tab) => {
@@ -59,20 +59,21 @@ export const ApprovalCategoryFilter: React.FC<ApprovalCategoryFilterProps> = ({
           return (
             <button
               key={tab.id}
+              type="button"
               onClick={() => onTabChange(tab.id)}
-              className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-all flex items-center gap-2 whitespace-nowrap ${
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap ${
                 isSelected
-                  ? 'bg-amber-500 text-slate-950 shadow-md'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+                  ? 'bg-amber-500 text-white shadow-xs'
+                  : 'text-text-muted hover:text-text-primary hover:bg-surface-soft'
               }`}
             >
               <span>{tab.label}</span>
               {countVal !== undefined && (
                 <span
-                  className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
+                  className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
                     isSelected
-                      ? 'bg-slate-950/20 text-slate-950'
-                      : 'bg-slate-800 text-slate-400'
+                      ? 'bg-black/20 text-white'
+                      : 'bg-surface-soft text-text-muted border border-border'
                   }`}
                 >
                   {countVal}
@@ -88,7 +89,7 @@ export const ApprovalCategoryFilter: React.FC<ApprovalCategoryFilterProps> = ({
         <select
           value={selectedCategory}
           onChange={(e) => onCategoryChange(e.target.value)}
-          className="w-full md:w-48 px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-800 text-slate-200 text-xs font-bold focus:outline-none focus:border-amber-500"
+          className="w-full md:w-48 px-3.5 py-2 rounded-xl bg-surface-soft border border-border text-text-primary text-xs font-bold focus:outline-none focus:border-amber-500"
         >
           {CATEGORY_OPTIONS.map((cat) => (
             <option key={cat.id} value={cat.id}>

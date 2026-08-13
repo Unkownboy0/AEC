@@ -306,6 +306,14 @@ export class SecurityHelper {
    * Build menu filter from permission list using DB
    */
   static async getPermittedMenus(permissions: string[], role: string): Promise<any[]> {
+    if (role === 'Management' || role === 'Governing Body') {
+      const basePath = role === 'Governing Body' ? '/governing-body/dashboard' : '/management/dashboard';
+      return [
+        { name: 'Institution Overview', path: basePath, icon: 'LayoutDashboard', componentKey: 'management_dashboard', order: 1 },
+        { name: 'Strategic Reports', path: basePath, icon: 'BarChart3', componentKey: 'management_dashboard', order: 2 },
+      ];
+    }
+
     if (role === 'Student') {
       return [
         { name: 'Dashboard', path: '/student/dashboard', icon: 'LayoutDashboard', componentKey: 'student_dashboard', order: 1 },

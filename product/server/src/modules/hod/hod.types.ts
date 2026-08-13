@@ -1,6 +1,8 @@
 export interface HodDepartmentContext {
   userId: string;
   departmentId: string;
+  departmentIds: string[];
+  departments: Array<{ id: string; name: string; code: string }>;
   departmentName: string;
   departmentCode: string;
   isPrimary: boolean;

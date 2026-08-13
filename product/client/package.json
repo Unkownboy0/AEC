@@ -2,15 +2,23 @@
   "name": "geetorus-campusos-client",
   "private": true,
   "version": "1.0.0",
+  "engines": {
+    "node": ">=22.0.0"
+  },
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
     "mobile": "npm run build && npx cap copy && npx cap sync",
-    "android": "npm run build && npx cap copy android && npx cap open android",
+    "android": "npm run build && npm run sync:android && npx cap open android",
     "ios": "npm run build && npx cap copy ios && npx cap open ios",
-    "release": "npm run build && npx cap sync android && cd android && gradlew assembleRelease",
+    "release": "npm run release:android:aab",
+    "release:android:aab": "npm run build && npm run sync:android && cd android && gradlew bundleRelease",
+    "release:android:apk": "npm run build && npm run sync:android && cd android && gradlew assembleRelease",
+    "prepare:ios": "npm run build && npx cap sync ios",
+    "patch:android-gradle": "node scripts/patch-capacitor-gradle.mjs",
+    "sync:android": "npx cap sync android && npm run patch:android-gradle",
     "verify:frontend-only": "node scripts/verify-frontend-only.js"
   },
   "dependencies": {
@@ -51,7 +59,7 @@
     "zod": "^3.23.8"
   },
   "devDependencies": {
-    "@capacitor/cli": "^7.6.8",
+    "@capacitor/cli": "^8.5.0",
     "@types/node": "^20.12.12",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",

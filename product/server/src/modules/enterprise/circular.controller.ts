@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { prisma } from '../../lib/prisma';
 import { ForbiddenException, NotFoundException, BadRequestException } from '../../utils/exceptions';
+import { CircularService as UnifiedCircularService } from '../circulars/circular.service';
 
 export class CircularController {
   /**
@@ -33,92 +34,29 @@ export class CircularController {
       const user = (req as any).user;
       let deptId = '';
 
-      if (user.role === 'Super Admin') {
-        // Super Admin sees everything or filters by departmentId in query
+      const roleUpper = (user.role || '').toUpperCase();
+      const isExecutive = [
+        'SUPER ADMIN', 'ADMIN', 'PRINCIPAL', 'VP', 'VICE PRINCIPAL', 'VICE_PRINCIPAL',
+        'DEAN', 'ACADEMIC DEAN', 'ADMISSION DEAN', 'IQAC DEAN', 'EXECUTIVE'
+      ].includes(roleUpper);
+
+      if (isExecutive) {
         deptId = (req.query.departmentId as string) || '';
-      } else if (user.role === 'HOD' || user.role === 'Faculty') {
+      } else if (user.role === 'HOD' || user.role === 'Faculty' || roleUpper.includes('HOD') || roleUpper.includes('FACULTY')) {
         const faculty = await this.getFacultyDept(user.id);
-        if (!faculty) {
-          throw new ForbiddenException('Faculty profile not found for this user');
+        if (faculty) {
+          deptId = faculty.departmentId;
         }
-        deptId = faculty.departmentId;
-      } else if (user.role === 'Student' || user.role === 'Parent') {
+      } else if (user.role === 'Student' || user.role === 'Parent' || roleUpper.includes('STUDENT') || roleUpper.includes('PARENT')) {
         const student = await this.getStudentDept(user.id);
-        if (!student) {
-          throw new ForbiddenException('Student profile not found for this user');
+        if (student) {
+          deptId = student.departmentId;
         }
-        deptId = student.departmentId;
       } else {
-        throw new ForbiddenException('Role not authorized to access department circulars');
+        deptId = (req.query.departmentId as string) || '';
       }
 
-      const where: any = {};
-      if (deptId) {
-        const instDept = await prisma.department.findFirst({
-          where: {
-            OR: [
-              { code: 'ALL' },
-              { code: 'INST' },
-              { name: { contains: 'Institution' } },
-              { name: { contains: 'All' } }
-            ]
-          }
-        });
-        if (instDept) {
-          where.departmentId = { in: [deptId, instDept.id] };
-        } else {
-          where.departmentId = deptId;
-        }
-      }
-
-      // Students can only see PUBLISHED circulars
-      if (user.role === 'Student' || user.role === 'Parent') {
-        where.status = 'PUBLISHED';
-      }
-
-      const circulars = await prisma.hodCircular.findMany({
-        where,
-        orderBy: { createdAt: 'desc' },
-        include: {
-          publishedBy: {
-            select: {
-              firstName: true,
-              lastName: true,
-              email: true,
-              profilePhoto: true
-            }
-          },
-          department: true,
-          recipients: {
-            where: { userId: user.id }
-          }
-        }
-      });
-
-      // Format response to include read tracking state for current user
-      const formatted = circulars.map(c => {
-        const parsedImages = typeof c.images === 'string' ? JSON.parse(c.images || '[]') : c.images;
-        const readRecord = c.recipients[0];
-        return {
-          id: c.id,
-          title: c.title,
-          category: c.category,
-          priority: c.priority,
-          description: c.description,
-          content: c.content,
-          status: c.status,
-          images: parsedImages,
-          attachmentUrl: c.attachmentUrl,
-          attachmentName: c.attachmentName,
-          publishedAt: c.publishedAt,
-          createdAt: c.createdAt,
-          departmentId: c.departmentId,
-          department: c.department,
-          publishedBy: c.publishedBy,
-          isRead: readRecord ? readRecord.status === 'READ' : false,
-          readAt: readRecord?.readAt || null
-        };
-      });
+      const formatted = await UnifiedCircularService.listCirculars(user.id, user.role, deptId || undefined);
 
       res.status(200).json({
         status: 'success',
@@ -130,18 +68,59 @@ export class CircularController {
   };
 
   /**
+   * Return one circular only when it is present in the caller's already-authorized list.
+   * This compatibility endpoint backs /student/circulars/:id and prevents ID-based scope bypasses.
+   */
+  getOne = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const user = (req as any).user;
+      const roleUpper = String(user.role || '').toUpperCase();
+      let deptId: string | undefined;
+      if (!['SUPER ADMIN', 'ADMIN', 'PRINCIPAL', 'VP', 'VICE PRINCIPAL', 'VICE_PRINCIPAL', 'DEAN', 'ACADEMIC DEAN', 'ADMISSION DEAN', 'IQAC DEAN'].includes(roleUpper)) {
+        const [faculty, student] = await Promise.all([
+          this.getFacultyDept(user.id),
+          this.getStudentDept(user.id),
+        ]);
+        deptId = faculty?.departmentId || student?.departmentId || undefined;
+      }
+      const visible = await UnifiedCircularService.listCirculars(user.id, user.role, deptId);
+      const circular = visible.find((item: any) => item.id === req.params.id);
+      if (!circular) throw new NotFoundException('Circular not found');
+      res.status(200).json({ status: 'success', success: true, data: circular });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
    * Create new circular (auto-inheriting HOD department)
    */
   create = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const user = (req as any).user;
-      if (user.role !== 'HOD' && user.role !== 'Super Admin') {
-        throw new ForbiddenException('Only HODs can publish department circulars');
+      const roleUpper = (user.role || '').toUpperCase();
+      const canPublish = [
+        'SUPER ADMIN', 'ADMIN', 'PRINCIPAL', 'VP', 'VICE PRINCIPAL', 'VICE_PRINCIPAL',
+        'DEAN', 'ACADEMIC DEAN', 'ADMISSION DEAN', 'IQAC DEAN', 'HOD', 'HEAD_OF_DEPARTMENT'
+      ].includes(roleUpper);
+
+      if (!canPublish) {
+        throw new ForbiddenException('Only institutional leaders and HODs can publish circulars');
       }
 
       const faculty = await this.getFacultyDept(user.id);
-      if (!faculty) {
-        throw new ForbiddenException('HOD profile not found');
+      let departmentId = faculty?.departmentId || '';
+
+      if (!departmentId) {
+        const instDept = await prisma.department.findFirst({
+          where: { OR: [{ code: 'ALL' }, { code: 'INST' }, { name: { contains: 'Institution' } }] }
+        });
+        departmentId = instDept?.id || '';
+      }
+
+      if (!departmentId) {
+        const anyDept = await prisma.department.findFirst();
+        departmentId = anyDept?.id || '';
       }
 
       const { title, category, priority, description, content, status, images, attachmentUrl, attachmentName } = req.body;
@@ -164,7 +143,7 @@ export class CircularController {
           attachmentUrl,
           attachmentName,
           publishedAt,
-          departmentId: faculty.departmentId,
+          departmentId,
           publishedById: user.id
         }
       });
@@ -271,6 +250,12 @@ export class CircularController {
       const user = (req as any).user;
       const { id } = req.params;
 
+      const hodCircular = await prisma.hodCircular.findUnique({ where: { id } });
+      if (!hodCircular) {
+        const tracker = await UnifiedCircularService.markAsRead(id, user.id);
+        return res.status(200).json({ status: 'success', data: tracker });
+      }
+
       const tracker = await prisma.hodCircularReadTracker.upsert({
         where: {
           circularId_userId: { circularId: id, userId: user.id }
@@ -348,17 +333,18 @@ export class CircularController {
    */
   private async deliverCircularNotifications(circular: any, hodFaculty: any) {
     try {
-      // Find all students, faculty, and mentors belonging to the HOD's department
+      // Find all students, faculty, and mentors belonging to the target department
       const departmentId = circular.departmentId;
-      const deptName = hodFaculty.department?.name || 'Department';
+      const deptName = hodFaculty?.department?.name || 'Institution';
+      const publisherTitle = hodFaculty?.designation || 'Principal / Executive';
 
       const [students, faculties] = await Promise.all([
         prisma.student.findMany({
-          where: { departmentId, deleted: false },
+          where: departmentId ? { departmentId, deleted: false } : { deleted: false },
           select: { userId: true }
         }),
         prisma.faculty.findMany({
-          where: { departmentId, deleted: false },
+          where: departmentId ? { departmentId, deleted: false } : { deleted: false },
           select: { userId: true }
         })
       ]);
@@ -373,8 +359,8 @@ export class CircularController {
       // 1. Create SystemNotification for UI popup alerts & bell log
       await prisma.systemNotification.create({
         data: {
-          title: `New Department Circular: ${circular.title}`,
-          content: `${hodFaculty.designation || 'HOD'} (${deptName}) has published a new circular: "${circular.description || circular.title}".`,
+          title: `New Circular: ${circular.title}`,
+          content: `${publisherTitle} (${deptName}) has published a new circular: "${circular.description || circular.title}".`,
           type: 'ANNOUNCEMENT',
           status: 'SENT',
           imageUrl: circular.attachmentUrl || null

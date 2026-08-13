@@ -2,15 +2,17 @@ const CACHE_NAME = 'geetorus-campusos-cache-v2';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
-  '/manifest.json',
-  '/favicon.ico'
+  '/manifest.json'
 ];
 
 // Install Event
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(STATIC_ASSETS);
+      // Use individual add for each asset to avoid failing the whole cache if one is missing
+      return Promise.allSettled(
+        STATIC_ASSETS.map(url => cache.add(url))
+      );
     })
   );
   self.skipWaiting();

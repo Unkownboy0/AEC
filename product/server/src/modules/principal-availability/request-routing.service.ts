@@ -1,5 +1,6 @@
 import { prisma } from '../../lib/prisma';
 import { PrincipalAvailabilityResolver } from './availability.resolver';
+import { categoryForRequestType } from './delegation.guard';
 import { logger } from '../../utils/logger';
 
 export interface RouteRequestResult {
@@ -7,17 +8,23 @@ export interface RouteRequestResult {
   assignedRole: 'PRINCIPAL' | 'ACTING_PRINCIPAL';
   assignmentType: 'DIRECT' | 'DELEGATED';
   delegationId?: string | null;
-  principalStatus: 'AVAILABLE' | 'BUSY' | 'OFFLINE';
+  principalStatus: string;
 }
 
 export class PrincipalRequestRoutingService {
   /**
-   * Determine approver for any incoming Principal-level request dynamically
+   * Determine approver for any incoming Principal-level request dynamically.
+   * requestType is used to keep routing within the categories the Principal actually
+   * delegated — a request in an undelegated category still routes to the Principal
+   * even while a delegation is active for other categories.
    */
-  static async resolveApproverForRequest(targetPrincipalUserId?: string): Promise<RouteRequestResult> {
+  static async resolveApproverForRequest(targetPrincipalUserId?: string, requestType?: string): Promise<RouteRequestResult> {
     const context = await PrincipalAvailabilityResolver.resolveContext(targetPrincipalUserId);
+    const categoryDelegated = requestType
+      ? (context.delegation?.delegatedCategories || []).includes(categoryForRequestType(requestType))
+      : true;
 
-    if (context.principalStatus === 'AVAILABLE' || !context.canVpActAsPrincipal || !context.actingPrincipal) {
+    if (context.principalStatus === 'AVAILABLE' || !context.canVpActAsPrincipal || !context.actingPrincipal || !categoryDelegated) {
       // Route to Principal
       let principalUserId = targetPrincipalUserId;
       if (!principalUserId) {
@@ -63,7 +70,7 @@ export class PrincipalRequestRoutingService {
     departmentName?: string;
     targetPrincipalUserId?: string;
   }) {
-    const routing = await this.resolveApproverForRequest(dto.targetPrincipalUserId);
+    const routing = await this.resolveApproverForRequest(dto.targetPrincipalUserId, dto.requestType);
 
     const assignment = await (prisma as any).approvalAssignment.create({
       data: {

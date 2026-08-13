@@ -38,6 +38,25 @@ export const DEPARTMENT_LEVEL_ROLES = [
  * Returns the allowed scope(s) for a given role name.
  */
 export function getAllowedScopes(roleName: string): CircularScope[] {
+  if (!roleName) return [];
+  const norm = roleName.toUpperCase().trim();
+
+  if (norm.includes('HOD') || norm.includes('HEAD_OF_DEPARTMENT')) {
+    return ['DEPARTMENT'];
+  }
+  if (
+    norm.includes('PRINCIPAL') ||
+    norm.includes('VP') ||
+    norm.includes('DEAN') ||
+    norm.includes('EXAMINATIONS') ||
+    norm.includes('EXECUTIVE')
+  ) {
+    return ['INSTITUTION'];
+  }
+  if (norm.includes('SUPER') || norm === 'ADMIN' || norm.includes('ADMINISTRATOR')) {
+    return ['DEPARTMENT', 'INSTITUTION'];
+  }
+
   return CIRCULAR_PUBLISHER_ROLES[roleName] ?? [];
 }
 
@@ -54,6 +73,7 @@ export function canPublishDepartmentCircular(roleName: string): boolean {
  * Returns true if the role can publish institution-wide circulars.
  */
 export function canPublishInstitutionCircular(roleName: string): boolean {
+  if (!roleName) return false;
   return getAllowedScopes(roleName).includes('INSTITUTION');
 }
 
@@ -61,8 +81,9 @@ export function canPublishInstitutionCircular(roleName: string): boolean {
  * Returns true if the role is an HOD (department head).
  */
 export function isHodRole(roleName: string): boolean {
-  return DEPARTMENT_LEVEL_ROLES.includes(roleName) ||
-    roleName.toLowerCase().includes('hod');
+  if (!roleName) return false;
+  const norm = roleName.toUpperCase();
+  return norm.includes('HOD') || norm.includes('HEAD_OF_DEPARTMENT');
 }
 
 /**

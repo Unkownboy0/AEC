@@ -56,11 +56,12 @@ export function requireSuperAdmin() {
       const userId = (req as any).user?.id || (req as any).userId;
       if (!userId) throw new UnauthorizedException('Authentication required');
 
-      const userRBAC = await rbacService.evaluateUserRBAC(userId);
+      const activeRole = String((req as any).user?.role || '');
+      const userRBAC = await rbacService.evaluateUserRBAC(userId, activeRole);
       req.rbac = userRBAC;
 
-      if (!userRBAC.isSuperAdmin && userRBAC.roleCode !== 'COLLEGE_ADMIN') {
-        throw new ForbiddenException('Super Admin or College Admin authority required');
+      if (!userRBAC.isSuperAdmin) {
+        throw new ForbiddenException('The active Super Admin workspace is required');
       }
 
       next();

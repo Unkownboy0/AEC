@@ -6,6 +6,7 @@ export declare class FilesController {
      * List all media files
      */
     list: (req: Request, res: Response, next: NextFunction) => Promise<void>;
+    download: (req: Request, res: Response, next: NextFunction) => Promise<void>;
     /**
      * Upload file via base64 JSON payload (hardened)
      */

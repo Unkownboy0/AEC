@@ -17,8 +17,8 @@ export const StudentPlacements: React.FC = () => {
     eligibleDrives: 0,
     applied: 0,
     selected: 0,
-    highestLpa: 44.0,
-    avgLpa: 7.8
+    highestLpa: 0,
+    avgLpa: 0
   });
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -29,22 +29,18 @@ export const StudentPlacements: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'overview' | 'timeline' | 'tracker'>('overview');
 
   // Documents
-  const [resumes, setResumes] = useState<string[]>(['John_Smith_Resume_SDE.pdf']);
+  const [resumes, setResumes] = useState<string[]>([]);
   const [newResumeName, setNewResumeName] = useState('');
 
   const fetchPlacementsData = async () => {
     try {
-      const studentRes = await api.get('/enterprise/students');
-      if (studentRes.data?.status === 'success' && studentRes.data.data?.length > 0) {
-        const student = studentRes.data.data[0];
+      const studentRes = await api.get('/enterprise/placements/student-portal');
+      if (studentRes.data?.status === 'success' && studentRes.data.data?.student) {
+        const { student, drives: rawDrives } = studentRes.data.data;
         setStudentInfo(student);
-
-        const drivesRes = await api.get('/placements/drives');
-        if (drivesRes.data?.status === 'success') {
-          const rawDrives = drivesRes.data.data;
           
           // Calculate student eligibility & stats
-          const studentCgpa = student.cgpa || 9.5;
+          const studentCgpa = student.cgpa || 0;
           const studentBacklogs = student.backlogs || 0;
           const studentDept = student.department?.code || '';
 
@@ -77,10 +73,9 @@ export const StudentPlacements: React.FC = () => {
             eligibleDrives: enriched.filter((d: any) => d.eligible).length,
             applied: appliedList.length,
             selected: selectedList.length,
-            highestLpa: Math.max(...enriched.map((d: any) => d.package), 44.0),
-            avgLpa: parseFloat((enriched.reduce((acc: number, d: any) => acc + d.package, 0) / (enriched.length || 1)).toFixed(2)) || 7.8
+            highestLpa: enriched.length ? Math.max(...enriched.map((d: any) => d.package)) : 0,
+            avgLpa: enriched.length ? parseFloat((enriched.reduce((acc: number, d: any) => acc + d.package, 0) / enriched.length).toFixed(2)) : 0
           });
-        }
       }
     } catch (err) {
       console.error(err);
@@ -97,10 +92,7 @@ export const StudentPlacements: React.FC = () => {
   const handleRegister = async (driveId: string) => {
     if (!studentInfo) return;
     try {
-      const res = await api.post('/placements/drives/apply', {
-        driveId,
-        studentId: studentInfo.id
-      });
+      const res = await api.post('/enterprise/placements/student/apply', { driveId });
       if (res.data?.status === 'success') {
         toast.success('Registered successfully for recruitment drive!');
         await fetchPlacementsData();
@@ -114,9 +106,7 @@ export const StudentPlacements: React.FC = () => {
   const handleWithdraw = async (appId: string) => {
     try {
       // Direct status update to WITHDRAWN
-      const res = await api.put(`/placements/applications/${appId}/status`, {
-        status: 'WITHDRAWN'
-      });
+      const res = await api.post(`/enterprise/placements/student/applications/${appId}/withdraw`);
       if (res.data?.status === 'success') {
         toast.success('Withdrew application successfully.');
         await fetchPlacementsData();

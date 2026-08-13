@@ -6,6 +6,7 @@ const auth_middleware_1 = require("../../core/middlewares/auth.middleware");
 const router = (0, express_1.Router)();
 const controller = new files_controller_1.FilesController();
 router.get('/', auth_middleware_1.requireAuth, (0, auth_middleware_1.requirePermission)('files:read'), controller.list);
+router.get('/:id/download', auth_middleware_1.requireAuth, (0, auth_middleware_1.requirePermission)('files:read'), controller.download);
 router.post('/upload', auth_middleware_1.requireAuth, (req, res, next) => {
     const user = req.user;
     if (user && ['Student', 'HOD', 'Faculty', 'Super Admin', 'College Admin', 'Principal', 'Vice Principal'].includes(user.role)) {

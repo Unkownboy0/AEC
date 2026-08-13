@@ -32,23 +32,53 @@ const WORKSPACE_DETAILS: Record<string, WorkspaceMeta> = {
     icon: Briefcase,
     route: '/faculty/dashboard',
   },
+  'Mentor': {
+    title: 'Mentor Workspace',
+    sub: 'Student advisement, leave approvals and academic follow-ups',
+    icon: Users,
+    route: '/faculty/mentor/dashboard',
+  },
   'Academic Dean': {
     title: 'Academic Dean Workspace',
     sub: 'Curriculum, timetables and academic oversight',
     icon: GraduationCap,
-    route: '/academic-dean',
+    route: '/academic-dean/dashboard',
   },
   'Admission Dean': {
-    title: 'Admission Dean Workspace',
-    sub: 'Student leads, applications and seat intake',
+    title: 'Administration Dean Workspace',
+    sub: 'Admissions, student services and administration',
     icon: Briefcase,
-    route: '/admission-dean',
+    route: '/admission-dean/dashboard',
+  },
+  'Administration & Admission Dean': {
+    title: 'Administration Dean Workspace',
+    sub: 'Admissions, student services and administration',
+    icon: Briefcase,
+    route: '/admission-dean/dashboard',
+  },
+  'ADMINISTRATION_AND_ADMISSION_DEAN': {
+    title: 'Administration Dean Workspace',
+    sub: 'Admissions, student services and administration',
+    icon: Briefcase,
+    route: '/admission-dean/dashboard',
   },
   'IQAC Dean': {
     title: 'IQAC Dean Workspace',
     sub: 'Quality assurance, NAAC/NBA and AQAR audits',
     icon: Award,
-    route: '/iqac-dean',
+    route: '/iqac/dashboard',
+  },
+  'IQAC Executive Officer': {
+    title: 'IQAC Workspace',
+    sub: 'Evidence tasks, verification and quality monitoring',
+    icon: Award,
+    route: '/iqac/dashboard',
+  },
+  'IQAC Documentation Officer': {
+    title: 'IQAC Documentation Workspace',
+    sub: 'Evidence repository and version history',
+    icon: Award,
+    route: '/iqac/evidence',
   },
 };
 
@@ -74,31 +104,9 @@ export const WorkspaceSwitcher: React.FC = () => {
   // Determine current active workspace
   const currentWorkspace = user.activeWorkspace || user.role || 'Faculty';
 
-  // Derive allowed workspaces list
-  let workspacesList: string[] = user.workspaces && user.workspaces.length > 0
-    ? user.workspaces
-    : [];
-
-  if (workspacesList.length === 0) {
-    if (user.role === 'HOD') workspacesList = ['HOD', 'Faculty'];
-    else if (user.role === 'Faculty') workspacesList = ['Faculty'];
-    else if (user.role === 'Academic Dean') workspacesList = ['Academic Dean', 'Faculty'];
-    else if (user.role === 'Admission Dean') workspacesList = ['Admission Dean', 'Faculty'];
-    else if (user.role === 'IQAC Dean') workspacesList = ['IQAC Dean', 'Faculty'];
-    else workspacesList = [user.role];
-  }
-
-  const userRole = typeof user.role === 'object' ? (user.role as any)?.name : String(user.role || '');
-  const isVp = userRole === 'Vice Principal' || userRole === 'VP';
-
-  // EXPLICIT DIRECTIVE: Filter out Mentor, and filter out Faculty for VP role alone
-  const filteredWorkspaces = Array.from(
-    new Set(workspacesList.filter((ws) => {
-      if (ws === 'Mentor') return false;
-      if (isVp && ws === 'Faculty') return false;
-      return true;
-    }))
-  );
+  // The API returns only active, explicitly assigned workspaces. Never derive
+  // additional roles in the browser because doing so can bypass workspace privacy.
+  const filteredWorkspaces = Array.from(new Set(user.workspaces?.length ? user.workspaces : [user.role]));
 
   if (filteredWorkspaces.length <= 1) return null;
 

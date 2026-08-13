@@ -2,6 +2,7 @@ import { prisma } from '../../lib/prisma';
 import { BadRequestException, NotFoundException, ForbiddenException } from '../../utils/exceptions';
 import { logger } from '../../utils/logger';
 import { PrincipalRequestRoutingService } from '../principal-availability/request-routing.service';
+import { validateRequestDate } from '../../utils/leavePolicy';
 
 export interface ClassSubstitutionItem {
   subjectId?: string;
@@ -113,11 +114,14 @@ export class FacultyLeaveService {
     const totalDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
 
     // Normalize leaveType (CASUAL -> CASUAL_LEAVE, MEDICAL -> MEDICAL_LEAVE)
-    const rawType = (input.leaveType || (input as any).type || 'CASUAL_LEAVE').toString().toUpperCase();
+    const rawType = (input.leaveType || (input as any).type || (input as any).requestType || 'CASUAL_LEAVE').toString().toUpperCase();
     const normalizedLeaveType = rawType.includes('CASUAL') ? 'CASUAL_LEAVE'
       : rawType.includes('MEDICAL') ? 'MEDICAL_LEAVE'
       : rawType.includes('EARNED') ? 'EARNED_LEAVE'
-      : 'ON_DUTY';
+      : rawType === 'OD' || rawType.includes('DUTY') ? 'ON_DUTY'
+      : 'CASUAL_LEAVE';
+
+    await validateRequestDate(start, normalizedLeaveType === 'ON_DUTY');
 
     // Generate Request Number (e.g. FL-2026-0001)
     const count = await prisma.facultyLeaveRequest.count();

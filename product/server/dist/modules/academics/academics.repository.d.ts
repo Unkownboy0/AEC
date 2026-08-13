@@ -22,10 +22,10 @@ export declare class AcademicsRepository {
                 deleted: boolean;
                 deletedAt: Date | null;
                 name: string;
-                duration: number;
-                level: string;
                 credits: number;
+                duration: number;
                 coordinator: string | null;
+                level: string;
             }[];
             courses: {
                 code: string;
@@ -42,10 +42,10 @@ export declare class AcademicsRepository {
                 deletedAt: Date | null;
                 name: string;
                 description: string | null;
-                duration: number;
                 credits: number;
-                coordinator: string | null;
                 courseOutcomes: string;
+                duration: number;
+                coordinator: string | null;
             }[];
             subjects: {
                 code: string;
@@ -127,10 +127,10 @@ export declare class AcademicsRepository {
             deleted: boolean;
             deletedAt: Date | null;
             name: string;
-            duration: number;
-            level: string;
             credits: number;
+            duration: number;
             coordinator: string | null;
+            level: string;
         }[];
         courses: {
             code: string;
@@ -147,10 +147,10 @@ export declare class AcademicsRepository {
             deletedAt: Date | null;
             name: string;
             description: string | null;
-            duration: number;
             credits: number;
-            coordinator: string | null;
             courseOutcomes: string;
+            duration: number;
+            coordinator: string | null;
         }[];
     } & {
         code: string;
@@ -288,10 +288,10 @@ export declare class AcademicsRepository {
             deleted: boolean;
             deletedAt: Date | null;
             name: string;
-            duration: number;
-            level: string;
             credits: number;
+            duration: number;
             coordinator: string | null;
+            level: string;
         })[];
         totalCount: number;
     }>;
@@ -336,10 +336,10 @@ export declare class AcademicsRepository {
         deleted: boolean;
         deletedAt: Date | null;
         name: string;
-        duration: number;
-        level: string;
         credits: number;
+        duration: number;
         coordinator: string | null;
+        level: string;
     }) | null>;
     createProgram(data: any): Promise<{
         code: string;
@@ -353,10 +353,10 @@ export declare class AcademicsRepository {
         deleted: boolean;
         deletedAt: Date | null;
         name: string;
-        duration: number;
-        level: string;
         credits: number;
+        duration: number;
         coordinator: string | null;
+        level: string;
     }>;
     updateProgram(id: string, data: any): Promise<{
         code: string;
@@ -370,10 +370,10 @@ export declare class AcademicsRepository {
         deleted: boolean;
         deletedAt: Date | null;
         name: string;
-        duration: number;
-        level: string;
         credits: number;
+        duration: number;
         coordinator: string | null;
+        level: string;
     }>;
     findCourses(params: {
         page: number;
@@ -428,10 +428,10 @@ export declare class AcademicsRepository {
                 deleted: boolean;
                 deletedAt: Date | null;
                 name: string;
-                duration: number;
-                level: string;
                 credits: number;
+                duration: number;
                 coordinator: string | null;
+                level: string;
             };
         } & {
             code: string;
@@ -448,10 +448,10 @@ export declare class AcademicsRepository {
             deletedAt: Date | null;
             name: string;
             description: string | null;
-            duration: number;
             credits: number;
-            coordinator: string | null;
             courseOutcomes: string;
+            duration: number;
+            coordinator: string | null;
         })[];
         totalCount: number;
     }>;
@@ -496,10 +496,10 @@ export declare class AcademicsRepository {
             deleted: boolean;
             deletedAt: Date | null;
             name: string;
-            duration: number;
-            level: string;
             credits: number;
+            duration: number;
             coordinator: string | null;
+            level: string;
         };
     } & {
         code: string;
@@ -516,10 +516,10 @@ export declare class AcademicsRepository {
         deletedAt: Date | null;
         name: string;
         description: string | null;
-        duration: number;
         credits: number;
-        coordinator: string | null;
         courseOutcomes: string;
+        duration: number;
+        coordinator: string | null;
     }) | null>;
     createCourse(data: any): Promise<{
         code: string;
@@ -536,10 +536,10 @@ export declare class AcademicsRepository {
         deletedAt: Date | null;
         name: string;
         description: string | null;
-        duration: number;
         credits: number;
-        coordinator: string | null;
         courseOutcomes: string;
+        duration: number;
+        coordinator: string | null;
     }>;
     updateCourse(id: string, data: any): Promise<{
         code: string;
@@ -556,10 +556,10 @@ export declare class AcademicsRepository {
         deletedAt: Date | null;
         name: string;
         description: string | null;
-        duration: number;
         credits: number;
-        coordinator: string | null;
         courseOutcomes: string;
+        duration: number;
+        coordinator: string | null;
     }>;
     findYears(params: {
         page: number;
@@ -668,10 +668,10 @@ export declare class AcademicsRepository {
                 deleted: boolean;
                 deletedAt: Date | null;
                 name: string;
-                duration: number;
-                level: string;
                 credits: number;
+                duration: number;
                 coordinator: string | null;
+                level: string;
             };
             course: {
                 code: string;
@@ -688,10 +688,10 @@ export declare class AcademicsRepository {
                 deletedAt: Date | null;
                 name: string;
                 description: string | null;
-                duration: number;
                 credits: number;
-                coordinator: string | null;
                 courseOutcomes: string;
+                duration: number;
+                coordinator: string | null;
             };
         } & {
             number: number;
@@ -709,8 +709,8 @@ export declare class AcademicsRepository {
             name: string;
             startDate: Date;
             endDate: Date;
-            isCurrent: boolean;
             credits: number;
+            isCurrent: boolean;
         })[];
         totalCount: number;
     }>;
@@ -741,10 +741,10 @@ export declare class AcademicsRepository {
             deleted: boolean;
             deletedAt: Date | null;
             name: string;
-            duration: number;
-            level: string;
             credits: number;
+            duration: number;
             coordinator: string | null;
+            level: string;
         };
         course: {
             code: string;
@@ -761,10 +761,10 @@ export declare class AcademicsRepository {
             deletedAt: Date | null;
             name: string;
             description: string | null;
-            duration: number;
             credits: number;
-            coordinator: string | null;
             courseOutcomes: string;
+            duration: number;
+            coordinator: string | null;
         };
     } & {
         number: number;
@@ -782,8 +782,8 @@ export declare class AcademicsRepository {
         name: string;
         startDate: Date;
         endDate: Date;
-        isCurrent: boolean;
         credits: number;
+        isCurrent: boolean;
     }) | null>;
     createSemester(data: any): Promise<{
         number: number;
@@ -801,8 +801,8 @@ export declare class AcademicsRepository {
         name: string;
         startDate: Date;
         endDate: Date;
-        isCurrent: boolean;
         credits: number;
+        isCurrent: boolean;
     }>;
     updateSemester(id: string, data: any): Promise<{
         number: number;
@@ -820,8 +820,8 @@ export declare class AcademicsRepository {
         name: string;
         startDate: Date;
         endDate: Date;
-        isCurrent: boolean;
         credits: number;
+        isCurrent: boolean;
     }>;
     findSections(params: {
         page: number;
@@ -876,10 +876,10 @@ export declare class AcademicsRepository {
                 deleted: boolean;
                 deletedAt: Date | null;
                 name: string;
-                duration: number;
-                level: string;
                 credits: number;
+                duration: number;
                 coordinator: string | null;
+                level: string;
             };
             semester: {
                 number: number;
@@ -897,8 +897,8 @@ export declare class AcademicsRepository {
                 name: string;
                 startDate: Date;
                 endDate: Date;
-                isCurrent: boolean;
                 credits: number;
+                isCurrent: boolean;
             };
         } & {
             status: string;
@@ -960,10 +960,10 @@ export declare class AcademicsRepository {
             deleted: boolean;
             deletedAt: Date | null;
             name: string;
-            duration: number;
-            level: string;
             credits: number;
+            duration: number;
             coordinator: string | null;
+            level: string;
         };
         semester: {
             number: number;
@@ -981,8 +981,8 @@ export declare class AcademicsRepository {
             name: string;
             startDate: Date;
             endDate: Date;
-            isCurrent: boolean;
             credits: number;
+            isCurrent: boolean;
         };
     } & {
         status: string;
@@ -1092,10 +1092,10 @@ export declare class AcademicsRepository {
                 deleted: boolean;
                 deletedAt: Date | null;
                 name: string;
-                duration: number;
-                level: string;
                 credits: number;
+                duration: number;
                 coordinator: string | null;
+                level: string;
             };
             semester: {
                 number: number;
@@ -1113,8 +1113,8 @@ export declare class AcademicsRepository {
                 name: string;
                 startDate: Date;
                 endDate: Date;
-                isCurrent: boolean;
                 credits: number;
+                isCurrent: boolean;
             };
             section: {
                 status: string;
@@ -1213,10 +1213,10 @@ export declare class AcademicsRepository {
             deleted: boolean;
             deletedAt: Date | null;
             name: string;
-            duration: number;
-            level: string;
             credits: number;
+            duration: number;
             coordinator: string | null;
+            level: string;
         };
         semester: {
             number: number;
@@ -1234,8 +1234,8 @@ export declare class AcademicsRepository {
             name: string;
             startDate: Date;
             endDate: Date;
-            isCurrent: boolean;
             credits: number;
+            isCurrent: boolean;
         };
         section: {
             status: string;

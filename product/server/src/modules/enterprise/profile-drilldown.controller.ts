@@ -7,7 +7,7 @@ export class ProfileDrilldownController {
   async getUser360(req: Request, res: Response, next: NextFunction) {
     try {
       const { id } = req.params;
-      const data = await service.getUser360Profile(id);
+      const data = await service.getUser360Profile(id, req.user!);
       res.status(200).json({ status: 'success', data });
     } catch (err) {
       next(err);
@@ -17,7 +17,7 @@ export class ProfileDrilldownController {
   async getStudent360(req: Request, res: Response, next: NextFunction) {
     try {
       const { id } = req.params;
-      const data = await service.getStudent360Profile(id);
+      const data = await service.getStudent360Profile(id, req.user!);
       res.status(200).json({ status: 'success', data });
     } catch (err) {
       next(err);
@@ -27,7 +27,7 @@ export class ProfileDrilldownController {
   async getFaculty360(req: Request, res: Response, next: NextFunction) {
     try {
       const { id } = req.params;
-      const data = await service.getFaculty360Profile(id);
+      const data = await service.getFaculty360Profile(id, req.user!);
       res.status(200).json({ status: 'success', data });
     } catch (err) {
       next(err);

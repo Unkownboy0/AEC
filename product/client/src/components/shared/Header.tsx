@@ -43,7 +43,7 @@ interface HeaderProps {
 
 const Header: React.FC<HeaderProps> = ({ onOpenPalette }) => {
   const { user, logoutAll, switchWorkspace } = useAuth();
-  const { theme, setTheme } = useTheme();
+  const { preference: theme, setTheme } = useTheme();
   const { simulation, stopRoleSimulation } = usePermissions();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isWorkspaceDropdownOpen, setIsWorkspaceDropdownOpen] = useState(false);
@@ -197,7 +197,7 @@ const Header: React.FC<HeaderProps> = ({ onOpenPalette }) => {
     <header className="flex h-16 w-full items-center justify-between border-b bg-card px-6 text-card-foreground">
       {/* Title */}
       <div className="flex items-center gap-4">
-        <h1 className="text-sm font-bold tracking-tight hidden sm:block">{getPageTitle()}</h1>
+        <h1 className="text-sm font-bold tracking-tight block truncate max-w-44 sm:max-w-none">{getPageTitle()}</h1>
         
         {simulation.isSimulating && (
           <div className="flex items-center gap-2 bg-amber-500/10 border border-amber-500/30 px-3 py-1 rounded-full text-xs font-bold text-amber-700 animate-in fade-in duration-200">
@@ -223,7 +223,7 @@ const Header: React.FC<HeaderProps> = ({ onOpenPalette }) => {
         {/* Search bar trigger */}
         <button
           onClick={onOpenPalette}
-          className="flex items-center justify-between gap-3 rounded-lg border bg-muted/30 px-3 py-1.5 text-xs text-muted-foreground hover:bg-muted/60 transition-all duration-150 w-44 md:w-56"
+          className="hidden md:flex items-center justify-between gap-3 rounded-lg border bg-muted/30 px-3 py-1.5 text-xs text-muted-foreground hover:bg-muted/60 transition-all duration-150 w-44 md:w-56"
         >
           <span className="flex items-center gap-2">
             <Search className="h-3.5 w-3.5" />

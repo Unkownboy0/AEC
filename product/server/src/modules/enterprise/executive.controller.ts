@@ -12,7 +12,7 @@ export class ExecutiveController {
         where: { deleted: false, status: 'ACTIVE' },
         include: {
           students: { select: { id: true } },
-          faculties: { select: { id: true } },
+          faculties: { select: { id: true, publications: true } },
           tasks: { select: { id: true, status: true } }
         }
       });
@@ -30,7 +30,7 @@ export class ExecutiveController {
           const presentCount = attendanceRecords.filter((a) => a.status === 'PRESENT').length;
           const attendanceRate = attendanceRecords.length > 0
             ? Math.round((presentCount / attendanceRecords.length) * 100)
-            : 88;
+            : null;
 
           // Pass percentage calculation
           const markRecords = await prisma.mark.findMany({
@@ -40,35 +40,54 @@ export class ExecutiveController {
           const passedCount = markRecords.filter((m) => m.grade !== 'F').length;
           const passPercentage = markRecords.length > 0
             ? Math.round((passedCount / markRecords.length) * 100)
-            : 85;
+            : null;
 
           // Open complaints/tickets count
           const openTicketsCount = await prisma.ticket.count({
-            where: { status: { in: ['OPEN', 'IN_PROGRESS'] } }
+            where: {
+              status: { in: ['OPEN', 'IN_PROGRESS'] },
+              OR: [
+                { student: { departmentId: dept.id } },
+                { faculty: { departmentId: dept.id } }
+              ]
+            }
           });
 
           // Placement percentage
           const placementApps = await prisma.placementApplication.count({
             where: { student: { departmentId: dept.id }, status: 'OFFERED' }
           });
-          const placementRate = studentCount > 0 ? Math.min(100, Math.round((placementApps / Math.max(1, Math.round(studentCount * 0.25))) * 100)) : 80;
+          const placementRate = studentCount > 0 ? Math.min(100, Math.round((placementApps / studentCount) * 100)) : null;
 
           // Composite score calculation
           const complaintDeduction = Math.min(30, openTicketsCount * 3);
-          const score = Math.max(0, Math.min(100, Math.round(
-            (attendanceRate * 0.25) +
-            (passPercentage * 0.25) +
-            (placementRate * 0.20) +
-            (facultyCount > 0 ? 85 * 0.15 : 60 * 0.15) +
-            (100 - complaintDeduction) * 0.15
-          )));
+          const score = attendanceRate !== null && passPercentage !== null && placementRate !== null
+            ? Math.max(0, Math.min(100, Math.round(
+              (attendanceRate * 0.25) +
+              (passPercentage * 0.25) +
+              (placementRate * 0.20) +
+              (facultyCount > 0 ? 85 * 0.15 : 60 * 0.15) +
+              (100 - complaintDeduction) * 0.15
+            )))
+            : null;
 
-          let statusLabel: 'Excellent' | 'Good' | 'Average' | 'Needs Attention' | 'Critical' = 'Good';
-          if (score >= 90) statusLabel = 'Excellent';
+          let statusLabel: 'Excellent' | 'Good' | 'Average' | 'Needs Attention' | 'Critical' | 'Not Available' = 'Good';
+          if (score === null) statusLabel = 'Not Available';
+          else if (score >= 90) statusLabel = 'Excellent';
           else if (score >= 75) statusLabel = 'Good';
           else if (score >= 60) statusLabel = 'Average';
           else if (score >= 45) statusLabel = 'Needs Attention';
           else statusLabel = 'Critical';
+
+          const researchPublications = dept.faculties.reduce((count, faculty) => {
+            if (!faculty.publications) return count;
+            try {
+              const publications = JSON.parse(faculty.publications);
+              return count + (Array.isArray(publications) ? publications.length : 1);
+            } catch {
+              return count + 1;
+            }
+          }, 0);
 
           return {
             id: dept.id,
@@ -82,9 +101,9 @@ export class ExecutiveController {
             facultyCount,
             studentCount,
             openComplaints: openTicketsCount,
-            researchPublications: Math.floor(Math.random() * 8) + 2,
-            nbaStatus: 'ACCREDITED',
-            naacGrade: 'A+'
+            researchPublications,
+            nbaStatus: null,
+            naacGrade: null
           };
         })
       );

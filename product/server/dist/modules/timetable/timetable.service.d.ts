@@ -19,8 +19,8 @@ export declare class TimetableService {
             name: string;
             startDate: Date;
             endDate: Date;
-            isCurrent: boolean;
             credits: number;
+            isCurrent: boolean;
         };
         section: {
             status: string;
@@ -184,10 +184,27 @@ export declare class TimetableService {
         success: boolean;
     }>;
     /**
-     * AI Timetable Optimization Draft Generation (Mock)
+     * Scheduling preview. This endpoint must never delete or mutate the live
+     * timetable. A real optimizer can consume configured period/workload policy
+     * later; until then we return the authoritative inputs and conflicts only.
      */
     generateAIDraft(departmentId: string, semesterId: string, academicYearId: string): Promise<{
-        success: boolean;
-        createdCount: number;
+        mode: string;
+        applied: boolean;
+        message: string;
+        inputs: {
+            subjectCount: number;
+            facultyCount: number;
+            sectionCount: number;
+            existingSlotCount: number;
+        };
+        existingSlots: {
+            id: string;
+            sectionId: string;
+            roomNo: string;
+            facultyId: string;
+            dayOfWeek: string;
+            slotIndex: number;
+        }[];
     }>;
 }

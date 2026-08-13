@@ -2,48 +2,14 @@ import { Request, Response, NextFunction } from 'express';
 import { prisma } from '../../lib/prisma';
 import { ForbiddenException, NotFoundException, BadRequestException } from '../../utils/exceptions';
 
-// Sample Master Seed Schedule for initial view bootstrapping
-const INITIAL_MASTER_SCHEDULE = {
-  academicYear: '2026-2027',
-  semester: 'Semester VI',
-  departmentName: 'Computer Science & Engineering',
-  programName: 'B.Tech CSE',
-  section: 'A',
-  version: 1,
-  status: 'PUBLISHED',
-  publishedAt: '2026-07-20T09:00:00.000Z',
-  publishedBy: 'COE Office (Dr. R. V. Subramanian)',
-  slots: [
-    { dayOfWeek: 'MONDAY', periodNumber: 1, startTime: '08:30', endTime: '09:20', subjectCode: 'CS6101', subjectName: 'Design and Analysis of Algorithms', facultyName: 'Dr. Ramesh Kumar', roomNo: 'LH-301', building: 'Newton Block', isLab: false },
-    { dayOfWeek: 'MONDAY', periodNumber: 2, startTime: '09:20', endTime: '10:10', subjectCode: 'CS6102', subjectName: 'Database Management Systems', facultyName: 'Prof. Sangeetha S', roomNo: 'LH-301', building: 'Newton Block', isLab: false },
-    { dayOfWeek: 'MONDAY', periodNumber: 3, startTime: '10:30', endTime: '11:20', subjectCode: 'CS6103', subjectName: 'Operating Systems', facultyName: 'Dr. Amit Patel', roomNo: 'LH-301', building: 'Newton Block', isLab: false },
-    { dayOfWeek: 'MONDAY', periodNumber: 4, startTime: '11:20', endTime: '12:10', subjectCode: 'CS6104', subjectName: 'Distributed Systems', facultyName: 'Dr. Evelyn Boyd', roomNo: 'LH-301', building: 'Newton Block', isLab: false },
-    { dayOfWeek: 'MONDAY', periodNumber: 5, startTime: '01:10', endTime: '02:50', subjectCode: 'CS6102L', subjectName: 'DBMS & SQL Laboratory', facultyName: 'Prof. Sangeetha S', roomNo: 'Lab-B', building: 'Turing Block', isLab: true, labName: 'Advanced Database Lab' },
-    
-    { dayOfWeek: 'TUESDAY', periodNumber: 1, startTime: '08:30', endTime: '09:20', subjectCode: 'CS6103', subjectName: 'Operating Systems', facultyName: 'Dr. Amit Patel', roomNo: 'LH-301', building: 'Newton Block', isLab: false },
-    { dayOfWeek: 'TUESDAY', periodNumber: 2, startTime: '09:20', endTime: '10:10', subjectCode: 'CS6101', subjectName: 'Design and Analysis of Algorithms', facultyName: 'Dr. Ramesh Kumar', roomNo: 'LH-301', building: 'Newton Block', isLab: false },
-    { dayOfWeek: 'TUESDAY', periodNumber: 3, startTime: '10:30', endTime: '12:10', subjectCode: 'CS6101L', subjectName: 'Algorithms Design Lab', facultyName: 'Dr. Ramesh Kumar', roomNo: 'Lab-A', building: 'Turing Block', isLab: true, labName: 'Algorithms Lab' },
-    
-    { dayOfWeek: 'WEDNESDAY', periodNumber: 1, startTime: '08:30', endTime: '09:20', subjectCode: 'CS6104', subjectName: 'Distributed Systems', facultyName: 'Dr. Evelyn Boyd', roomNo: 'LH-301', building: 'Newton Block', isLab: false },
-    { dayOfWeek: 'WEDNESDAY', periodNumber: 2, startTime: '09:20', endTime: '10:10', subjectCode: 'CS6102', subjectName: 'Database Management Systems', facultyName: 'Prof. Sangeetha S', roomNo: 'LH-301', building: 'Newton Block', isLab: false },
-    { dayOfWeek: 'WEDNESDAY', periodNumber: 3, startTime: '10:30', endTime: '11:20', subjectCode: 'AI6104', subjectName: 'Machine Learning Foundations', facultyName: 'Dr. Sarah Chen', roomNo: 'LH-301', building: 'Newton Block', isLab: false },
-    
-    { dayOfWeek: 'THURSDAY', periodNumber: 1, startTime: '08:30', endTime: '09:20', subjectCode: 'AI6104', subjectName: 'Machine Learning Foundations', facultyName: 'Dr. Sarah Chen', roomNo: 'LH-301', building: 'Newton Block', isLab: false },
-    { dayOfWeek: 'THURSDAY', periodNumber: 2, startTime: '09:20', endTime: '10:10', subjectCode: 'CS6103', subjectName: 'Operating Systems', facultyName: 'Dr. Amit Patel', roomNo: 'LH-301', building: 'Newton Block', isLab: false },
-    { dayOfWeek: 'THURSDAY', periodNumber: 3, startTime: '10:30', endTime: '12:10', subjectCode: 'CS6103L', subjectName: 'OS & Paging Simulator Lab', facultyName: 'Dr. Amit Patel', roomNo: 'Lab-C', building: 'Turing Block', isLab: true, labName: 'OS Kernel Lab' },
-    
-    { dayOfWeek: 'FRIDAY', periodNumber: 1, startTime: '08:30', endTime: '09:20', subjectCode: 'CS6101', subjectName: 'Design and Analysis of Algorithms', facultyName: 'Dr. Ramesh Kumar', roomNo: 'LH-301', building: 'Newton Block', isLab: false },
-    { dayOfWeek: 'FRIDAY', periodNumber: 2, startTime: '09:20', endTime: '10:10', subjectCode: 'CS6104', subjectName: 'Distributed Systems', facultyName: 'Dr. Evelyn Boyd', roomNo: 'LH-301', building: 'Newton Block', isLab: false },
-  ]
-};
-
 export class MasterTimetableController {
   /**
    * Helper guard to verify COE or Dean Academics authorization
    */
   private verifyCOEOrDean(user: any) {
-    const authorizedRoles = ['COE', 'Dean Academics', 'Super Admin', 'Controller of Examinations'];
-    if (!authorizedRoles.includes(user.role)) {
+    const role = String(user?.role || '').toUpperCase().replace(/[\s_-]+/g, '');
+    const authorizedRoles = ['COE', 'ACADEMICDEAN', 'DEANACADEMICS', 'SUPERADMIN', 'CONTROLLEROFEXAMINATIONS', 'EXAMINATIONCELL'];
+    if (!authorizedRoles.includes(role)) {
       throw new ForbiddenException(
         `Centralized Timetable Management is strictly restricted to COE and Dean Academics. Your role (${user.role}) has Read-Only permissions.`
       );
@@ -56,7 +22,7 @@ export class MasterTimetableController {
    */
   getCentralizedTimetable = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      // Fetch latest published timetable or fallback to master initial schedule
+      // An empty database must remain an honest empty state; never fabricate a schedule.
       const published = await (prisma as any).masterTimetable.findFirst({
         where: { status: 'PUBLISHED' },
         orderBy: { publishedAt: 'desc' },
@@ -67,7 +33,8 @@ export class MasterTimetableController {
         return res.status(200).json({
           status: 'success',
           sourceOfTruth: 'Master Centralized Engine (COE & Dean Approved)',
-          data: INITIAL_MASTER_SCHEDULE
+          data: null,
+          message: 'No published master timetable is available.'
         });
       }
 
@@ -144,9 +111,15 @@ export class MasterTimetableController {
 
       const { academicYear, semester, departmentId, programId, section, slots, changeReason } = req.body;
 
-      if (!academicYear || !semester || !slots) {
+      if (!academicYear || !semester || !departmentId || !programId || !Array.isArray(slots) || slots.length === 0) {
         throw new BadRequestException('Academic Year, Semester, and slots matrix are required');
       }
+
+      slots.forEach((slot: any, index: number) => {
+        if (!slot.dayOfWeek || !Number.isInteger(slot.periodNumber) || !slot.startTime || !slot.endTime || !slot.subjectId || !slot.facultyId || !slot.roomNo) {
+          throw new BadRequestException(`Slot ${index + 1} is incomplete; day, period, time, subject, faculty, and room are required`);
+        }
+      });
 
       // Create new MasterTimetable entry with incremented version
       const existing = await (prisma as any).masterTimetable.findFirst({
@@ -160,8 +133,8 @@ export class MasterTimetableController {
         data: {
           academicYear,
           semester,
-          departmentId: departmentId || 'dept-cse',
-          programId: programId || 'prog-btech',
+          departmentId,
+          programId,
           section: section || 'A',
           status: 'PUBLISHED',
           version: nextVersion,
@@ -176,12 +149,12 @@ export class MasterTimetableController {
           masterTimetableId: master.id,
           dayOfWeek: s.dayOfWeek,
           periodNumber: s.periodNumber,
-          startTime: s.startTime || '08:30',
-          endTime: s.endTime || '09:20',
-          subjectId: s.subjectId || 'sub-1',
-          facultyId: s.facultyId || 'fac-1',
-          roomNo: s.roomNo || 'LH-301',
-          building: s.building || 'Newton Block',
+          startTime: s.startTime,
+          endTime: s.endTime,
+          subjectId: s.subjectId,
+          facultyId: s.facultyId,
+          roomNo: s.roomNo,
+          building: s.building || null,
           isLab: s.isLab || false,
           labName: s.labName
         }));

@@ -72,6 +72,8 @@ async function main() {
   const rolesData = [
     { name: 'Super Admin', description: 'Highest Authority - Full Platform Access', color: '#ef4444', icon: 'ShieldAlert', priority: 1, hierarchy: 1, isSystem: true },
     { name: 'College Admin', description: 'Full access for assigned college only', color: '#3b82f6', icon: 'Building', priority: 2, hierarchy: 2, isSystem: true },
+    { name: 'Governing Body', description: 'Read-heavy institution governance and strategic reporting', color: '#0f766e', icon: 'Landmark', priority: 2.1, hierarchy: 2, isSystem: true },
+    { name: 'Management', description: 'Read-heavy executive institution oversight', color: '#0d9488', icon: 'BarChart3', priority: 2.2, hierarchy: 2, isSystem: true },
     { name: 'Principal', description: 'Institution-wide Executive Monitoring', color: '#f59e0b', icon: 'Award', priority: 3, hierarchy: 3, isSystem: true },
     { name: 'Vice Principal', description: 'Operations & Academic Monitoring', color: '#eab308', icon: 'Award', priority: 4, hierarchy: 4, isSystem: true },
     { name: 'Academic Dean', description: 'Responsible for Academics & Curriculum', color: '#10b981', icon: 'GraduationCap', priority: 5, hierarchy: 5, isSystem: true },
@@ -154,7 +156,17 @@ async function main() {
   }
   console.log(`🔗 College Admin Role mapped with ${collegeAdminPermsCount} permissions.`);
 
-  // 3c. Connect Permissions to Admission Dean
+  // 3c. Management identities are read-heavy: dashboard/report viewing and export only.
+  for (const roleName of ['Management', 'Governing Body']) {
+    for (const perm of permissions.filter((item) => ['dashboard:view', 'reports:view', 'reports:read', 'reports:export'].includes(item.name))) {
+      await prisma.rolePermission.upsert({
+        where: { roleId_permissionId: { roleId: rolesMap[roleName].id, permissionId: perm.id } },
+        update: {}, create: { roleId: rolesMap[roleName].id, permissionId: perm.id },
+      });
+    }
+  }
+
+  // 3d. Connect Permissions to Admission Dean
   const admissionDeanRole = rolesMap['Admission Dean'];
   let admissionDeanPermsCount = 0;
   for (const perm of permissions) {
@@ -907,7 +919,7 @@ async function main() {
   });
 
   // ── Academic Dean ─────────────────────────────────────────────────────────
-  await prisma.user.upsert({
+  const academicDeanUser = await prisma.user.upsert({
     where: { email: 'academic.dean@geetorus.com' },
     update: { phone: '9800000003' },
     create: {
@@ -918,6 +930,21 @@ async function main() {
       phone:        '9800000003',
       status:       'ACTIVE',
       roleId:       rolesMap['Academic Dean'].id,
+    },
+  });
+
+  // One identity, two isolated workspaces. Authentication resolves permissions
+  // from the active role, so COE authority does not leak into Academic Dean.
+  await prisma.userWorkspace.upsert({
+    where: { userId_workspaceCode: { userId: academicDeanUser.id, workspaceCode: 'COE' } },
+    update: { workspaceName: 'COE Workspace', roleName: 'Examination Cell', status: 'ACTIVE' },
+    create: {
+      userId: academicDeanUser.id,
+      workspaceCode: 'COE',
+      workspaceName: 'COE Workspace',
+      roleName: 'Examination Cell',
+      isPrimary: false,
+      status: 'ACTIVE',
     },
   });
 
@@ -2127,4 +2154,3 @@ main()
   .finally(async () => {
     await prisma.$disconnect();
   });
-

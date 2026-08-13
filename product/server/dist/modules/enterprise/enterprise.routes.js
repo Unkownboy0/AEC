@@ -7,6 +7,8 @@ const dean_controller_1 = require("./dean.controller");
 const search_controller_1 = require("./search.controller");
 const auth_middleware_1 = require("../../core/middlewares/auth.middleware");
 const departmentScope_1 = require("../../core/middlewares/departmentScope");
+const student_access_middleware_1 = require("../security/student-access.middleware");
+const student_fee_controller_1 = require("../fees/student-fee.controller");
 const router = (0, express_1.Router)();
 const controller = new enterprise_controller_1.EnterpriseController();
 // Public QR Code verification endpoint (does not require login)
@@ -14,10 +16,10 @@ router.get('/id-card/verify/:token', controller.verifyIdCard);
 // Guard all other enterprise endpoints with authentication
 router.use(auth_middleware_1.requireAuth);
 // ID Cards (requires authentication)
-router.get('/id-card/student/:id', controller.getStudentIdCard);
+router.get('/id-card/student/:id', student_access_middleware_1.requireStudentAccess, controller.getStudentIdCard);
 router.get('/id-card/faculty/:id', controller.getFacultyIdCard);
-router.post('/bulk-action', controller.bulkAction);
-router.get('/search', controller.globalSearch);
+router.post('/bulk-action', (0, auth_middleware_1.requireRole)(['Super Admin', 'College Admin']), controller.bulkAction);
+router.get('/search', search_controller_1.SearchController.globalSearch);
 router.get('/search/global', search_controller_1.SearchController.globalSearch);
 // Students
 router.get('/students/mapping-validation', controller.getMappingValidation);
@@ -25,13 +27,13 @@ router.post('/students/auto-assign', controller.runAutoAssign);
 router.get('/students/dashboard-summary', controller.getStudentDashboardSummary);
 router.get('/students/hierarchy', departmentScope_1.enforceDepartmentScope, hod_controller_1.HODController.getYearClassHierarchy);
 router.get('/students', controller.listStudents);
-router.get('/students/:id/full-profile', controller.getStudentFullProfile);
-router.get('/students/:id/id-card/pdf', controller.downloadIdCardPdf);
-router.get('/students/:id/attendance/pdf', controller.downloadAttendancePdf);
-router.get('/students/:id', controller.getStudent);
-router.post('/students', controller.createStudent);
-router.put('/students/:id', controller.updateStudent);
-router.delete('/students/:id', controller.deleteStudent);
+router.get('/students/:id/full-profile', student_access_middleware_1.requireStudentAccess, controller.getStudentFullProfile);
+router.get('/students/:id/id-card/pdf', student_access_middleware_1.requireStudentAccess, controller.downloadIdCardPdf);
+router.get('/students/:id/attendance/pdf', student_access_middleware_1.requireStudentAccess, controller.downloadAttendancePdf);
+router.get('/students/:id', student_access_middleware_1.requireStudentAccess, controller.getStudent);
+router.post('/students', (0, auth_middleware_1.requirePermission)('students:write'), controller.createStudent);
+router.put('/students/:id', (0, auth_middleware_1.requirePermission)('students:write'), controller.updateStudent);
+router.delete('/students/:id', (0, auth_middleware_1.requirePermission)('students:write'), controller.deleteStudent);
 // Faculty
 router.get('/faculty', controller.listFaculties);
 router.get('/faculty/:id/full-profile', controller.getFacultyFullProfile);
@@ -46,18 +48,25 @@ router.post('/attendance/bulk', controller.recordBulkAttendance);
 // Exams
 router.get('/exams', controller.listExams);
 router.get('/exams/:id', controller.getExam);
-router.post('/exams', controller.createExam);
-router.put('/exams/:id', controller.updateExam);
-router.delete('/exams/:id', controller.deleteExam);
+router.post('/exams', (0, auth_middleware_1.requireRole)(['Examination Cell', 'COE']), controller.createExam);
+router.put('/exams/:id', (0, auth_middleware_1.requireRole)(['Examination Cell', 'COE']), controller.updateExam);
+router.delete('/exams/:id', (0, auth_middleware_1.requireRole)(['Examination Cell', 'COE']), controller.deleteExam);
 // Marks
 router.get('/marks', controller.listMarks);
-router.post('/marks', controller.recordMark);
+router.post('/marks', (0, auth_middleware_1.requireRole)(['Faculty', 'HOD', 'Academic Dean', 'Examination Cell', 'COE']), controller.recordMark);
 // Fees
 router.get('/fees/categories', controller.listFeeCategories);
-router.post('/fees/categories', controller.createFeeCategory);
+router.post('/fees/categories', (0, auth_middleware_1.requirePermission)('fees:write'), controller.createFeeCategory);
 router.get('/fees/bills', controller.listFeeBills);
-router.post('/fees/bills', controller.createFeeBill);
-router.post('/fees/bills/:id/pay', controller.recordPayment);
+router.post('/fees/bills', (0, auth_middleware_1.requirePermission)('fees:write'), controller.createFeeBill);
+router.post('/fees/bills/:id/pay', (0, auth_middleware_1.requirePermission)('fees:write'), controller.recordPayment);
+router.get('/fees/student/portal', student_fee_controller_1.StudentFeeController.portal);
+router.post('/fees/student/bills/:id/online-order', student_fee_controller_1.StudentFeeController.createOrder);
+router.post('/fees/student/online-payment/verify', student_fee_controller_1.StudentFeeController.verifyOnline);
+router.post('/fees/student/bills/:id/external-payment', student_fee_controller_1.StudentFeeController.submitExternal);
+router.get('/fees/student/payments/:id/receipt', student_fee_controller_1.StudentFeeController.receipt);
+router.get('/fees/external-payments', (0, auth_middleware_1.requirePermission)('fees:write'), student_fee_controller_1.StudentFeeController.listExternal);
+router.post('/fees/external-payments/:id/review', (0, auth_middleware_1.requirePermission)('fees:write'), student_fee_controller_1.StudentFeeController.reviewExternal);
 // Library
 router.get('/library/books', controller.listLibraryBooks);
 router.get('/library/books/:id', controller.getLibraryBook);
@@ -81,7 +90,10 @@ router.get('/tickets', controller.listTickets);
 router.get('/tickets/:id', controller.getTicket);
 router.post('/tickets', controller.createTicket);
 router.put('/tickets/:id', controller.updateTicket);
-router.delete('/tickets/:id', controller.deleteTicket);
+router.delete('/tickets/:id', (0, auth_middleware_1.requireRole)([
+    'Super Admin', 'College Admin', 'Principal', 'Vice Principal',
+    'Academic Dean', 'Admission Dean', 'IQAC Dean', 'Grievance', 'Grievance Officer'
+]), controller.deleteTicket);
 // Internships
 router.get('/internships', controller.listInternships);
 router.post('/internships', controller.createInternship);
@@ -105,6 +117,9 @@ router.post('/placements/drives', placementController.createDrive);
 router.put('/placements/drives/:id', placementController.updateDrive);
 router.delete('/placements/drives/:id', placementController.deleteDrive);
 router.post('/placements/drives/apply', placementController.applyToDrive);
+router.get('/placements/student-portal', placementController.getStudentPortal);
+router.post('/placements/student/apply', placementController.studentApplyToDrive);
+router.post('/placements/student/applications/:id/withdraw', placementController.studentWithdrawApplication);
 router.get('/placements/drives/:driveId/applications', placementController.listApplications);
 router.put('/placements/applications/:id/status', placementController.updateApplicationStatus);
 router.post('/placements/applications/:id/offer-letter', placementController.uploadOfferLetter);
@@ -113,6 +128,7 @@ const complaint_controller_1 = require("./complaint.controller");
 const complaintController = new complaint_controller_1.ComplaintController();
 router.get('/complaints/analytics', complaintController.getAnalytics);
 router.get('/complaints/feed', complaintController.getFeed);
+router.post('/complaints', controller.createTicket);
 router.post('/complaints/:id/remarks', complaintController.addInternalRemark);
 router.post('/complaints/:id/escalate', complaintController.escalateComplaint);
 router.post('/complaints/audit', complaintController.recordAudit);
@@ -212,5 +228,11 @@ router.get('/executive/ai-insights', executiveController.getAIExecutiveInsights)
 router.get('/executive/inbox', executiveController.getExecutiveInbox);
 router.post('/executive/presence', executiveController.updatePresenceStatus);
 router.post('/executive/command-action', executiveController.executeCommandAction);
+// Realtime Department Availability Board for HOD, Dean, VP, Principal
+const availability_board_controller_1 = require("./availability-board.controller");
+const faculty_operations_controller_1 = require("./faculty-operations.controller");
+router.get('/availability-board', (0, auth_middleware_1.requireRole)(['HOD', 'DEAN', 'VICE_PRINCIPAL', 'VP', 'PRINCIPAL', 'ADMIN', 'SUPER_ADMIN']), availability_board_controller_1.availabilityBoardController.getAvailabilityBoard);
+router.get('/faculty-operations', (0, auth_middleware_1.requireRole)(['HOD', 'VICE_PRINCIPAL', 'VP', 'PRINCIPAL', 'SUPER_ADMIN']), faculty_operations_controller_1.facultyOperationsController.getBoard);
+router.get('/faculty-operations/:facultyId', (0, auth_middleware_1.requireRole)(['HOD', 'VICE_PRINCIPAL', 'VP', 'PRINCIPAL', 'SUPER_ADMIN']), faculty_operations_controller_1.facultyOperationsController.getDetail);
 exports.default = router;
 //# sourceMappingURL=enterprise.routes.js.map

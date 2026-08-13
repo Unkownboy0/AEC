@@ -57,17 +57,13 @@ export declare class AuthService {
         forcePasswordChange: boolean;
         faculty: any;
         workspaces: string[];
+        activeWorkspace: string;
     }>;
     /**
      * Change password for logged-in user
      */
     changePassword(userId: string, input: any): Promise<void>;
-    /**
-     * Forgot password: create reset token and mock mail log
-     */
-    forgotPassword(email: string): Promise<{
-        resetToken: string;
-    }>;
+    forgotPassword(email: string): Promise<void>;
     /**
      * Reset password using token
      */

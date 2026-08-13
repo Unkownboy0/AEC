@@ -29,12 +29,57 @@ export class TaskEngineService {
   /**
    * 1. Create Enterprise Task with Checklist & SLA
    */
-  static async createTask(createdById: string, dto: CreateTaskEngineDto) {
+  static async createTask(createdById: string, dto: CreateTaskEngineDto, activeRole?: string) {
     if (!dto.title || !dto.title.trim()) {
       throw new BadRequestException('Task title is required');
     }
     if (!dto.assigneeIds || dto.assigneeIds.length === 0) {
       throw new BadRequestException('At least one assignee is required');
+    }
+
+    const assigneeIds = Array.from(new Set(dto.assigneeIds));
+    const [creator, assignees] = await Promise.all([
+      prisma.user.findUnique({
+        where: { id: createdById },
+        select: {
+          departmentId: true,
+          role: { select: { name: true } },
+          departmentMemberships: { select: { departmentId: true } },
+        },
+      }),
+      prisma.user.findMany({
+        where: { id: { in: assigneeIds }, status: 'ACTIVE' },
+        select: {
+          id: true,
+          departmentId: true,
+          departmentMemberships: { select: { departmentId: true } },
+        },
+      }),
+    ]);
+    if (!creator) throw new ForbiddenException('Task creator account was not found');
+    if (assignees.length !== assigneeIds.length) {
+      throw new BadRequestException('One or more task recipients are invalid or inactive');
+    }
+
+    const normalizedRole = String(activeRole || creator.role.name).toUpperCase().replace(/[\s_-]+/g, '');
+    const institutionAuthor = ['SUPERADMIN', 'COLLEGEADMIN', 'PRINCIPAL', 'VICEPRINCIPAL', 'ACADEMICDEAN', 'ADMISSIONDEAN', 'IQACDEAN'].includes(normalizedRole);
+    if (!institutionAuthor) {
+      const creatorDepartments = new Set([
+        ...(creator.departmentId ? [creator.departmentId] : []),
+        ...creator.departmentMemberships.map((item) => item.departmentId),
+      ]);
+      if (dto.departmentId && !creatorDepartments.has(dto.departmentId)) {
+        throw new ForbiddenException("You can't create a task outside your assigned departments");
+      }
+      for (const assignee of assignees) {
+        const recipientDepartments = [
+          ...(assignee.departmentId ? [assignee.departmentId] : []),
+          ...assignee.departmentMemberships.map((item) => item.departmentId),
+        ];
+        if (!recipientDepartments.some((departmentId) => creatorDepartments.has(departmentId))) {
+          throw new ForbiddenException("You can't assign tasks to users outside your assigned departments");
+        }
+      }
     }
 
     const count = await prisma.task.count();
@@ -75,7 +120,7 @@ export class TaskEngineService {
         relatedEntityId: dto.relatedEntityId || null,
         remarks: dto.remarks || null,
         assignees: {
-          create: dto.assigneeIds.map((assigneeId) => ({
+          create: assigneeIds.map((assigneeId) => ({
             assigneeId,
             status: 'NOT_SEEN',
             completionPercent: 0,
@@ -103,7 +148,7 @@ export class TaskEngineService {
     });
 
     // Instant Notifications
-    for (const assigneeId of dto.assigneeIds) {
+    for (const assigneeId of assigneeIds) {
       await NotificationService.sendNotification({
         recipientId: assigneeId,
         eventType: 'TASK_ASSIGNED',
@@ -169,8 +214,14 @@ export class TaskEngineService {
    * 3. Update Checklist & Progress
    */
   static async updateChecklist(taskId: string, userId: string, checklist: any[]) {
-    const task = await prisma.task.findUnique({ where: { id: taskId } });
+    const task = await prisma.task.findUnique({
+      where: { id: taskId },
+      include: { assignees: { select: { assigneeId: true } } },
+    });
     if (!task) throw new NotFoundException('Task not found');
+    if (task.createdById !== userId && !task.assignees.some((item) => item.assigneeId === userId)) {
+      throw new ForbiddenException('Only the task creator or assigned recipients can update the checklist');
+    }
 
     const total = checklist.length;
     const completedCount = checklist.filter((c) => c.isCompleted).length;

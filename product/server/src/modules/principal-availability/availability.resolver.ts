@@ -1,6 +1,8 @@
 import { prisma } from '../../lib/prisma';
 import { PrincipalAvailabilityContext } from './availability.types';
 import { logger } from '../../utils/logger';
+import { RequestTransferService } from './request-transfer.service';
+import { env } from '../../config/env';
 
 export class PrincipalAvailabilityResolver {
   /**
@@ -157,6 +159,11 @@ export class PrincipalAvailabilityResolver {
         },
       });
 
+      await RequestTransferService.returnPendingRequestsToPrincipal({
+        principalUserId,
+        delegationId: activeDelegation.id,
+      });
+
       logger.info(`Delegation ${activeDelegation.id} expired. Reverted Principal (${principalUserId}) to AVAILABLE`);
 
       return {
@@ -207,6 +214,42 @@ export class PrincipalAvailabilityResolver {
 
     const parsedCategories = JSON.parse(activeDelegation.delegatedCategories || '[]');
     const parsedPermissions = JSON.parse(activeDelegation.delegatedPermissions || '[]');
+    const parsedScope = JSON.parse(activeDelegation.delegatedScope || '{}');
+
+    // Delegations created before tenant scoping (or copied from another tenant) fail closed.
+    if (parsedScope.tenantId !== env.CAMPUS_TENANT_ID) {
+      await (prisma as any).principalDelegation.update({ where: { id: activeDelegation.id }, data: { status: 'REVOKED', revokedAt: now, revokedReason: 'INVALID_TENANT_SCOPE' } });
+      statusRecord = await (prisma as any).principalStatus.update({ where: { principalUserId }, data: { status: 'AVAILABLE', activeDelegationId: null, version: { increment: 1 } } });
+      await RequestTransferService.returnPendingRequestsToPrincipal({ principalUserId, delegationId: activeDelegation.id });
+      await prisma.auditLog.create({ data: { actorId: principalUserId, action: 'AUTO_REVOKE', entityType: 'PRINCIPAL_DELEGATION', entityId: activeDelegation.id, description: 'Revoked delegation with missing or mismatched tenant scope', newValues: JSON.stringify({ tenantId: parsedScope.tenantId || null, expectedTenantId: env.CAMPUS_TENANT_ID }) } });
+      return { principalStatus: 'AVAILABLE', delegationStatus: 'REVOKED', actingPrincipal: null, delegation: null, canPrincipalProcessRequests: true, canVpActAsPrincipal: false, permissionVersion: statusRecord.version || 1, serverTime: now.toISOString(), pendingPrincipalRequests: 0, pendingActingRequests: 0, latestHandoverId: null };
+    }
+
+    if (new Date(activeDelegation.startDate) > now) {
+      return {
+        principalStatus: currentStatus,
+        delegationStatus: 'PENDING',
+        actingPrincipal: null,
+        delegation: null,
+        canPrincipalProcessRequests: true,
+        canVpActAsPrincipal: false,
+        permissionVersion: statusRecord.version || 1,
+        serverTime: now.toISOString(),
+        pendingPrincipalRequests: 0,
+        pendingActingRequests: 0,
+        latestHandoverId: null,
+      };
+    }
+
+    await RequestTransferService.transferPendingRequestsToVp({
+      principalUserId,
+      vpUserId: activeDelegation.actingUserId,
+      delegationId: activeDelegation.id,
+      categories: parsedCategories,
+      permissions: parsedPermissions,
+      scope: parsedScope,
+      financialThreshold: activeDelegation.financialThreshold == null ? null : Number(activeDelegation.financialThreshold),
+    });
 
     const pendingActingRequests = await (prisma as any).approvalAssignment.count({
       where: {
@@ -244,6 +287,8 @@ export class PrincipalAvailabilityResolver {
         reason: activeDelegation.reason,
         delegatedCategories: parsedCategories,
         permissions: parsedPermissions,
+        scope: parsedScope,
+        financialThreshold: activeDelegation.financialThreshold == null ? null : Number(activeDelegation.financialThreshold),
       },
       canPrincipalProcessRequests: false,
       canVpActAsPrincipal: true,

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, Clock, FileText, Send, CheckCircle2, XCircle, AlertTriangle, RefreshCw, Plus, Shield } from 'lucide-react';
+import { Calendar, Clock, FileText, Send, CheckCircle2, XCircle, AlertTriangle, RefreshCw, Plus, Shield, Ban } from 'lucide-react';
 import api from '../../lib/axios';
 import { toast } from '../ui/Toast';
 
@@ -76,6 +76,17 @@ export const ExecutiveLeaveOdModal: React.FC<ExecutiveLeaveOdModalProps> = ({
       toast.error(err.response?.data?.message || 'Failed to submit Leave/OD request');
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const cancelRequest = async (id: string) => {
+    if (!window.confirm('Cancel this Leave/OD request?')) return;
+    try {
+      await api.post(`/workflows/requests/${id}/cancel`);
+      toast.success('Request cancelled.');
+      fetchMyRequests();
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Request could not be cancelled.');
     }
   };
 
@@ -275,6 +286,7 @@ export const ExecutiveLeaveOdModal: React.FC<ExecutiveLeaveOdModalProps> = ({
                           <span className="italic text-primary font-bold">Remarks: {req.principalRemarks}</span>
                         )}
                       </div>
+                      {(req.status === 'DRAFT' || String(req.status).startsWith('PENDING') || req.status === 'RETURNED') && <div className="flex justify-end"><button type="button" onClick={() => cancelRequest(req.id)} className="inline-flex items-center gap-1.5 rounded-lg border border-rose-200 px-3 py-1.5 text-xs font-semibold text-rose-600 hover:bg-rose-50"><Ban className="h-3.5 w-3.5" /> Cancel request</button></div>}
                     </div>
                   ))}
                 </div>

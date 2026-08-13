@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import api from '../../lib/axios';
 import {
   Shield, Users, Lock, Eye, Edit3, Trash2, Copy, GitMerge, Plus, Check, X,
   Search, Sliders, RefreshCw, AlertCircle, Layers, Layout, ArrowRightLeft, FileText, Activity,
@@ -74,24 +74,24 @@ export const IAMMasterControlConsole: React.FC = () => {
     setLoading(true);
     try {
       if (activeTab === 'directory') {
-        const res = await axios.get(`/api/iam/directory?query=${encodeURIComponent(searchQuery)}`);
+        const res = await api.get(`/iam/directory?query=${encodeURIComponent(searchQuery)}`);
         setDirectoryData({ users: res.data?.users || [], total: res.data?.total || 0 });
       } else if (activeTab === 'roles' || activeTab === 'matrix') {
-        const res = await axios.get('/api/rbac/matrix');
+        const res = await api.get('/rbac/matrix');
         const data = res.data?.data || [];
         setRoles(data);
         if (data.length > 0 && !selectedRole) setSelectedRole(data[0]);
       } else if (activeTab === 'designations') {
-        const res = await axios.get('/api/iam/designations');
+        const res = await api.get('/iam/designations');
         setDesignations(res.data?.data || []);
       } else if (activeTab === 'committees') {
-        const res = await axios.get('/api/iam/committees');
+        const res = await api.get('/iam/committees');
         setCommittees(res.data?.data || []);
       } else if (activeTab === 'delegations') {
-        const res = await axios.get('/api/iam/delegations');
+        const res = await api.get('/iam/delegations');
         setDelegations(res.data?.data || []);
       } else if (activeTab === 'audit') {
-        const res = await axios.get('/api/rbac/audit-logs');
+        const res = await api.get('/rbac/audit-logs');
         setAuditLogs(res.data?.data || []);
       }
     } catch (err) {
@@ -104,7 +104,7 @@ export const IAMMasterControlConsole: React.FC = () => {
   const handleCreateDesignation = async () => {
     if (!newDesigTitle || !newDesigCode) return;
     try {
-      await axios.post('/api/iam/designations', { title: newDesigTitle, code: newDesigCode });
+      await api.post('/iam/designations', { title: newDesigTitle, code: newDesigCode });
       setNewDesigTitle('');
       setNewDesigCode('');
       fetchData();
@@ -116,7 +116,7 @@ export const IAMMasterControlConsole: React.FC = () => {
   const handleCreateCommittee = async () => {
     if (!newCommName || !newCommCode) return;
     try {
-      await axios.post('/api/iam/committees', { name: newCommName, code: newCommCode });
+      await api.post('/iam/committees', { name: newCommName, code: newCommCode });
       setNewCommName('');
       setNewCommCode('');
       fetchData();
@@ -132,7 +132,7 @@ export const IAMMasterControlConsole: React.FC = () => {
       if (!updatedAccess[moduleName]) updatedAccess[moduleName] = {};
       updatedAccess[moduleName][actionName] = !currentValue;
 
-      await axios.put(`/api/rbac/roles/${selectedRole.id}/config`, {
+      await api.put(`/rbac/roles/${selectedRole.id}/config`, {
         moduleAccess: updatedAccess,
         reason: `Toggled permission ${moduleName}:${actionName}`
       });

@@ -101,10 +101,10 @@ export declare class EnterpriseService {
                 deleted: boolean;
                 deletedAt: Date | null;
                 name: string;
-                duration: number;
-                level: string;
                 credits: number;
+                duration: number;
                 coordinator: string | null;
+                level: string;
             };
             course: {
                 code: string;
@@ -121,10 +121,10 @@ export declare class EnterpriseService {
                 deletedAt: Date | null;
                 name: string;
                 description: string | null;
-                duration: number;
                 credits: number;
-                coordinator: string | null;
                 courseOutcomes: string;
+                duration: number;
+                coordinator: string | null;
             };
             semester: {
                 number: number;
@@ -142,8 +142,8 @@ export declare class EnterpriseService {
                 name: string;
                 startDate: Date;
                 endDate: Date;
-                isCurrent: boolean;
                 credits: number;
+                isCurrent: boolean;
             };
             section: {
                 status: string;
@@ -358,10 +358,10 @@ export declare class EnterpriseService {
             deleted: boolean;
             deletedAt: Date | null;
             name: string;
-            duration: number;
-            level: string;
             credits: number;
+            duration: number;
             coordinator: string | null;
+            level: string;
         };
         course: {
             code: string;
@@ -378,10 +378,10 @@ export declare class EnterpriseService {
             deletedAt: Date | null;
             name: string;
             description: string | null;
-            duration: number;
             credits: number;
-            coordinator: string | null;
             courseOutcomes: string;
+            duration: number;
+            coordinator: string | null;
         };
         semester: {
             number: number;
@@ -399,8 +399,8 @@ export declare class EnterpriseService {
             name: string;
             startDate: Date;
             endDate: Date;
-            isCurrent: boolean;
             credits: number;
+            isCurrent: boolean;
         };
         section: {
             status: string;
@@ -1181,8 +1181,8 @@ export declare class EnterpriseService {
             deleted: boolean;
             deletedAt: Date | null;
             subjectId: string | null;
-            date: Date;
             studentId: string | null;
+            date: Date;
             remarks: string | null;
         })[];
         totalCount: number;
@@ -1199,8 +1199,8 @@ export declare class EnterpriseService {
         deleted: boolean;
         deletedAt: Date | null;
         subjectId: string | null;
-        date: Date;
         studentId: string | null;
+        date: Date;
         remarks: string | null;
     }>;
     recordBulkAttendance(input: any, userId: string, ip?: string, ua?: string): Promise<{
@@ -1237,10 +1237,10 @@ export declare class EnterpriseService {
                 deletedAt: Date | null;
                 name: string;
                 description: string | null;
-                duration: number;
                 credits: number;
-                coordinator: string | null;
                 courseOutcomes: string;
+                duration: number;
+                coordinator: string | null;
             };
             semester: {
                 number: number;
@@ -1258,8 +1258,8 @@ export declare class EnterpriseService {
                 name: string;
                 startDate: Date;
                 endDate: Date;
-                isCurrent: boolean;
                 credits: number;
+                isCurrent: boolean;
             };
             coordinator: {
                 status: string;
@@ -1378,10 +1378,10 @@ export declare class EnterpriseService {
             deletedAt: Date | null;
             name: string;
             description: string | null;
-            duration: number;
             credits: number;
-            coordinator: string | null;
             courseOutcomes: string;
+            duration: number;
+            coordinator: string | null;
         };
         semester: {
             number: number;
@@ -1399,8 +1399,8 @@ export declare class EnterpriseService {
             name: string;
             startDate: Date;
             endDate: Date;
-            isCurrent: boolean;
             credits: number;
+            isCurrent: boolean;
         };
         coordinator: {
             status: string;
@@ -1666,9 +1666,9 @@ export declare class EnterpriseService {
             deleted: boolean;
             deletedAt: Date | null;
             subjectId: string;
+            studentId: string;
             internalMarks: number;
             externalMarks: number;
-            studentId: string;
             examId: string;
             practicalMarks: number;
             grade: string;
@@ -1677,7 +1677,7 @@ export declare class EnterpriseService {
         })[];
         totalCount: number;
     }>;
-    recordMark(input: any, userId: string, ip?: string, ua?: string): Promise<{
+    recordMark(input: any, userId: string, activeRole: string, ip?: string, ua?: string): Promise<{
         status: string;
         id: string;
         createdAt: Date;
@@ -1687,9 +1687,9 @@ export declare class EnterpriseService {
         deleted: boolean;
         deletedAt: Date | null;
         subjectId: string;
+        studentId: string;
         internalMarks: number;
         externalMarks: number;
-        studentId: string;
         examId: string;
         practicalMarks: number;
         grade: string;
@@ -1816,15 +1816,19 @@ export declare class EnterpriseService {
             archivedAt: Date | null;
             deleted: boolean;
             deletedAt: Date | null;
+            studentId: string;
             paidAmount: number;
             amount: number;
             scholarshipDiscount: number;
             fine: number;
-            studentId: string;
             billingDate: Date;
             dueDate: Date;
             paymentHistory: string;
             receipts: string;
+            invoiceNumber: string | null;
+            academicYearLabel: string | null;
+            semesterLabel: string | null;
+            allowPartialPayment: boolean;
             categoryId: string;
         })[];
         totalCount: number;
@@ -1838,15 +1842,19 @@ export declare class EnterpriseService {
         archivedAt: Date | null;
         deleted: boolean;
         deletedAt: Date | null;
+        studentId: string;
         paidAmount: number;
         amount: number;
         scholarshipDiscount: number;
         fine: number;
-        studentId: string;
         billingDate: Date;
         dueDate: Date;
         paymentHistory: string;
         receipts: string;
+        invoiceNumber: string | null;
+        academicYearLabel: string | null;
+        semesterLabel: string | null;
+        allowPartialPayment: boolean;
         categoryId: string;
     }>;
     recordPayment(id: string, input: any, userId: string, ip?: string, ua?: string): Promise<{
@@ -1858,15 +1866,19 @@ export declare class EnterpriseService {
         archivedAt: Date | null;
         deleted: boolean;
         deletedAt: Date | null;
+        studentId: string;
         paidAmount: number;
         amount: number;
         scholarshipDiscount: number;
         fine: number;
-        studentId: string;
         billingDate: Date;
         dueDate: Date;
         paymentHistory: string;
         receipts: string;
+        invoiceNumber: string | null;
+        academicYearLabel: string | null;
+        semesterLabel: string | null;
+        allowPartialPayment: boolean;
         categoryId: string;
     }>;
     listLibraryBooks(params: any): Promise<{
@@ -2195,6 +2207,11 @@ export declare class EnterpriseService {
                 orcidId: string | null;
                 portfolioWebsite: string | null;
             } | null;
+            assignedTo: {
+                id: string;
+                firstName: string;
+                lastName: string;
+            } | null;
         } & {
             status: string;
             id: string;
@@ -2208,9 +2225,12 @@ export declare class EnterpriseService {
             deletedAt: Date | null;
             description: string;
             priority: string;
-            title: string;
             studentId: string | null;
+            title: string;
             replies: string;
+            assignedToUserId: string | null;
+            routedAt: Date | null;
+            resolutionRemarks: string | null;
         })[];
         totalCount: number;
     }>;
@@ -2346,6 +2366,11 @@ export declare class EnterpriseService {
             orcidId: string | null;
             portfolioWebsite: string | null;
         } | null;
+        assignedTo: {
+            id: string;
+            firstName: string;
+            lastName: string;
+        } | null;
     } & {
         status: string;
         id: string;
@@ -2359,11 +2384,14 @@ export declare class EnterpriseService {
         deletedAt: Date | null;
         description: string;
         priority: string;
-        title: string;
         studentId: string | null;
+        title: string;
         replies: string;
+        assignedToUserId: string | null;
+        routedAt: Date | null;
+        resolutionRemarks: string | null;
     }>;
-    createTicket(input: any, userId: string, ip?: string, ua?: string): Promise<{
+    createTicket(input: any, userId: string, activeRole?: string, ip?: string, ua?: string): Promise<{
         status: string;
         id: string;
         createdAt: Date;
@@ -2376,11 +2404,14 @@ export declare class EnterpriseService {
         deletedAt: Date | null;
         description: string;
         priority: string;
-        title: string;
         studentId: string | null;
+        title: string;
         replies: string;
+        assignedToUserId: string | null;
+        routedAt: Date | null;
+        resolutionRemarks: string | null;
     }>;
-    updateTicket(id: string, input: any, userId: string, ip?: string, ua?: string): Promise<{
+    updateTicket(id: string, input: any, userId: string, activeRole?: string, ip?: string, ua?: string): Promise<{
         status: string;
         id: string;
         createdAt: Date;
@@ -2393,9 +2424,12 @@ export declare class EnterpriseService {
         deletedAt: Date | null;
         description: string;
         priority: string;
-        title: string;
         studentId: string | null;
+        title: string;
         replies: string;
+        assignedToUserId: string | null;
+        routedAt: Date | null;
+        resolutionRemarks: string | null;
     }>;
     bulkDelete(moduleKey: string, ids: string[], userId: string, ip?: string, ua?: string): Promise<void>;
     bulkArchive(moduleKey: string, ids: string[], userId: string, ip?: string, ua?: string): Promise<void>;

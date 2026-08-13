@@ -16,10 +16,10 @@ export declare class AcademicsService {
                 deleted: boolean;
                 deletedAt: Date | null;
                 name: string;
-                duration: number;
-                level: string;
                 credits: number;
+                duration: number;
                 coordinator: string | null;
+                level: string;
             }[];
             courses: {
                 code: string;
@@ -36,10 +36,10 @@ export declare class AcademicsService {
                 deletedAt: Date | null;
                 name: string;
                 description: string | null;
-                duration: number;
                 credits: number;
-                coordinator: string | null;
                 courseOutcomes: string;
+                duration: number;
+                coordinator: string | null;
             }[];
         } & {
             code: string;
@@ -84,10 +84,10 @@ export declare class AcademicsService {
             deleted: boolean;
             deletedAt: Date | null;
             name: string;
-            duration: number;
-            level: string;
             credits: number;
+            duration: number;
             coordinator: string | null;
+            level: string;
         }[];
         courses: {
             code: string;
@@ -104,10 +104,10 @@ export declare class AcademicsService {
             deletedAt: Date | null;
             name: string;
             description: string | null;
-            duration: number;
             credits: number;
-            coordinator: string | null;
             courseOutcomes: string;
+            duration: number;
+            coordinator: string | null;
         }[];
     } & {
         code: string;
@@ -235,10 +235,10 @@ export declare class AcademicsService {
             deleted: boolean;
             deletedAt: Date | null;
             name: string;
-            duration: number;
-            level: string;
             credits: number;
+            duration: number;
             coordinator: string | null;
+            level: string;
         })[];
         totalCount: number;
     }>;
@@ -283,10 +283,10 @@ export declare class AcademicsService {
         deleted: boolean;
         deletedAt: Date | null;
         name: string;
-        duration: number;
-        level: string;
         credits: number;
+        duration: number;
         coordinator: string | null;
+        level: string;
     }>;
     createProgram(input: any, userId: string, ip?: string, ua?: string): Promise<{
         code: string;
@@ -300,10 +300,10 @@ export declare class AcademicsService {
         deleted: boolean;
         deletedAt: Date | null;
         name: string;
-        duration: number;
-        level: string;
         credits: number;
+        duration: number;
         coordinator: string | null;
+        level: string;
     }>;
     updateProgram(id: string, input: any, userId: string, ip?: string, ua?: string): Promise<{
         code: string;
@@ -317,10 +317,10 @@ export declare class AcademicsService {
         deleted: boolean;
         deletedAt: Date | null;
         name: string;
-        duration: number;
-        level: string;
         credits: number;
+        duration: number;
         coordinator: string | null;
+        level: string;
     }>;
     listCourses(params: any, user?: UserPayload): Promise<{
         items: ({
@@ -364,10 +364,10 @@ export declare class AcademicsService {
                 deleted: boolean;
                 deletedAt: Date | null;
                 name: string;
-                duration: number;
-                level: string;
                 credits: number;
+                duration: number;
                 coordinator: string | null;
+                level: string;
             };
         } & {
             code: string;
@@ -384,10 +384,10 @@ export declare class AcademicsService {
             deletedAt: Date | null;
             name: string;
             description: string | null;
-            duration: number;
             credits: number;
-            coordinator: string | null;
             courseOutcomes: string;
+            duration: number;
+            coordinator: string | null;
         })[];
         totalCount: number;
     }>;
@@ -432,10 +432,10 @@ export declare class AcademicsService {
             deleted: boolean;
             deletedAt: Date | null;
             name: string;
-            duration: number;
-            level: string;
             credits: number;
+            duration: number;
             coordinator: string | null;
+            level: string;
         };
     } & {
         code: string;
@@ -452,10 +452,10 @@ export declare class AcademicsService {
         deletedAt: Date | null;
         name: string;
         description: string | null;
-        duration: number;
         credits: number;
-        coordinator: string | null;
         courseOutcomes: string;
+        duration: number;
+        coordinator: string | null;
     }>;
     createCourse(input: any, userId: string, ip?: string, ua?: string): Promise<{
         code: string;
@@ -472,10 +472,10 @@ export declare class AcademicsService {
         deletedAt: Date | null;
         name: string;
         description: string | null;
-        duration: number;
         credits: number;
-        coordinator: string | null;
         courseOutcomes: string;
+        duration: number;
+        coordinator: string | null;
     }>;
     updateCourse(id: string, input: any, userId: string, ip?: string, ua?: string): Promise<{
         code: string;
@@ -492,10 +492,10 @@ export declare class AcademicsService {
         deletedAt: Date | null;
         name: string;
         description: string | null;
-        duration: number;
         credits: number;
-        coordinator: string | null;
         courseOutcomes: string;
+        duration: number;
+        coordinator: string | null;
     }>;
     listYears(params: any): Promise<{
         items: {
@@ -598,10 +598,10 @@ export declare class AcademicsService {
                 deleted: boolean;
                 deletedAt: Date | null;
                 name: string;
-                duration: number;
-                level: string;
                 credits: number;
+                duration: number;
                 coordinator: string | null;
+                level: string;
             };
             course: {
                 code: string;
@@ -618,10 +618,10 @@ export declare class AcademicsService {
                 deletedAt: Date | null;
                 name: string;
                 description: string | null;
-                duration: number;
                 credits: number;
-                coordinator: string | null;
                 courseOutcomes: string;
+                duration: number;
+                coordinator: string | null;
             };
         } & {
             number: number;
@@ -639,8 +639,8 @@ export declare class AcademicsService {
             name: string;
             startDate: Date;
             endDate: Date;
-            isCurrent: boolean;
             credits: number;
+            isCurrent: boolean;
         })[];
         totalCount: number;
     }>;
@@ -671,10 +671,10 @@ export declare class AcademicsService {
             deleted: boolean;
             deletedAt: Date | null;
             name: string;
-            duration: number;
-            level: string;
             credits: number;
+            duration: number;
             coordinator: string | null;
+            level: string;
         };
         course: {
             code: string;
@@ -691,10 +691,10 @@ export declare class AcademicsService {
             deletedAt: Date | null;
             name: string;
             description: string | null;
-            duration: number;
             credits: number;
-            coordinator: string | null;
             courseOutcomes: string;
+            duration: number;
+            coordinator: string | null;
         };
     } & {
         number: number;
@@ -712,8 +712,8 @@ export declare class AcademicsService {
         name: string;
         startDate: Date;
         endDate: Date;
-        isCurrent: boolean;
         credits: number;
+        isCurrent: boolean;
     }>;
     createSemester(input: any, userId: string, ip?: string, ua?: string): Promise<{
         number: number;
@@ -731,8 +731,8 @@ export declare class AcademicsService {
         name: string;
         startDate: Date;
         endDate: Date;
-        isCurrent: boolean;
         credits: number;
+        isCurrent: boolean;
     }>;
     updateSemester(id: string, input: any, userId: string, ip?: string, ua?: string): Promise<{
         number: number;
@@ -750,8 +750,8 @@ export declare class AcademicsService {
         name: string;
         startDate: Date;
         endDate: Date;
-        isCurrent: boolean;
         credits: number;
+        isCurrent: boolean;
     }>;
     listSections(params: any, user?: UserPayload): Promise<{
         items: ({
@@ -795,10 +795,10 @@ export declare class AcademicsService {
                 deleted: boolean;
                 deletedAt: Date | null;
                 name: string;
-                duration: number;
-                level: string;
                 credits: number;
+                duration: number;
                 coordinator: string | null;
+                level: string;
             };
             semester: {
                 number: number;
@@ -816,8 +816,8 @@ export declare class AcademicsService {
                 name: string;
                 startDate: Date;
                 endDate: Date;
-                isCurrent: boolean;
                 credits: number;
+                isCurrent: boolean;
             };
         } & {
             status: string;
@@ -879,10 +879,10 @@ export declare class AcademicsService {
             deleted: boolean;
             deletedAt: Date | null;
             name: string;
-            duration: number;
-            level: string;
             credits: number;
+            duration: number;
             coordinator: string | null;
+            level: string;
         };
         semester: {
             number: number;
@@ -900,8 +900,8 @@ export declare class AcademicsService {
             name: string;
             startDate: Date;
             endDate: Date;
-            isCurrent: boolean;
             credits: number;
+            isCurrent: boolean;
         };
     } & {
         status: string;
@@ -996,10 +996,10 @@ export declare class AcademicsService {
                 deleted: boolean;
                 deletedAt: Date | null;
                 name: string;
-                duration: number;
-                level: string;
                 credits: number;
+                duration: number;
                 coordinator: string | null;
+                level: string;
             };
             semester: {
                 number: number;
@@ -1017,8 +1017,8 @@ export declare class AcademicsService {
                 name: string;
                 startDate: Date;
                 endDate: Date;
-                isCurrent: boolean;
                 credits: number;
+                isCurrent: boolean;
             };
             section: {
                 status: string;
@@ -1117,10 +1117,10 @@ export declare class AcademicsService {
             deleted: boolean;
             deletedAt: Date | null;
             name: string;
-            duration: number;
-            level: string;
             credits: number;
+            duration: number;
             coordinator: string | null;
+            level: string;
         };
         semester: {
             number: number;
@@ -1138,8 +1138,8 @@ export declare class AcademicsService {
             name: string;
             startDate: Date;
             endDate: Date;
-            isCurrent: boolean;
             credits: number;
+            isCurrent: boolean;
         };
         section: {
             status: string;
@@ -1273,6 +1273,29 @@ export declare class AcademicsService {
     bulkArchive(moduleKey: string, ids: string[], userId: string, ip?: string, ua?: string): Promise<void>;
     bulkRestore(moduleKey: string, ids: string[], userId: string, ip?: string, ua?: string): Promise<void>;
     getDashboardStats(): Promise<{
+        metrics: {
+            pendingApprovals: any;
+            institutionAttendance: string;
+            activeFaculty: number;
+            totalStudents: number;
+            openComplaints: number;
+            placementRate: string;
+            passRate: string;
+            riskCount: number;
+        };
+        departments: {
+            id: any;
+            name: any;
+            code: any;
+            hod: any;
+            students: any;
+            faculty: any;
+            attendance: string;
+            passRate: string;
+            placement: string;
+            complaints: number;
+            riskCount: number;
+        }[];
         totals: {
             depts: number;
             progs: number;

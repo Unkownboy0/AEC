@@ -9,6 +9,7 @@ import {
 import { toast } from '../components/ui/Toast';
 import { Loading } from '../components/ui/Loading';
 import api from '../lib/axios';
+import { env } from '../shared/config/environment';
 import { useAuth } from '../context/AuthContext';
 import { useDevice } from '../context/DeviceContext';
 import { DigitalIdCard } from './DigitalIdCard';
@@ -1682,7 +1683,7 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ user }) => {
                         <p className="text-[10px] text-muted-foreground leading-relaxed">{item.content}</p>
                         {item.imageUrl && (
                           <img
-                            src={item.imageUrl.startsWith('http') ? item.imageUrl : `${(import.meta.env.VITE_API_URL || 'http://localhost:3000/api').replace('/api', '')}${item.imageUrl}`}
+                            src={item.imageUrl.startsWith('http') ? item.imageUrl : `${env.apiUrl.replace('/api', '')}${item.imageUrl}`}
                             alt={item.title}
                             className="w-full max-h-36 object-cover rounded-lg border mt-1.5"
                             onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}

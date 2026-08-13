@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { X, Check, XCircle, User, ShieldAlert } from 'lucide-react';
+import { X, Check, XCircle, ShieldAlert, Undo2 } from 'lucide-react';
 import { approvalRequestsApi, ApprovalRequestDetails, TimelineEventItem, ApprovalAttachmentItem } from '@/modules/approvals/api/approvalRequests.api';
 import { CurrentStatusCard } from '@/modules/approvals/components/CurrentStatusCard';
 import { ApplicantOverviewCard } from '@/modules/approvals/components/ApplicantOverviewCard';
 import { RequestDetailsCard } from '@/modules/approvals/components/RequestDetailsCard';
 import { SupportingFilesSection } from '@/modules/approvals/components/SupportingFilesSection';
 import { ApprovalWorkflowTimeline } from '@/modules/approvals/components/ApprovalWorkflowTimeline';
+import Button from '@/design-system/primitives/Button/Button';
 
 interface ApprovalDetailsDrawerProps {
   request: any | null;
@@ -13,6 +14,7 @@ interface ApprovalDetailsDrawerProps {
   onClose: () => void;
   onApprove?: (id: string, remarks?: string) => Promise<void>;
   onReject?: (id: string, remarks?: string) => Promise<void>;
+  onReturn?: (id: string, remarks: string) => Promise<void>;
   isActingMode?: boolean;
 }
 
@@ -22,6 +24,7 @@ export const ApprovalDetailsDrawer: React.FC<ApprovalDetailsDrawerProps> = ({
   onClose,
   onApprove,
   onReject,
+  onReturn,
   isActingMode = false,
 }) => {
   const [details, setDetails] = useState<ApprovalRequestDetails | null>(null);
@@ -30,16 +33,17 @@ export const ApprovalDetailsDrawer: React.FC<ApprovalDetailsDrawerProps> = ({
   const [loading, setLoading] = useState<boolean>(true);
   const [remarks, setRemarks] = useState<string>('');
   const [submitting, setSubmitting] = useState<boolean>(false);
+  const [actionError, setActionError] = useState<string>('');
 
   const requestId = request?.requestId || request?.id;
 
-  // Reopening Drawer resets state and fetches real database records
   useEffect(() => {
     if (!isOpen || !requestId) {
       setDetails(null);
       setEvents([]);
       setAttachments([]);
       setRemarks('');
+      setActionError('');
       return;
     }
 
@@ -55,23 +59,35 @@ export const ApprovalDetailsDrawer: React.FC<ApprovalDetailsDrawerProps> = ({
         ]);
 
         if (isMounted) {
+          const isHod = (request?.title || '').includes('[HOD]');
+          const roleLabel = request?.submittedByRole || (isHod ? 'Head of Department (HOD)' : 'Applicant');
+
           if (detailsRes.status === 'fulfilled') {
-            setDetails(detailsRes.value);
+            const mergedDetails = {
+              ...detailsRes.value,
+              reason: request?.reason || (request as any)?.description || detailsRes.value?.reason,
+              applicant: {
+                ...detailsRes.value?.applicant,
+                name: request?.applicantName || detailsRes.value?.applicant?.name || 'Applicant record unavailable',
+                departmentName: request?.departmentName || detailsRes.value?.applicant?.departmentName || 'Department not linked',
+                submittedAsRole: roleLabel,
+              },
+            };
+            setDetails(mergedDetails);
           } else {
-            // Fallback to passed request prop if endpoint errors
             setDetails({
               id: requestId,
               requestNumber: request?.requestNumber || requestId?.slice(0, 8),
               requestType: request?.requestType || 'LEAVE',
               title: request?.title || 'Approval Request',
-              reason: request?.reason || request?.details?.reason || 'Official authorization request',
+              reason: request?.reason || (request as any)?.description || request?.leaveReason || 'No reason was recorded for this request.',
               status: request?.status || 'PENDING',
               currentStage: request?.assignedRole === 'ACTING_PRINCIPAL' ? 'Acting Principal Review' : 'Principal Review',
               assignedRole: request?.assignedRole || 'PRINCIPAL',
               applicant: {
-                name: request?.applicantName || request?.submittedBy || 'Applicant',
-                departmentName: request?.departmentName || request?.department || 'Academic Department',
-                submittedAsRole: request?.submittedByRole || 'Executive',
+                name: request?.applicantName || request?.submittedBy || 'Applicant record unavailable',
+                departmentName: request?.departmentName || request?.department || 'Department not linked',
+                submittedAsRole: roleLabel,
               },
               submittedAt: request?.createdAt || new Date().toISOString(),
             });
@@ -101,17 +117,25 @@ export const ApprovalDetailsDrawer: React.FC<ApprovalDetailsDrawerProps> = ({
 
   if (!isOpen || !request) return null;
 
-  const handleAction = async (action: 'APPROVE' | 'REJECT') => {
+  const handleAction = async (action: 'APPROVE' | 'REJECT' | 'RETURN') => {
+    if (action === 'RETURN' && remarks.trim().length < 3) {
+      setActionError('Add a reason of at least 3 characters before returning this request.');
+      return;
+    }
     try {
       setSubmitting(true);
+      setActionError('');
       if (action === 'APPROVE' && onApprove) {
         await onApprove(request.id, remarks);
       } else if (action === 'REJECT' && onReject) {
         await onReject(request.id, remarks);
+      } else if (action === 'RETURN' && onReturn) {
+        await onReturn(request.id, remarks.trim());
       }
       onClose();
     } catch (err) {
       console.error('Error handling approval action:', err);
+      setActionError('The decision could not be saved. Refresh the queue and try again.');
     } finally {
       setSubmitting(false);
     }
@@ -120,42 +144,43 @@ export const ApprovalDetailsDrawer: React.FC<ApprovalDetailsDrawerProps> = ({
   const isPending = (details?.status || request.status) === 'PENDING';
 
   return (
-    <div className="fixed inset-0 z-50 overflow-hidden bg-slate-950/70 backdrop-blur-sm flex justify-end">
-      <div className="bg-slate-900 border-l border-slate-800 w-full max-w-lg h-full shadow-2xl flex flex-col justify-between overflow-hidden animate-in slide-in-from-right duration-300">
-        {/* Header */}
-        <div className="px-6 py-5 border-b border-slate-800 flex items-center justify-between bg-slate-900/80 backdrop-blur-md">
+    <div className="fixed inset-0 z-50 overflow-hidden bg-slate-950/60 backdrop-blur-xs flex justify-end">
+      <div className="bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 w-full max-w-lg h-full shadow-2xl flex flex-col justify-between overflow-hidden animate-in slide-in-from-right duration-300">
+        {/* Drawer Header */}
+        <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/80 dark:bg-slate-900/80 backdrop-blur-md">
           <div className="space-y-1">
-            <span className="px-2.5 py-0.5 rounded-md bg-amber-500/10 border border-amber-500/30 text-amber-400 text-[10px] font-black uppercase">
+            <span className="px-2.5 py-0.5 rounded-full bg-purple-100 dark:bg-purple-950/60 border border-purple-200 dark:border-purple-800 text-purple-700 dark:text-purple-300 text-[10px] font-bold uppercase tracking-wider">
               {(details?.requestType || request.requestType || 'REQUEST').replace(/_/g, ' ')}
             </span>
-            <h3 className="text-lg font-black text-white leading-snug">
+            <h3 className="text-base font-extrabold text-slate-900 dark:text-slate-100 leading-snug">
               {details?.title || request.title || 'Authorization Request'}
             </h3>
           </div>
           <button
             onClick={onClose}
-            className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+            className="p-2 rounded-xl text-slate-400 dark:text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-200/60 dark:hover:bg-slate-800 transition-colors"
+            title="Close Drawer"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Drawer Body */}
-        <div className="p-6 space-y-6 overflow-y-auto flex-1">
+        <div className="p-6 pb-24 space-y-5 overflow-y-auto flex-1 bg-slate-50/50 dark:bg-slate-950/50">
           {loading && !details ? (
-            <div className="py-12 text-center text-xs text-slate-500 font-semibold space-y-2">
-              <div className="w-5 h-5 border-2 border-amber-500 border-t-transparent rounded-full animate-spin mx-auto" />
+            <div className="py-12 text-center text-xs text-slate-400 dark:text-slate-500 font-semibold space-y-2">
+              <div className="w-6 h-6 border-2 border-purple-600 dark:border-purple-400 border-t-transparent rounded-full animate-spin mx-auto" />
               <p>Fetching database workflow records...</p>
             </div>
           ) : (
             <>
               {/* Actor attribution alert if in acting mode */}
               {isActingMode && (
-                <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs flex items-center gap-2 shadow-sm">
-                  <ShieldAlert className="w-4 h-4 text-amber-400 shrink-0" />
+                <div className="p-3.5 rounded-2xl bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-800 text-amber-900 dark:text-amber-300 text-xs flex items-center gap-2 shadow-2xs">
+                  <ShieldAlert className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
                   <div>
                     <span className="font-bold">Acting Authority Active: </span>
-                    <span>Decision will be permanently attributed to Vice Principal — Acting Principal</span>
+                    <span>Decision will be attributed to Vice Principal — Acting Principal</span>
                   </div>
                 </div>
               )}
@@ -171,19 +196,23 @@ export const ApprovalDetailsDrawer: React.FC<ApprovalDetailsDrawerProps> = ({
               {/* 2. Applicant Overview */}
               {details?.applicant && <ApplicantOverviewCard applicant={details.applicant} />}
 
-              {/* 3. Request Details & Validation Warning */}
+              {/* 3. Request Details */}
               {details && <RequestDetailsCard details={details} />}
 
-              {/* 4. Supporting Files Section (Only renders if attachments exist!) */}
+              {/* 4. Supporting Files Section */}
               <SupportingFilesSection attachments={attachments} isLoading={loading} />
 
               {/* 5. Database-Backed Workflow Timeline */}
-              <ApprovalWorkflowTimeline events={events} isLoading={loading} />
+              <ApprovalWorkflowTimeline
+                events={events}
+                isLoading={loading}
+                requestDetails={details || request}
+              />
 
               {/* Decision Remarks Input if Pending */}
               {isPending && (
                 <div className="space-y-1.5 pt-2">
-                  <label className="block text-xs font-bold text-slate-300">
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
                     Executive Decision Remarks
                   </label>
                   <textarea
@@ -195,8 +224,9 @@ export const ApprovalDetailsDrawer: React.FC<ApprovalDetailsDrawerProps> = ({
                         ? 'Entering approval remarks as Vice Principal (Acting Principal)...'
                         : 'Entering official approval remarks...'
                     }
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-slate-200 text-xs focus:outline-none focus:border-amber-500"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-800 text-slate-900 dark:text-slate-100 text-xs focus:outline-none focus:border-purple-600 dark:focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 shadow-2xs transition-all placeholder:text-slate-400 dark:placeholder:text-slate-500"
                   />
+                  {actionError && <p role="alert" className="text-xs font-semibold text-rose-600 dark:text-rose-400">{actionError}</p>}
                 </div>
               )}
             </>
@@ -205,27 +235,43 @@ export const ApprovalDetailsDrawer: React.FC<ApprovalDetailsDrawerProps> = ({
 
         {/* Footer Actions */}
         {isPending && (
-          <div className="px-6 py-4 border-t border-slate-800 bg-slate-900/80 flex items-center justify-end gap-2 shrink-0">
-            <button
+          <div className="px-6 py-4 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center justify-end gap-3 shrink-0">
+            {onReturn && (
+              <Button
+                variant="secondary"
+                size="md"
+                onClick={() => handleAction('RETURN')}
+                isLoading={submitting}
+                leftIcon={<Undo2 className="w-4 h-4" />}
+              >
+                Return
+              </Button>
+            )}
+            <Button
+              variant="danger"
+              size="md"
               onClick={() => handleAction('REJECT')}
-              disabled={submitting}
-              className="px-4 py-2.5 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 text-xs font-extrabold transition-all flex items-center gap-1.5"
+              isLoading={submitting}
+              leftIcon={<XCircle className="w-4 h-4" />}
             >
-              <XCircle className="w-4 h-4" />
-              <span>Reject</span>
-            </button>
+              Reject
+            </Button>
 
-            <button
+            <Button
+              variant="primary"
+              size="md"
               onClick={() => handleAction('APPROVE')}
-              disabled={submitting}
-              className="px-5 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-extrabold transition-all shadow-lg flex items-center gap-1.5"
+              isLoading={submitting}
+              leftIcon={<Check className="w-4 h-4 stroke-[3]" />}
             >
-              <Check className="w-4 h-4 stroke-[3]" />
-              <span>Approve</span>
-            </button>
+              Approve
+            </Button>
           </div>
         )}
       </div>
     </div>
   );
 };
+
+ApprovalDetailsDrawer.displayName = 'ApprovalDetailsDrawer';
+export default ApprovalDetailsDrawer;

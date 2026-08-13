@@ -8,26 +8,11 @@ export class HodPortalService {
    * Helper to resolve HOD's Department ID
    */
   async resolveHodDepartmentId(userId: string): Promise<string> {
-    const faculty = await prisma.faculty.findFirst({ where: { userId } });
-    if (faculty?.departmentId) return faculty.departmentId;
-
-    const membership = await prisma.departmentMembership.findFirst({ where: { userId, role: 'HOD' } });
-    if (membership?.departmentId) return membership.departmentId;
-
-    const dept = await prisma.department.findFirst({ where: { hodUserId: userId } });
-    if (dept?.id) return dept.id;
-
-    const user = await prisma.user.findUnique({ where: { id: userId }, include: { role: true } });
-    if ((user as any)?.departmentId) return (user as any).departmentId;
-
-    // Executive / HOD Fallback: auto-assign first active department
-    const firstDept = await prisma.department.findFirst({ where: { status: 'ACTIVE' } });
-    if (firstDept) return firstDept.id;
-
-    const anyDept = await prisma.department.findFirst();
-    if (anyDept) return anyDept.id;
-
-    throw new ForbiddenException('No active department found in the system');
+    const assignment = await prisma.departmentHodAssignment.findFirst({ where: { hodUserId: userId, isActive: true, effectiveFrom: { lte: new Date() }, OR: [{ effectiveTo: null }, { effectiveTo: { gt: new Date() } }] }, orderBy: [{ isPrimary: 'desc' }, { assignedAt: 'asc' }] });
+    if (assignment) return assignment.departmentId;
+    const membership = await prisma.departmentMembership.findFirst({ where: { userId, role: { in: ['HOD', 'HEAD_OF_DEPARTMENT'] }, department: { status: 'ACTIVE', deleted: false } }, orderBy: { isPrimary: 'desc' } });
+    if (membership) return membership.departmentId;
+    throw new ForbiddenException('No active department is explicitly assigned to this HOD workspace');
   }
 
   /**
@@ -150,17 +135,10 @@ export class HodPortalService {
 
     const averageAttendancePct = allDepartmentStudents.length > 0
       ? Math.round(totalAttendancePctSum / allDepartmentStudents.length)
-      : 85;
+      : 0;
 
     // Monthly Leave/OD trends for chart
-    const monthlyTrends = [
-      { month: 'Jan', leaves: 12, ods: 8, approved: 18, rejected: 2 },
-      { month: 'Feb', leaves: 15, ods: 12, approved: 24, rejected: 3 },
-      { month: 'Mar', leaves: 9, ods: 14, approved: 20, rejected: 3 },
-      { month: 'Apr', leaves: 18, ods: 22, approved: 35, rejected: 5 },
-      { month: 'May', leaves: 14, ods: 19, approved: 30, rejected: 3 },
-      { month: 'Jun', leaves: pendingLeaveRequests, ods: pendingOdRequests, approved: studentApprovedTodayCount, rejected: rejectedTodayCount },
-    ];
+    const monthlyTrends = [{ month: new Date().toLocaleString('en', { month: 'short' }), leaves: pendingLeaveRequests, ods: pendingOdRequests, approved: studentApprovedTodayCount, rejected: rejectedTodayCount }];
 
     return {
       department,
@@ -183,10 +161,9 @@ export class HodPortalService {
       charts: {
         monthlyTrends,
         requestDistribution: [
-          { name: 'Approved', value: studentApprovedTodayCount || 45, color: '#10B981' },
-          { name: 'Pending HOD', value: pendingLeaveRequests + pendingOdRequests || 8, color: '#F59E0B' },
-          { name: 'Pending Mentor', value: 12, color: '#3B82F6' },
-          { name: 'Rejected', value: rejectedTodayCount || 4, color: '#EF4444' },
+          { name: 'Approved', value: studentApprovedTodayCount, color: '#10B981' },
+          { name: 'Pending HOD', value: pendingLeaveRequests + pendingOdRequests, color: '#F59E0B' },
+          { name: 'Rejected', value: rejectedTodayCount, color: '#EF4444' },
         ]
       },
       widgets: {

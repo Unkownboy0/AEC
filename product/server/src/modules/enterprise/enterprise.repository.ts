@@ -17,6 +17,7 @@ export class EnterpriseRepository {
     if (courseId) where.courseId = courseId;
     if (semesterId) where.semesterId = semesterId;
     if (mentorId) where.mentorId = mentorId;
+    if (params.scopeWhere) where.AND = [params.scopeWhere];
 
     if (search) {
       where.OR = [
@@ -452,13 +453,14 @@ export class EnterpriseRepository {
     const page = Math.max(1, parseInt(params.page) || 1);
     const pageSize = Math.max(1, parseInt(params.pageSize) || 10);
     const skip = (page - 1) * pageSize;
-    const { status, category, priority, studentId } = params;
+    const { status, category, priority, studentId, facultyId, scopeWhere } = params;
 
-    const where: any = { deleted: false };
+    const where: any = { deleted: false, ...(scopeWhere || {}) };
     if (status) where.status = status;
     if (category) where.category = category;
     if (priority) where.priority = priority;
     if (studentId) where.studentId = studentId;
+    if (facultyId) where.facultyId = facultyId;
 
     const [items, totalCount] = await Promise.all([
       prisma.ticket.findMany({
@@ -466,7 +468,7 @@ export class EnterpriseRepository {
         skip,
         take: pageSize,
         orderBy: { createdAt: 'desc' },
-        include: { faculty: true, student: true },
+        include: { faculty: true, student: true, assignedTo: { select: { id: true, firstName: true, lastName: true } } },
       }),
       prisma.ticket.count({ where }),
     ]);
@@ -477,7 +479,7 @@ export class EnterpriseRepository {
   async findTicketById(id: string) {
     return prisma.ticket.findFirst({
       where: { id, deleted: false },
-      include: { faculty: true, student: true },
+      include: { faculty: true, student: true, assignedTo: { select: { id: true, firstName: true, lastName: true } } },
     });
   }
 

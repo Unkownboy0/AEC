@@ -1,154 +1,336 @@
-import React, { useState } from 'react';
-import { FolderOpen, Download, Upload, CheckCircle, Clock, AlertCircle, FileText, Shield, Eye } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import {
+  FolderOpen, Download, FileText, CheckCircle2, Clock, AlertCircle,
+  Plus, Eye, Search, ShieldCheck, ArrowRight, ArrowLeft, RefreshCw, XCircle
+} from 'lucide-react';
 import { toast } from '../../components/ui/Toast';
+import { Loading } from '../../components/ui/Loading';
+import api from '../../lib/axios';
 
-interface Document {
+interface DocumentRequest {
   id: string;
-  name: string;
-  category: string;
-  status: 'VERIFIED' | 'PENDING' | 'MISSING';
-  uploadedOn?: string;
-  size?: string;
-  url?: string;
+  type: string;
+  title: string;
+  reason: string;
+  status: string;
+  createdAt: string;
+  approvedAt?: string;
+  documentUrl?: string;
 }
 
-const DOCUMENTS: Document[] = [
-  { id: '1', name: 'Bonafide Certificate.pdf', category: 'College Issued', status: 'VERIFIED', uploadedOn: '2026-06-01', size: '124 KB', url: '#' },
-  { id: '2', name: 'Conduct Certificate.pdf', category: 'College Issued', status: 'VERIFIED', uploadedOn: '2026-06-01', size: '98 KB', url: '#' },
-  { id: '3', name: 'Consolidated Marksheet.pdf', category: 'Academic', status: 'VERIFIED', uploadedOn: '2026-05-20', size: '345 KB', url: '#' },
-  { id: '4', name: 'Semester Marksheets (1–6).pdf', category: 'Academic', status: 'VERIFIED', uploadedOn: '2026-05-20', size: '820 KB', url: '#' },
-  { id: '5', name: 'Aadhar Card (Masked).pdf', category: 'Identity', status: 'VERIFIED', uploadedOn: '2026-04-15', size: '210 KB', url: '#' },
-  { id: '6', name: 'PAN Card.pdf', category: 'Identity', status: 'VERIFIED', uploadedOn: '2026-04-15', size: '188 KB', url: '#' },
-  { id: '7', name: 'Community Certificate.pdf', category: 'Identity', status: 'VERIFIED', uploadedOn: '2026-04-10', size: '156 KB', url: '#' },
-  { id: '8', name: '10th Marksheet.pdf', category: 'Academic', status: 'VERIFIED', uploadedOn: '2026-03-01', size: '290 KB', url: '#' },
-  { id: '9', name: '12th Marksheet.pdf', category: 'Academic', status: 'VERIFIED', uploadedOn: '2026-03-01', size: '315 KB', url: '#' },
-  { id: '10', name: 'Passport.pdf', category: 'Identity', status: 'PENDING', uploadedOn: '2026-07-01', size: '440 KB', url: '#' },
-  { id: '11', name: 'Driving License.pdf', category: 'Identity', status: 'MISSING' },
-  { id: '12', name: 'Migration Certificate.pdf', category: 'Academic', status: 'MISSING' },
+const DOCUMENT_TYPES = [
+  { id: 'BONAFIDE', title: 'Bonafide Certificate', desc: 'Proof of enrollment for bank, passport, or bus pass' },
+  { id: 'CONDUCT_CERTIFICATE', title: 'Conduct & Character Certificate', desc: 'Attestation of academic conduct and behavior' },
+  { id: 'TRANSCRIPT', title: 'Official Academic Transcript', desc: 'Complete semester marksheet & transcript copy' },
+  { id: 'MARKSHEET_COPY', title: 'Semester Marksheet Duplicate Copy', desc: 'Attested copy of semester examination marksheet' },
+  { id: 'INTERNSHIP_LETTER', title: 'NOC / Internship Permission Letter', desc: 'Recommendation letter for external industry training' },
+  { id: 'TC', title: 'Transfer Certificate (TC)', desc: 'Institutional transfer documentation' },
 ];
 
-const CATEGORY_COLORS: Record<string, string> = {
-  'College Issued': 'bg-indigo-50 text-indigo-700 border-indigo-100 dark:bg-indigo-900/30 dark:text-indigo-400',
-  'Academic': 'bg-emerald-50 text-emerald-700 border-emerald-100 dark:bg-emerald-900/30 dark:text-emerald-400',
-  'Identity': 'bg-amber-50 text-amber-700 border-amber-100 dark:bg-amber-900/30 dark:text-amber-400',
-};
-
 export const StudentDocuments: React.FC = () => {
-  const [documents] = useState<Document[]>(DOCUMENTS);
-  const [activeFilter, setActiveFilter] = useState('ALL');
+  const [activeTab, setActiveTab] = useState<'vault' | 'request' | 'track'>('vault');
+  const [isLoading, setIsLoading] = useState(true);
+  const [requests, setRequests] = useState<DocumentRequest[]>([]);
   const [search, setSearch] = useState('');
 
-  const categories = ['ALL', ...Array.from(new Set(documents.map(d => d.category)))];
-  const filtered = documents.filter(d => {
-    const matchFilter = activeFilter === 'ALL' || d.category === activeFilter;
-    const matchSearch = d.name.toLowerCase().includes(search.toLowerCase());
-    return matchFilter && matchSearch;
-  });
+  // Request Form State
+  const [selectedType, setSelectedType] = useState('BONAFIDE');
+  const [purpose, setPurpose] = useState('');
+  const [additionalDetails, setAdditionalDetails] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const verifiedCount = documents.filter(d => d.status === 'VERIFIED').length;
-  const pendingCount = documents.filter(d => d.status === 'PENDING').length;
-  const missingCount = documents.filter(d => d.status === 'MISSING').length;
+  const fetchRequests = async () => {
+    try {
+      setIsLoading(true);
+      const res = await api.get('/workflows/requests');
+      if (res.data?.status === 'success' || Array.isArray(res.data?.data)) {
+        const list = res.data.data || [];
+        setRequests(list.filter((r: any) => 
+          ['BONAFIDE', 'CONDUCT_CERTIFICATE', 'TRANSCRIPT', 'MARKSHEET_COPY', 'INTERNSHIP_LETTER', 'TC', 'DOCUMENT'].includes(r.type)
+        ));
+      }
+    } catch (err) {
+      console.error('Failed to fetch document requests:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchRequests();
+  }, []);
+
+  const handleApply = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!purpose.trim()) {
+      toast.error('Please specify the reason/purpose for requesting this document.');
+      return;
+    }
+
+    const typeObj = DOCUMENT_TYPES.find(t => t.id === selectedType);
+    const title = typeObj ? typeObj.title : selectedType;
+
+    try {
+      setIsSubmitting(true);
+      const res = await api.post('/workflows/requests', {
+        type: selectedType,
+        title,
+        reason: `${purpose.trim()}${additionalDetails ? ` (${additionalDetails.trim()})` : ''}`,
+      });
+
+      if (res.data?.status === 'success') {
+        toast.success('Document request submitted successfully! Tracking initiated.');
+        setPurpose('');
+        setAdditionalDetails('');
+        setActiveTab('track');
+        fetchRequests();
+      }
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Failed to submit document request.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const getStatusBadge = (status: string) => {
+    const s = (status || '').toUpperCase();
+    if (s === 'APPROVED' || s === 'COMPLETED' || s === 'ISSUED') {
+      return (
+        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1 w-fit">
+          <CheckCircle2 className="h-3 w-3" /> Approved & Issued
+        </span>
+      );
+    }
+    if (s.includes('REJECT')) {
+      return (
+        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-rose-50 text-rose-700 border border-rose-200 flex items-center gap-1 w-fit">
+          <XCircle className="h-3 w-3" /> Rejected
+        </span>
+      );
+    }
+    return (
+      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-50 text-amber-700 border border-amber-200 flex items-center gap-1 w-fit">
+        <Clock className="h-3 w-3 animate-pulse" /> Pending Review ({status})
+      </span>
+    );
+  };
+
+  if (isLoading) return <Loading text="Loading Document Vault & Requests..." />;
+
+  const approvedDocs = requests.filter(r => r.status === 'APPROVED' || r.status === 'COMPLETED' || r.status === 'ISSUED');
 
   return (
-    <div className="space-y-6 text-left pb-12 animate-in fade-in duration-200">
-      <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
+    <div className="space-y-6 text-left pb-16 animate-in fade-in duration-200">
+      
+      {/* Header */}
+      <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-card border p-6 rounded-2xl shadow-sm">
         <div>
           <h1 className="text-xl font-black text-slate-800 dark:text-white flex items-center gap-2">
-            <FolderOpen className="h-5 w-5 text-indigo-600" /> Academic Documents Vault
+            <FolderOpen className="h-6 w-6 text-indigo-600" /> Student Documents Workspace
           </h1>
-          <p className="text-xs text-muted-foreground mt-0.5">Securely store and access all your academic & identity documents</p>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Request official certificates, track workflow approvals, and download approved document files
+          </p>
         </div>
-        <button onClick={() => toast.info('Document request form will be available soon.')}
-          className="px-4 py-2 border text-xs font-extrabold rounded-xl hover:bg-muted flex items-center gap-1.5 bg-card">
-          <FileText className="h-4 w-4" /> Request New Certificate
+
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setActiveTab('request')}
+            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-xl shadow flex items-center gap-1.5 transition-all"
+          >
+            <Plus className="h-4 w-4" /> Request Document
+          </button>
+        </div>
+      </header>
+
+      {/* Tabs */}
+      <nav aria-label="Document sections" className="flex border-b border-slate-200 dark:border-slate-800 gap-6 text-xs font-bold">
+        <button
+          onClick={() => setActiveTab('vault')}
+          className={`pb-3 transition-colors border-b-2 ${activeTab === 'vault' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-500 hover:text-slate-800'}`}
+        >
+          Approved Documents ({approvedDocs.length})
         </button>
-      </div>
+        <button
+          onClick={() => setActiveTab('track')}
+          className={`pb-3 transition-colors border-b-2 ${activeTab === 'track' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-500 hover:text-slate-800'}`}
+        >
+          Track Requests ({requests.length})
+        </button>
+        <button
+          onClick={() => setActiveTab('request')}
+          className={`pb-3 transition-colors border-b-2 ${activeTab === 'request' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-500 hover:text-slate-800'}`}
+        >
+          New Document Request
+        </button>
+      </nav>
 
-      {/* Stats */}
-      <div className="grid grid-cols-3 gap-4">
-        {[
-          { label: 'Verified', value: verifiedCount, color: 'text-emerald-600', bg: 'bg-emerald-50 dark:bg-emerald-900/20', icon: <CheckCircle className="h-4 w-4 text-emerald-500" /> },
-          { label: 'Pending Verification', value: pendingCount, color: 'text-amber-600', bg: 'bg-amber-50 dark:bg-amber-900/20', icon: <Clock className="h-4 w-4 text-amber-500" /> },
-          { label: 'Not Uploaded', value: missingCount, color: 'text-rose-600', bg: 'bg-rose-50 dark:bg-rose-900/20', icon: <AlertCircle className="h-4 w-4 text-rose-500" /> },
-        ].map((s, idx) => (
-          <div key={idx} className={`border p-4 rounded-2xl shadow-sm flex items-center gap-3 ${s.bg}`}>
-            {s.icon}
-            <div>
-              <p className="text-[10px] uppercase font-black tracking-wider text-slate-400">{s.label}</p>
-              <p className={`text-lg font-black ${s.color}`}>{s.value} docs</p>
+      {/* TAB 1: APPROVED DOCUMENTS VAULT */}
+      {activeTab === 'vault' && (
+        <div className="space-y-4">
+          {approvedDocs.length === 0 ? (
+            <div className="rounded-2xl border border-dashed p-10 text-center bg-card">
+              <ShieldCheck className="mx-auto h-8 w-8 text-indigo-500 opacity-60" />
+              <h3 className="mt-3 text-sm font-extrabold text-slate-800 dark:text-white">No Approved Documents Downloadable Yet</h3>
+              <p className="mt-1 text-xs text-muted-foreground max-w-sm mx-auto">
+                Once your document requests are approved by administration or faculty, official signed files will appear here for instant download.
+              </p>
+              <button
+                onClick={() => setActiveTab('request')}
+                className="mt-4 px-4 py-2 bg-indigo-600 text-white text-xs font-bold rounded-xl"
+              >
+                Submit First Request
+              </button>
             </div>
-          </div>
-        ))}
-      </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {approvedDocs.map((doc) => (
+                <div key={doc.id} className="border bg-card p-4 rounded-2xl shadow-sm space-y-3 hover:shadow-md transition-all">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <div className="p-2.5 rounded-xl bg-indigo-50 text-indigo-600 dark:bg-indigo-900/30 shrink-0">
+                        <FileText className="h-5 w-5" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-xs font-black text-slate-800 dark:text-white truncate">{doc.title}</p>
+                        <p className="text-[10px] text-slate-400 font-bold mt-0.5">Approved: {new Date(doc.createdAt).toLocaleDateString()}</p>
+                      </div>
+                    </div>
+                    {getStatusBadge(doc.status)}
+                  </div>
 
-      {/* Filters + Search */}
-      <div className="flex flex-col md:flex-row gap-3 items-center">
-        <div className="flex flex-1 w-full items-center gap-2 border px-3 py-1.5 rounded-xl bg-card">
-          <FileText className="h-4 w-4 text-slate-400" />
-          <input type="text" placeholder="Search documents..." value={search} onChange={e => setSearch(e.target.value)}
-            className="bg-transparent text-xs outline-none w-full font-semibold" />
+                  <p className="text-[11px] text-slate-600 dark:text-slate-300 line-clamp-2 leading-relaxed bg-slate-50 dark:bg-slate-900 p-2.5 rounded-xl">
+                    {doc.reason}
+                  </p>
+
+                  <div className="flex items-center justify-between pt-1 border-t">
+                    <span className="text-[9px] font-mono font-bold text-slate-400">ID: {doc.id.slice(0, 8)}</span>
+                    <button
+                      onClick={() => {
+                        toast.success(`Downloading official signed ${doc.title}...`);
+                        if (doc.documentUrl) {
+                          window.open(doc.documentUrl, '_blank');
+                        }
+                      }}
+                      className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-lg flex items-center gap-1.5 transition-all"
+                    >
+                      <Download className="h-3.5 w-3.5" /> Download Approved PDF
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
-        <div className="flex gap-2 flex-wrap">
-          {categories.map(cat => (
-            <button key={cat} onClick={() => setActiveFilter(cat)}
-              className={`px-3 py-1.5 text-[10px] font-black rounded-xl border transition-colors ${activeFilter === cat ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-card hover:bg-muted'}`}>
-              {cat}
+      )}
+
+      {/* TAB 2: TRACK REQUESTS STATUS */}
+      {activeTab === 'track' && (
+        <div className="space-y-4">
+          <div className="flex justify-between items-center">
+            <h3 className="text-xs font-extrabold uppercase text-slate-400 tracking-wider">Document Requests Workflow Trail</h3>
+            <button onClick={fetchRequests} className="text-xs font-bold text-indigo-600 flex items-center gap-1 hover:underline">
+              <RefreshCw className="h-3.5 w-3.5" /> Refresh Status
             </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Documents Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {filtered.map(doc => (
-          <div key={doc.id} className={`border bg-card p-4 rounded-2xl shadow-sm space-y-3 hover:shadow-md transition-all ${doc.status === 'MISSING' ? 'border-dashed opacity-70' : ''}`}>
-            <div className="flex items-start justify-between gap-2">
-              <div className="flex items-center gap-2">
-                <div className="p-2 rounded-xl bg-muted/50 shrink-0">
-                  <FileText className="h-4 w-4 text-slate-500" />
-                </div>
-                <div>
-                  <p className="text-xs font-extrabold text-slate-800 dark:text-white leading-tight line-clamp-2">{doc.name}</p>
-                  {doc.size && <p className="text-[9px] text-slate-400 font-bold mt-0.5">{doc.size}</p>}
-                </div>
-              </div>
-              <span className={`text-[8.5px] font-black uppercase px-1.5 py-0.5 rounded border shrink-0 ${
-                doc.status === 'VERIFIED' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' :
-                doc.status === 'PENDING' ? 'bg-amber-50 text-amber-700 border-amber-100' :
-                'bg-slate-100 text-slate-500 border-slate-200'
-              }`}>{doc.status}</span>
-            </div>
-
-            <div className="flex items-center justify-between">
-              <span className={`text-[8.5px] font-black uppercase px-2 py-0.5 rounded border ${CATEGORY_COLORS[doc.category] || 'bg-muted text-muted-foreground'}`}>
-                {doc.category}
-              </span>
-              <div className="flex gap-1">
-                {doc.status !== 'MISSING' ? (
-                  <>
-                    <button onClick={() => toast.info(`Previewing: ${doc.name}`)} title="Preview"
-                      className="p-1.5 hover:bg-muted rounded-lg transition-colors">
-                      <Eye className="h-3.5 w-3.5 text-slate-500" />
-                    </button>
-                    <button onClick={() => toast.success(`Downloading: ${doc.name}`)} title="Download"
-                      className="p-1.5 hover:bg-muted rounded-lg transition-colors">
-                      <Download className="h-3.5 w-3.5 text-indigo-500" />
-                    </button>
-                  </>
-                ) : (
-                  <button onClick={() => toast.info('Upload feature coming soon. Please visit the admin office.')}
-                    className="p-1.5 hover:bg-muted rounded-lg transition-colors">
-                    <Upload className="h-3.5 w-3.5 text-rose-400" />
-                  </button>
-                )}
-              </div>
-            </div>
-            {doc.uploadedOn && (
-              <p className="text-[9px] text-slate-400 font-bold">Uploaded: {new Date(doc.uploadedOn).toLocaleDateString('en-IN')}</p>
-            )}
           </div>
-        ))}
-      </div>
+
+          {requests.length === 0 ? (
+            <div className="rounded-2xl border border-dashed p-8 text-center bg-card text-xs text-slate-400">
+              No active or previous document requests found.
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {requests.map((r) => (
+                <div key={r.id} className="border bg-card p-4 rounded-2xl shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="px-2 py-0.5 text-[9px] font-black bg-indigo-100 text-indigo-700 rounded uppercase">{r.type}</span>
+                      <h4 className="text-xs font-black text-slate-800 dark:text-white">{r.title}</h4>
+                    </div>
+                    <p className="text-xs text-slate-600 dark:text-slate-300 font-medium">{r.reason}</p>
+                    <p className="text-[10px] text-slate-400 font-semibold">Submitted on: {new Date(r.createdAt).toLocaleString()}</p>
+                  </div>
+
+                  <div className="flex items-center gap-3 shrink-0">
+                    {getStatusBadge(r.status)}
+                    {(r.status === 'APPROVED' || r.status === 'COMPLETED' || r.status === 'ISSUED') && (
+                      <button
+                        onClick={() => toast.success(`Downloading ${r.title}...`)}
+                        className="px-3 py-1.5 bg-emerald-600 text-white text-xs font-bold rounded-xl flex items-center gap-1"
+                      >
+                        <Download className="h-3.5 w-3.5" /> Download
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* TAB 3: NEW DOCUMENT REQUEST FORM */}
+      {activeTab === 'request' && (
+        <div className="max-w-2xl mx-auto border bg-card p-6 rounded-2xl shadow-sm space-y-5">
+          <div>
+            <h3 className="text-sm font-black uppercase text-slate-800 dark:text-white">Apply for Official Document / Certificate</h3>
+            <p className="text-xs text-muted-foreground mt-0.5">Select certificate type and state the purpose for institutional authorization</p>
+          </div>
+
+          <form onSubmit={handleApply} className="space-y-4 text-xs font-semibold">
+            <div>
+              <label className="block text-[10px] uppercase font-black text-slate-500 mb-1">Select Document Type</label>
+              <select
+                value={selectedType}
+                onChange={(e) => setSelectedType(e.target.value)}
+                className="w-full px-3 py-2.5 border rounded-xl bg-background outline-none font-bold text-xs"
+              >
+                {DOCUMENT_TYPES.map((t) => (
+                  <option key={t.id} value={t.id}>{t.title} — {t.desc}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-[10px] uppercase font-black text-slate-500 mb-1">Reason / Purpose for Request</label>
+              <input
+                type="text"
+                placeholder="e.g. Passport application, Educational loan, Higher studies admission"
+                value={purpose}
+                onChange={(e) => setPurpose(e.target.value)}
+                className="w-full px-3 py-2.5 border rounded-xl bg-background outline-none text-xs"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-[10px] uppercase font-black text-slate-500 mb-1">Additional Details / Notes (Optional)</label>
+              <textarea
+                rows={3}
+                placeholder="Provide any specific requirements or organization details..."
+                value={additionalDetails}
+                onChange={(e) => setAdditionalDetails(e.target.value)}
+                className="w-full p-3 border rounded-xl bg-background outline-none text-xs resize-none"
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-xl shadow flex items-center justify-center gap-2 transition-all disabled:opacity-60"
+            >
+              {isSubmitting ? (
+                <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <>
+                  <Plus className="h-4 w-4" /> Submit Document Request
+                </>
+              )}
+            </button>
+          </form>
+        </div>
+      )}
+
     </div>
   );
 };

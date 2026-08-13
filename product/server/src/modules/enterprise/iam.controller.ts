@@ -7,7 +7,8 @@ export class IamController {
   async getMyIAM(req: Request, res: Response, next: NextFunction) {
     try {
       const userId = (req as any).user?.id || (req as any).userId;
-      const result = await iamService.evaluateRuntimeIAM(userId);
+      const activeRole = String((req as any).user?.role || '');
+      const result = await iamService.evaluateRuntimeIAM(userId, activeRole);
       res.json({ success: true, data: result });
     } catch (error) {
       next(error);

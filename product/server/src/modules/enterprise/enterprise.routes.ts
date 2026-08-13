@@ -3,8 +3,12 @@ import { EnterpriseController } from './enterprise.controller';
 import { HODController } from './hod.controller';
 import { DeanController } from './dean.controller';
 import { SearchController } from './search.controller';
-import { requireAuth, requireRole } from '../../core/middlewares/auth.middleware';
+import { requireAuth, requirePermission, requireRole } from '../../core/middlewares/auth.middleware';
 import { enforceDepartmentScope } from '../../core/middlewares/departmentScope';
+import { requireStudentAccess } from '../security/student-access.middleware';
+import { StudentFeeController } from '../fees/student-fee.controller';
+
+import { StudentAchievementsController } from './student-achievements.controller';
 
 const router = Router();
 const controller = new EnterpriseController();
@@ -15,12 +19,19 @@ router.get('/id-card/verify/:token', controller.verifyIdCard);
 // Guard all other enterprise endpoints with authentication
 router.use(requireAuth);
 
+// Student Achievements
+router.get('/students/me/achievements', StudentAchievementsController.getMyAchievements);
+router.post('/students/me/achievements', StudentAchievementsController.createAchievement);
+router.put('/students/me/achievements/:id/publish', StudentAchievementsController.togglePublish);
+router.delete('/students/me/achievements/:id', StudentAchievementsController.deleteAchievement);
+router.get('/students/:id/achievements', requireStudentAccess, StudentAchievementsController.getStudentAchievements);
+
 // ID Cards (requires authentication)
-router.get('/id-card/student/:id', controller.getStudentIdCard);
+router.get('/id-card/student/:id', requireStudentAccess, controller.getStudentIdCard);
 router.get('/id-card/faculty/:id', controller.getFacultyIdCard);
 
-router.post('/bulk-action', controller.bulkAction);
-router.get('/search', controller.globalSearch);
+router.post('/bulk-action', requireRole(['Super Admin', 'College Admin']), controller.bulkAction);
+router.get('/search', SearchController.globalSearch);
 router.get('/search/global', SearchController.globalSearch);
 
 
@@ -30,13 +41,13 @@ router.post('/students/auto-assign', controller.runAutoAssign);
 router.get('/students/dashboard-summary', controller.getStudentDashboardSummary);
 router.get('/students/hierarchy', enforceDepartmentScope as any, HODController.getYearClassHierarchy);
 router.get('/students', controller.listStudents);
-router.get('/students/:id/full-profile', controller.getStudentFullProfile);
-router.get('/students/:id/id-card/pdf', controller.downloadIdCardPdf);
-router.get('/students/:id/attendance/pdf', controller.downloadAttendancePdf);
-router.get('/students/:id', controller.getStudent);
-router.post('/students', controller.createStudent);
-router.put('/students/:id', controller.updateStudent);
-router.delete('/students/:id', controller.deleteStudent);
+router.get('/students/:id/full-profile', requireStudentAccess, controller.getStudentFullProfile);
+router.get('/students/:id/id-card/pdf', requireStudentAccess, controller.downloadIdCardPdf);
+router.get('/students/:id/attendance/pdf', requireStudentAccess, controller.downloadAttendancePdf);
+router.get('/students/:id', requireStudentAccess, controller.getStudent);
+router.post('/students', requirePermission('students:write'), controller.createStudent);
+router.put('/students/:id', requirePermission('students:write'), controller.updateStudent);
+router.delete('/students/:id', requirePermission('students:write'), controller.deleteStudent);
 
 // Faculty
 router.get('/faculty', controller.listFaculties);
@@ -54,20 +65,29 @@ router.post('/attendance/bulk', controller.recordBulkAttendance);
 // Exams
 router.get('/exams', controller.listExams);
 router.get('/exams/:id', controller.getExam);
-router.post('/exams', controller.createExam);
-router.put('/exams/:id', controller.updateExam);
-router.delete('/exams/:id', controller.deleteExam);
+router.post('/exams', requireRole(['Examination Cell', 'COE']), controller.createExam);
+router.put('/exams/:id', requireRole(['Examination Cell', 'COE']), controller.updateExam);
+router.delete('/exams/:id', requireRole(['Examination Cell', 'COE']), controller.deleteExam);
 
 // Marks
 router.get('/marks', controller.listMarks);
-router.post('/marks', controller.recordMark);
+router.post('/marks', requireRole(['Faculty', 'HOD', 'Academic Dean', 'Examination Cell', 'COE']), controller.recordMark);
 
 // Fees
 router.get('/fees/categories', controller.listFeeCategories);
-router.post('/fees/categories', controller.createFeeCategory);
+router.post('/fees/categories', requirePermission('fees:write'), controller.createFeeCategory);
 router.get('/fees/bills', controller.listFeeBills);
-router.post('/fees/bills', controller.createFeeBill);
-router.post('/fees/bills/:id/pay', controller.recordPayment);
+router.post('/fees/bills', requirePermission('fees:write'), controller.createFeeBill);
+router.post('/fees/bills/:id/pay', requirePermission('fees:write'), controller.recordPayment);
+router.get('/fees/student/portal', StudentFeeController.portal);
+router.get('/parent/child/:studentId/fees', StudentFeeController.parentPortal);
+router.post('/fees/webhook', StudentFeeController.webhook);
+router.post('/fees/student/bills/:id/online-order', StudentFeeController.createOrder);
+router.post('/fees/student/online-payment/verify', StudentFeeController.verifyOnline);
+router.post('/fees/student/bills/:id/external-payment', StudentFeeController.submitExternal);
+router.get('/fees/student/payments/:id/receipt', StudentFeeController.receipt);
+router.get('/fees/external-payments', requirePermission('fees:write'), StudentFeeController.listExternal);
+router.post('/fees/external-payments/:id/review', requirePermission('fees:write'), StudentFeeController.reviewExternal);
 
 // Library
 router.get('/library/books', controller.listLibraryBooks);
@@ -95,7 +115,10 @@ router.get('/tickets', controller.listTickets);
 router.get('/tickets/:id', controller.getTicket);
 router.post('/tickets', controller.createTicket);
 router.put('/tickets/:id', controller.updateTicket);
-router.delete('/tickets/:id', controller.deleteTicket);
+router.delete('/tickets/:id', requireRole([
+  'Super Admin', 'College Admin', 'Principal', 'Vice Principal',
+  'Academic Dean', 'Admission Dean', 'IQAC Dean', 'Grievance', 'Grievance Officer'
+]), controller.deleteTicket);
 
 // Internships
 router.get('/internships', controller.listInternships);
@@ -123,6 +146,9 @@ router.post('/placements/drives', placementController.createDrive);
 router.put('/placements/drives/:id', placementController.updateDrive);
 router.delete('/placements/drives/:id', placementController.deleteDrive);
 router.post('/placements/drives/apply', placementController.applyToDrive);
+router.get('/placements/student-portal', placementController.getStudentPortal);
+router.post('/placements/student/apply', placementController.studentApplyToDrive);
+router.post('/placements/student/applications/:id/withdraw', placementController.studentWithdrawApplication);
 router.get('/placements/drives/:driveId/applications', placementController.listApplications);
 router.put('/placements/applications/:id/status', placementController.updateApplicationStatus);
 router.post('/placements/applications/:id/offer-letter', placementController.uploadOfferLetter);
@@ -132,6 +158,7 @@ import { ComplaintController } from './complaint.controller';
 const complaintController = new ComplaintController();
 router.get('/complaints/analytics', complaintController.getAnalytics);
 router.get('/complaints/feed', complaintController.getFeed);
+router.post('/complaints', controller.createTicket);
 router.post('/complaints/:id/remarks', complaintController.addInternalRemark);
 router.post('/complaints/:id/escalate', complaintController.escalateComplaint);
 router.post('/complaints/audit', complaintController.recordAudit);
@@ -156,24 +183,25 @@ router.post('/vp/audit', vpController.recordAudit);
 // Admission Dean Operations Module
 import { AdmissionController } from './admission.controller';
 const admissionController = new AdmissionController();
-router.get('/admission/analytics', admissionController.getAnalytics);
-router.get('/admission/applications', admissionController.listApplications);
-router.get('/admission/applications/:id', admissionController.getApplication);
-router.put('/admission/applications/:id/status', admissionController.updateApplicationStatus);
-router.post('/admission/applications/bulk-status', admissionController.bulkUpdateStatus);
-router.post('/admission/applications/:id/verify-document', admissionController.verifyDocument);
-router.get('/admission/seats', admissionController.listSeats);
-router.post('/admission/seats/allocate', admissionController.autoAllocateMeritSeats);
-router.post('/admission/seats/:id/allocate', admissionController.allocateSeat);
-router.post('/admission/seats/:id/transfer', admissionController.transferDepartment);
-router.get('/admission/enquiries', admissionController.listEnquiries);
-router.post('/admission/enquiries', admissionController.createEnquiry);
-router.put('/admission/enquiries/:id', admissionController.updateEnquiry);
-router.post('/admission/enquiries/:id/convert', admissionController.convertEnquiry);
-router.get('/admission/counselling', admissionController.listCounselling);
-router.post('/admission/counselling', admissionController.createCounselling);
-router.get('/admission/scholarships', admissionController.listScholarships);
-router.get('/admission/payments', admissionController.listPayments);
+const admissionOperationsGuard = requireRole(['Admission Dean', 'Administration & Admission Dean', 'ADMINISTRATION_AND_ADMISSION_DEAN', 'Super Admin', 'College Admin', 'Principal']);
+router.get('/admission/analytics', admissionOperationsGuard, admissionController.getAnalytics);
+router.get('/admission/applications', admissionOperationsGuard, admissionController.listApplications);
+router.get('/admission/applications/:id', admissionOperationsGuard, admissionController.getApplication);
+router.put('/admission/applications/:id/status', admissionOperationsGuard, admissionController.updateApplicationStatus);
+router.post('/admission/applications/bulk-status', admissionOperationsGuard, admissionController.bulkUpdateStatus);
+router.post('/admission/applications/:id/verify-document', admissionOperationsGuard, admissionController.verifyDocument);
+router.get('/admission/seats', admissionOperationsGuard, admissionController.listSeats);
+router.post('/admission/seats/allocate', admissionOperationsGuard, admissionController.autoAllocateMeritSeats);
+router.post('/admission/seats/:id/allocate', admissionOperationsGuard, admissionController.allocateSeat);
+router.post('/admission/seats/:id/transfer', admissionOperationsGuard, admissionController.transferDepartment);
+router.get('/admission/enquiries', admissionOperationsGuard, admissionController.listEnquiries);
+router.post('/admission/enquiries', admissionOperationsGuard, admissionController.createEnquiry);
+router.put('/admission/enquiries/:id', admissionOperationsGuard, admissionController.updateEnquiry);
+router.post('/admission/enquiries/:id/convert', admissionOperationsGuard, admissionController.convertEnquiry);
+router.get('/admission/counselling', admissionOperationsGuard, admissionController.listCounselling);
+router.post('/admission/counselling', admissionOperationsGuard, admissionController.createCounselling);
+router.get('/admission/scholarships', admissionOperationsGuard, admissionController.listScholarships);
+router.get('/admission/payments', admissionOperationsGuard, admissionController.listPayments);
 
 // Certificate Request Engine
 import { CertificateController } from './certificate.controller';
@@ -245,11 +273,21 @@ router.post('/executive/command-action', executiveController.executeCommandActio
 
 // Realtime Department Availability Board for HOD, Dean, VP, Principal
 import { availabilityBoardController } from './availability-board.controller';
+import { facultyOperationsController } from './faculty-operations.controller';
 router.get(
   '/availability-board',
   requireRole(['HOD', 'DEAN', 'VICE_PRINCIPAL', 'VP', 'PRINCIPAL', 'ADMIN', 'SUPER_ADMIN']),
   availabilityBoardController.getAvailabilityBoard
 );
+router.get(
+  '/faculty-operations',
+  requireRole(['HOD', 'VICE_PRINCIPAL', 'VP', 'PRINCIPAL', 'SUPER_ADMIN']),
+  facultyOperationsController.getBoard
+);
+router.get(
+  '/faculty-operations/:facultyId',
+  requireRole(['HOD', 'VICE_PRINCIPAL', 'VP', 'PRINCIPAL', 'SUPER_ADMIN']),
+  facultyOperationsController.getDetail
+);
 
 export default router;
-

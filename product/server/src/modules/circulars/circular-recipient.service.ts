@@ -59,14 +59,12 @@ export class CircularRecipientService {
       mentors.forEach((m: any) => m.mentor?.userId && mentorUserIds.add(m.mentor.userId));
 
       // Active students in department
-      const studentWhere: any = {
-        departmentId: deptId,
-        deleted: false,
-        userId: { not: null },
-      };
-      if (targetYears.length > 0) studentWhere.currentYear = { in: targetYears };
-      if (targetSemesters.length > 0) studentWhere.currentSemester = { in: targetSemesters };
-      if (targetSections.length > 0) studentWhere.section = { in: targetSections };
+      const studentWhere = this.buildStudentWhereClause(
+        { departmentId: deptId, deleted: false, userId: { not: null } },
+        targetYears,
+        targetSemesters,
+        targetSections
+      );
 
       const students = await prisma.student.findMany({
         where: studentWhere,
@@ -155,14 +153,12 @@ export class CircularRecipientService {
 
       // All active students in that department
       // optionally filtered by year/semester/section
-      const studentWhere: any = {
-        departmentId: deptId,
-        status: 'ACTIVE',
-        userId: { not: null },
-      };
-      if (targetYears.length > 0) studentWhere.currentYear = { in: targetYears };
-      if (targetSemesters.length > 0) studentWhere.currentSemester = { in: targetSemesters };
-      if (targetSections.length > 0) studentWhere.section = { in: targetSections };
+      const studentWhere = this.buildStudentWhereClause(
+        { departmentId: deptId, status: 'ACTIVE', userId: { not: null } },
+        targetYears,
+        targetSemesters,
+        targetSections
+      );
 
       const students = await prisma.student.findMany({
         where: studentWhere,
@@ -171,13 +167,15 @@ export class CircularRecipientService {
       students.forEach(s => s.userId && userIdSet.add(s.userId));
 
       // Parents of students in this department
+      const parentStudentWhere = this.buildStudentWhereClause(
+        { departmentId: deptId, status: 'ACTIVE' },
+        targetYears,
+        targetSemesters,
+        targetSections
+      );
       const parentLinks = await (prisma as any).parentStudentLink?.findMany?.({
         where: {
-          student: {
-            departmentId: deptId,
-            status: 'ACTIVE',
-            ...(targetYears.length > 0 ? { currentYear: { in: targetYears } } : {}),
-          },
+          student: parentStudentWhere,
         },
         select: { parentUserId: true },
       }).catch(() => []) ?? [];
@@ -189,10 +187,13 @@ export class CircularRecipientService {
 
     // --- ALL_CAMPUS ---
     if (circular.broadcastLevel === 'ALL_CAMPUS') {
-      const allActive = await prisma.user.findMany({
-        where: { status: 'ACTIVE' },
+      let allActive = await prisma.user.findMany({
+        where: { OR: [{ status: 'ACTIVE' }, { status: 'Active' }, { accountStatus: 'ACTIVE' }] },
         select: { id: true },
       });
+      if (allActive.length === 0) {
+        allActive = await prisma.user.findMany({ select: { id: true } });
+      }
       return allActive.map(u => u.id);
     }
 
@@ -207,11 +208,9 @@ export class CircularRecipientService {
 
     // --- STUDENT_ONLY ---
     if (circular.broadcastLevel === 'STUDENT_ONLY') {
-      const studentWhere: any = { status: 'ACTIVE', userId: { not: null } };
-      if (targetDepartments.length > 0) studentWhere.departmentId = { in: targetDepartments };
-      if (targetYears.length > 0) studentWhere.currentYear = { in: targetYears };
-      if (targetSemesters.length > 0) studentWhere.currentSemester = { in: targetSemesters };
-      if (targetSections.length > 0) studentWhere.section = { in: targetSections };
+      const baseStudentWhere: any = { status: 'ACTIVE', userId: { not: null } };
+      if (targetDepartments.length > 0) baseStudentWhere.departmentId = { in: targetDepartments };
+      const studentWhere = this.buildStudentWhereClause(baseStudentWhere, targetYears, targetSemesters, targetSections);
       const stu = await prisma.student.findMany({ where: studentWhere, select: { userId: true } });
       stu.forEach(s => s.userId && userIdSet.add(s.userId));
       return Array.from(userIdSet);
@@ -280,11 +279,9 @@ export class CircularRecipientService {
       fac.forEach(f => f.userId && userIdSet.add(f.userId));
 
       // Students
-      const stuWhere: any = { status: 'ACTIVE', userId: { not: null } };
-      if (targetDepartments.length > 0) stuWhere.departmentId = { in: targetDepartments };
-      if (targetYears.length > 0) stuWhere.currentYear = { in: targetYears };
-      if (targetSemesters.length > 0) stuWhere.currentSemester = { in: targetSemesters };
-      if (targetSections.length > 0) stuWhere.section = { in: targetSections };
+      const baseStuWhere: any = { status: 'ACTIVE', userId: { not: null } };
+      if (targetDepartments.length > 0) baseStuWhere.departmentId = { in: targetDepartments };
+      const stuWhere = this.buildStudentWhereClause(baseStuWhere, targetYears, targetSemesters, targetSections);
       const stu = await prisma.student.findMany({ where: stuWhere, select: { userId: true } });
       stu.forEach(s => s.userId && userIdSet.add(s.userId));
 
@@ -305,9 +302,91 @@ export class CircularRecipientService {
     return Array.from(userIdSet);
   }
 
+  private static buildStudentWhereClause(
+    baseWhere: any,
+    targetYears: string[],
+    targetSemesters: string[],
+    targetSections: string[]
+  ): any {
+    const where: any = { ...baseWhere };
+    const andConditions: any[] = [];
+
+    // Filter by Years
+    if (targetYears.length > 0) {
+      const semNumbersFromYears: number[] = [];
+      targetYears.forEach(y => {
+        const lower = y.toLowerCase();
+        if (lower.includes('1st') || lower === '1' || lower === 'year 1') {
+          semNumbersFromYears.push(1, 2);
+        } else if (lower.includes('2nd') || lower === '2' || lower === 'year 2') {
+          semNumbersFromYears.push(3, 4);
+        } else if (lower.includes('3rd') || lower === '3' || lower === 'year 3') {
+          semNumbersFromYears.push(5, 6);
+        } else if (lower.includes('4th') || lower === '4' || lower === 'year 4') {
+          semNumbersFromYears.push(7, 8);
+        }
+      });
+
+      const yearOrConditions: any[] = [
+        { academicYearId: { in: targetYears } },
+        { academicYear: { name: { in: targetYears } } },
+      ];
+      if (semNumbersFromYears.length > 0) {
+        yearOrConditions.push({ semester: { number: { in: semNumbersFromYears } } });
+      }
+      andConditions.push({ OR: yearOrConditions });
+    }
+
+    // Filter by Semesters
+    if (targetSemesters.length > 0) {
+      const semNumbers: number[] = [];
+      targetSemesters.forEach(s => {
+        const match = s.match(/\d+/);
+        if (match) semNumbers.push(parseInt(match[0], 10));
+      });
+
+      const semOrConditions: any[] = [
+        { semesterId: { in: targetSemesters } },
+        { semester: { name: { in: targetSemesters } } },
+      ];
+      if (semNumbers.length > 0) {
+        semOrConditions.push({ semester: { number: { in: semNumbers } } });
+      }
+      andConditions.push({ OR: semOrConditions });
+    }
+
+    // Filter by Sections
+    if (targetSections.length > 0) {
+      const expandedSections: string[] = [];
+      targetSections.forEach(sec => {
+        expandedSections.push(sec);
+        if (!sec.toLowerCase().startsWith('section')) {
+          expandedSections.push(`Section ${sec}`);
+          expandedSections.push(`Sec ${sec}`);
+        } else {
+          expandedSections.push(sec.replace(/section\s*/i, '').trim());
+        }
+      });
+
+      andConditions.push({
+        OR: [
+          { sectionId: { in: targetSections } },
+          { section: { name: { in: expandedSections } } },
+        ],
+      });
+    }
+
+    if (andConditions.length > 0) {
+      where.AND = andConditions;
+    }
+
+    return where;
+  }
+
   private static parseList(value: any): string[] {
     if (!value) return [];
     if (Array.isArray(value)) return value;
     try { return JSON.parse(value); } catch { return []; }
   }
 }
+

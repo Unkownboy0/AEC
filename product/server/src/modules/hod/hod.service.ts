@@ -14,55 +14,7 @@ export class HodService {
 
   async getDashboardSummary(departmentId: string) {
     const metrics = await this.repository.getDashboardMetrics(departmentId);
-
-    const chartData = {
-      studentAttendanceTrend: [
-        { label: 'Mon', value: 92 },
-        { label: 'Tue', value: 94 },
-        { label: 'Wed', value: 89 },
-        { label: 'Thu', value: 95 },
-        { label: 'Fri', value: 91 },
-      ],
-      leaveRequestTrend: [
-        { label: 'Week 1', value: 8 },
-        { label: 'Week 2', value: 12 },
-        { label: 'Week 3', value: 6 },
-        { label: 'Week 4', value: 15 },
-      ],
-      odRequestTrend: [
-        { label: 'Week 1', value: 14 },
-        { label: 'Week 2', value: 20 },
-        { label: 'Week 3', value: 11 },
-        { label: 'Week 4', value: 18 },
-      ],
-      approvalVsRejection: {
-        approved: 45,
-        rejected: 5,
-        returned: 8,
-        pending: metrics.pendingLeaveRequests + metrics.pendingOdRequests,
-      },
-      facultyWorkloadDistribution: [
-        { name: 'Dr. Ramesh', hours: 16, status: 'NORMAL' },
-        { name: 'Prof. Anitha', hours: 22, status: 'OVERLOADED' },
-        { name: 'K. Suresh', hours: 10, status: 'UNDER_ALLOCATED' },
-      ],
-      subjectPassPercentage: [
-        { subjectCode: 'CS801', subjectName: 'Cloud Computing', passPercentage: 94 },
-        { subjectCode: 'CS802', subjectName: 'Machine Learning', passPercentage: 88 },
-        { subjectCode: 'CS803', subjectName: 'Cyber Security', passPercentage: 91 },
-      ],
-      taskCompletionRate: {
-        completed: 18,
-        pending: metrics.pendingTasks,
-        overdue: metrics.overdueTasks,
-      },
-    };
-
-    return {
-      ...metrics,
-      charts: chartData,
-      recentActivities: [],
-    };
+    return { ...metrics, charts: { studentAttendanceTrend: [], leaveRequestTrend: [], odRequestTrend: [], approvalVsRejection: { approved: 0, rejected: 0, returned: 0, pending: metrics.pendingLeaveRequests + metrics.pendingOdRequests }, facultyWorkloadDistribution: [], subjectPassPercentage: [], taskCompletionRate: { completed: 0, pending: metrics.pendingTasks, overdue: metrics.overdueTasks } }, recentActivities: [] };
   }
 
   async getLeaveOdRequests(departmentId: string, filters: any) {
@@ -228,6 +180,20 @@ export class HodService {
   }
 
   async assignSubjectToFaculty(departmentId: string, payload: SubjectAllocationPayload) {
+    const [subject, section, faculty] = await Promise.all([
+      prisma.subject.findFirst({ where: { id: payload.subjectId, departmentId } }),
+      prisma.section.findFirst({ where: { id: payload.sectionId, departmentId } }),
+      prisma.faculty.findFirst({ where: { id: payload.primaryFacultyId, status: 'ACTIVE', deleted: false } }),
+    ]);
+    if (!subject || !section) throw new Error('Subject or section does not belong to this HOD department.');
+    if (!faculty) throw new Error('Faculty member is inactive or unavailable.');
+    const teachesDepartment = faculty.departmentId === departmentId
+      || Boolean(faculty.userId && await prisma.departmentMembership.count({
+        where: { userId: faculty.userId, departmentId, role: { in: ['FACULTY', 'MEMBER'] } },
+      }))
+      || await prisma.subjectAssignment.count({ where: { facultyId: faculty.id, subject: { departmentId } } }) > 0
+      || await prisma.timetableSlot.count({ where: { facultyId: faculty.id, departmentId } }) > 0;
+    if (!teachesDepartment) throw new Error('Cross-department faculty must first receive an authorized teaching allocation.');
     const existing = await prisma.subjectAssignment.findFirst({
       where: {
         subjectId: payload.subjectId,

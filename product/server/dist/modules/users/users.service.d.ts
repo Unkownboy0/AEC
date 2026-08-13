@@ -1,9 +1,10 @@
+import { RequesterIdentity } from '../security/student-access.service';
 export declare class UsersService {
     private repo;
     /**
      * List users
      */
-    listUsers(params: any): Promise<{
+    listUsers(params: any, requester: RequesterIdentity): Promise<{
         users: ({
             role: {
                 status: string;
@@ -74,6 +75,221 @@ export declare class UsersService {
             username: string | null;
         })[];
         totalCount: number;
+    }>;
+    /**
+     * Get user by ID, Email, or Username
+     */
+    getUserById(id: string, requester: RequesterIdentity): Promise<{
+        user: {
+            id: string;
+            email: string;
+            username: string | null;
+            firstName: string;
+            lastName: string;
+            profilePhoto: any;
+            role: string;
+            status: string;
+            onlineStatus: string;
+            phone: string;
+            dob: string;
+            gender: string;
+            bloodGroup: string;
+            emergencyContact: string;
+            joiningDate: string;
+            departmentName: string;
+            departmentCode: string;
+            designation: string;
+            qualification: string;
+            experience: string;
+            officeRoom: any;
+            reportingOfficer: string;
+        };
+        studentRecord: {
+            admissionNo: any;
+            status: string;
+            program: {
+                code: string;
+            };
+            department: {
+                name: string;
+                code: string;
+            };
+            attendancePercentage: any;
+            gpa: any;
+            id: string;
+            email: string | null;
+            firstName: string;
+            lastName: string;
+            phone: string | null;
+            departmentId: string;
+            gender: string;
+            dob: Date;
+            bloodGroup: string | null;
+            createdAt: Date;
+            updatedAt: Date;
+            dateOfAdmission: Date;
+            religion: string | null;
+            category: string | null;
+            medicalDetails: string | null;
+            scholarship: string | null;
+            parentName: string;
+            parentPhone: string;
+            parentEmail: string | null;
+            parentOccupation: string | null;
+            currentAddress: string;
+            permanentAddress: string;
+            documents: string;
+            timeline: string;
+            promoted: boolean;
+            preferredName: string | null;
+            altPhone: string | null;
+            city: string | null;
+            district: string | null;
+            state: string | null;
+            country: string | null;
+            pinCode: string | null;
+            emergencyContactName: string | null;
+            emergencyContactPhone: string | null;
+            emergencyContactRelation: string | null;
+            linkedin: string | null;
+            github: string | null;
+            portfolio: string | null;
+            technicalSkills: string | null;
+            softSkills: string | null;
+            languagesKnown: string | null;
+            certifications: string | null;
+            resumeUrl: string | null;
+            careerObjective: string | null;
+            areasOfInterest: string | null;
+            academicYearId: string;
+            programDepartmentId: string | null;
+            programId: string;
+            courseId: string;
+            semesterId: string;
+            sectionId: string;
+            hostelId: string | null;
+            roomNo: string | null;
+            transportRouteId: string | null;
+            transportStopId: string | null;
+            userId: string | null;
+            mentorId: string | null;
+            facultyId: string | null;
+            classAdvisorId: string | null;
+            archived: boolean;
+            archivedAt: Date | null;
+            deleted: boolean;
+            deletedAt: Date | null;
+        } | {
+            admissionNo: string;
+            status: string;
+            department: {
+                name: string;
+                code: string;
+            };
+            attendancePercentage: number;
+            gpa: string;
+        } | null;
+        facultyRecord: {
+            employeeId: string;
+            department: {
+                name: string;
+                code: string;
+            };
+            status: string;
+            designation: string;
+            program: string | null;
+            id: string;
+            email: string;
+            firstName: string;
+            lastName: string;
+            phone: string;
+            departmentId: string;
+            gender: string | null;
+            dob: Date;
+            bloodGroup: string | null;
+            qualification: string;
+            experience: number;
+            createdAt: Date;
+            updatedAt: Date;
+            notificationPrefs: string | null;
+            documents: string;
+            city: string | null;
+            district: string | null;
+            state: string | null;
+            country: string | null;
+            userId: string | null;
+            archived: boolean;
+            archivedAt: Date | null;
+            deleted: boolean;
+            deletedAt: Date | null;
+            dateOfJoining: Date;
+            subjectMappings: string;
+            maritalStatus: string | null;
+            nationality: string | null;
+            aadhaarNo: string | null;
+            panNo: string | null;
+            personalEmail: string | null;
+            personalPhone: string | null;
+            alternatePhone: string | null;
+            emergencyName: string | null;
+            emergencyPhone: string | null;
+            addressLine1: string | null;
+            addressLine2: string | null;
+            pincode: string | null;
+            employmentType: string | null;
+            specialization: string | null;
+            highestDegree: string | null;
+            university: string | null;
+            researchArea: string | null;
+            facultyType: string | null;
+            officeRoom: string | null;
+            officeExtension: string | null;
+            highestQualification: string | null;
+            additionalCertifications: string | null;
+            researchInterests: string | null;
+            publications: string | null;
+            patents: string | null;
+            books: string | null;
+            industryExperience: number | null;
+            professionalMemberships: string | null;
+            linkedinProfile: string | null;
+            googleScholar: string | null;
+            orcidId: string | null;
+            portfolioWebsite: string | null;
+        } | {
+            employeeId: string;
+            designation: string;
+            department: {
+                name: string;
+                code: string;
+            };
+        } | null;
+        leaveRequests: {
+            id: any;
+            requestNumber: any;
+            title: any;
+            category: any;
+            startDate: string;
+            endDate: string;
+            status: any;
+        }[];
+        coursesEnrolled: {
+            code: any;
+            name: any;
+            credits: any;
+            type: string;
+        }[];
+        departmentHod: {
+            name: string;
+            email: string | null;
+        } | null;
+        departmentTree: {
+            role: string;
+            name: string;
+            path: string;
+        }[];
+        assignedTasks: never[];
+        auditLogs: never[];
     }>;
     /**
      * Create a new user with automatic Username & Password generation

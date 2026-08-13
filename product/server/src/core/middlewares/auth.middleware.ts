@@ -4,7 +4,7 @@ import { env } from '../../config/env';
 import { UnauthorizedException, ForbiddenException } from '../../utils/exceptions';
 
 import { prisma } from '../../lib/prisma';
-
+import { resolveUserWorkspaceAccess } from '../../modules/auth/workspace-access';
 export interface UserPayload {
   id: string;
   email: string;
@@ -29,33 +29,40 @@ export const requireAuth = async (req: Request, res: Response, next: NextFunctio
 
   const token = authHeader.split(' ')[1];
 
+  let decoded: UserPayload;
   try {
-    const decoded = jwt.verify(token, env.JWT_SECRET) as UserPayload;
-    const userPayload: UserPayload = { ...decoded };
+    decoded = jwt.verify(token, env.JWT_SECRET, {
+      maxAge: env.JWT_EXPIRES_IN as jwt.VerifyOptions['maxAge'],
+    }) as UserPayload;
+  } catch {
+    return next(new UnauthorizedException('Access token expired or corrupted'));
+  }
 
-    const activeRole = req.headers['x-active-role'] as string;
-    if (activeRole && activeRole !== decoded.role) {
-      const allowedRoles = [decoded.role];
-      if (['Faculty', 'HOD', 'Academic Dean', 'Vice Principal', 'Principal'].includes(decoded.role)) {
-        allowedRoles.push('Faculty', 'Mentor');
-      }
-
-      if (allowedRoles.includes(activeRole)) {
-        const roleData = await prisma.role.findFirst({
-          where: { name: activeRole },
-          include: { permissions: { include: { permission: true } } }
-        });
-        if (roleData) {
-          userPayload.role = activeRole;
-          userPayload.permissions = roleData.permissions.map(p => p.permission.name);
-        }
-      }
+  try {
+    const access = await resolveUserWorkspaceAccess(decoded.id);
+    if (!access) {
+      return next(new UnauthorizedException('User account is inactive or no longer available'));
     }
 
-    req.user = userPayload;
-    next();
+    const requestedRoleHeader = req.headers['x-active-role'];
+    const requestedRole = typeof requestedRoleHeader === 'string' && requestedRoleHeader.trim()
+      ? requestedRoleHeader.trim()
+      : decoded.role;
+    const workspace = access.workspaces.find((entry) => entry.name === requestedRole);
+
+    if (!workspace) {
+      return next(new ForbiddenException('The requested workspace is not assigned to your account'));
+    }
+
+    req.user = {
+      id: access.userId,
+      email: access.email,
+      role: workspace.name,
+      permissions: workspace.permissions,
+    };
+    return next();
   } catch (error) {
-    next(new UnauthorizedException('Access token expired or corrupted'));
+    return next(error);
   }
 };
 
@@ -92,12 +99,6 @@ export const requirePermission = (permission: string) => {
       throw new UnauthorizedException('Authentication required');
     }
 
-    // Super Admin & Principal get executive privilege access
-    const userRoleNorm = normalizeRoleStr(typeof req.user.role === 'object' ? (req.user.role as any)?.name : String(req.user.role || ''));
-    if (userRoleNorm === 'SUPERADMIN' || userRoleNorm === 'ADMIN' || userRoleNorm === 'PRINCIPAL') {
-      return next();
-    }
-
     const hasPermission = checkPermission(req.user.permissions, permission);
     if (!hasPermission) {
       throw new ForbiddenException(`You do not have the required permission: ${permission}`);
@@ -118,21 +119,16 @@ export const requireRole = (allowedRoles: string[]) => {
     const userRoleRaw = typeof req.user.role === 'object' ? (req.user.role as any)?.name : String(req.user.role || '');
     const userRoleNorm = normalizeRoleStr(userRoleRaw);
 
-    // 1. Super Admin and Principal have top-level executive access to all college ERP resources
-    if (userRoleNorm === 'SUPERADMIN' || userRoleNorm === 'ADMIN' || userRoleNorm === 'PRINCIPAL') {
-      return next();
-    }
-
     const normalizedAllowed = allowedRoles.map(normalizeRoleStr);
 
-    // 2. Direct normalized match
+    // Direct active-workspace role match. Elevated roles must still be listed
+    // explicitly by the route; authentication alone is never an authorization bypass.
     let hasRole = normalizedAllowed.includes(userRoleNorm);
 
-    // 3. Role alias & hierarchy matching
+    // 3. Narrow aliases only. Dean workspaces are intentionally not aliases for
+    // one another, and VP is not Principal without an active delegation.
     if (!hasRole) {
-      if ((userRoleNorm === 'VICEPRINCIPAL' || userRoleNorm === 'VP') && normalizedAllowed.some(r => r === 'VP' || r === 'VICEPRINCIPAL' || r === 'PRINCIPAL')) {
-        hasRole = true;
-      } else if (userRoleNorm.includes('DEAN') && normalizedAllowed.some(r => r.includes('DEAN'))) {
+      if ((userRoleNorm === 'VICEPRINCIPAL' || userRoleNorm === 'VP') && normalizedAllowed.some(r => r === 'VP' || r === 'VICEPRINCIPAL')) {
         hasRole = true;
       } else if (userRoleNorm === 'HOD' && normalizedAllowed.some(r => r === 'HOD' || r === 'HEADOFDEPARTMENT')) {
         hasRole = true;
@@ -142,16 +138,22 @@ export const requireRole = (allowedRoles: string[]) => {
     }
 
     // 4. Active Principal delegation check for VP
-    if (!hasRole && (userRoleNorm === 'VICEPRINCIPAL' || userRoleNorm === 'VP')) {
+    const routeAcceptsDelegatedPrincipal = normalizedAllowed.some(
+      (role) => role === 'PRINCIPAL' || role === 'ACTINGPRINCIPAL'
+    );
+    if (!hasRole && routeAcceptsDelegatedPrincipal && (userRoleNorm === 'VICEPRINCIPAL' || userRoleNorm === 'VP')) {
       try {
         const activeDelegation = await (prisma as any).principalDelegation.findFirst({
           where: {
             actingUserId: req.user.id,
             status: 'ACTIVE',
-            endDate: { gte: new Date() }
+            startDate: { lte: new Date() },
+            endDate: { gt: new Date() }
           }
         });
-        if (activeDelegation) {
+        let delegatedScope: any = {};
+        try { delegatedScope = activeDelegation ? JSON.parse(activeDelegation.delegatedScope || '{}') : {}; } catch { delegatedScope = {}; }
+        if (activeDelegation && delegatedScope.tenantId === env.CAMPUS_TENANT_ID) {
           hasRole = true;
         }
       } catch {

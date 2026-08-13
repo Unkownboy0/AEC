@@ -8,7 +8,8 @@ export class TaskController {
   static async createTask(req: Request, res: Response, next: NextFunction) {
     try {
       const createdById = (req as any).user.id;
-      const task = await TaskEngineService.createTask(createdById, req.body);
+      const activeRole = (req as any).user.role;
+      const task = await TaskEngineService.createTask(createdById, req.body, activeRole);
       res.status(201).json({ status: 'success', data: task });
     } catch (error) {
       next(error);
@@ -28,10 +29,20 @@ export class TaskController {
 
   static async getKanbanBoard(req: Request, res: Response, next: NextFunction) {
     try {
-      const departmentId = (req.query.departmentId as string) || (req as any).departmentId;
-      const assigneeId = req.query.assigneeId as string;
-      const result = await TaskEngineService.getKanbanBoard(departmentId, assigneeId);
-      res.status(200).json({ status: 'success', data: result });
+      const userId = (req as any).user.id;
+      const userRole = (req as any).user.role;
+      const result = await taskService.getTasks(userId, userRole, {
+        departmentId: (req.query.departmentId as string) || (req as any).departmentId,
+        limit: 100,
+      });
+      const columns: Record<string, any[]> = {
+        NOT_SEEN: [], SEEN: [], ACCEPTED: [], IN_PROGRESS: [], WAITING_APPROVAL: [], COMPLETED: [], REJECTED: [],
+      };
+      const requestedAssignee = req.query.assigneeId as string | undefined;
+      result.data
+        .filter((task: any) => !requestedAssignee || task.assignees.some((item: any) => item.assigneeId === requestedAssignee))
+        .forEach((task: any) => (columns[task.status] || columns.NOT_SEEN).push(task));
+      res.status(200).json({ status: 'success', data: { totalTasks: result.meta.total, columns } });
     } catch (error) {
       next(error);
     }
@@ -40,7 +51,8 @@ export class TaskController {
   static async getTaskById(req: Request, res: Response, next: NextFunction) {
     try {
       const userId = (req as any).user.id;
-      const task = await taskService.getTaskById(req.params.taskId, userId);
+      const userRole = (req as any).user.role;
+      const task = await taskService.getTaskById(req.params.taskId, userId, userRole);
       res.status(200).json({ status: 'success', data: task });
     } catch (error) {
       next(error);
@@ -72,8 +84,8 @@ export class TaskController {
   static async updateProgress(req: Request, res: Response, next: NextFunction) {
     try {
       const userId = (req as any).user.id;
-      const { checklist } = req.body;
-      const task = await TaskEngineService.updateChecklist(req.params.taskId, userId, checklist || []);
+      const { completionPercent, comment } = req.body;
+      const task = await taskService.updateProgress(req.params.taskId, userId, { completionPercent, comment });
       res.status(200).json({ status: 'success', data: task });
     } catch (error) {
       next(error);

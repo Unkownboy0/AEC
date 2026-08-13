@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useSearchParams, useNavigate, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, Users, UserCheck, ShieldAlert, Award,
   Clock, DollarSign, Download, Plus, Search, CheckCircle,
@@ -10,7 +10,7 @@ import { toast } from '../../components/ui/Toast';
 import { Loading } from '../../components/ui/Loading';
 import api from '../../lib/axios';
 
-// ── KPI Card helper ──────────────────────────────────────────────────────────
+// â”€â”€ KPI Card helper â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const KPICard: React.FC<{ title: string; value: string | number; icon: React.ComponentType<any>; colorClass: string }> = ({ title, value, icon: Icon, colorClass }) => (
   <div className="border bg-card p-4 rounded-xl shadow-sm hover:shadow-md transition-all flex flex-col justify-between">
     <div className="flex items-center justify-between">
@@ -32,6 +32,7 @@ interface AdmissionDeanPortalProps {
 import { AdmissionCoordinationWorkspace } from '../../components/admin/AdmissionCoordinationWorkspace';
 
 import { ExecutiveLeaveOdModal } from '../../components/shared/ExecutiveLeaveOdModal';
+import { AdmissionWizardModal } from './AdmissionWizardModal';
 import { Calendar as CalendarIcon } from 'lucide-react';
 
 const VALID_TABS = ['overview','coordination','applications','faculty_leaves','seats','scholarships','enquiries','counselling','payments'] as const;
@@ -42,15 +43,19 @@ export const AdmissionDeanPortal: React.FC<AdmissionDeanPortalProps> = ({ user: 
   const user = propUser || authUser;
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const [isLeaveModalOpen, setIsLeaveModalOpen] = useState(false);
+  const [isWizardOpen, setIsWizardOpen] = useState(false);
+  const [funnelData, setFunnelData] = useState<any>(null);
 
   // Derive active tab from URL ?tab= param (sidebar navigation support)
   const rawTab = searchParams.get('tab') as AdmissionTab | null;
-  const activeTab: AdmissionTab = rawTab && (VALID_TABS as readonly string[]).includes(rawTab) ? rawTab : 'overview';
+  const pathDefault: AdmissionTab = location.pathname.endsWith('/coordination') ? 'coordination' : location.pathname.endsWith('/approvals') ? 'faculty_leaves' : location.pathname.endsWith('/admissions') ? 'applications' : 'overview';
+  const activeTab: AdmissionTab = rawTab && (VALID_TABS as readonly string[]).includes(rawTab) ? rawTab : pathDefault;
 
   const setActiveTab = (tab: AdmissionTab) => {
     setSelectedApp(null);
-    navigate(`/?tab=${tab}`, { replace: true });
+    navigate(`/admission-dean/admissions?tab=${tab}`, { replace: true });
   };
   const [analytics, setAnalytics] = useState<any | null>(null);
   const [applications, setApplications] = useState<any[]>([]);
@@ -109,15 +114,16 @@ export const AdmissionDeanPortal: React.FC<AdmissionDeanPortalProps> = ({ user: 
   const fetchData = async () => {
     setIsLoading(true);
     try {
-      const [analyticsRes, appsRes, seatsRes, scholarshipsRes, enquiriesRes, counsellingRes, paymentsRes, wfRes] = await Promise.all([
-        api.get('/enterprise/admission/analytics').catch(() => null),
-        api.get('/enterprise/admission/applications').catch(() => null),
-        api.get('/enterprise/admission/seats').catch(() => null),
-        api.get('/enterprise/admission/scholarships').catch(() => null),
-        api.get('/enterprise/admission/enquiries').catch(() => null),
-        api.get('/enterprise/admission/counselling').catch(() => null),
-        api.get('/enterprise/admission/payments').catch(() => null),
-        api.get('/workflows/requests').catch(() => null)
+      const [analyticsRes, appsRes, seatsRes, scholarshipsRes, enquiriesRes, counsellingRes, paymentsRes, wfRes, funnelRes] = await Promise.all([
+        api.get('/admission-dean/dashboard').catch(() => null),
+        api.get('/admission-dean/applications').catch(() => null),
+        api.get('/admission-dean/seats').catch(() => null),
+        api.get('/admission-dean/scholarships').catch(() => null),
+        api.get('/admission-dean/enquiries').catch(() => null),
+        api.get('/admission-dean/counselling').catch(() => null),
+        api.get('/admission-dean/payments').catch(() => null),
+        api.get('/workflows/requests').catch(() => null),
+        api.get('/admission-dean/analytics/funnel').catch(() => null)
       ]);
 
       if (analyticsRes?.data?.status === 'success') setAnalytics(analyticsRes.data.data);
@@ -127,6 +133,7 @@ export const AdmissionDeanPortal: React.FC<AdmissionDeanPortalProps> = ({ user: 
       if (enquiriesRes?.data?.status === 'success') setEnquiries(enquiriesRes.data.data);
       if (counsellingRes?.data?.status === 'success') setCounsellingSessions(counsellingRes.data.data);
       if (paymentsRes?.data?.status === 'success') setPaymentLedger(paymentsRes.data.data);
+      if (funnelRes?.data?.status === 'success') setFunnelData(funnelRes.data.data);
       if (wfRes?.data?.status === 'success') {
         const facReqs = wfRes.data.data.filter((r: any) => r.facultyRequesterId || r.facultyRequester);
         setFacultyRequests(facReqs);
@@ -168,7 +175,7 @@ export const AdmissionDeanPortal: React.FC<AdmissionDeanPortalProps> = ({ user: 
     }
     setActionLoading(true);
     try {
-      const res = await api.post('/enterprise/admission/applications/bulk-status', {
+      const res = await api.post('/admission-dean/applications/bulk-status', {
         ids: selectedAppIds,
         status
       });
@@ -188,7 +195,7 @@ export const AdmissionDeanPortal: React.FC<AdmissionDeanPortalProps> = ({ user: 
   const handleVerifyDocument = async (appId: string, docName: string, action: 'APPROVED' | 'REJECTED' | 'REUPLOAD_REQUESTED', notes: string = '') => {
     setActionLoading(true);
     try {
-      const res = await api.post(`/enterprise/admission/applications/${appId}/verify-document`, {
+      const res = await api.post(`/admission-dean/applications/${appId}/verify-document`, {
         docName,
         action,
         notes
@@ -211,7 +218,7 @@ export const AdmissionDeanPortal: React.FC<AdmissionDeanPortalProps> = ({ user: 
   const handleAllocateSeat = async (appId: string, quotaType: 'GOVERNMENT' | 'MANAGEMENT') => {
     setActionLoading(true);
     try {
-      const res = await api.post(`/enterprise/admission/seats/${appId}/allocate`, {
+      const res = await api.post(`/admission-dean/seats/${appId}/allocate`, {
         mode: 'MANUAL',
         quotaType
       });
@@ -232,7 +239,7 @@ export const AdmissionDeanPortal: React.FC<AdmissionDeanPortalProps> = ({ user: 
   const handleAutoAllocate = async () => {
     setActionLoading(true);
     try {
-      const res = await api.post('/enterprise/admission/seats/allocate');
+      const res = await api.post('/admission-dean/seats/auto-allocate');
       if (res.data?.status === 'success') {
         toast.success(res.data.message || 'Auto merit seat allocations complete.');
         fetchData();
@@ -248,7 +255,7 @@ export const AdmissionDeanPortal: React.FC<AdmissionDeanPortalProps> = ({ user: 
   const handleStatusUpdate = async (appId: string, status: string) => {
     setActionLoading(true);
     try {
-      const res = await api.put(`/enterprise/admission/applications/${appId}/status`, { status });
+      const res = await api.put(`/admission-dean/applications/${appId}/status`, { status });
       if (res.data?.status === 'success') {
         toast.success(`Application status updated to ${status}.`);
         if (selectedApp?.id === appId) {
@@ -271,7 +278,7 @@ export const AdmissionDeanPortal: React.FC<AdmissionDeanPortalProps> = ({ user: 
     }
     setActionLoading(true);
     try {
-      const res = await api.post(`/enterprise/admission/seats/${selectedApp.id}/transfer`, {
+      const res = await api.post(`/admission-dean/seats/${selectedApp.id}/transfer`, {
         targetDepartmentId: transferDeptId
       });
       if (res.data?.status === 'success') {
@@ -291,7 +298,7 @@ export const AdmissionDeanPortal: React.FC<AdmissionDeanPortalProps> = ({ user: 
   const handleScholarshipAction = async (appId: string, status: 'APPROVED' | 'REJECTED', type: string = 'None', amount: number = 0) => {
     setActionLoading(true);
     try {
-      const res = await api.put(`/enterprise/admission/applications/${appId}/status`, {
+      const res = await api.put(`/admission-dean/applications/${appId}/status`, {
         scholarshipStatus: status,
         scholarshipType: type,
         scholarshipAmount: amount
@@ -312,7 +319,7 @@ export const AdmissionDeanPortal: React.FC<AdmissionDeanPortalProps> = ({ user: 
     e.preventDefault();
     setActionLoading(true);
     try {
-      const res = await api.post('/enterprise/admission/enquiries', newEnquiry);
+      const res = await api.post('/admission-dean/enquiries', newEnquiry);
       if (res.data?.status === 'success') {
         toast.success('CRM Enquiry lead logged successfully.');
         setShowEnquiryModal(false);
@@ -329,7 +336,7 @@ export const AdmissionDeanPortal: React.FC<AdmissionDeanPortalProps> = ({ user: 
   const handleUpdateEnquiry = async (enqId: string, status: string, notes: string = '') => {
     setActionLoading(true);
     try {
-      const res = await api.put(`/enterprise/admission/enquiries/${enqId}`, {
+      const res = await api.put(`/admission-dean/enquiries/${enqId}`, {
         status,
         notes: notes || undefined
       });
@@ -347,7 +354,7 @@ export const AdmissionDeanPortal: React.FC<AdmissionDeanPortalProps> = ({ user: 
   const handleConvertEnquiry = async (enqId: string, deptId: string, progId: string, marks: number) => {
     setActionLoading(true);
     try {
-      const res = await api.post(`/enterprise/admission/enquiries/${enqId}/convert`, {
+      const res = await api.post(`/admission-dean/enquiries/${enqId}/convert`, {
         departmentId: deptId,
         programId: progId,
         academicMarks: marks
@@ -368,7 +375,7 @@ export const AdmissionDeanPortal: React.FC<AdmissionDeanPortalProps> = ({ user: 
     e.preventDefault();
     setActionLoading(true);
     try {
-      const res = await api.post('/enterprise/admission/counselling', newSession);
+      const res = await api.post('/admission-dean/counselling', newSession);
       if (res.data?.status === 'success') {
         toast.success('Counselling session panel created.');
         setShowCounsellingModal(false);
@@ -382,40 +389,20 @@ export const AdmissionDeanPortal: React.FC<AdmissionDeanPortalProps> = ({ user: 
     }
   };
 
-  // Excel / CSV Export simulated logic
-  const handleExport = (filename: string, format: 'CSV' | 'EXCEL' | 'PDF') => {
-    if (format === 'PDF') {
-      window.print();
-      return;
+  const handleExport = async (filename: string, format: 'CSV' | 'EXCEL' | 'PDF') => {
+    try {
+      const serverFormat = format === 'PDF' ? 'PDF' : 'EXCEL';
+      const response = await api.get(`/administration-dean/export?format=${serverFormat}`, { responseType: 'blob' });
+      const url = URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${filename.toLowerCase().replace(/ /g, '_')}.${serverFormat === 'PDF' ? 'pdf' : 'xlsx'}`;
+      link.click();
+      URL.revokeObjectURL(url);
+      toast.success(`Authorized ${serverFormat === 'PDF' ? 'PDF' : 'Excel'} report downloaded.`);
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || 'You are not authorized to export this report.');
     }
-
-    let csvContent = 'data:text/csv;charset=utf-8,';
-    if (filename.includes('Applications')) {
-      csvContent += 'Application No,Name,Email,Department,Marks,Status,Payment\n';
-      applications.forEach(app => {
-        csvContent += `${app.applicationNo},${app.firstName} ${app.lastName},${app.email},${app.department?.code || ''},${app.academicMarks},${app.status},${app.paymentStatus}\n`;
-      });
-    } else if (filename.includes('CRM')) {
-      csvContent += 'Lead Name,Phone,Email,Source,Status,Created At\n';
-      enquiries.forEach(e => {
-        csvContent += `${e.studentName},${e.phone},${e.email || 'N/A'},${e.source},${e.status},${e.createdAt}\n`;
-      });
-    } else {
-      csvContent += 'Department,Quota Type,Intake Capacity,Filled Seats,Available Seats\n';
-      intakeMatrix.forEach(i => {
-        csvContent += `${i.department?.name},Government,${i.governmentQuotaIntake},${i.governmentQuotaFilled},${i.governmentQuotaIntake - i.governmentQuotaFilled}\n`;
-        csvContent += `${i.department?.name},Management,${i.managementQuotaIntake},${i.managementQuotaFilled},${i.managementQuotaIntake - i.managementQuotaFilled}\n`;
-      });
-    }
-
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement('a');
-    link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `${filename.toLowerCase().replace(/ /g, '_')}_export.${format.toLowerCase()}`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    toast.success(`Exported ${format} successfully.`);
   };
 
   if (isLoading) {
@@ -473,9 +460,16 @@ export const AdmissionDeanPortal: React.FC<AdmissionDeanPortalProps> = ({ user: 
               <Layers className="h-3.5 w-3.5" /> Admission Command Center
             </div>
             <h2 className="text-2xl md:text-3xl font-extrabold">Welcome back, Dean {user.firstName}</h2>
-            <p className="text-sm opacity-90 font-medium">Verify credentials · Run merit algorithms · Manage seat distributions</p>
+            <p className="text-sm opacity-90 font-medium">Verify credentials Â· Run merit algorithms Â· Manage seat distributions</p>
           </div>
           <div className="flex items-center gap-2">
+            <button
+              onClick={() => setIsWizardOpen(true)}
+              className="px-3.5 py-2 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-black rounded-lg text-xs flex items-center gap-1.5 shadow-md transition-all active:scale-95 border border-emerald-400"
+            >
+              <Sparkles className="h-4 w-4 text-slate-950" />
+              <span>Paperless Admission Wizard</span>
+            </button>
             <button
               onClick={() => setIsLeaveModalOpen(true)}
               className="px-3.5 py-2 bg-indigo-900/80 hover:bg-indigo-950 text-white font-black rounded-lg text-xs flex items-center gap-1.5 shadow-md transition-all active:scale-95 border border-white/20"
@@ -549,6 +543,44 @@ export const AdmissionDeanPortal: React.FC<AdmissionDeanPortalProps> = ({ user: 
             <KPICard title="Confirmed Admissions" value={analytics.metrics.admissionsCompleted} icon={CheckCircle} colorClass="bg-emerald-500/10 text-emerald-500" />
             <KPICard title="Intake Occupancy" value={`${analytics.metrics.seatOccupancyPercent}%`} icon={Layers} colorClass="bg-purple-500/10 text-purple-500" />
           </div>
+
+          {/* Admission Funnel Analytics Card */}
+          {funnelData?.funnelStages && (
+            <div className="border bg-card p-5 rounded-2xl shadow-sm space-y-3 text-left">
+              <div className="flex items-center justify-between border-b pb-2">
+                <div>
+                  <h3 className="text-sm font-black uppercase text-slate-800 dark:text-white flex items-center gap-2">
+                    <Sparkles className="h-4 w-4 text-indigo-600" /> Paperless Admission Funnel Conversion Analytics
+                  </h3>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">Real-time progression tracking across all 8 pipeline stages</p>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="text-xs font-mono font-bold text-indigo-600 bg-indigo-50 dark:bg-indigo-950 px-2.5 py-1 rounded-full border border-indigo-200">
+                    Conversion Rate: {funnelData.metrics.conversionRate}
+                  </span>
+                  <button
+                    onClick={() => setIsWizardOpen(true)}
+                    className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-xl shadow flex items-center gap-1.5 transition-all"
+                  >
+                    <Plus className="h-3.5 w-3.5" /> Start New Admission Wizard
+                  </button>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2 pt-2">
+                {funnelData.funnelStages.map((stg: any, idx: number) => (
+                  <div key={idx} className="p-3 border rounded-xl bg-muted/10 space-y-1">
+                    <span className="text-[9px] font-bold text-slate-400 block truncate">{stg.stage}</span>
+                    <p className="text-sm font-black text-slate-800 dark:text-white">{stg.count}</p>
+                    <div className="w-full bg-slate-200 dark:bg-slate-800 h-1.5 rounded-full overflow-hidden">
+                      <div className="bg-indigo-600 h-full" style={{ width: `${stg.percentage}%` }} />
+                    </div>
+                    <span className="text-[9px] font-mono text-indigo-600 font-bold block">{stg.percentage}% rate</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             
@@ -796,7 +828,7 @@ export const AdmissionDeanPortal: React.FC<AdmissionDeanPortalProps> = ({ user: 
                           )}
                           {doc.url && (
                             <a href={doc.url} target="_blank" rel="noreferrer" className="text-indigo-600 hover:text-indigo-800 text-[9px] font-black">
-                              📄 View
+                              ðŸ“„ View
                             </a>
                           )}
                         </div>
@@ -862,14 +894,14 @@ export const AdmissionDeanPortal: React.FC<AdmissionDeanPortalProps> = ({ user: 
                       onClick={() => { setTransferDeptId(selectedApp.departmentId); setShowTransferModal(true); }}
                       className="w-full h-8 border border-dashed rounded-lg font-black text-slate-500 hover:text-slate-700 hover:bg-muted text-[10px] uppercase mt-2"
                     >
-                      🔁 Transfer Department / Major
+                      ðŸ” Transfer Department / Major
                     </button>
                   )}
                 </div>
               </div>
             ) : (
               <div className="flex flex-col items-center justify-center text-center h-full text-muted-foreground p-8 space-y-2">
-                <div className="h-16 w-16 bg-muted rounded-full flex items-center justify-center text-3xl">📇</div>
+                <div className="h-16 w-16 bg-muted rounded-full flex items-center justify-center text-3xl">ðŸ“‡</div>
                 <div>
                   <h4 className="font-extrabold text-foreground text-xs uppercase">No Candidate Selected</h4>
                   <p className="text-[10px] mt-0.5 max-w-[200px]">Select a candidate profile from the screen list registry to perform screening, verification or quota mappings.</p>
@@ -1085,7 +1117,7 @@ export const AdmissionDeanPortal: React.FC<AdmissionDeanPortalProps> = ({ user: 
                       </span>
                     </td>
                     <td className="py-3.5 px-2">{enq.assignedCounsellor || 'Not Assigned'}</td>
-                    <td className="py-3.5 px-2 text-slate-500 font-medium truncate max-w-[150px]">{enq.notes || '—'}</td>
+                    <td className="py-3.5 px-2 text-slate-500 font-medium truncate max-w-[150px]">{enq.notes || 'â€”'}</td>
                     <td className="py-3.5 px-2 text-right">
                       {enq.status !== 'CONVERTED' ? (
                         <div className="flex justify-end gap-1.5">
@@ -1111,7 +1143,7 @@ export const AdmissionDeanPortal: React.FC<AdmissionDeanPortalProps> = ({ user: 
                           </button>
                         </div>
                       ) : (
-                        <span className="text-[10px] text-emerald-600 font-extrabold uppercase">Converted 🎉</span>
+                        <span className="text-[10px] text-emerald-600 font-extrabold uppercase">Converted ðŸŽ‰</span>
                       )}
                     </td>
                   </tr>
@@ -1410,7 +1442,7 @@ export const AdmissionDeanPortal: React.FC<AdmissionDeanPortalProps> = ({ user: 
                     <h4 className="text-sm font-extrabold uppercase text-foreground">
                       {actionReqType === 'APPROVE' ? 'Final Approve Faculty Request' : 'Reject Faculty Request'}
                     </h4>
-                    <button onClick={() => setActionModalOpen(false)} className="text-muted-foreground hover:text-foreground">✕</button>
+                    <button onClick={() => setActionModalOpen(false)} className="text-muted-foreground hover:text-foreground">âœ•</button>
                   </div>
                   <p className="text-muted-foreground text-[11px]">
                     Faculty Member: <span className="font-bold text-foreground">{selectedFacultyReq.facultyRequester?.firstName} {selectedFacultyReq.facultyRequester?.lastName}</span>
@@ -1447,7 +1479,7 @@ export const AdmissionDeanPortal: React.FC<AdmissionDeanPortalProps> = ({ user: 
                 <div className="bg-card w-full max-w-lg border rounded-xl shadow-xl p-5 space-y-4 text-xs font-semibold">
                   <div className="flex justify-between items-center border-b pb-2">
                     <h4 className="text-sm font-extrabold uppercase text-foreground">Audit Log & Timeline</h4>
-                    <button onClick={() => setAuditModalOpen(false)} className="text-muted-foreground hover:text-foreground">✕</button>
+                    <button onClick={() => setAuditModalOpen(false)} className="text-muted-foreground hover:text-foreground">âœ•</button>
                   </div>
                   <div className="space-y-3 max-h-[60vh] overflow-y-auto">
                     <div className="bg-muted/30 p-3 rounded-lg space-y-1">
@@ -1461,7 +1493,7 @@ export const AdmissionDeanPortal: React.FC<AdmissionDeanPortalProps> = ({ user: 
                         <div key={h.id || i} className="relative space-y-0.5">
                           <span className="absolute -left-[21px] top-1 h-2.5 w-2.5 rounded-full bg-primary border-2 border-card" />
                           <div className="flex justify-between text-[10px]">
-                            <span className="font-extrabold uppercase text-primary">{h.stage} Stage — {h.action}</span>
+                            <span className="font-extrabold uppercase text-primary">{h.stage} Stage â€” {h.action}</span>
                             <span className="text-muted-foreground">{new Date(h.createdAt).toLocaleString('en-IN')}</span>
                           </div>
                           <p className="text-xs font-bold text-foreground">{h.actionByName}</p>
@@ -1514,10 +1546,10 @@ export const AdmissionDeanPortal: React.FC<AdmissionDeanPortalProps> = ({ user: 
                     <td className="py-3.5 px-3 font-mono font-extrabold text-indigo-700">{pay.receiptNo}</td>
                     <td className="py-3.5 px-2 font-mono">{pay.applicationNo}</td>
                     <td className="py-3.5 px-2 font-extrabold text-slate-800">{pay.applicantName}</td>
-                    <td className="py-3.5 px-2 text-right font-mono">₹{pay.applicationFee}</td>
-                    <td className="py-3.5 px-2 text-right font-mono">₹{pay.admissionFee}</td>
-                    <td className="py-3.5 px-2 text-right font-mono text-emerald-600">-₹{pay.concession}</td>
-                    <td className="py-3.5 px-2 text-right font-mono font-black text-slate-900">₹{pay.finalFee}</td>
+                    <td className="py-3.5 px-2 text-right font-mono">â‚¹{pay.applicationFee}</td>
+                    <td className="py-3.5 px-2 text-right font-mono">â‚¹{pay.admissionFee}</td>
+                    <td className="py-3.5 px-2 text-right font-mono text-emerald-600">-â‚¹{pay.concession}</td>
+                    <td className="py-3.5 px-2 text-right font-mono font-black text-slate-900">â‚¹{pay.finalFee}</td>
                     <td className="py-3.5 px-2 text-center">
                       <span className={`px-2 py-0.5 rounded text-[8px] font-black border ${
                         pay.paymentStatus === 'COMPLETED' ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : 'bg-amber-50 text-amber-600 border-amber-200'
@@ -1539,7 +1571,7 @@ export const AdmissionDeanPortal: React.FC<AdmissionDeanPortalProps> = ({ user: 
           <div className="bg-card w-full max-w-md rounded-2xl shadow-xl border overflow-hidden p-6 text-left space-y-4 text-xs font-bold">
             <div className="flex justify-between items-center border-b pb-2">
               <h3 className="text-sm font-extrabold uppercase">Log New CRM Enquiry Lead</h3>
-              <button onClick={() => setShowEnquiryModal(false)} className="text-slate-400 hover:text-slate-600">✕</button>
+              <button onClick={() => setShowEnquiryModal(false)} className="text-slate-400 hover:text-slate-600">âœ•</button>
             </div>
             
             <form onSubmit={handleCreateEnquiry} className="space-y-3">
@@ -1626,7 +1658,7 @@ export const AdmissionDeanPortal: React.FC<AdmissionDeanPortalProps> = ({ user: 
           <div className="bg-card w-full max-w-md rounded-2xl shadow-xl border overflow-hidden p-6 text-left space-y-4 text-xs font-bold">
             <div className="flex justify-between items-center border-b pb-2">
               <h3 className="text-sm font-extrabold uppercase">Schedule Counselling Session</h3>
-              <button onClick={() => setShowCounsellingModal(false)} className="text-slate-400 hover:text-slate-600">✕</button>
+              <button onClick={() => setShowCounsellingModal(false)} className="text-slate-400 hover:text-slate-600">âœ•</button>
             </div>
             
             <form onSubmit={handleCreateSession} className="space-y-3">
@@ -1691,7 +1723,7 @@ export const AdmissionDeanPortal: React.FC<AdmissionDeanPortalProps> = ({ user: 
           <div className="bg-card w-full max-w-sm rounded-2xl shadow-xl border overflow-hidden p-6 text-left space-y-4 text-xs font-bold">
             <div className="flex justify-between items-center border-b pb-2">
               <h3 className="text-sm font-extrabold uppercase">Departmental Transfer</h3>
-              <button onClick={() => setShowTransferModal(false)} className="text-slate-400 hover:text-slate-600">✕</button>
+              <button onClick={() => setShowTransferModal(false)} className="text-slate-400 hover:text-slate-600">âœ•</button>
             </div>
             
             <div className="space-y-4">
@@ -1709,7 +1741,7 @@ export const AdmissionDeanPortal: React.FC<AdmissionDeanPortalProps> = ({ user: 
                 >
                   {intakeMatrix.map(item => (
                     <option key={item.departmentId} value={item.departmentId}>
-                      {item.department.name} ({item.department.code}) — {item.availableSeats} Seats Available
+                      {item.department.name} ({item.department.code}) â€” {item.availableSeats} Seats Available
                     </option>
                   ))}
                 </select>
@@ -1741,6 +1773,16 @@ export const AdmissionDeanPortal: React.FC<AdmissionDeanPortalProps> = ({ user: 
         onClose={() => setIsLeaveModalOpen(false)}
         userRole="Admission Dean"
       />
+
+      {/* Paperless Admission Pipeline Wizard Modal */}
+      <AdmissionWizardModal
+        isOpen={isWizardOpen}
+        onClose={() => setIsWizardOpen(false)}
+        onSuccess={fetchData}
+        departments={intakeMatrix.map((item: any) => item.department || item)}
+        programs={[{ id: 'prog-cse', name: 'B.Tech Computer Science and Engineering', code: 'BTECH-CSE' }]}
+      />
     </div>
   );
 };
+

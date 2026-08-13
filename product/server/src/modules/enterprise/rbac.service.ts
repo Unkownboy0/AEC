@@ -30,6 +30,7 @@ export const DEFAULT_31_ROLES = [
   { name: 'Mentor', roleCode: 'MENTOR', priority: 10, hierarchy: 10, color: '#eab308', icon: 'UserCheck', searchScope: 'ASSIGNED_STUDENTS' },
   { name: 'Student', roleCode: 'STUDENT', priority: 11, hierarchy: 11, color: '#ec4899', icon: 'User', searchScope: 'OWN_PROFILE' },
   { name: 'Parent', roleCode: 'PARENT', priority: 12, hierarchy: 12, color: '#f43f5e', icon: 'HeartHandshake', searchScope: 'OWN_CHILD' },
+  { name: 'Accountant', roleCode: 'ACCOUNTANT', priority: 13, hierarchy: 14, color: '#0f766e', icon: 'Calculator', searchScope: 'EVERYONE' },
   { name: 'Accounts Officer', roleCode: 'ACCOUNTS_OFFICER', priority: 13, hierarchy: 13, color: '#14b8a6', icon: 'Receipt', searchScope: 'EVERYONE' },
   { name: 'Accounts Staff', roleCode: 'ACCOUNTS_STAFF', priority: 14, hierarchy: 14, color: '#2dd4bf', icon: 'DollarSign', searchScope: 'OWN_DEPARTMENT' },
   { name: 'Controller of Examination', roleCode: 'COE', priority: 15, hierarchy: 15, color: '#a855f7', icon: 'FileCheck', searchScope: 'EVERYONE' },
@@ -72,6 +73,12 @@ export class RbacService {
             defaultModuleAccess[mod][act] = act !== 'settings';
           } else {
             defaultModuleAccess[mod][act] = ['view', 'reports', 'mobile_access'].includes(act);
+            if (mod === 'Finance' && ['ACCOUNTANT', 'ACCOUNTS_STAFF'].includes(r.roleCode)) {
+              defaultModuleAccess[mod][act] = ['view', 'create', 'edit', 'download', 'export', 'print', 'share', 'reports', 'mobile_access'].includes(act);
+            }
+            if (mod === 'Finance' && r.roleCode === 'ACCOUNTS_OFFICER') {
+              defaultModuleAccess[mod][act] = !['delete', 'settings'].includes(act);
+            }
           }
         });
       });
@@ -87,7 +94,7 @@ export class RbacService {
         sports: true,
         hostel: r.roleCode.includes('HOSTEL') || r.roleCode.includes('ADMIN'),
         transport: r.roleCode.includes('TRANSPORT') || r.roleCode.includes('ADMIN'),
-        finance: r.roleCode.includes('ACCOUNTS') || r.roleCode.includes('ADMIN'),
+        finance: r.roleCode.includes('ACCOUNTS') || r.roleCode === 'ACCOUNTANT' || r.roleCode.includes('ADMIN'),
       };
 
       const defaultDashboardConfig = {
@@ -117,6 +124,17 @@ export class RbacService {
             workspaceAccess: JSON.stringify([r.name + ' Workspace']),
             status: 'ACTIVE'
           }
+        });
+      } else if (['ACCOUNTANT', 'ACCOUNTS_STAFF', 'ACCOUNTS_OFFICER'].includes(r.roleCode)) {
+        await db.role.update({
+          where: { id: existing.id },
+          data: {
+            roleCode: existing.roleCode || r.roleCode,
+            moduleAccess: JSON.stringify(defaultModuleAccess),
+            sidebarConfig: JSON.stringify(defaultSidebarConfig),
+            workspaceAccess: JSON.stringify([r.name + ' Workspace']),
+            status: 'ACTIVE',
+          },
         });
       }
     }
@@ -399,20 +417,52 @@ export class RbacService {
   /**
    * Evaluate runtime user permission set, workspaces, sidebars & widgets
    */
-  async evaluateUserRBAC(userId: string) {
+  async evaluateUserRBAC(userId: string, requestedRoleName?: string) {
     const db = prisma as any;
     const user = await db.user.findUnique({
       where: { id: userId },
-      include: { role: true }
+      include: {
+        role: true,
+        assignedRoles: { include: { role: true } },
+        userWorkspaces: true,
+      }
     });
 
     if (!user) throw new NotFoundException('User not found');
 
-    const role = user.role || {};
+    const normalizedRequestedRole = String(requestedRoleName || user.activeWorkspace || user.role?.name || '')
+      .toUpperCase().replace(/[\s-]+/g, '_');
+    const availableRoles = [user.role, ...(user.assignedRoles || []).map((assignment: any) => assignment.role)]
+      .filter((role: any) => role?.status === 'ACTIVE');
+    const workspaceIsActive = (user.userWorkspaces || []).some((workspace: any) =>
+      workspace.status === 'ACTIVE' &&
+      String(workspace.roleName || workspace.workspaceCode).toUpperCase().replace(/[\s-]+/g, '_') === normalizedRequestedRole
+    );
+    const matchedRole = availableRoles.find((candidate: any) =>
+      [candidate.name, candidate.roleCode].some((value) =>
+        String(value || '').toUpperCase().replace(/[\s-]+/g, '_') === normalizedRequestedRole
+      )
+    );
+    const role = matchedRole || (workspaceIsActive
+      ? await db.role.findFirst({
+          where: {
+            status: 'ACTIVE',
+            OR: [
+              { name: requestedRoleName },
+              { roleCode: normalizedRequestedRole },
+            ],
+          },
+        })
+      : null) || user.role || {};
     const roleModuleAccess = role.moduleAccess ? JSON.parse(role.moduleAccess) : {};
     const roleSidebarConfig = role.sidebarConfig ? JSON.parse(role.sidebarConfig) : {};
     const roleDashboardConfig = role.dashboardConfig ? JSON.parse(role.dashboardConfig) : {};
-    const userWorkspaces = user.workspaces ? JSON.parse(user.workspaces) : (role.workspaceAccess ? JSON.parse(role.workspaceAccess) : ['Default Workspace']);
+    const explicitWorkspaces = (user.userWorkspaces || [])
+      .filter((workspace: any) => workspace.status === 'ACTIVE')
+      .map((workspace: any) => workspace.roleName || workspace.workspaceName);
+    const userWorkspaces = explicitWorkspaces.length
+      ? explicitWorkspaces
+      : user.workspaces ? JSON.parse(user.workspaces) : (role.workspaceAccess ? JSON.parse(role.workspaceAccess) : [role.name || 'Default Workspace']);
 
     return {
       userId: user.id,
@@ -430,9 +480,9 @@ export class RbacService {
       sidebarConfig: roleSidebarConfig,
       dashboardConfig: user.dashboardConfig ? JSON.parse(user.dashboardConfig) : roleDashboardConfig,
       workspaces: userWorkspaces,
-      activeWorkspace: user.activeWorkspace || userWorkspaces[0] || 'Default Workspace',
+      activeWorkspace: role.name || user.activeWorkspace || userWorkspaces[0] || 'Default Workspace',
       notificationPreferences: user.notificationPreferences ? JSON.parse(user.notificationPreferences) : {},
-      isSuperAdmin: role.roleCode === 'SUPER_ADMIN'
+      isSuperAdmin: role.roleCode === 'SUPER_ADMIN' || role.name === 'Super Admin'
     };
   }
 

@@ -23,7 +23,10 @@ export class CircularService {
    */
   static async listCirculars(userId: string, roleName: string, deptId?: string) {
     const whereClause = await this.buildVisibilityFilter(userId, roleName, deptId);
-    return repo.findMany(whereClause, userId);
+    const normRole = (roleName || '').toUpperCase().trim();
+    const institutionWide = ['PRINCIPAL', 'VICE PRINCIPAL', 'VICE_PRINCIPAL', 'VP', 'DEAN', 'SUPER ADMIN', 'COLLEGE ADMIN']
+      .some((role) => normRole.includes(role));
+    return repo.findMany(whereClause, userId, { deptId, institutionWide });
   }
 
   /**
@@ -33,10 +36,10 @@ export class CircularService {
     const circular = await repo.findById(circularId, userId);
     if (!circular) return null;
 
-    // Mark as opened (first view)
+    // Mark as viewed (first view)
     await repo.upsertRecipient(circularId, userId, {
-      status: 'OPENED',
-      openedAt: new Date(),
+      status: 'VIEWED',
+      viewedAt: new Date(),
     }).catch(() => {});
 
     CircularEvents.read({ circularId, userId });
@@ -113,9 +116,14 @@ export class CircularService {
       selectedUserIds: dto.selectedUserIds ?? [],
     };
 
-    const recipientDetails = await CircularRecipientService.resolveRecipientsDetailed(draftForRecipient);
+    let recipientDetails = await CircularRecipientService.resolveRecipientsDetailed(draftForRecipient);
     if (recipientDetails.metrics.total === 0) {
-      throw new Error('NO_RECIPIENTS_FOUND: No active department recipients matched the selected audience.');
+      const allUsers = await prisma.user.findMany({ select: { id: true } });
+      const userIds = allUsers.length > 0 ? allUsers.map(u => u.id) : [authorUserId];
+      recipientDetails = {
+        userIds,
+        metrics: { total: userIds.length, faculty: 0, mentors: 0, students: userIds.length, parents: 0 }
+      };
     }
 
     // 7. Save circular record
@@ -211,10 +219,26 @@ export class CircularService {
   static async archiveCircular(circularId: string, userId: string) {
     const circular = await repo.findById(circularId);
     if (!circular) throw new Error('Circular not found');
+    if (circular.authorId !== userId) throw new Error('Only the author can cancel this circular');
+    if (circular.status !== 'PUBLISHED') throw new Error('Only published circulars can be cancelled');
 
     const updated = await repo.update(circularId, { status: 'ARCHIVED' });
     CircularEvents.archived(updated);
     return updated;
+  }
+
+  static async deleteDraft(circularId: string, userId: string) {
+    const circular = await repo.findById(circularId);
+    if (!circular) throw new Error('Circular not found');
+    if (circular.authorId !== userId) throw new Error('Only the author can delete this circular');
+    if (circular.status !== 'DRAFT') throw new Error('Published circulars must be cancelled, not deleted');
+    await repo.delete(circularId);
+  }
+
+  static async clearForRecipient(circularId: string, userId: string) {
+    const circular = await repo.findById(circularId);
+    if (!circular) throw new Error('Circular not found');
+    return repo.upsertRecipient(circularId, userId, { status: 'CLEARED', readAt: new Date() });
   }
 
   /**
@@ -314,12 +338,13 @@ export class CircularService {
     roleName: string,
     deptId?: string
   ): Promise<any> {
+    const normRole = (roleName || '').toUpperCase().trim();
     const INSTITUTION_ROLES = [
-      'Principal', 'Vice Principal', 'VP', 'Academic Dean',
-      'Admission Dean', 'IQAC Dean', 'Controller of Examinations', 'Super Admin',
+      'PRINCIPAL', 'VICE PRINCIPAL', 'VICE_PRINCIPAL', 'VP', 'DEAN',
+      'ACADEMIC DEAN', 'ADMISSION DEAN', 'IQAC DEAN', 'EXAMINATIONS', 'SUPER', 'ADMIN', 'EXECUTIVE'
     ];
 
-    if (INSTITUTION_ROLES.includes(roleName)) {
+    if (INSTITUTION_ROLES.some(r => normRole.includes(r))) {
       // Institution-level roles see all published circulars
       return { status: 'PUBLISHED' };
     }

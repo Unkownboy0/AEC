@@ -5,6 +5,7 @@ import { Loading } from '../../components/ui/Loading';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../../components/ui/Table';
 import { Database, Download, RefreshCw, Play, ShieldAlert } from 'lucide-react';
 import api from '../../lib/axios';
+import { env } from '../../shared/config/environment';
 
 interface BackupLog {
   id: string;
@@ -172,7 +173,7 @@ const BackupCenter: React.FC = () => {
                         <Play className="h-4 w-4 text-emerald-500" />
                       </Button>
                       <a
-                        href={`http://localhost:5000/api/backups/${log.id}/download`}
+                        href={`${env.apiUrl}/backups/${log.id}/download`}
                         download
                         className={`inline-flex items-center justify-center h-8 w-8 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground ${log.status === 'FAILED' ? 'pointer-events-none opacity-40' : ''}`}
                         title="Download Archive"

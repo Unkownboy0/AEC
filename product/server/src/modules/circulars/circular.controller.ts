@@ -2,12 +2,26 @@ import { Request, Response } from 'express';
 import { CircularService } from './circular.service';
 import { CreateCircularSchema } from './circular.validation';
 
+function extractUserRole(user: any): string {
+  if (!user) return 'Principal';
+  if (typeof user.role === 'string' && user.role) return user.role;
+  if (typeof user.role === 'object' && user.role) {
+    return user.role.name || user.role.code || user.role.title || String(user.role);
+  }
+  if (Array.isArray(user.roles) && user.roles.length > 0) {
+    const r = user.roles[0];
+    return typeof r === 'string' ? r : (r?.name || r?.code || r?.title || String(r));
+  }
+  if (user.roleName) return user.roleName;
+  return 'Principal';
+}
+
 export class CircularController {
   // ─── GET /api/circulars ───────────────────────────────────────
   static async listCirculars(req: Request, res: Response) {
     try {
       const user = (req as any).user;
-      const roleName = typeof user.role === 'object' ? user.role?.name : String(user.role || '');
+      const roleName = extractUserRole(user);
       let deptId = user.departmentId ?? user.faculty?.departmentId ?? user.student?.departmentId ?? undefined;
 
       // If deptId is missing on session, resolve from Faculty or Student records
@@ -31,7 +45,7 @@ export class CircularController {
   static async createAndPublishCircular(req: Request, res: Response) {
     try {
       const user = (req as any).user;
-      const roleName = typeof user.role === 'object' ? user.role?.name : String(user.role || '');
+      const roleName = extractUserRole(user);
 
       // Validate body
       const parseResult = CreateCircularSchema.safeParse(req.body);
@@ -143,6 +157,34 @@ export class CircularController {
       const { id } = req.params;
       const result = await CircularService.acknowledgeCircular(user.id, id);
       return res.json({ success: true, data: result });
+    } catch (err: any) {
+      return res.status(400).json({ success: false, error: err.message });
+    }
+  }
+
+  static async markCircularRead(req: Request, res: Response) {
+    try {
+      const user = (req as any).user;
+      const result = await CircularService.markAsRead(req.params.id, user.id);
+      return res.json({ success: true, data: result });
+    } catch (err: any) {
+      return res.status(400).json({ success: false, error: err.message });
+    }
+  }
+
+  static async clearCircular(req: Request, res: Response) {
+    try {
+      const result = await CircularService.clearForRecipient(req.params.id, (req as any).user.id);
+      return res.json({ success: true, data: result });
+    } catch (err: any) {
+      return res.status(400).json({ success: false, error: err.message });
+    }
+  }
+
+  static async deleteCircular(req: Request, res: Response) {
+    try {
+      await CircularService.deleteDraft(req.params.id, (req as any).user.id);
+      return res.json({ success: true });
     } catch (err: any) {
       return res.status(400).json({ success: false, error: err.message });
     }

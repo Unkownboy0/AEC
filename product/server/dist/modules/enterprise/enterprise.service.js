@@ -8,13 +8,18 @@ const enterprise_repository_1 = require("./enterprise.repository");
 const prisma_1 = require("../../lib/prisma");
 const exceptions_1 = require("../../utils/exceptions");
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
+const student_access_service_1 = require("../security/student-access.service");
+const notification_service_1 = require("../notifications/notification.service");
 class EnterpriseService {
     repo = new enterprise_repository_1.EnterpriseRepository();
     // ==========================================
     // 1. STUDENTS
     // ==========================================
     async listStudents(params, user) {
-        return this.repo.findStudents(params, user);
+        if (!user)
+            return this.repo.findStudents(params);
+        const scopeWhere = await student_access_service_1.StudentAccessService.visibleStudentWhere(user);
+        return this.repo.findStudents({ ...params, scopeWhere });
     }
     async getStudent(id) {
         const student = await this.repo.findStudentById(id);
@@ -588,63 +593,45 @@ class EnterpriseService {
     async listMarks(params, user) {
         return this.repo.findMarks(params, user);
     }
-    async recordMark(input, userId, ip, ua) {
+    async recordMark(input, userId, activeRole, ip, ua) {
         const { internalMarks, externalMarks, practicalMarks, examId, studentId, subjectId, status } = input;
         if (!examId || !studentId || !subjectId)
             throw new exceptions_1.BadRequestException('Exam, Student, and Subject mappings are required');
-        // Simple Grade / GPA calculation
-        const total = (parseInt(internalMarks) || 0) + (parseInt(externalMarks) || 0) + (parseInt(practicalMarks) || 0);
-        let grade = 'F';
-        let gpa = 0.0;
-        if (total >= 90) {
-            grade = 'S';
-            gpa = 10.0;
+        const values = [internalMarks, externalMarks, practicalMarks].map((value) => Number(value || 0));
+        if (values.some((value) => !Number.isInteger(value) || value < 0))
+            throw new exceptions_1.BadRequestException('Marks must be non-negative whole numbers');
+        const [internal, external, practical] = values;
+        const requestedStatus = String(status || 'DRAFT').toUpperCase();
+        if (!['DRAFT', 'SUBMITTED'].includes(requestedStatus))
+            throw new exceptions_1.BadRequestException('Marks can only be saved as draft or submitted through this endpoint');
+        const role = String(activeRole || '').toUpperCase().replace(/[\s_-]+/g, '');
+        if (role === 'FACULTY') {
+            const faculty = await prisma_1.prisma.faculty.findFirst({ where: { userId, deleted: false }, select: { id: true } });
+            if (!faculty)
+                throw new exceptions_1.UnauthorizedException('Faculty profile not found');
+            const assignment = await prisma_1.prisma.subjectAssignment.findFirst({ where: { facultyId: faculty.id, subjectId } });
+            if (!assignment)
+                throw new exceptions_1.UnauthorizedException('You are not assigned to enter marks for this subject');
         }
-        else if (total >= 80) {
-            grade = 'A';
-            gpa = 9.0;
-        }
-        else if (total >= 70) {
-            grade = 'B';
-            gpa = 8.0;
-        }
-        else if (total >= 60) {
-            grade = 'C';
-            gpa = 7.0;
-        }
-        else if (total >= 50) {
-            grade = 'D';
-            gpa = 6.0;
-        }
-        else if (total >= 40) {
-            grade = 'E';
-            gpa = 5.0;
-        }
+        const existing = await prisma_1.prisma.mark.findUnique({ where: { examId_studentId_subjectId: { examId, studentId, subjectId } } });
+        if (existing && ['LOCKED', 'PUBLISHED'].includes(existing.status))
+            throw new exceptions_1.BadRequestException('Locked or published marks require an authorized correction workflow');
+        const total = internal + external + practical;
         const mark = await prisma_1.prisma.mark.upsert({
             where: { examId_studentId_subjectId: { examId, studentId, subjectId } },
             update: {
-                internalMarks: parseInt(internalMarks) || 0,
-                externalMarks: parseInt(externalMarks) || 0,
-                practicalMarks: parseInt(practicalMarks) || 0,
-                grade,
-                gpa,
-                cgpa: gpa,
-                status: status || 'DRAFT',
+                internalMarks: internal, externalMarks: external, practicalMarks: practical,
+                grade: 'PENDING', gpa: 0, cgpa: 0, status: requestedStatus,
             },
             create: {
-                internalMarks: parseInt(internalMarks) || 0,
-                externalMarks: parseInt(externalMarks) || 0,
-                practicalMarks: parseInt(practicalMarks) || 0,
-                grade,
-                gpa,
-                cgpa: gpa,
-                status: status || 'DRAFT',
+                internalMarks: internal, externalMarks: external, practicalMarks: practical,
+                grade: 'PENDING', gpa: 0, cgpa: 0, status: requestedStatus,
                 examId,
                 studentId,
                 subjectId,
             },
         });
-        await this.logActivity(userId, 'CREATE', 'MARKS', `Entered student exam marks - Total: ${total} (Grade: ${grade})`, ip, ua);
+        await this.logActivity(userId, 'CREATE', 'MARKS', `Saved student exam marks as ${requestedStatus} - Total: ${total}; grade calculation pending configured regulation`, ip, ua);
         return mark;
     }
     // ==========================================
@@ -872,19 +859,28 @@ class EnterpriseService {
     // ==========================================
     async listTickets(params) {
         const { user, ...rest } = params;
-        if (!user) {
-            return this.repo.findTickets(rest);
-        }
+        if (!user)
+            throw new exceptions_1.UnauthorizedException('Authentication is required to view complaints.');
         if (user.role === 'Student') {
             const student = await prisma_1.prisma.student.findFirst({ where: { userId: user.id } });
             if (!student)
                 return { items: [], totalCount: 0 };
             return this.repo.findTickets({ ...rest, studentId: student.id });
         }
-        const isDeanOrAdmin = ['Academic Dean', 'Admission Dean', 'Principal', 'Vice Principal', 'Super Admin'].includes(user.role);
-        if (!isDeanOrAdmin) {
-            throw new exceptions_1.UnauthorizedException('Only Deans and executive administrators can access complaints.');
+        if (user.role === 'Faculty' || user.role === 'Mentor') {
+            const faculty = await prisma_1.prisma.faculty.findFirst({ where: { userId: user.id, deleted: false }, select: { id: true } });
+            return this.repo.findTickets({ ...rest, facultyId: faculty?.id || '__none__' });
         }
+        if (user.role === 'HOD' || user.role === 'Head of Department') {
+            const departments = await prisma_1.prisma.departmentMembership.findMany({ where: { userId: user.id }, select: { departmentId: true } });
+            const departmentIds = Array.from(new Set([...(user.departmentId ? [user.departmentId] : []), ...departments.map((item) => item.departmentId)]));
+            return this.repo.findTickets({ ...rest, scopeWhere: { OR: [{ student: { departmentId: { in: departmentIds } } }, { faculty: { departmentId: { in: departmentIds } } }] } });
+        }
+        const roleCategory = { 'Admission Dean': 'HOSTEL', 'Academic Dean': 'ACADEMIC', 'IQAC Dean': 'IQAC' };
+        if (roleCategory[user.role])
+            return this.repo.findTickets({ ...rest, category: roleCategory[user.role] });
+        if (!['Principal', 'Vice Principal', 'Super Admin', 'College Admin'].includes(user.role))
+            throw new exceptions_1.UnauthorizedException('Your active workspace cannot access complaints.');
         return this.repo.findTickets(rest);
     }
     async getTicket(id, user) {
@@ -899,48 +895,72 @@ class EnterpriseService {
                 }
             }
             else {
-                const isDeanOrAdmin = ['Academic Dean', 'Admission Dean', 'Principal', 'Vice Principal', 'Super Admin'].includes(user.role);
-                if (!isDeanOrAdmin) {
-                    throw new exceptions_1.UnauthorizedException('Only Deans and executive administrators can access complaints.');
-                }
+                const allowed = await this.listTickets({ user, pageSize: 100, scopeWhere: { id: ticket.id } });
+                if (!allowed.items.some((item) => item.id === ticket.id))
+                    throw new exceptions_1.UnauthorizedException('Your active workspace cannot view this complaint.');
             }
         }
         return ticket;
     }
-    async createTicket(input, userId, ip, ua) {
+    async createTicket(input, userId, activeRole, ip, ua) {
         const { title, description, category, priority } = input;
         if (!title || !description)
             throw new exceptions_1.BadRequestException('Title and ticket Description are required');
         const user = await prisma_1.prisma.user.findUnique({ where: { id: userId }, include: { role: true } });
         if (!user)
             throw new exceptions_1.NotFoundException('User session not found');
+        const role = activeRole || user.role.name;
         let studentId = null;
-        if (user.role.name === 'Student') {
+        let facultyId = null;
+        if (role === 'Student') {
             const student = await prisma_1.prisma.student.findFirst({ where: { userId } });
             if (student)
                 studentId = student.id;
+        }
+        else if (role === 'Faculty' || role === 'Mentor' || role === 'HOD') {
+            const faculty = await prisma_1.prisma.faculty.findFirst({ where: { userId, deleted: false } });
+            if (faculty)
+                facultyId = faculty.id;
+        }
+        const normalizedCategory = String(category || 'GENERAL').trim().toUpperCase();
+        const normalizedPriority = String(priority || 'MEDIUM').trim().toUpperCase();
+        if (!['LOW', 'MEDIUM', 'HIGH', 'URGENT', 'CRITICAL'].includes(normalizedPriority))
+            throw new exceptions_1.BadRequestException('Invalid complaint priority');
+        let assignedToUserId = null;
+        if (normalizedCategory === 'HOSTEL') {
+            const admissionWorkspace = await prisma_1.prisma.userWorkspace.findFirst({ where: { workspaceCode: 'ADMISSION', status: 'ACTIVE', user: { status: 'ACTIVE' } }, orderBy: { isPrimary: 'desc' }, select: { userId: true } });
+            assignedToUserId = admissionWorkspace?.userId || null;
         }
         const ticket = await prisma_1.prisma.ticket.create({
             data: {
                 title,
                 description,
-                category: category || 'GENERAL',
-                priority: priority || 'MEDIUM',
+                category: normalizedCategory,
+                priority: normalizedPriority,
                 studentId,
+                facultyId,
+                assignedToUserId,
+                routedAt: assignedToUserId ? new Date() : null,
                 status: 'OPEN',
             },
         });
         await this.logActivity(userId, 'CREATE', 'SUPPORT', `Created support ticket: ${title}`, ip, ua);
+        if (assignedToUserId)
+            await notification_service_1.NotificationService.sendNotification({ recipientId: assignedToUserId, eventType: 'HOSTEL_COMPLAINT_CREATED', title: 'New hostel complaint', message: title, relatedEntityType: 'TICKET', relatedEntityId: ticket.id, deepLinkRoute: `/complaints/${ticket.id}` });
         return ticket;
     }
-    async updateTicket(id, input, userId, ip, ua) {
+    async updateTicket(id, input, userId, activeRole, ip, ua) {
         const user = await prisma_1.prisma.user.findUnique({ where: { id: userId }, include: { role: true } });
         if (!user)
             throw new exceptions_1.NotFoundException('User session not found');
         const ticket = await prisma_1.prisma.ticket.findUnique({ where: { id } });
         if (!ticket)
             throw new exceptions_1.NotFoundException('Support ticket not found');
-        if (user.role.name === 'Student') {
+        const role = activeRole || user.role.name;
+        if (role === 'Student') {
+            const student = await prisma_1.prisma.student.findFirst({ where: { userId }, select: { id: true } });
+            if (!student || ticket.studentId !== student.id)
+                throw new exceptions_1.UnauthorizedException('You are not authorized to update this complaint.');
             const { replies } = input;
             const data = {};
             if (replies !== undefined)
@@ -952,11 +972,14 @@ class EnterpriseService {
             await this.logActivity(userId, 'UPDATE', 'SUPPORT', `Student added reply for ticket #${ticket.id}`, ip, ua);
             return updated;
         }
-        const isDeanOrAdmin = ['Academic Dean', 'Admission Dean', 'Principal', 'Vice Principal', 'Super Admin'].includes(user.role.name);
+        const categoryByRole = { 'Admission Dean': 'HOSTEL', 'Academic Dean': 'ACADEMIC', 'IQAC Dean': 'IQAC' };
+        if (categoryByRole[role] && ticket.category !== categoryByRole[role])
+            throw new exceptions_1.UnauthorizedException('Your active workspace cannot modify this complaint.');
+        const isDeanOrAdmin = ['Academic Dean', 'Admission Dean', 'IQAC Dean', 'Principal', 'Vice Principal', 'Super Admin', 'College Admin'].includes(role);
         if (!isDeanOrAdmin) {
             throw new exceptions_1.UnauthorizedException('Only Deans and executive administrators can modify complaints.');
         }
-        const { title, description, category, priority, status, replies } = input;
+        const { title, description, category, priority, status, replies, assignedToUserId, resolutionRemarks } = input;
         const data = {};
         if (title)
             data.title = title;
@@ -966,15 +989,39 @@ class EnterpriseService {
             data.category = category;
         if (priority)
             data.priority = priority;
-        if (status)
-            data.status = status;
+        if (status) {
+            const normalizedStatus = String(status).toUpperCase();
+            if (!['OPEN', 'PENDING', 'IN_PROGRESS', 'UNDER_INVESTIGATION', 'ESCALATED', 'RESOLVED', 'CLOSED'].includes(normalizedStatus))
+                throw new exceptions_1.BadRequestException('Invalid complaint status');
+            data.status = normalizedStatus;
+        }
         if (replies !== undefined)
             data.replies = replies;
+        if (resolutionRemarks !== undefined)
+            data.resolutionRemarks = String(resolutionRemarks).trim() || null;
+        if (assignedToUserId !== undefined) {
+            if (assignedToUserId) {
+                const assignee = await prisma_1.prisma.user.findFirst({ where: { id: String(assignedToUserId), status: 'ACTIVE' }, select: { id: true } });
+                if (!assignee)
+                    throw new exceptions_1.BadRequestException('Complaint assignee is invalid or inactive');
+            }
+            data.assignedToUserId = assignedToUserId || null;
+            data.routedAt = assignedToUserId ? new Date() : null;
+        }
         const updated = await prisma_1.prisma.ticket.update({
             where: { id },
             data
         });
         await this.logActivity(userId, 'UPDATE', 'SUPPORT', `Dean/Executive updated ticket #${ticket.id} details`, ip, ua);
+        if (status || assignedToUserId !== undefined) {
+            const reporter = ticket.studentId
+                ? await prisma_1.prisma.student.findUnique({ where: { id: ticket.studentId }, select: { userId: true } })
+                : ticket.facultyId
+                    ? await prisma_1.prisma.faculty.findUnique({ where: { id: ticket.facultyId }, select: { userId: true } })
+                    : null;
+            if (reporter?.userId)
+                await notification_service_1.NotificationService.sendNotification({ recipientId: reporter.userId, eventType: 'COMPLAINT_UPDATED', title: 'Complaint updated', message: `Your complaint "${ticket.title}" is now ${data.status || ticket.status}.`, relatedEntityType: 'TICKET', relatedEntityId: ticket.id, deepLinkRoute: `/complaints/${ticket.id}` });
+        }
         return updated;
     }
     // ==========================================

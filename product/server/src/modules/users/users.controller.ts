@@ -1,12 +1,49 @@
 import { Request, Response, NextFunction } from 'express';
 import { UsersService } from './users.service';
+import { ProvisioningService } from './provisioning.service';
+import { provisioningFileRequestSchema, provisioningRequestSchema } from './provisioning.validator';
 
 export class UsersController {
   private service = new UsersService();
+  private provisioning = new ProvisioningService();
+
+  previewImport = async (req: Request, res: Response, next: NextFunction) => {
+    try { const { rows } = provisioningRequestSchema.parse(req.body); res.status(200).json({ status: 'success', data: await this.provisioning.preview(rows) }); } catch (error) { next(error); }
+  };
+
+  commitImport = async (req: Request, res: Response, next: NextFunction) => {
+    try { const { rows } = provisioningRequestSchema.parse(req.body); const data = await this.provisioning.commit(rows, req.user!.id, req.ip, req.headers['user-agent']); res.status(data.invalid ? 409 : 201).json({ status: data.invalid ? 'error' : 'success', data, message: data.invalid ? 'Import contains validation errors; no records were created.' : 'Accounts provisioned successfully.' }); } catch (error) { next(error); }
+  };
+
+  previewImportFile = async (req: Request, res: Response, next: NextFunction) => {
+    try { const input = provisioningFileRequestSchema.parse(req.body); const rows = await this.provisioning.parseFile(input.fileName, input.base64); res.status(200).json({ status: 'success', data: await this.provisioning.preview(rows) }); } catch (error) { next(error); }
+  };
+
+  commitImportFile = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const input = provisioningFileRequestSchema.parse(req.body);
+      const rows = await this.provisioning.parseFile(input.fileName, input.base64);
+      const data = await this.provisioning.commit(rows, req.user!.id, req.ip, req.headers['user-agent']);
+      const statusCode = data.invalid ? 409 : data.failed ? 207 : 201;
+      res.status(statusCode).json({ status: data.invalid ? 'error' : 'success', data, message: data.invalid ? 'Import contains validation errors; no records were created.' : data.failed ? 'Import completed with row-level failures.' : 'Accounts provisioned successfully.' });
+    } catch (error) { next(error); }
+  };
 
   list = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const result = await this.service.listUsers(req.query);
+      const result = await this.service.listUsers(req.query, req.user!);
+      res.status(200).json({
+        status: 'success',
+        data: result,
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  getById = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const result = await this.service.getUserById(req.params.id, req.user!);
       res.status(200).json({
         status: 'success',
         data: result,

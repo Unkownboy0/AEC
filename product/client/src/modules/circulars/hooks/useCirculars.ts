@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Circular } from '../types/circular.types';
-import { fetchCirculars, acknowledgeCircular as apiAcknowledge } from '../api/circularApi';
+import { fetchCirculars, acknowledgeCircular as apiAcknowledge, markCircularRead, clearCircular, deleteCircular, archiveCircular } from '../api/circularApi';
 
 export function useCirculars() {
   const [circulars, setCirculars] = useState<Circular[]>([]);
@@ -37,9 +37,45 @@ export function useCirculars() {
     }
   }, []);
 
+  const markRead = useCallback(async (id: string) => {
+    const target = circulars.find((c) => c.id === id);
+    if (!target || target.isRead) return;
+    await markCircularRead(id);
+    const readAt = new Date().toISOString();
+    setCirculars((prev) => prev.map((c) => c.id === id ? { ...c, isRead: true, userReadAt: readAt } : c));
+    setUnreadCount((count) => Math.max(0, count - 1));
+  }, [circulars]);
+
   const refresh = useCallback(() => {
     load();
   }, [load]);
 
-  return { circulars, loading, error, unreadCount, refresh, acknowledge };
+  const clear = useCallback(async (id: string) => {
+    await clearCircular(id);
+    setCirculars((prev) => {
+      const target = prev.find((c) => c.id === id);
+      if (target && !target.isRead) setUnreadCount((count) => Math.max(0, count - 1));
+      return prev.filter((c) => c.id !== id);
+    });
+  }, []);
+
+  const removeDraft = useCallback(async (id: string) => {
+    await deleteCircular(id);
+    setCirculars((prev) => {
+      const target = prev.find((c) => c.id === id);
+      if (target && !target.isRead) setUnreadCount((count) => Math.max(0, count - 1));
+      return prev.filter((c) => c.id !== id);
+    });
+  }, []);
+
+  const cancelPublished = useCallback(async (id: string) => {
+    await archiveCircular(id);
+    setCirculars((prev) => {
+      const target = prev.find((c) => c.id === id);
+      if (target && !target.isRead) setUnreadCount((count) => Math.max(0, count - 1));
+      return prev.filter((c) => c.id !== id);
+    });
+  }, []);
+
+  return { circulars, loading, error, unreadCount, refresh, acknowledge, markRead, clear, removeDraft, cancelPublished };
 }

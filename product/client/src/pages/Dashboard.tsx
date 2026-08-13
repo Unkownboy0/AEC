@@ -89,23 +89,29 @@ export const Dashboard: React.FC = () => {
   }, []);
 
   const fetchCoreDashboard = async () => {
-    try {
-      setIsLoading(true);
-      const [statsRes, chartsRes] = await Promise.all([
-        api.get('/dashboard/stats'),
-        api.get('/dashboard/charts'),
-      ]);
+    setIsLoading(true);
 
-      if (statsRes.data?.status === 'success' && chartsRes.data?.status === 'success') {
-        setStats(statsRes.data.data.metrics);
+    // 1. Independent Stats Fetch
+    try {
+      const statsRes = await api.get('/dashboard/stats');
+      if (statsRes.data?.status === 'success' && statsRes.data?.data) {
+        setStats(statsRes.data.data.metrics || statsRes.data.data);
+      }
+    } catch (err) {
+      console.warn('[Dashboard] Stats query error:', err);
+    }
+
+    // 2. Independent Charts/Analytics Fetch
+    try {
+      const chartsRes = await api.get('/dashboard/charts');
+      if (chartsRes.data?.status === 'success' && chartsRes.data?.data) {
         setCharts(chartsRes.data.data);
       }
-    } catch (err: any) {
-      console.error(err);
-      toast.error('Failed to load command center data');
-    } finally {
-      setIsLoading(false);
+    } catch (err) {
+      console.warn('[Dashboard] Charts query error:', err);
     }
+
+    setIsLoading(false);
   };
 
   const fetchRoleData = async () => {

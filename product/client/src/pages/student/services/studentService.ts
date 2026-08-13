@@ -37,12 +37,12 @@ export const StudentService = {
   },
 
   getLeaveRequests: async () => {
-    const res = await api.get('/workflows/requests');
+    const res = await api.get('/student/leave-od/my-requests');
     return res.data?.data || res.data;
   },
 
   createLeaveRequest: async (data: any) => {
-    const res = await api.post('/workflows/requests', data);
+    const res = await api.post('/student/leave-od', data);
     return res.data?.data || res.data;
   },
 

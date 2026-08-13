@@ -1,6 +1,13 @@
 import { Request, Response, NextFunction } from 'express';
 import { prisma } from '../../lib/prisma';
 import { UserPayload } from '../../utils/security';
+import {
+  createAchievementSchema,
+  createBookingSchema,
+  createEquipmentSchema,
+  createTeamSchema,
+  createTournamentSchema,
+} from './sports.validator';
 
 export class SportsController {
   // Sports Dashboard Metrics & Summaries
@@ -66,8 +73,9 @@ export class SportsController {
 
   createTeam = async (req: Request, res: Response, next: NextFunction) => {
     try {
+      const input = createTeamSchema.parse(req.body);
       const team = await (prisma as any).sportsTeam.create({
-        data: req.body
+        data: input
       });
       res.status(201).json({ status: 'success', data: team });
     } catch (error) {
@@ -89,12 +97,9 @@ export class SportsController {
 
   createTournament = async (req: Request, res: Response, next: NextFunction) => {
     try {
+      const input = createTournamentSchema.parse(req.body);
       const tournament = await (prisma as any).sportsTournament.create({
-        data: {
-          ...req.body,
-          startDate: new Date(req.body.startDate),
-          endDate: new Date(req.body.endDate)
-        }
+        data: input
       });
       res.status(201).json({ status: 'success', data: tournament });
     } catch (error) {
@@ -117,18 +122,19 @@ export class SportsController {
   createBooking = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const user = (req as any).user;
+      const input = createBookingSchema.parse(req.body);
       const booking = await (prisma as any).sportsBooking.create({
         data: {
-          facilityName: req.body.facilityName,
+          facilityName: input.facilityName,
           bookedBy: user.id,
           bookerName: `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email,
           bookerRole: user.role,
 
-          date: new Date(req.body.date),
-          startTime: req.body.startTime,
-          endTime: req.body.endTime,
-          purpose: req.body.purpose,
-          status: 'APPROVED'
+          date: input.date,
+          startTime: input.startTime,
+          endTime: input.endTime,
+          purpose: input.purpose,
+          status: 'PENDING'
         }
       });
       res.status(201).json({ status: 'success', data: booking });
@@ -151,8 +157,9 @@ export class SportsController {
 
   createEquipment = async (req: Request, res: Response, next: NextFunction) => {
     try {
+      const input = createEquipmentSchema.parse(req.body);
       const item = await (prisma as any).sportsEquipment.create({
-        data: req.body
+        data: input
       });
       res.status(201).json({ status: 'success', data: item });
     } catch (error) {
@@ -174,10 +181,11 @@ export class SportsController {
 
   createAchievement = async (req: Request, res: Response, next: NextFunction) => {
     try {
+      const input = createAchievementSchema.parse(req.body);
       const achievement = await (prisma as any).sportsAchievement.create({
         data: {
-          ...req.body,
-          date: req.body.date ? new Date(req.body.date) : new Date()
+          ...input,
+          date: input.date || new Date()
         }
       });
       res.status(201).json({ status: 'success', data: achievement });

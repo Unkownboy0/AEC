@@ -1,0 +1,21 @@
+import { Router } from 'express';
+import { requireAuth, requireRole } from '../../core/middlewares/auth.middleware';
+import { CoeController } from './coe.controller';
+
+const router = Router();
+const controller = new CoeController();
+const coeOnly = requireRole(['Examination Cell', 'COE']);
+
+router.use(requireAuth);
+router.get('/student/hall-allotments', requireRole(['Student']), controller.studentHall);
+router.get('/dashboard', coeOnly, controller.dashboard);
+router.get('/exams/:examId/schedule', coeOnly, controller.schedule);
+router.post('/schedules', coeOnly, controller.createSchedule);
+router.get('/exams/:examId/validate', coeOnly, controller.validateSchedule);
+router.post('/exams/:examId/publish', coeOnly, controller.publishSchedule);
+router.post('/rooms', coeOnly, controller.createRoom);
+router.post('/hall-allocations/auto', coeOnly, controller.allocateSeats);
+router.post('/hall-allocations/:scheduleEntryId/publish', coeOnly, controller.publishSeats);
+router.post('/invigilation', coeOnly, controller.assignInvigilator);
+
+export default router;

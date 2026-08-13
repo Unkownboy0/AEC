@@ -3,12 +3,18 @@ import { ShieldAlert, Clock, ArrowRight } from 'lucide-react';
 import { useDelegationContext } from '../../delegation/context/DelegationContext';
 import { useNavigate } from 'react-router-dom';
 
+import { useAuth } from '../../../context/AuthContext';
+
 export const VpActingPrincipalBanner: React.FC = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const { principalStatus, delegationStatus, delegationEndsAt } = useDelegationContext();
 
-  // ONLY render when Principal status is BUSY or OFFLINE and delegation is ACTIVE
-  if ((principalStatus !== 'BUSY' && principalStatus !== 'OFFLINE') || delegationStatus !== 'ACTIVE') {
+  const rawRole = (typeof user?.role === 'object' ? (user?.role as any)?.name : String(user?.role || '')).toUpperCase();
+  const isVp = rawRole.includes('VP') || rawRole.includes('VICE') || rawRole.includes('ACTING_PRINCIPAL') || rawRole.includes('ACTING PRINCIPAL');
+
+  // ONLY render for Vice Principal (VP) / Acting Principal when Principal status is not AVAILABLE and delegation is ACTIVE
+  if (!isVp || (principalStatus as string) === 'AVAILABLE' || (principalStatus as string) === 'ONLINE' || delegationStatus !== 'ACTIVE') {
     return null;
   }
 

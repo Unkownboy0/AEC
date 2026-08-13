@@ -1,5 +1,6 @@
 import { prisma } from '../../lib/prisma';
 import { NotFoundException } from '../../utils/exceptions';
+import { PushDispatchService } from './push-dispatch.service';
 
 export interface SendNotificationDto {
   recipientId: string;
@@ -40,6 +41,17 @@ export class NotificationService {
           deliveryState: 'DELIVERED',
         },
       });
+
+      // Dispatch push notification to user's registered device tokens
+      PushDispatchService.sendToUsers([dto.recipientId], {
+        title: dto.title,
+        body: dto.message,
+        data: {
+          eventType: dto.eventType,
+          relatedEntityId: dto.relatedEntityId || '',
+          deepLinkRoute: dto.deepLinkRoute || '',
+        },
+      }).catch((err) => console.error('[PushDispatch] Push dispatch error:', err));
 
       return notification;
     } catch (error) {
@@ -114,6 +126,16 @@ export class NotificationService {
       data: { isRead: true, readAt: new Date() },
     });
     return { success: true };
+  }
+
+  static async clearOne(notificationId: string, userId: string) {
+    const result = await prisma.notification.deleteMany({ where: { id: notificationId, recipientId: userId } });
+    if (result.count === 0) throw new NotFoundException('Notification not found');
+  }
+
+  static async clearAll(userId: string) {
+    const result = await prisma.notification.deleteMany({ where: { recipientId: userId } });
+    return { cleared: result.count };
   }
 
   /**

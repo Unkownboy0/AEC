@@ -17,9 +17,13 @@ const masters_routes_1 = __importDefault(require("./modules/masters/masters.rout
 const security_routes_1 = __importDefault(require("./modules/security/security.routes"));
 const backup_routes_1 = __importDefault(require("./modules/backup/backup.routes"));
 const files_routes_1 = __importDefault(require("./modules/files/files.routes"));
+const notification_routes_1 = __importDefault(require("./modules/notifications/notification.routes"));
 const notifications_routes_1 = __importDefault(require("./modules/notifications/notifications.routes"));
 const reports_routes_1 = __importDefault(require("./modules/reports/reports.routes"));
 const enterprise_routes_1 = __importDefault(require("./modules/enterprise/enterprise.routes"));
+const management_routes_1 = __importDefault(require("./modules/management/management.routes"));
+const principal_command_routes_1 = __importDefault(require("./modules/principal-command/principal-command.routes"));
+const vp_command_routes_1 = __importDefault(require("./modules/vp-command/vp-command.routes"));
 const workflow_routes_1 = __importDefault(require("./modules/workflow/workflow.routes"));
 const timetable_routes_1 = __importDefault(require("./modules/timetable/timetable.routes"));
 const ai_routes_1 = __importDefault(require("./modules/ai/ai.routes"));
@@ -29,21 +33,31 @@ const circular_routes_1 = __importDefault(require("./modules/enterprise/circular
 const curriculum_routes_1 = __importDefault(require("./modules/curriculum/curriculum.routes"));
 const sports_routes_1 = __importDefault(require("./modules/sports/sports.routes"));
 const task_routes_1 = __importDefault(require("./modules/enterprise/task.routes"));
+const iqac_routes_1 = __importDefault(require("./modules/iqac/iqac.routes"));
+const finance_routes_1 = __importDefault(require("./modules/finance/finance.routes"));
+const coe_routes_1 = __importDefault(require("./modules/coe/coe.routes"));
 const error_middleware_1 = require("./core/middlewares/error.middleware");
 const logger_1 = require("./utils/logger");
 const env_1 = require("./config/env");
 const app = (0, express_1.default)();
+app.set('trust proxy', env_1.env.TRUST_PROXY);
 // Security HTTP headers
 app.use((0, helmet_1.default)());
-// Serve uploaded files statically with security headers
-app.use('/uploads', express_1.default.static(path_1.default.join(__dirname, '../uploads'), {
-    setHeaders: (res) => {
-        res.setHeader('X-Content-Type-Options', 'nosniff');
-        res.setHeader('Content-Security-Policy', "default-src 'none'");
-    },
-}));
+// Preserve legacy upload URLs during local development while the client is
+// migrated to authenticated file IDs. Production remains fail-closed and only
+// serves files through the permission-checked files API.
+if (env_1.env.NODE_ENV !== 'production') {
+    app.use('/uploads', express_1.default.static(env_1.env.STORAGE_ROOT, {
+        fallthrough: false,
+        setHeaders: (res) => {
+            res.setHeader('X-Content-Type-Options', 'nosniff');
+            res.setHeader('Content-Security-Policy', "default-src 'none'; sandbox");
+            res.setHeader('Cache-Control', 'private, max-age=300');
+        },
+    }));
+}
 // Enable CORS
-const allowedOrigins = env_1.env.ALLOWED_ORIGINS.split(',');
+const allowedOrigins = env_1.env.ALLOWED_ORIGINS.split(',').map((origin) => origin.trim()).filter(Boolean);
 app.use((0, cors_1.default)({
     origin: (origin, callback) => {
         // Allow requests with no origin (like mobile apps or curl)
@@ -93,9 +107,13 @@ app.use('/api/masters', masters_routes_1.default);
 app.use('/api/security', security_routes_1.default);
 app.use('/api/backups', backup_routes_1.default);
 app.use('/api/files', files_routes_1.default);
-app.use('/api/notifications', notifications_routes_1.default);
+app.use('/api/notifications', notification_routes_1.default);
+app.use('/api/admin/notification-campaigns', notifications_routes_1.default);
 app.use('/api/reports', reports_routes_1.default);
 app.use('/api/enterprise', enterprise_routes_1.default);
+app.use('/api/management', management_routes_1.default);
+app.use('/api/principal-command', principal_command_routes_1.default);
+app.use('/api/vp-command', vp_command_routes_1.default);
 app.use('/api/workflows', workflow_routes_1.default);
 app.use('/api/timetables', timetable_routes_1.default);
 app.use('/api/ai', ai_routes_1.default);
@@ -104,6 +122,8 @@ app.use('/api/chat', chat_routes_1.default);
 app.use('/api/circulars', circular_routes_1.default);
 app.use('/api/curriculum', curriculum_routes_1.default);
 app.use('/api/sports', sports_routes_1.default);
+app.use('/api/finance', finance_routes_1.default);
+app.use('/api/coe', coe_routes_1.default);
 const student_leave_routes_1 = __importDefault(require("./modules/enterprise/student-leave.routes"));
 const hod_routes_1 = __importDefault(require("./modules/hod/hod.routes"));
 const faculty_leave_routes_1 = __importDefault(require("./modules/enterprise/faculty-leave.routes"));
@@ -117,6 +137,7 @@ const phase10_production_routes_1 = __importDefault(require("./modules/enterpris
 const academic_dean_routes_1 = __importDefault(require("./modules/enterprise/academic-dean.routes"));
 const academic_dean_hod_routes_1 = __importDefault(require("./modules/enterprise/academic-dean-hod.routes"));
 const admission_dean_routes_1 = __importDefault(require("./modules/enterprise/admission-dean.routes"));
+const administration_dean_routes_1 = __importDefault(require("./modules/administration-dean/administration-dean.routes"));
 app.use('/api/enterprise/student-leave', student_leave_routes_1.default);
 app.use('/api/student/leave-od', student_leave_routes_1.default);
 app.use('/api/mentor/leave-od', student_leave_routes_1.default);
@@ -134,21 +155,53 @@ app.use('/api/enterprise/analytics', analytics_routes_1.default);
 app.use('/api/enterprise', phase8_export_routes_1.default);
 app.use('/api', phase10_production_routes_1.default);
 app.use('/api/tasks', task_routes_1.default);
+app.use('/api/iqac', iqac_routes_1.default);
 const parent_routes_1 = __importDefault(require("./modules/parent/parent.routes"));
 const faculty_routes_1 = __importDefault(require("./modules/faculty/faculty.routes"));
 const mentor_routes_1 = __importDefault(require("./modules/mentor/mentor.routes"));
+const delegation_routes_1 = __importDefault(require("./modules/principal-delegation/delegation.routes"));
+const availability_routes_1 = __importDefault(require("./modules/principal-availability/availability.routes"));
+const faculty_leave_routes_2 = __importDefault(require("./modules/faculty-leave/faculty-leave.routes"));
+const hod_task_routes_1 = __importDefault(require("./modules/hod-tasks/hod-task.routes"));
+app.use('/api', faculty_leave_routes_2.default);
+app.use('/api', hod_task_routes_1.default);
 app.use('/api/academic-dean', academic_dean_routes_1.default);
 app.use('/api/admission-dean', admission_dean_routes_1.default);
+app.use('/api/administration-dean', administration_dean_routes_1.default);
 app.use('/api/parent', parent_routes_1.default);
 app.use('/api/faculty', faculty_routes_1.default);
 app.use('/api/mentor', mentor_routes_1.default);
-// Fallback Route
-app.use('*', (req, res, next) => {
+app.use('/api', availability_routes_1.default);
+app.use('/api', delegation_routes_1.default);
+const repair_principal_availability_1 = require("./modules/principal-availability/repair-principal-availability");
+const delegation_expiry_job_1 = require("./modules/principal-availability/delegation-expiry.job");
+repair_principal_availability_1.PrincipalDataRepairScript.runCleanup()
+    .then(res => logger_1.logger.info(`⚡ Principal Availability Cleanup completed: ${res.revokedInvalidDelegations} revoked, ${res.expiredDelegations} expired`))
+    .catch(err => logger_1.logger.warn('Principal Availability cleanup failed:', err));
+delegation_expiry_job_1.DelegationExpiryJob.startCron();
+// Fallback Route for API endpoints
+app.use('/api/*', (req, res) => {
     res.status(404).json({
         status: 'error',
         message: `Cannot ${req.method} ${req.baseUrl}`,
     });
 });
+// ─── SPA Fallback ─────────────────────────────────────────────────────────
+// For production: serve the React client build for all non-API routes.
+// This ensures browser refresh on /faculty/circulars, /hod/circulars, etc.
+// does NOT return 404 — the React Router handles it client-side.
+const fs_1 = __importDefault(require("fs"));
+const clientBuildPath = path_1.default.join(__dirname, '../../client/dist');
+if (fs_1.default.existsSync(path_1.default.join(clientBuildPath, 'index.html'))) {
+    app.use(express_1.default.static(clientBuildPath));
+    app.get('*', (_req, res) => {
+        res.sendFile(path_1.default.join(clientBuildPath, 'index.html'));
+    });
+    logger_1.logger.info('✅ SPA static fallback enabled');
+}
+else {
+    logger_1.logger.info('ℹ️  SPA fallback skipped (client/dist not found — dev mode)');
+}
 // Centralized error boundary
 app.use(error_middleware_1.errorHandler);
 exports.default = app;

@@ -1120,6 +1120,22 @@ export class WorkflowService {
     });
 
     if (!request) {
+      if (student) {
+        const direct = await prisma.studentLeaveRequest.findFirst({ where: { id: requestId, studentId: student.id } });
+        if (!direct) throw new NotFoundException('Request not found');
+        if (!['DRAFT', 'PENDING_MENTOR', 'MENTOR_APPROVED', 'PENDING_HOD', 'RETURNED_TO_STUDENT'].includes(direct.status)) {
+          throw new BadRequestException('Only requests awaiting a decision can be cancelled');
+        }
+        return prisma.studentLeaveRequest.update({ where: { id: requestId }, data: { status: 'CANCELLED' } });
+      }
+      if (faculty) {
+        const direct = await prisma.facultyLeaveRequest.findFirst({ where: { id: requestId, facultyId: faculty.id } });
+        if (!direct) throw new NotFoundException('Request not found');
+        if (!direct.status.startsWith('PENDING') && !['DRAFT', 'RETURNED'].includes(direct.status)) {
+          throw new BadRequestException('Only requests awaiting a decision can be cancelled');
+        }
+        return prisma.facultyLeaveRequest.update({ where: { id: requestId }, data: { status: 'CANCELLED' } });
+      }
       throw new NotFoundException('Request not found');
     }
 

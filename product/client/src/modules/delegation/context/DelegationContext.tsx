@@ -4,7 +4,7 @@ import api from '@/lib/axios';
 
 export interface DelegationContextType {
   principalStatus: 'ONLINE' | 'BUSY' | 'OFFLINE';
-  delegationStatus: 'INACTIVE' | 'ACTIVE' | 'REVOKED' | 'EXPIRED';
+  delegationStatus: 'INACTIVE' | 'PENDING' | 'ACTIVE' | 'REVOKED' | 'EXPIRED';
   isActingPrincipal: boolean;
   actingPrincipalUserId: string | null;
   actingUser: { id: string; name: string; role: string } | null;
@@ -18,6 +18,7 @@ export interface DelegationContextType {
   latestHandoverId: string | null;
   loading: boolean;
   refreshStatus: () => Promise<void>;
+  refetch: () => Promise<void>;
   updateStatus: (dto: {
     status: 'ONLINE' | 'BUSY' | 'OFFLINE';
     reason?: string;
@@ -37,7 +38,7 @@ export const DelegationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const { user } = useAuth();
 
   const [principalStatus, setPrincipalStatus] = useState<'ONLINE' | 'BUSY' | 'OFFLINE'>('ONLINE');
-  const [delegationStatus, setDelegationStatus] = useState<'INACTIVE' | 'ACTIVE' | 'REVOKED' | 'EXPIRED'>('INACTIVE');
+  const [delegationStatus, setDelegationStatus] = useState<'INACTIVE' | 'PENDING' | 'ACTIVE' | 'REVOKED' | 'EXPIRED'>('INACTIVE');
   const [isActingPrincipal, setIsActingPrincipal] = useState<boolean>(false);
   const [actingPrincipalUserId, setActingPrincipalUserId] = useState<string | null>(null);
   const [actingUser, setActingUser] = useState<{ id: string; name: string; role: string } | null>(null);
@@ -57,8 +58,15 @@ export const DelegationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       return;
     }
 
+    const userRole = (typeof user.role === 'object' ? (user.role as any)?.name : String(user.role || '')).toUpperCase();
+    const isExecutive = userRole.includes('PRINCIPAL') || userRole.includes('VP') || userRole.includes('VICE') || userRole.includes('DEAN') || userRole.includes('HOD');
+    
+    if (!isExecutive) {
+      setLoading(false);
+      return;
+    }
+
     try {
-      const userRole = (typeof user.role === 'object' ? (user.role as any)?.name : String(user.role || '')).toUpperCase();
       const endpoint = userRole.includes('VP') || userRole.includes('VICE')
         ? '/vp/acting-principal/context'
         : '/principal/availability/context';
@@ -67,17 +75,21 @@ export const DelegationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
       if (res.data?.success && res.data?.data) {
         const d = res.data.data;
-        // Normalize legacy AVAILABLE → ONLINE
+        const rawRole = (typeof user?.role === 'object' ? (user?.role as any)?.name : String(user?.role || '')).toUpperCase();
+        const isVpRole = rawRole.includes('VP') || rawRole.includes('VICE');
+
+        // Normalize status
         const normalizedStatus = d.principalStatus === 'AVAILABLE' ? 'ONLINE' : d.principalStatus;
         setPrincipalStatus(normalizedStatus || 'ONLINE');
         setDelegationStatus(d.delegationStatus || 'INACTIVE');
-        setIsActingPrincipal(Boolean(d.isActingPrincipal));
-        setActingPrincipalUserId(d.actingPrincipalUserId || null);
-        setActingUser(d.actingUser || null);
-        setDelegationId(d.delegationId || null);
-        setDelegationStartsAt(d.delegationStartsAt || null);
-        setDelegationEndsAt(d.delegationEndsAt || null);
-        setPermissions(d.permissions || []);
+        const isDesignated = Boolean(isVpRole && d.canVpActAsPrincipal && d.delegationStatus === 'ACTIVE' && d.actingPrincipal?.userId === user.id);
+        setIsActingPrincipal(isDesignated);
+        setActingPrincipalUserId(d.actingPrincipal?.userId || null);
+        setActingUser(d.actingPrincipal ? { id: d.actingPrincipal.userId, name: d.actingPrincipal.name, role: d.actingPrincipal.role } : null);
+        setDelegationId(d.delegation?.id || null);
+        setDelegationStartsAt(d.delegation?.startsAt || null);
+        setDelegationEndsAt(d.delegation?.endsAt || null);
+        setPermissions(d.delegation?.permissions || []);
         setPermissionVersion(d.permissionVersion || 1);
         setPendingPrincipalRequests(d.pendingPrincipalRequests || 0);
         setPendingActingRequests(d.pendingActingRequests || 0);
@@ -92,17 +104,21 @@ export const DelegationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
   useEffect(() => {
     fetchStatus();
-    // Poll every 5 seconds to ensure synchronized realtime state across all devices
-    const interval = setInterval(fetchStatus, 5000);
+    // Short polling plus focus/visibility refresh ensures expired or revoked authority is removed promptly.
+    const interval = setInterval(fetchStatus, 2000);
 
     const handleCustomEvent = () => {
       fetchStatus();
     };
 
     window.addEventListener('principal_status_changed', handleCustomEvent);
+    window.addEventListener('focus', handleCustomEvent);
+    document.addEventListener('visibilitychange', handleCustomEvent);
     return () => {
       clearInterval(interval);
       window.removeEventListener('principal_status_changed', handleCustomEvent);
+      window.removeEventListener('focus', handleCustomEvent);
+      document.removeEventListener('visibilitychange', handleCustomEvent);
     };
   }, [fetchStatus]);
 
@@ -150,6 +166,7 @@ export const DelegationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         latestHandoverId,
         loading,
         refreshStatus: fetchStatus,
+        refetch: fetchStatus,
         updateStatus,
         revokeDelegation
       }}

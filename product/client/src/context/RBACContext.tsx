@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
-import axios from 'axios';
 import { useAuth } from './AuthContext';
+import api from '../lib/axios';
 
 export interface RBACData {
   userId: string;
@@ -34,7 +34,7 @@ interface RBACContextType {
 const RBACContext = createContext<RBACContextType | undefined>(undefined);
 
 export const RBACProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { user } = useAuth();
+  const { user, switchWorkspace: switchAuthWorkspace } = useAuth();
   const [rbac, setRbac] = useState<RBACData | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
 
@@ -45,7 +45,7 @@ export const RBACProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return;
     }
     try {
-      const res = await axios.get('/api/rbac/me');
+      const res = await api.get('/rbac/me');
       if (res.data?.data) {
         setRbac(res.data.data);
       }
@@ -60,25 +60,17 @@ export const RBACProvider: React.FC<{ children: React.ReactNode }> = ({ children
     fetchRBAC();
   }, [fetchRBAC]);
 
-  // Real-time synchronization via Server-Sent Events (SSE)
+  // Refresh authorization regularly. Native EventSource cannot attach the
+  // bearer token used by CampusOS, so an unauthenticated SSE endpoint is not
+  // acceptable for identity or permission events.
   useEffect(() => {
     if (!user) return;
-
-    const eventSource = new EventSource('/api/rbac/stream?userId=' + user.id);
-
-    eventSource.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        if (data.type === 'PERMISSIONS_UPDATED' || data.type === 'ROLE_UPDATED' || data.type === 'SIDEBAR_UPDATED' || data.type === 'DASHBOARD_UPDATED') {
-          fetchRBAC();
-        }
-      } catch (e) {
-        // parsing ignore
-      }
-    };
-
+    const interval = window.setInterval(() => { void fetchRBAC(); }, 30_000);
+    const refreshOnFocus = () => { void fetchRBAC(); };
+    window.addEventListener('focus', refreshOnFocus);
     return () => {
-      eventSource.close();
+      window.clearInterval(interval);
+      window.removeEventListener('focus', refreshOnFocus);
     };
   }, [user, fetchRBAC]);
 
@@ -102,12 +94,12 @@ export const RBACProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const switchWorkspace = useCallback(async (workspaceName: string) => {
     if (!user) return;
     try {
-      await axios.patch(`/api/rbac/users/${user.id}`, { activeWorkspace: workspaceName });
+      await switchAuthWorkspace(workspaceName);
       await fetchRBAC();
     } catch (err) {
       console.error('Failed to switch workspace:', err);
     }
-  }, [user, fetchRBAC]);
+  }, [user, switchAuthWorkspace, fetchRBAC]);
 
   return (
     <RBACContext.Provider value={{ rbac, loading, refetchRBAC: fetchRBAC, hasPermission, canAccessSidebar, switchWorkspace }}>

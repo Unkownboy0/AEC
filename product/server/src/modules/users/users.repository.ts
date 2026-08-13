@@ -12,8 +12,9 @@ export class UsersRepository {
     status?: string;
     sortBy?: string;
     sortOrder?: 'asc' | 'desc';
+    scopeWhere?: Record<string, unknown>;
   }) {
-    const { page, pageSize, search, role, status, sortBy = 'createdAt', sortOrder = 'desc' } = params;
+    const { page, pageSize, search, role, status, sortBy = 'createdAt', sortOrder = 'desc', scopeWhere } = params;
     const skip = (page - 1) * pageSize;
 
     const where: any = {};
@@ -28,11 +29,15 @@ export class UsersRepository {
     }
 
     if (role) {
-      where.role = { name: role };
+      where.role = { name: { equals: role, mode: 'insensitive' } };
     }
 
     if (status) {
       where.status = status;
+    }
+
+    if (scopeWhere) {
+      where.AND = [scopeWhere];
     }
 
     const [users, totalCount] = await Promise.all([

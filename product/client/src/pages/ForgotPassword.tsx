@@ -6,7 +6,7 @@ import { Input } from '../components/ui/Input';
 import { Button } from '../components/ui/Button';
 import { toast } from '../components/ui/Toast';
 import { Link } from 'react-router-dom';
-import { GraduationCap, ArrowLeft, Mail, ExternalLink } from 'lucide-react';
+import { GraduationCap, ArrowLeft } from 'lucide-react';
 import api from '../lib/axios';
 
 const forgotPasswordSchema = z.object({
@@ -17,7 +17,6 @@ type ForgotFormValues = z.infer<typeof forgotPasswordSchema>;
 
 const ForgotPassword: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
-  const [resetLink, setResetLink] = useState<string | null>(null);
 
   const {
     register,
@@ -30,23 +29,12 @@ const ForgotPassword: React.FC = () => {
 
   const onSubmit = async (data: ForgotFormValues) => {
     setIsLoading(true);
-    setResetLink(null);
     try {
       const response = await api.post('/auth/forgot-password', data);
       
       if (response.data?.status === 'success') {
-        const token = response.data.data?.resetToken;
-        
-        if (import.meta.env.DEV && token && token !== 'mock-token-dispatched') {
-          // Expose the mock reset link in development UI for easy sandbox testing
-          const localLink = `/reset-password?token=${token}`;
-          setResetLink(localLink);
-        }
-        
         toast.success(
-          import.meta.env.DEV 
-            ? 'Password reset link generated. Check the development server console logs.'
-            : 'Password reset instructions have been sent to your email address.',
+          'If the account exists, reset instructions will be sent.',
           'Reset Link Sent'
         );
       }
@@ -92,26 +80,6 @@ const ForgotPassword: React.FC = () => {
               Send Recovery Link
             </Button>
           </form>
-
-          {/* Development Sandbox Link Box */}
-          {resetLink && (
-            <div className="mt-6 rounded-lg bg-primary/5 border border-primary/20 p-4 animate-in zoom-in-95 duration-200">
-              <h4 className="text-xs font-bold text-primary flex flex-wrap items-center gap-1.5 mb-1.5">
-                <Mail className="h-3.5 w-3.5" />
-                <span>Sandbox Mode Link</span>
-              </h4>
-              <p className="text-[11px] text-muted-foreground leading-normal mb-3">
-                Since we are in development mode, you can click this generated reset token directly:
-              </p>
-              <Link
-                to={resetLink}
-                className="inline-flex flex-wrap items-center gap-1.5 rounded bg-primary px-3 py-1.5 text-[11px] font-bold text-primary-foreground hover:bg-primary/95 transition-colors"
-              >
-                Go to Password Reset
-                <ExternalLink className="h-3 w-3" />
-              </Link>
-            </div>
-          )}
 
           {/* Back to Login */}
           <div className="mt-6 border-t border-neutral-100 dark:border-neutral-800/60 pt-4 flex justify-center">

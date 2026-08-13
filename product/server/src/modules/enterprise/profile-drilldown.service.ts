@@ -1,11 +1,13 @@
 import { prisma } from '../../lib/prisma';
-import { BadRequestException } from '../../utils/exceptions';
+import { BadRequestException, NotFoundException } from '../../utils/exceptions';
+import { RequesterIdentity, StudentAccessService } from '../security/student-access.service';
 
 export class ProfileDrilldownService {
   /**
    * Universal 360° Profile Aggregator for any User / Student / Faculty ID
    */
-  async getUser360Profile(targetId: string) {
+  async getUser360Profile(targetId: string, requester: RequesterIdentity) {
+    await StudentAccessService.assertCanViewUser(requester, targetId);
     let user: any = null;
     let studentRecord: any = null;
     let facultyRecord: any = null;
@@ -148,40 +150,7 @@ export class ProfileDrilldownService {
     }
 
     if (!user && !studentRecord && !facultyRecord) {
-      // Resilient fallback object so Universal Profile Drawer never fails
-      const isStudentRole = targetId.toLowerCase().includes('stud') || targetId.toLowerCase().includes('2026');
-      return {
-        user: {
-          id: targetId,
-          email: `${targetId.toLowerCase()}@geetorus.com`,
-          firstName: isStudentRole ? 'Student' : 'Faculty',
-          lastName: 'Member',
-          profilePhoto: null,
-          role: isStudentRole ? 'Student' : 'Faculty',
-          status: 'ACTIVE',
-          onlineStatus: 'Online',
-          phone: '+91 98765 43210',
-          bloodGroup: 'O+',
-          dob: '2000-01-01',
-          joiningDate: '2021-08-01',
-          designation: isStudentRole ? 'Enrolled Student' : 'Assistant Professor',
-          qualification: isStudentRole ? 'B.Tech' : 'Ph.D. / M.Tech',
-          experience: '4 Years',
-          officeRoom: 'Block A - 204',
-          reportingOfficer: 'Department HOD',
-        },
-        permissionsMatrix: [],
-        studentRecord: isStudentRole ? { admissionNo: targetId, status: 'ACTIVE' } : null,
-        facultyRecord: !isStudentRole ? { employeeId: targetId, designation: 'Assistant Professor' } : null,
-        assignedTasks: [],
-        auditLogs: [],
-        departmentTree: [
-          { role: 'Principal', name: 'Dr. Institutional Principal', path: '/profile/principal' },
-          { role: 'Vice Principal', name: 'Vice Principal (Operations)', path: '/profile/vp' },
-          { role: 'Academic Dean', name: 'Dean of Academic Affairs', path: '/profile/dean' },
-          { role: 'HOD', name: 'Department HOD', path: '/profile/hod' },
-        ],
-      };
+      throw new NotFoundException('Profile not found');
     }
 
     const userId = user?.id || '';
@@ -232,36 +201,71 @@ export class ProfileDrilldownService {
         }))
       : [];
 
-    // Department Tree & Reporting Hierarchy
+    const resolvedDepartmentId = studentRecord?.departmentId || facultyRecord?.departmentId || user?.departmentId;
+    const hod = resolvedDepartmentId
+      ? await prisma.user.findFirst({
+          where: {
+            status: 'ACTIVE',
+            role: { name: { in: ['HOD', 'Head of Department'] } },
+            OR: [
+              { departmentId: resolvedDepartmentId },
+              { departmentMemberships: { some: { departmentId: resolvedDepartmentId, role: 'HOD' } } },
+            ],
+          },
+          select: { id: true, firstName: true, lastName: true },
+        })
+      : null;
+
     const departmentTree = [
-      { role: 'Principal', name: 'Dr. Institutional Principal', path: '/profile/principal' },
-      { role: 'Vice Principal', name: 'Vice Principal (Operations)', path: '/profile/vp' },
-      { role: 'Academic Dean', name: 'Dean of Academic Affairs', path: '/profile/dean' },
-      { role: 'HOD', name: facultyRecord?.department?.name ? `${facultyRecord.department.name} HOD` : 'Department HOD', path: '/profile/hod' },
-      { role: 'Faculty', name: facultyRecord ? `${facultyRecord.firstName} ${facultyRecord.lastName}` : 'Assigned Faculty', path: facultyRecord ? `/profile/${facultyRecord.id}` : '#' },
-      { role: 'Mentor', name: studentRecord?.mentor ? `${studentRecord.mentor.firstName} ${studentRecord.mentor.lastName}` : 'Assigned Mentor', path: studentRecord?.mentor ? `/profile/${studentRecord.mentor.id}` : '#' },
-      { role: 'Student', name: studentRecord ? `${studentRecord.firstName} ${studentRecord.lastName}` : 'Student', path: studentRecord ? `/profile/${studentRecord.id}` : '#' },
-    ];
+      hod ? { role: 'HOD', name: `${hod.firstName} ${hod.lastName}`.trim(), path: `/profile/${hod.id}` } : null,
+      studentRecord?.mentor ? {
+        role: 'Mentor',
+        name: `${studentRecord.mentor.firstName} ${studentRecord.mentor.lastName}`.trim(),
+        path: `/profile/${studentRecord.mentor.userId || studentRecord.mentor.id}`,
+      } : null,
+      facultyRecord ? {
+        role: 'Faculty',
+        name: `${facultyRecord.firstName} ${facultyRecord.lastName}`.trim(),
+        path: `/profile/${facultyRecord.userId || facultyRecord.id}`,
+      } : null,
+      studentRecord ? {
+        role: 'Student',
+        name: `${studentRecord.firstName} ${studentRecord.lastName}`.trim(),
+        path: `/profile/${studentRecord.userId || studentRecord.id}`,
+      } : null,
+    ].filter(Boolean);
 
     return {
       user: {
         id: userId || targetId,
-        email: user?.email || studentRecord?.email || facultyRecord?.email || `${targetId.toLowerCase()}@geetorus.com`,
-        firstName: user?.firstName || studentRecord?.firstName || facultyRecord?.firstName || 'User',
-        lastName: user?.lastName || studentRecord?.lastName || facultyRecord?.lastName || '',
+        email: user?.email || studentRecord?.email || facultyRecord?.email || null,
+        firstName: user?.firstName || studentRecord?.firstName || facultyRecord?.firstName || null,
+        lastName: user?.lastName || studentRecord?.lastName || facultyRecord?.lastName || null,
         profilePhoto: user?.profilePhoto || null,
         role: roleName,
-        status: user?.status || 'ACTIVE',
-        onlineStatus: 'Online',
-        phone: studentRecord?.phone || facultyRecord?.phone || '+91 98765 43210',
-        bloodGroup: studentRecord?.bloodGroup || 'O+',
-        dob: studentRecord?.dob ? new Date(studentRecord.dob).toISOString().split('T')[0] : '2002-05-15',
-        joiningDate: facultyRecord?.dateOfJoining ? new Date(facultyRecord.dateOfJoining).toISOString().split('T')[0] : '2021-08-01',
-        designation: facultyRecord?.designation || roleName,
-        qualification: facultyRecord?.qualification || 'Ph.D. / M.Tech',
-        experience: facultyRecord?.experience ? `${facultyRecord.experience} Years` : '5 Years',
-        officeRoom: facultyRecord?.officeRoom || 'Block A - 302',
-        reportingOfficer: 'Department HOD',
+        status: user?.status || studentRecord?.status || facultyRecord?.status || null,
+        onlineStatus: user?.loginStatus || null,
+        phone: studentRecord?.phone || facultyRecord?.phone || user?.phone || null,
+        bloodGroup: studentRecord?.bloodGroup || user?.bloodGroup || null,
+        dob: studentRecord?.dob
+          ? new Date(studentRecord.dob).toISOString().split('T')[0]
+          : facultyRecord?.dob
+            ? new Date(facultyRecord.dob).toISOString().split('T')[0]
+            : user?.dob
+              ? new Date(user.dob).toISOString().split('T')[0]
+              : null,
+        joiningDate: facultyRecord?.dateOfJoining
+          ? new Date(facultyRecord.dateOfJoining).toISOString().split('T')[0]
+          : user?.joiningDate
+            ? new Date(user.joiningDate).toISOString().split('T')[0]
+            : null,
+        designation: facultyRecord?.designation || user?.designation || roleName || null,
+        qualification: facultyRecord?.qualification || user?.qualification || null,
+        experience: facultyRecord?.experience != null
+          ? `${facultyRecord.experience} Years`
+          : user?.experience || null,
+        officeRoom: facultyRecord?.officeRoom || null,
+        reportingOfficer: hod ? `${hod.firstName} ${hod.lastName}`.trim() : null,
       },
       permissionsMatrix,
       studentRecord,
@@ -275,15 +279,16 @@ export class ProfileDrilldownService {
   /**
    * Get 360° Comprehensive Student Profile
    */
-  async getStudent360Profile(studentId: string) {
-    return this.getUser360Profile(studentId);
+  async getStudent360Profile(studentId: string, requester: RequesterIdentity) {
+    await StudentAccessService.assertCanViewStudent(requester, studentId);
+    return this.getUser360Profile(studentId, requester);
   }
 
   /**
    * Get 360° Comprehensive Faculty Profile
    */
-  async getFaculty360Profile(facultyId: string) {
-    return this.getUser360Profile(facultyId);
+  async getFaculty360Profile(facultyId: string, requester: RequesterIdentity) {
+    return this.getUser360Profile(facultyId, requester);
   }
 
   /**

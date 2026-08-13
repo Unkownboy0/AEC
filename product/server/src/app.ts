@@ -12,9 +12,13 @@ import mastersRoutes from './modules/masters/masters.routes';
 import securityRoutes from './modules/security/security.routes';
 import backupsRoutes from './modules/backup/backup.routes';
 import filesRoutes from './modules/files/files.routes';
-import notificationsRoutes from './modules/notifications/notifications.routes';
+import notificationsRoutes from './modules/notifications/notification.routes';
+import notificationAdminRoutes from './modules/notifications/notifications.routes';
 import reportsRoutes from './modules/reports/reports.routes';
 import enterpriseRoutes from './modules/enterprise/enterprise.routes';
+import managementRoutes from './modules/management/management.routes';
+import principalCommandRoutes from './modules/principal-command/principal-command.routes';
+import vpCommandRoutes from './modules/vp-command/vp-command.routes';
 import workflowRoutes from './modules/workflow/workflow.routes';
 import timetableRoutes from './modules/timetable/timetable.routes';
 import aiRoutes from './modules/ai/ai.routes';
@@ -24,6 +28,9 @@ import circularRoutes from './modules/enterprise/circular.routes';
 import curriculumRoutes from './modules/curriculum/curriculum.routes';
 import sportsRoutes from './modules/sports/sports.routes';
 import taskRoutes from './modules/enterprise/task.routes';
+import iqacRoutes from './modules/iqac/iqac.routes';
+import financeRoutes from './modules/finance/finance.routes';
+import coeRoutes from './modules/coe/coe.routes';
 
 
 import { errorHandler } from './core/middlewares/error.middleware';
@@ -32,22 +39,30 @@ import { env } from './config/env';
 
 const app = express();
 
+app.set('trust proxy', env.TRUST_PROXY);
+
 // Security HTTP headers
 app.use(helmet());
 
-// Serve uploaded files statically with security headers
-app.use(
-  '/uploads',
-  express.static(path.join(__dirname, '../uploads'), {
-    setHeaders: (res) => {
-      res.setHeader('X-Content-Type-Options', 'nosniff');
-      res.setHeader('Content-Security-Policy', "default-src 'none'");
-    },
-  })
-);
+// Preserve legacy upload URLs during local development while the client is
+// migrated to authenticated file IDs. Production remains fail-closed and only
+// serves files through the permission-checked files API.
+if (env.NODE_ENV !== 'production') {
+  app.use(
+    '/uploads',
+    express.static(env.STORAGE_ROOT, {
+      fallthrough: false,
+      setHeaders: (res) => {
+        res.setHeader('X-Content-Type-Options', 'nosniff');
+        res.setHeader('Content-Security-Policy', "default-src 'none'; sandbox");
+        res.setHeader('Cache-Control', 'private, max-age=300');
+      },
+    })
+  );
+}
 
 // Enable CORS
-const allowedOrigins = env.ALLOWED_ORIGINS.split(',');
+const allowedOrigins = env.ALLOWED_ORIGINS.split(',').map((origin) => origin.trim()).filter(Boolean);
 app.use(
   cors({
     origin: (origin, callback) => {
@@ -107,8 +122,12 @@ app.use('/api/security', securityRoutes);
 app.use('/api/backups', backupsRoutes);
 app.use('/api/files', filesRoutes);
 app.use('/api/notifications', notificationsRoutes);
+app.use('/api/admin/notification-campaigns', notificationAdminRoutes);
 app.use('/api/reports', reportsRoutes);
 app.use('/api/enterprise', enterpriseRoutes);
+app.use('/api/management', managementRoutes);
+app.use('/api/principal-command', principalCommandRoutes);
+app.use('/api/vp-command', vpCommandRoutes);
 app.use('/api/workflows', workflowRoutes);
 app.use('/api/timetables', timetableRoutes);
 app.use('/api/ai', aiRoutes);
@@ -117,6 +136,8 @@ app.use('/api/chat', chatRoutes);
 app.use('/api/circulars', circularRoutes);
 app.use('/api/curriculum', curriculumRoutes);
 app.use('/api/sports', sportsRoutes);
+app.use('/api/finance', financeRoutes);
+app.use('/api/coe', coeRoutes);
 import studentLeaveRoutes from './modules/enterprise/student-leave.routes';
 import hodPortalRoutes from './modules/hod/hod.routes';
 import facultyLeaveRoutes from './modules/enterprise/faculty-leave.routes';
@@ -130,6 +151,7 @@ import phase10ProductionRoutes from './modules/enterprise/phase10-production.rou
 import academicDeanRoutes from './modules/enterprise/academic-dean.routes';
 import academicDeanHodRoutes from './modules/enterprise/academic-dean-hod.routes';
 import admissionDeanRoutes from './modules/enterprise/admission-dean.routes';
+import administrationDeanRoutes from './modules/administration-dean/administration-dean.routes';
 
 app.use('/api/enterprise/student-leave', studentLeaveRoutes);
 app.use('/api/student/leave-od', studentLeaveRoutes);
@@ -148,6 +170,7 @@ app.use('/api/enterprise/analytics', analyticsRoutes);
 app.use('/api/enterprise', phase8ExportRoutes);
 app.use('/api', phase10ProductionRoutes);
 app.use('/api/tasks', taskRoutes);
+app.use('/api/iqac', iqacRoutes);
 
 import parentRoutes from './modules/parent/parent.routes';
 import facultyRoutes from './modules/faculty/faculty.routes';
@@ -162,6 +185,7 @@ app.use('/api', hodTaskRoutes);
 
 app.use('/api/academic-dean', academicDeanRoutes);
 app.use('/api/admission-dean', admissionDeanRoutes);
+app.use('/api/administration-dean', administrationDeanRoutes);
 app.use('/api/parent', parentRoutes);
 app.use('/api/faculty', facultyRoutes);
 app.use('/api/mentor', mentorRoutes);

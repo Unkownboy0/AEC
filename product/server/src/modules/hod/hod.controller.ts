@@ -195,8 +195,8 @@ export class HodController {
 
   createCircular = async (req: AuthenticatedHodRequest, res: Response) => {
     try {
-      // Department ALWAYS from server session — NEVER from client body
-      const deptId = req.hodContext?.departmentId!;
+      // Department ALWAYS from server session or database fallback — NEVER trusted from client body
+      const deptId = req.hodContext?.departmentId;
       const userId = req.hodContext?.userId!;
 
       const parseResult = CreateCircularSchema.safeParse(req.body);
@@ -208,13 +208,20 @@ export class HodController {
         });
       }
 
-      const circular = await CircularService.createAndPublishCircular(
+      const result = await CircularService.createAndPublishCircular(
         userId,
         'HOD',
-        deptId,  // server-side department — ignores any dto.departmentId
+        deptId,
         parseResult.data
       );
-      return res.json({ success: true, message: 'Circular published successfully', data: circular });
+      return res.json({
+        success: true,
+        message: 'Circular published successfully',
+        circular: result.circular,
+        recipients: result.recipients,
+        notifications: result.notifications,
+        data: result,
+      });
     } catch (error: any) {
       return res.status(400).json({ success: false, error: error.message });
     }
@@ -243,9 +250,10 @@ export class HodController {
           include: { user: true },
         });
         csvData += students.map((s: any) => `${s.registerNumber},"${s.user.firstName} ${s.user.lastName}",${req.hodContext?.departmentName}`).join('\n');
-      } else {
-        csvData += `1,Sample Record,${req.hodContext?.departmentName}\n`;
-      }
+      } else if (type === 'FACULTY') {
+        const faculty = await prisma.faculty.findMany({ where: { departmentId: deptId, deleted: false } });
+        csvData += faculty.map((item) => `${item.employeeId},"${item.firstName} ${item.lastName}",${req.hodContext?.departmentName}`).join('\n');
+      } else return res.status(400).json({ success: false, error: 'Supported report types are STUDENTS and FACULTY.' });
 
       res.setHeader('Content-Type', 'text/csv');
       res.setHeader('Content-Disposition', `attachment; filename=hod_${type || 'report'}.csv`);
@@ -271,6 +279,7 @@ export class HodController {
             name: req.hodContext?.departmentName,
             code: req.hodContext?.departmentCode,
           },
+          assignedDepartments: req.hodContext?.departments,
         },
       });
     } catch (error: any) {

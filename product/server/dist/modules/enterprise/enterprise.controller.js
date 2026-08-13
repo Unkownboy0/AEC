@@ -7,10 +7,22 @@ exports.EnterpriseController = void 0;
 const enterprise_service_1 = require("./enterprise.service");
 const security_1 = require("../../utils/security");
 const prisma_1 = require("../../lib/prisma");
+const circular_service_1 = require("../circulars/circular.service");
 const idcard_pdf_1 = require("../../utils/idcard.pdf");
 const attendance_pdf_1 = require("../../utils/attendance.pdf");
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const env_1 = require("../../config/env");
+const zod_1 = require("zod");
+const exceptions_1 = require("../../utils/exceptions");
+const enterprise_authorization_1 = require("./enterprise-authorization");
+const bulkActionSchema = zod_1.z.object({
+    moduleKey: zod_1.z.enum(['students', 'faculty', 'exams', 'library', 'transport', 'hostel', 'tickets']),
+    action: zod_1.z.enum(['delete', 'archive', 'restore', 'assign-mentor', 'assign-department', 'assign-section']),
+    ids: zod_1.z.array(zod_1.z.string().uuid()).min(1).max(500),
+    mentorId: zod_1.z.string().uuid().optional(),
+    departmentId: zod_1.z.string().uuid().optional(),
+    sectionId: zod_1.z.string().uuid().optional(),
+}).strict();
 class EnterpriseController {
     service = new enterprise_service_1.EnterpriseService();
     // ==========================================
@@ -43,7 +55,7 @@ class EnterpriseController {
                     academicYear: true,
                     mentor: true,
                     attendanceRecords: { where: { deleted: false } },
-                    marks: { where: { deleted: false } },
+                    marks: { where: { deleted: false }, include: { subject: { select: { credits: true } } } },
                     feeBills: { where: { deleted: false } },
                     workflowRequests: { where: { status: { in: ['APPROVED', 'PENDING_MENTOR', 'PENDING_HOD', 'PENDING_DEAN'] } } },
                     submissions: { where: { status: 'SUBMITTED' } },
@@ -57,63 +69,94 @@ class EnterpriseController {
             // 1. Calculate Attendance %
             const totalAttendanceCount = student.attendanceRecords.length;
             const presentCount = student.attendanceRecords.filter(a => a.status === 'PRESENT').length;
-            const attendancePercentage = totalAttendanceCount > 0 ? parseFloat(((presentCount / totalAttendanceCount) * 100).toFixed(2)) : 92.8;
+            const attendancePercentage = totalAttendanceCount > 0
+                ? parseFloat(((presentCount / totalAttendanceCount) * 100).toFixed(2))
+                : null;
             // 2. CGPA
             const marksWithGpa = student.marks.filter(m => m.status === 'PUBLISHED');
-            const cgpa = marksWithGpa.length > 0 ? parseFloat((marksWithGpa.reduce((acc, m) => acc + m.gpa, 0) / marksWithGpa.length).toFixed(2)) : 9.5;
+            const cgpa = marksWithGpa.length > 0
+                ? parseFloat((marksWithGpa.reduce((acc, mark) => acc + mark.gpa, 0) / marksWithGpa.length).toFixed(2))
+                : null;
             // 3. Credits
-            const completedCredits = student.marks.filter(m => m.status === 'PUBLISHED' && m.grade !== 'F').length * 4;
-            const totalCreditsNeeded = student.program?.credits ?? 160;
-            const remainingCredits = Math.max(0, totalCreditsNeeded - completedCredits);
+            const completedCredits = student.marks
+                .filter((mark) => mark.status === 'PUBLISHED' && mark.grade !== 'F')
+                .reduce((total, mark) => total + (mark.subject?.credits || 0), 0);
+            const totalCreditsNeeded = student.program?.credits ?? null;
+            const remainingCredits = totalCreditsNeeded == null
+                ? null
+                : Math.max(0, totalCreditsNeeded - completedCredits);
             // 4. Timetable today
-            const days = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'];
-            const todayName = days[new Date().getDay()];
-            const todaySlots = await prisma_1.prisma.timetableSlot.findMany({
-                where: {
-                    semesterId: student.semesterId,
-                    sectionId: student.sectionId,
-                    dayOfWeek: todayName
-                },
-                include: {
-                    subject: { select: { name: true, code: true, isLab: true } },
-                    faculty: { select: { firstName: true, lastName: true } }
-                },
-                orderBy: { slotIndex: 'asc' }
-            });
+            let todaySlots = [];
+            try {
+                const days = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'];
+                const todayName = days[new Date().getDay()];
+                todaySlots = await prisma_1.prisma.timetableSlot?.findMany?.({
+                    where: {
+                        semesterId: student.semesterId,
+                        sectionId: student.sectionId,
+                        dayOfWeek: todayName
+                    },
+                    include: {
+                        subject: { select: { name: true, code: true, isLab: true } },
+                        faculty: { select: { firstName: true, lastName: true } }
+                    },
+                    orderBy: { slotIndex: 'asc' }
+                }) ?? [];
+            }
+            catch (e) {
+                console.error('[StudentDashboard] TimetableSlot fetch error:', e);
+            }
             // 5. Upcoming Exams
-            const upcomingExams = await prisma_1.prisma.exam.findMany({
-                where: {
-                    semesterId: student.semesterId,
-                    courseId: student.courseId,
-                    status: 'SCHEDULED'
-                },
-                orderBy: { startDate: 'asc' }
-            });
+            let upcomingExams = [];
+            try {
+                upcomingExams = await prisma_1.prisma.exam?.findMany?.({
+                    where: {
+                        semesterId: student.semesterId,
+                        courseId: student.courseId,
+                        status: 'SCHEDULED'
+                    },
+                    orderBy: { startDate: 'asc' }
+                }) ?? [];
+            }
+            catch (e) {
+                console.error('[StudentDashboard] Exam fetch error:', e);
+            }
             // 6. Pending Homework (Workbook)
-            const pendingHomeworkCount = 2;
+            const pendingHomeworkCount = null;
             // 7. Pending Assignments
-            const allAssignments = await prisma_1.prisma.assignment.findMany({
-                where: {
-                    semesterId: student.semesterId,
-                    sectionId: student.sectionId,
-                    deleted: false
-                }
-            });
-            const submissions = await prisma_1.prisma.assignmentSubmission.findMany({
-                where: { studentId: student.id }
-            });
-            const submittedIds = submissions.map(s => s.assignmentId);
-            const pendingAssignmentsCount = allAssignments.filter(a => !submittedIds.includes(a.id)).length;
+            let pendingAssignmentsCount = 0;
+            try {
+                const allAssignments = await prisma_1.prisma.assignment?.findMany?.({
+                    where: {
+                        semesterId: student.semesterId,
+                        sectionId: student.sectionId,
+                        deleted: false
+                    }
+                }) ?? [];
+                const submissions = await prisma_1.prisma.assignmentSubmission?.findMany?.({
+                    where: { studentId: student.id }
+                }) ?? [];
+                const submittedIds = submissions.map((s) => s.assignmentId);
+                pendingAssignmentsCount = allAssignments.filter((a) => !submittedIds.includes(a.id)).length;
+            }
+            catch (e) {
+                console.error('[StudentDashboard] Assignments fetch error:', e);
+            }
             // 8. Library due books count
-            const allBooks = await prisma_1.prisma.libraryBook.findMany({ where: { deleted: false } });
             let libraryDueCount = 0;
-            for (const book of allBooks) {
-                try {
-                    const issues = JSON.parse(book.issues || '[]');
-                    const activeIssues = issues.filter((i) => i.studentId === student.id && !i.returned);
-                    libraryDueCount += activeIssues.length;
+            try {
+                const allBooks = await prisma_1.prisma.libraryBook?.findMany?.({ where: { deleted: false } }) ?? [];
+                for (const book of allBooks) {
+                    try {
+                        const issues = JSON.parse(book.issues || '[]');
+                        const activeIssues = issues.filter((i) => i.studentId === student.id && !i.returned);
+                        libraryDueCount += activeIssues.length;
+                    }
+                    catch (_) { }
                 }
-                catch (_) { }
+            }
+            catch (e) {
+                console.error('[StudentDashboard] LibraryBook fetch error:', e);
             }
             // 9. Leave & OD status
             const activeLeaves = student.workflowRequests.filter(r => r.type === 'LEAVE');
@@ -121,32 +164,54 @@ class EnterpriseController {
             const leaveStatus = activeLeaves.length > 0 ? activeLeaves[0].status : 'NO_ACTIVE_LEAVES';
             const odStatus = activeOds.length > 0 ? activeOds[0].status : 'NO_ACTIVE_OD';
             // 10. Placement & Internship Updates
-            const placementsEligible = cgpa >= 7.0 ? 'ELIGIBLE' : 'NOT_ELIGIBLE';
+            const placementsEligible = student.placementApplications.length > 0
+                ? student.placementApplications[0].status
+                : null;
             const internshipStatus = student.internships.length > 0 ? student.internships[0].status : 'NO_APPLICATIONS';
-            // 11. Recent Circulars
-            const circulars = await prisma_1.prisma.hodCircular.findMany({
-                where: { departmentId: student.departmentId, status: 'PUBLISHED' },
-                orderBy: { createdAt: 'desc' },
-                take: 5
-            });
+            // 11. Recent Circulars (Unified Circular Model)
+            let circulars = [];
+            try {
+                circulars = await circular_service_1.CircularService.listCirculars(user.id, 'Student', student.departmentId);
+            }
+            catch (e) {
+                console.error('[StudentDashboard] Circulars fetch error:', e);
+            }
             // 12. Recent Notifications
-            const notifications = await prisma_1.prisma.systemNotification.findMany({
-                where: { status: 'SENT' },
-                orderBy: { createdAt: 'desc' },
-                take: 5
-            });
+            let notifications = [];
+            try {
+                notifications = await prisma_1.prisma.systemNotification?.findMany?.({
+                    where: { status: 'SENT' },
+                    orderBy: { createdAt: 'desc' },
+                    take: 5
+                }) ?? [];
+            }
+            catch (e) {
+                console.error('[StudentDashboard] SystemNotification fetch error:', e);
+            }
             // 13. Academic Calendar Events
-            const calendarEvents = await prisma_1.prisma.exam.findMany({
-                where: { semesterId: student.semesterId, status: 'SCHEDULED' },
-                select: { name: true, startDate: true, type: true },
-                take: 5
-            });
+            let calendarEvents = [];
+            try {
+                calendarEvents = await prisma_1.prisma.exam.findMany({
+                    where: { semesterId: student.semesterId, status: 'SCHEDULED' },
+                    select: { name: true, startDate: true, type: true },
+                    take: 5
+                });
+            }
+            catch (e) {
+                console.error('[StudentDashboard] CalendarEvents fetch error:', e);
+            }
             // 14. Mentor Messages
-            const mentorMessages = await prisma_1.prisma.chatMessage.findMany({
-                where: { studentId: student.id, senderRole: 'Faculty' },
-                orderBy: { sentTime: 'desc' },
-                take: 3
-            });
+            let mentorMessages = [];
+            try {
+                mentorMessages = await prisma_1.prisma.chatMessage?.findMany?.({
+                    where: { studentId: student.id, senderRole: 'Faculty' },
+                    orderBy: { sentTime: 'desc' },
+                    take: 3
+                }) ?? [];
+            }
+            catch (e) {
+                console.error('[StudentDashboard] MentorMessages fetch error:', e);
+            }
             res.status(200).json({
                 status: 'success',
                 data: {
@@ -648,7 +713,7 @@ class EnterpriseController {
     recordMark = async (req, res, next) => {
         try {
             const user = req.user;
-            const data = await this.service.recordMark(req.body, user.id, req.ip, req.headers['user-agent']);
+            const data = await this.service.recordMark(req.body, user.id, user.role, req.ip, req.headers['user-agent']);
             res.status(201).json({ status: 'success', data });
         }
         catch (error) {
@@ -886,7 +951,7 @@ class EnterpriseController {
     createTicket = async (req, res, next) => {
         try {
             const user = req.user;
-            const data = await this.service.createTicket(req.body, user.id, req.ip, req.headers['user-agent']);
+            const data = await this.service.createTicket(req.body, user.id, user.role, req.ip, req.headers['user-agent']);
             res.status(201).json({ status: 'success', data });
         }
         catch (error) {
@@ -896,7 +961,7 @@ class EnterpriseController {
     updateTicket = async (req, res, next) => {
         try {
             const user = req.user;
-            const data = await this.service.updateTicket(req.params.id, req.body, user.id, req.ip, req.headers['user-agent']);
+            const data = await this.service.updateTicket(req.params.id, req.body, user.id, user.role, req.ip, req.headers['user-agent']);
             res.status(200).json({ status: 'success', data });
         }
         catch (error) {
@@ -906,8 +971,9 @@ class EnterpriseController {
     deleteTicket = async (req, res, next) => {
         try {
             const user = req.user;
-            await this.service.bulkDelete('tickets', [req.params.id], user.id, req.ip, req.headers['user-agent']);
-            res.status(200).json({ status: 'success', message: 'Support Ticket deleted' });
+            (0, enterprise_authorization_1.assertComplaintArchiveAccess)(user.role);
+            await this.service.bulkArchive('tickets', [req.params.id], user.id, req.ip, req.headers['user-agent']);
+            res.status(200).json({ status: 'success', message: 'Complaint archived' });
         }
         catch (error) {
             next(error);
@@ -918,8 +984,10 @@ class EnterpriseController {
     // ==========================================
     bulkAction = async (req, res, next) => {
         try {
-            const { moduleKey, action, ids } = req.body;
+            const input = bulkActionSchema.parse(req.body);
+            const { moduleKey, action, ids } = input;
             const user = req.user;
+            (0, enterprise_authorization_1.assertEnterpriseBulkAccess)(user.role);
             if (action === 'delete') {
                 await this.service.bulkDelete(moduleKey, ids, user.id, req.ip, req.headers['user-agent']);
             }
@@ -930,15 +998,21 @@ class EnterpriseController {
                 await this.service.bulkRestore(moduleKey, ids, user.id, req.ip, req.headers['user-agent']);
             }
             else if (action === 'assign-mentor') {
-                const { mentorId } = req.body;
+                const { mentorId } = input;
+                if (!mentorId)
+                    throw new exceptions_1.BadRequestException('mentorId is required');
                 await this.service.bulkAssignMentor(ids, mentorId, user.id, req.ip, req.headers['user-agent']);
             }
             else if (action === 'assign-department') {
-                const { departmentId } = req.body;
+                const { departmentId } = input;
+                if (!departmentId)
+                    throw new exceptions_1.BadRequestException('departmentId is required');
                 await this.service.bulkAssignDepartment(ids, departmentId, user.id, req.ip, req.headers['user-agent']);
             }
             else if (action === 'assign-section') {
-                const { sectionId } = req.body;
+                const { sectionId } = input;
+                if (!sectionId)
+                    throw new exceptions_1.BadRequestException('sectionId is required');
                 await this.service.bulkAssignSection(ids, sectionId, user.id, req.ip, req.headers['user-agent']);
             }
             res.status(200).json({ status: 'success', message: `Bulk ${action} executed` });

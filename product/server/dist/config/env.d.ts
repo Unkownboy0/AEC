@@ -4,6 +4,18 @@ export declare const env: {
     DATABASE_URL: string;
     JWT_SECRET: string;
     JWT_EXPIRES_IN: string;
+    REFRESH_TOKEN_EXPIRES_IN: string;
+    REMEMBER_ME_REFRESH_TOKEN_EXPIRES_IN: string;
+    PASSWORD_RESET_TOKEN_MINUTES: number;
     LOG_LEVEL: "error" | "warn" | "info" | "http" | "debug";
     ALLOWED_ORIGINS: string;
+    STORAGE_ROOT: string;
+    BACKUP_ROOT: string;
+    PG_DUMP_PATH: string;
+    TRUST_PROXY: number;
+    PAYMENT_GATEWAY: "RAZORPAY" | "DISABLED";
+    CAMPUS_TENANT_ID: string;
+    PUBLIC_APP_URL?: string | undefined;
+    RAZORPAY_KEY_ID?: string | undefined;
+    RAZORPAY_KEY_SECRET?: string | undefined;
 };

@@ -34,7 +34,7 @@ const BLOCKED_EXTENSIONS = new Set([
     '.com', '.scr', '.pif', '.hta', '.cpl', '.inf', '.reg',
 ]);
 class FilesController {
-    uploadsDir = path_1.default.join(__dirname, '../../../uploads');
+    uploadsDir = path_1.default.resolve(process.env.STORAGE_ROOT || path_1.default.join(__dirname, '../../../uploads'));
     constructor() {
         // Ensure uploads directory exists
         if (!fs_1.default.existsSync(this.uploadsDir)) {
@@ -61,6 +61,28 @@ class FilesController {
                 status: 'success',
                 data: files,
             });
+        }
+        catch (error) {
+            next(error);
+        }
+    };
+    download = async (req, res, next) => {
+        try {
+            const file = await prisma_1.prisma.mediaFile.findUnique({ where: { id: req.params.id } });
+            if (!file)
+                throw new exceptions_1.NotFoundException('File metadata not found');
+            const relativePath = file.path.replace(/^[/\\]uploads[/\\]?/, '');
+            const physicalPath = path_1.default.resolve(this.uploadsDir, relativePath);
+            const relativeToRoot = path_1.default.relative(this.uploadsDir, physicalPath);
+            if (relativeToRoot.startsWith('..') || path_1.default.isAbsolute(relativeToRoot)) {
+                throw new exceptions_1.BadRequestException('Invalid stored file path');
+            }
+            if (!fs_1.default.existsSync(physicalPath))
+                throw new exceptions_1.NotFoundException('File content not found');
+            res.setHeader('Content-Type', file.mimeType);
+            res.setHeader('Content-Disposition', `attachment; filename="${file.name.replace(/["\\\r\n]/g, '_')}"`);
+            res.setHeader('X-Content-Type-Options', 'nosniff');
+            res.sendFile(physicalPath);
         }
         catch (error) {
             next(error);
@@ -109,15 +131,19 @@ class FilesController {
             const randomId = crypto_1.default.randomUUID();
             const safeFilename = `${randomId}${originalExt}`;
             // ── 7. Sanitize folder path (prevent directory traversal) ──
-            const sanitizedFolder = folder.replace(/\.\./g, '').replace(/\0/g, '');
-            const targetSubFolder = path_1.default.join(this.uploadsDir, sanitizedFolder);
+            const sanitizedFolder = folder.replace(/\\/g, '/').replace(/\.\./g, '').replace(/\0/g, '').replace(/^\/+/, '');
+            const targetSubFolder = path_1.default.resolve(this.uploadsDir, sanitizedFolder);
+            const relativeToRoot = path_1.default.relative(this.uploadsDir, targetSubFolder);
+            if (relativeToRoot.startsWith('..') || path_1.default.isAbsolute(relativeToRoot)) {
+                throw new exceptions_1.BadRequestException('Invalid upload folder');
+            }
             if (!fs_1.default.existsSync(targetSubFolder)) {
                 fs_1.default.mkdirSync(targetSubFolder, { recursive: true });
             }
             const filePath = path_1.default.join(targetSubFolder, safeFilename);
             // Write to disk
             fs_1.default.writeFileSync(filePath, buffer);
-            const targetWebPath = `/uploads${sanitizedFolder === '/' ? '/' : sanitizedFolder + '/'}${safeFilename}`;
+            const targetWebPath = `/uploads/${sanitizedFolder ? `${sanitizedFolder}/` : ''}${safeFilename}`;
             const mediaFile = await prisma_1.prisma.mediaFile.upsert({
                 where: { path: targetWebPath },
                 update: {
@@ -145,7 +171,10 @@ class FilesController {
             });
             res.status(201).json({
                 status: 'success',
-                data: mediaFile,
+                data: {
+                    ...mediaFile,
+                    downloadUrl: `/api/files/${mediaFile.id}/download`,
+                },
             });
         }
         catch (error) {

@@ -37,19 +37,27 @@ export const RoleMobileBottomNav: React.FC = () => {
         { label: 'Notifications', path: '/student/notifications', icon: Bell },
         { label: 'Profile', path: '/student/profile', icon: User },
       ];
+    } else if (rawRole.includes('MENTOR')) {
+      return [
+        { label: 'Home', path: '/faculty/mentor/dashboard', icon: LayoutDashboard },
+        { label: 'Students', path: '/faculty/mentor/students', icon: Users },
+        { label: 'Approvals', path: '/faculty/mentor/leave-od', icon: FileCheck },
+        { label: 'Board', path: '/faculty/mentor/department-availability', icon: Building2 },
+        { label: 'Profile', path: '/profile', icon: User },
+      ];
     } else if (rawRole.includes('FACULTY') && !rawRole.includes('HOD')) {
       return [
-        { label: 'Home', path: '/dashboard', icon: LayoutDashboard },
-        { label: 'Attendance', path: '/attendance', icon: CheckCircle2 },
-        { label: 'Students', path: '/students', icon: Users },
-        { label: 'Tasks', path: '/tasks', icon: CheckSquare },
+        { label: 'Home', path: '/faculty/dashboard', icon: LayoutDashboard },
+        { label: 'Attendance', path: '/faculty/attendance', icon: CheckCircle2 },
+        { label: 'Students', path: '/faculty/students', icon: Users },
+        { label: 'Tasks', path: '/faculty/tasks', icon: CheckSquare },
         { label: 'Profile', path: '/profile', icon: User },
       ];
     } else if (rawRole.includes('HOD')) {
       return [
         { label: 'Dashboard', path: '/hod/dashboard', icon: LayoutDashboard },
         { label: 'Approvals', path: '/hod/approvals', icon: FileCheck },
-        { label: 'Department', path: '/hod/overview', icon: Building2 },
+        { label: 'Board', path: '/hod/department-availability', icon: Building2 },
         { label: 'Tasks', path: '/hod/tasks', icon: CheckSquare },
         { label: 'Profile', path: '/profile', icon: User },
       ];
@@ -57,23 +65,23 @@ export const RoleMobileBottomNav: React.FC = () => {
       return [
         { label: 'Dashboard', path: '/vp/dashboard', icon: LayoutDashboard },
         { label: 'Operations', path: '/vp/operations', icon: Activity },
-        { label: 'Approvals', path: '/approval-center', icon: FileCheck },
+        { label: 'Board', path: '/vp/department-availability', icon: Building2 },
         { label: 'Alerts', path: '/notifications', icon: Bell },
         { label: 'Profile', path: '/profile', icon: User },
       ];
     } else if (rawRole.includes('PRINCIPAL')) {
       return [
         { label: 'Dashboard', path: '/principal/dashboard', icon: LayoutDashboard },
-        { label: 'Approvals', path: '/approval-center', icon: FileCheck },
-        { label: 'Analytics', path: '/analytics', icon: BarChart3 },
+        { label: 'Approvals', path: '/principal/approval-center', icon: FileCheck },
+        { label: 'Board', path: '/principal/department-availability', icon: Building2 },
         { label: 'Notifications', path: '/notifications', icon: Bell },
-        { label: 'Profile', path: '/profile', icon: User },
+        { label: 'Profile', path: '/principal/profile', icon: User },
       ];
     } else {
       // Default / Super Admin / Dean / Parent
       return [
         { label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
-        { label: 'Approvals', path: '/approval-center', icon: FileCheck },
+        { label: 'Approvals', path: '/principal/approval-center', icon: FileCheck },
         { label: 'Notifications', path: '/notifications', icon: Bell },
         { label: 'Profile', path: '/profile', icon: User },
       ];

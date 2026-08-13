@@ -22,6 +22,53 @@ export interface UpdateTaskProgressDto {
 }
 
 export class TaskService {
+  private async assertCanAccessTask(taskId: string, userId: string, userRole?: string) {
+    const task = await prisma.task.findUnique({
+      where: { id: taskId },
+      select: {
+        id: true,
+        createdById: true,
+        visibility: true,
+        departmentId: true,
+        assignees: { select: { assigneeId: true } },
+      },
+    });
+    if (!task) throw new NotFoundException('Task not found');
+
+    const normalizedRole = String(userRole || '').toUpperCase().replace(/[\s_-]+/g, '');
+    if (['SUPERADMIN', 'COLLEGEADMIN', 'PRINCIPAL'].includes(normalizedRole)) return task;
+    if (task.createdById === userId || task.assignees.some((item) => item.assigneeId === userId)) return task;
+    if (task.visibility === 'PUBLIC') return task;
+
+    if (task.visibility === 'DEPARTMENT' && task.departmentId) {
+      const membership = await prisma.user.findUnique({
+        where: { id: userId },
+        select: {
+          departmentId: true,
+          departmentMemberships: { select: { departmentId: true } },
+        },
+      });
+      const departments = new Set([
+        ...(membership?.departmentId ? [membership.departmentId] : []),
+        ...(membership?.departmentMemberships.map((item) => item.departmentId) || []),
+      ]);
+      if (departments.has(task.departmentId)) return task;
+    }
+
+    throw new ForbiddenException("You don't have permission to view this task");
+  }
+
+  private async assertCanParticipate(taskId: string, userId: string) {
+    const task = await prisma.task.findUnique({
+      where: { id: taskId },
+      select: { createdById: true, assignees: { select: { assigneeId: true } } },
+    });
+    if (!task) throw new NotFoundException('Task not found');
+    if (task.createdById !== userId && !task.assignees.some((item) => item.assigneeId === userId)) {
+      throw new ForbiddenException('Only the task creator or assigned recipients can change this task');
+    }
+  }
+
   /**
    * Create a new task and assign to one or multiple users
    */
@@ -149,16 +196,18 @@ export class TaskService {
 
     // Role-aware task filtering
     const isCollegeWide = [
-      'Super Admin', 'College Admin', 'Principal', 'Vice Principal',
-      'Academic Dean', 'Admission Dean', 'IQAC Dean',
+      'Super Admin', 'College Admin', 'Principal',
     ].includes(userRole);
 
     if (!isCollegeWide) {
       const user = await prisma.user.findUnique({
         where: { id: userId },
-        select: { departmentId: true },
+        select: { departmentId: true, departmentMemberships: { select: { departmentId: true } } },
       });
-      const deptIds = user?.departmentId ? [user.departmentId] : [];
+      const deptIds = Array.from(new Set([
+        ...(user?.departmentId ? [user.departmentId] : []),
+        ...(user?.departmentMemberships.map((item) => item.departmentId) || []),
+      ]));
 
       where.AND = [
         {
@@ -225,7 +274,8 @@ export class TaskService {
   /**
    * Get task details by ID & automatically mark as SEEN if user is an assignee
    */
-  async getTaskById(taskId: string, userId: string) {
+  async getTaskById(taskId: string, userId: string, userRole?: string) {
+    await this.assertCanAccessTask(taskId, userId, userRole);
     const task = await prisma.task.findUnique({
       where: { id: taskId },
       include: {
@@ -409,6 +459,7 @@ export class TaskService {
       throw new BadRequestException('Completion percentage must be between 0 and 100');
     }
 
+    await this.assertCanParticipate(taskId, userId);
     const task = await prisma.task.findUnique({ where: { id: taskId } });
     if (!task) throw new NotFoundException('Task not found');
 
@@ -447,6 +498,7 @@ export class TaskService {
       throw new BadRequestException('Comment content cannot be empty');
     }
 
+    await this.assertCanParticipate(taskId, authorId);
     const task = await prisma.task.findUnique({ where: { id: taskId } });
     if (!task) throw new NotFoundException('Task not found');
 

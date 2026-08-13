@@ -2,6 +2,7 @@ import { prisma } from '../../lib/prisma';
 import { BadRequestException, NotFoundException, ForbiddenException } from '../../utils/exceptions';
 import { logger } from '../../utils/logger';
 import { broadcastRBACUpdate } from '../../lib/socket';
+import { validateRequestDate } from '../../utils/leavePolicy';
 
 export interface SubmitLeaveInput {
   type: 'LEAVE' | 'ON_DUTY';
@@ -119,6 +120,8 @@ export class StudentLeaveService {
     if (end < start) {
       throw new BadRequestException('End date cannot be prior to start date');
     }
+
+    await validateRequestDate(start, input.type === 'ON_DUTY');
 
     const diffTime = Math.abs(end.getTime() - start.getTime());
     const totalDays = input.durationType === 'HALF_DAY' ? 0.5 : Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
@@ -255,6 +258,10 @@ export class StudentLeaveService {
 
     if (!request) {
       throw new NotFoundException('Leave request not found');
+    }
+
+    if (request.mentorId !== faculty.id) {
+      throw new ForbiddenException('Only the student\'s assigned Mentor can review this request');
     }
 
     if (request.status !== 'PENDING_MENTOR' && request.workflowStatus !== 'PENDING_MENTOR') {
@@ -496,15 +503,31 @@ export class StudentLeaveService {
   ) {
     const faculty = await prisma.faculty.findFirst({ where: { userId } });
     const user = await prisma.user.findUnique({ where: { id: userId }, include: { role: true } });
+    const hodMemberships = await prisma.departmentMembership.findMany({
+      where: { userId, role: 'HOD' },
+      select: { departmentId: true },
+    });
 
     if (!user || !['HOD', 'Super Admin', 'Principal', 'Vice Principal', 'Academic Dean'].includes(user.role.name)) {
-      const membership = await prisma.departmentMembership.findFirst({
-        where: { userId, role: 'HOD' }
-      });
-      if (!membership) {
+      if (hodMemberships.length === 0) {
         throw new ForbiddenException('Only Department HOD or College Executives can perform Level 2 approvals');
       }
     }
+
+    const roleName = user?.role?.name || '';
+    const mustUseDepartmentScope = roleName === 'HOD' || hodMemberships.length > 0;
+    const explicitInstitutionScope = !mustUseDepartmentScope && user?.role?.searchScope === 'EVERYONE';
+    const actorDepartmentIds = new Set([
+      faculty?.departmentId,
+      user?.departmentId,
+      ...hodMemberships.map((membership) => membership.departmentId),
+    ].filter((id): id is string => Boolean(id)));
+    const assertDepartmentAuthority = (departmentId?: string | null) => {
+      if (explicitInstitutionScope) return;
+      if (!departmentId || actorDepartmentIds.size === 0 || !actorDepartmentIds.has(departmentId)) {
+        throw new ForbiddenException('You do not have authority to process requests from this department');
+      }
+    };
 
     const trimmedId = (requestId || '').trim();
     const cleanId = trimmedId.replace(/^WF-|^SLR-|^OD-|^FL-/, '');
@@ -536,13 +559,14 @@ export class StudentLeaveService {
       });
 
       if (wfReq) {
+        assertDepartmentAuthority(wfReq.student?.departmentId || wfReq.facultyRequester?.departmentId);
         const normAction = (action || '').toUpperCase().replace(/-/g, '_');
         let wfNextStep = wfReq.currentStep;
         let wfNextStatus = wfReq.status;
 
         if (normAction === 'APPROVE') {
           wfNextStep = wfReq.facultyRequesterId ? 'PRINCIPAL' : 'COMPLETED';
-          wfNextStatus = 'APPROVED';
+          wfNextStatus = wfReq.facultyRequesterId ? 'PENDING' : 'APPROVED';
         } else if (normAction === 'REJECT' || normAction === 'REJECTED') {
           wfNextStep = 'COMPLETED';
           wfNextStatus = 'REJECTED_BY_HOD';
@@ -621,10 +645,11 @@ export class StudentLeaveService {
       });
 
       if (facLeave) {
+        assertDepartmentAuthority(facLeave.departmentId);
         const updatedFac = await prisma.facultyLeaveRequest.update({
           where: { id: facLeave.id },
           data: {
-            status: action === 'APPROVE' ? 'APPROVED' : action === 'REJECT' ? 'REJECTED_BY_HOD' : 'RETURNED',
+            status: action === 'APPROVE' ? 'PENDING_PRINCIPAL' : action === 'REJECT' ? 'REJECTED_BY_HOD' : 'RETURNED',
             hodApprovedAt: action === 'APPROVE' ? new Date() : undefined,
             hodRemarks: remarks || `HOD ${action}`,
           }
@@ -648,15 +673,14 @@ export class StudentLeaveService {
 
     const isPendingForHod = ALLOWED_PENDING_STATUSES.includes(request.status || '') || ALLOWED_PENDING_STATUSES.includes(request.workflowStatus || '');
 
-    if (!isPendingForHod && !['Super Admin', 'HOD', 'Academic Dean', 'Principal', 'Vice Principal'].includes(user?.role?.name || '')) {
+    if (!isPendingForHod) {
       throw new BadRequestException(`Request is currently in status '${request.status}' and cannot be reviewed by HOD`);
     }
 
-    // Verify Department Isolation (HOD must belong to same department)
-    const hodDepartmentId = faculty?.departmentId || (user as any)?.departmentId;
-    if (user?.role?.name === 'HOD' && hodDepartmentId && request.student?.departmentId && hodDepartmentId !== request.student.departmentId) {
-      throw new ForbiddenException('HOD cannot access or approve leave requests from another department');
-    }
+    // Verify Department Isolation using the role's configured data scope (ABAC), not a hardcoded role-name bypass.
+    // OWN_DEPARTMENT (e.g. HOD) must match; EVERYONE (e.g. Principal/VP/Academic Dean, explicitly configured
+    // per-role) gets institution-wide oversight. Unset/unknown scope fails closed to OWN_DEPARTMENT.
+    assertDepartmentAuthority(request.student?.departmentId);
 
     const normAction = (action || '').toUpperCase().replace(/-/g, '_');
 

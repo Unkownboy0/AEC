@@ -1,7 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import {
-  Plus
-} from 'lucide-react';
+import { CheckCircle2, ExternalLink, Plus, XCircle } from 'lucide-react';
 import { toast } from '../../components/ui/Toast';
 import {  } from '../../components/ui/Loading';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../../components/ui/Table';
@@ -14,6 +12,7 @@ export const Fees: React.FC = () => {
   const [bills, setBills] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
   const [students, setStudents] = useState<any[]>([]);
+  const [externalPayments, setExternalPayments] = useState<any[]>([]);
 
   const [isLoading, setIsLoading] = useState(true);
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
@@ -22,18 +21,33 @@ export const Fees: React.FC = () => {
 
   const fetchFees = async () => {
     try {
-      const [bRes, cRes, sRes] = await Promise.all([
+      const [bRes, cRes, sRes, eRes] = await Promise.all([
         api.get('/enterprise/fees/bills?pageSize=50'),
         api.get('/enterprise/fees/categories?pageSize=50'),
         api.get('/enterprise/students?pageSize=50'),
+        api.get('/enterprise/fees/external-payments?status=PENDING_VERIFICATION'),
       ]);
       setBills(bRes.data?.data || []);
       setCategories(cRes.data?.data || []);
       setStudents(sRes.data?.data || []);
+      setExternalPayments(eRes.data?.data || []);
     } catch (err) {
       console.error(err);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const reviewExternal = async (id: string, decision: 'VERIFY' | 'REJECT') => {
+    const reason = decision === 'REJECT' ? window.prompt('Enter a clear rejection reason for the student:') : undefined;
+    if (decision === 'REJECT' && !reason) return;
+    if (!window.confirm(decision === 'VERIFY' ? 'Verify this payment and update the fee ledger?' : 'Reject this submitted payment proof?')) return;
+    try {
+      await api.post(`/enterprise/fees/external-payments/${id}/review`, { decision, reason });
+      toast.success(decision === 'VERIFY' ? 'External payment verified and ledger updated' : 'Payment proof rejected');
+      fetchFees();
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Payment review failed');
     }
   };
 
@@ -178,6 +192,18 @@ export const Fees: React.FC = () => {
             </TableBody>
           </Table></div>
         )}
+      </div>
+
+      <div className="border bg-card rounded-xl p-5 shadow-sm space-y-4">
+        <div className="flex items-center justify-between gap-3">
+          <div><h3 className="text-xs uppercase font-extrabold tracking-wider text-muted-foreground">External payments awaiting verification</h3><p className="mt-1 text-xs text-muted-foreground">Verify bank, UPI, cash and cheque evidence before the ledger changes.</p></div>
+          <span className="rounded-full bg-blue-500/10 px-3 py-1 text-xs font-bold text-blue-500">{externalPayments.length} pending</span>
+        </div>
+        {externalPayments.length === 0 ? <p className="py-6 text-center text-xs text-muted-foreground">No external payment proofs are pending.</p> : <div className="grid gap-3 lg:grid-cols-2">{externalPayments.map(payment => <article key={payment.id} className="rounded-xl border bg-background p-4">
+          <div className="flex items-start justify-between gap-3"><div><b className="text-sm">{payment.student?.firstName} {payment.student?.lastName}</b><p className="mt-1 text-xs text-muted-foreground">{payment.student?.admissionNo} · {payment.bill?.category?.name}</p></div><b className="text-sm">₹{Number(payment.amount).toLocaleString('en-IN')}</b></div>
+          <div className="mt-3 rounded-lg bg-muted/30 p-3 text-xs text-muted-foreground"><p>{String(payment.method).replaceAll('_', ' ')} · Ref: <span className="font-mono text-foreground">{payment.externalReference}</span></p><p className="mt-1">Paid: {new Date(payment.paymentDate || payment.createdAt).toLocaleDateString('en-IN')}</p>{payment.remarks && <p className="mt-1">{payment.remarks}</p>}</div>
+          <div className="mt-3 flex flex-wrap gap-2">{payment.proofUrl && <a href={payment.proofUrl} target="_blank" rel="noreferrer" className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border px-3 text-xs font-bold"><ExternalLink className="h-3.5 w-3.5"/>View proof</a>}<button onClick={() => reviewExternal(payment.id, 'VERIFY')} className="inline-flex min-h-9 items-center gap-1.5 rounded-lg bg-emerald-600 px-3 text-xs font-bold text-white"><CheckCircle2 className="h-3.5 w-3.5"/>Verify</button><button onClick={() => reviewExternal(payment.id, 'REJECT')} className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-rose-500/30 px-3 text-xs font-bold text-rose-500"><XCircle className="h-3.5 w-3.5"/>Reject</button></div>
+        </article>)}</div>}
       </div>
 
       {/* Setup Category Dialog */}

@@ -17,8 +17,11 @@ export const ActingPrincipalRouteGuard: React.FC<{ children: React.ReactNode }> 
     );
   }
 
-  // Requirement 10: Guard check
-  if (!isActingPrincipal || delegationStatus !== 'ACTIVE' || principalStatus === 'ONLINE') {
+  const isAccessValid =
+    isActingPrincipal ||
+    ((principalStatus as string) !== 'AVAILABLE' && (principalStatus as string) !== 'ONLINE' && delegationStatus === 'ACTIVE');
+
+  if (!isAccessValid) {
     return <Navigate to="/" replace />;
   }
 

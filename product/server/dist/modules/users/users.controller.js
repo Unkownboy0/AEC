@@ -2,11 +2,67 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.UsersController = void 0;
 const users_service_1 = require("./users.service");
+const provisioning_service_1 = require("./provisioning.service");
+const provisioning_validator_1 = require("./provisioning.validator");
 class UsersController {
     service = new users_service_1.UsersService();
+    provisioning = new provisioning_service_1.ProvisioningService();
+    previewImport = async (req, res, next) => {
+        try {
+            const { rows } = provisioning_validator_1.provisioningRequestSchema.parse(req.body);
+            res.status(200).json({ status: 'success', data: await this.provisioning.preview(rows) });
+        }
+        catch (error) {
+            next(error);
+        }
+    };
+    commitImport = async (req, res, next) => {
+        try {
+            const { rows } = provisioning_validator_1.provisioningRequestSchema.parse(req.body);
+            const data = await this.provisioning.commit(rows, req.user.id, req.ip, req.headers['user-agent']);
+            res.status(data.invalid ? 409 : 201).json({ status: data.invalid ? 'error' : 'success', data, message: data.invalid ? 'Import contains validation errors; no records were created.' : 'Accounts provisioned successfully.' });
+        }
+        catch (error) {
+            next(error);
+        }
+    };
+    previewImportFile = async (req, res, next) => {
+        try {
+            const input = provisioning_validator_1.provisioningFileRequestSchema.parse(req.body);
+            const rows = await this.provisioning.parseFile(input.fileName, input.base64);
+            res.status(200).json({ status: 'success', data: await this.provisioning.preview(rows) });
+        }
+        catch (error) {
+            next(error);
+        }
+    };
+    commitImportFile = async (req, res, next) => {
+        try {
+            const input = provisioning_validator_1.provisioningFileRequestSchema.parse(req.body);
+            const rows = await this.provisioning.parseFile(input.fileName, input.base64);
+            const data = await this.provisioning.commit(rows, req.user.id, req.ip, req.headers['user-agent']);
+            const statusCode = data.invalid ? 409 : data.failed ? 207 : 201;
+            res.status(statusCode).json({ status: data.invalid ? 'error' : 'success', data, message: data.invalid ? 'Import contains validation errors; no records were created.' : data.failed ? 'Import completed with row-level failures.' : 'Accounts provisioned successfully.' });
+        }
+        catch (error) {
+            next(error);
+        }
+    };
     list = async (req, res, next) => {
         try {
-            const result = await this.service.listUsers(req.query);
+            const result = await this.service.listUsers(req.query, req.user);
+            res.status(200).json({
+                status: 'success',
+                data: result,
+            });
+        }
+        catch (error) {
+            next(error);
+        }
+    };
+    getById = async (req, res, next) => {
+        try {
+            const result = await this.service.getUserById(req.params.id, req.user);
             res.status(200).json({
                 status: 'success',
                 data: result,

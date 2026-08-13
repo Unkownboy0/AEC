@@ -1,13 +1,15 @@
 import { CapacitorConfig } from '@capacitor/cli';
 
+const developmentServerUrl = process.env.CAPACITOR_DEV_SERVER_URL?.trim();
+const androidScheme = process.env.CAPACITOR_ANDROID_SCHEME === 'http' ? 'http' : 'https';
+
 const config: CapacitorConfig = {
   appId: 'com.geetorus.campusos',
   appName: 'GEETORUS CAMPUSOS',
   webDir: 'dist',
-  server: {
-    androidScheme: 'https',
-    cleartext: true,
-  },
+  server: developmentServerUrl
+    ? { url: developmentServerUrl, androidScheme: developmentServerUrl.startsWith('https:') ? 'https' : 'http', cleartext: true }
+    : { androidScheme, cleartext: androidScheme === 'http' },
   plugins: {
     SplashScreen: {
       launchShowDuration: 2000,
