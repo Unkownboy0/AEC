@@ -10,23 +10,34 @@ export interface SendNotificationDto {
   relatedEntityType?: string;
   relatedEntityId?: string;
   deepLinkRoute?: string;
-  deliveryChannel?: 'IN_APP' | 'PUSH' | 'EMAIL';
+  deliveryChannel?: 'IN_APP' | 'PUSH' | 'EMAIL' | 'SMS' | 'MULTI';
+  priority?: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL' | 'URGENT';
 }
 
 export class NotificationService {
   /**
-   * Send & persist notification in DB and trigger provider adapters
+   * Send & persist notification in DB with intelligent multi-channel routing
    */
   static async sendNotification(dto: SendNotificationDto) {
     try {
+      const isCritical = dto.priority === 'CRITICAL' || dto.priority === 'URGENT' || dto.eventType.includes('EMERGENCY') || dto.eventType.includes('SOS');
+
       // Check user preferences
       const pref = await prisma.notificationPreference.findUnique({
         where: { userId: dto.recipientId },
       });
 
-      if (pref && !pref.inAppEnabled && dto.deliveryChannel === 'IN_APP') {
+      const allowInApp = isCritical || !pref || pref.inAppEnabled;
+      const allowPush = isCritical || (pref ? pref.pushEnabled : true);
+      const allowEmail = isCritical || (pref ? pref.emailEnabled : false) || dto.deliveryChannel === 'EMAIL';
+
+      if (!allowInApp && !allowPush && !allowEmail && dto.deliveryChannel !== 'MULTI') {
         return null;
       }
+
+      const primaryChannel = dto.deliveryChannel && dto.deliveryChannel !== 'MULTI'
+        ? dto.deliveryChannel
+        : allowPush ? 'PUSH' : allowEmail ? 'EMAIL' : 'IN_APP';
 
       const notification = await prisma.notification.create({
         data: {
@@ -37,21 +48,24 @@ export class NotificationService {
           relatedEntityType: dto.relatedEntityType || null,
           relatedEntityId: dto.relatedEntityId || null,
           deepLinkRoute: dto.deepLinkRoute || null,
-          deliveryChannel: dto.deliveryChannel || 'IN_APP',
+          deliveryChannel: primaryChannel,
           deliveryState: 'DELIVERED',
         },
       });
 
-      // Dispatch push notification to user's registered device tokens
-      PushDispatchService.sendToUsers([dto.recipientId], {
-        title: dto.title,
-        body: dto.message,
-        data: {
-          eventType: dto.eventType,
-          relatedEntityId: dto.relatedEntityId || '',
-          deepLinkRoute: dto.deepLinkRoute || '',
-        },
-      }).catch((err) => console.error('[PushDispatch] Push dispatch error:', err));
+      // Dispatch push notification if push channel is allowed
+      if (allowPush) {
+        PushDispatchService.sendToUsers([dto.recipientId], {
+          title: dto.title,
+          body: dto.message,
+          data: {
+            eventType: dto.eventType,
+            relatedEntityId: dto.relatedEntityId || '',
+            deepLinkRoute: dto.deepLinkRoute || '',
+            priority: dto.priority || 'NORMAL',
+          },
+        }).catch((err) => console.error('[PushDispatch] Push dispatch error:', err));
+      }
 
       return notification;
     } catch (error) {
@@ -158,6 +172,32 @@ export class NotificationService {
         deviceId,
         active: true,
       },
+    });
+  }
+
+  /**
+   * Get notification preferences for user
+   */
+  static async getPreferences(userId: string) {
+    let pref = await prisma.notificationPreference.findUnique({
+      where: { userId },
+    });
+    if (!pref) {
+      pref = await prisma.notificationPreference.create({
+        data: { userId, inAppEnabled: true, emailEnabled: true, pushEnabled: true },
+      });
+    }
+    return pref;
+  }
+
+  /**
+   * Update notification preferences for user
+   */
+  static async updatePreferences(userId: string, data: { inAppEnabled?: boolean; emailEnabled?: boolean; pushEnabled?: boolean; taskAlerts?: boolean; messageAlerts?: boolean; academicAlerts?: boolean }) {
+    return prisma.notificationPreference.upsert({
+      where: { userId },
+      update: data,
+      create: { userId, ...data },
     });
   }
 }

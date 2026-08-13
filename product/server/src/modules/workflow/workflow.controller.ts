@@ -1,6 +1,9 @@
 import { Request, Response, NextFunction } from 'express';
 import { WorkflowService } from './workflow.service';
+import { WorkflowEngineService } from './workflow-engine.service';
 import { auditRequest } from '../../utils/security';
+
+const engine = new WorkflowEngineService();
 
 export class WorkflowController {
   private service = new WorkflowService();
@@ -61,5 +64,39 @@ export class WorkflowController {
     } catch (error) {
       next(error);
     }
+  };
+
+  listDefinitions = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const moduleName = req.query.module as string;
+      const data = await engine.listDefinitions(moduleName);
+      res.status(200).json({ status: 'success', data });
+    } catch (error) { next(error); }
+  };
+
+  getDefinition = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const data = await engine.getActiveDefinition(req.params.module);
+      res.status(200).json({ status: 'success', data });
+    } catch (error) { next(error); }
+  };
+
+  createOrUpdateDefinition = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const user = (req as any).user;
+      const data = await engine.createOrUpdateDefinition({
+        ...req.body,
+        configuredById: user.id,
+      });
+      await auditRequest(req, 'CREATE_DEFINITION', 'WORKFLOW', `Configured workflow definition for ${req.body.module}`, data.id, 'WorkflowDefinition');
+      res.status(201).json({ status: 'success', data });
+    } catch (error) { next(error); }
+  };
+
+  toggleDefinitionActive = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const data = await engine.toggleActive(req.params.id, req.body.isActive);
+      res.status(200).json({ status: 'success', data });
+    } catch (error) { next(error); }
   };
 }

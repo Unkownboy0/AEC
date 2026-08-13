@@ -18,6 +18,7 @@ router.get('/', (req, res, next) => {
 // Student Endpoints
 router.post('/', controller.submitRequest);
 router.get('/my-requests', controller.getMyRequests);
+router.get('/timetable-slots', controller.getTimetableForDate);
 router.get('/details/:id', controller.getRequestDetails);
 
 // HOD Specific Endpoints

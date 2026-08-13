@@ -68,4 +68,20 @@ export class NotificationController {
       res.status(200).json({ status: 'success', data: result });
     } catch (error) { next(error); }
   }
+
+  static async getPreferences(req: Request, res: Response, next: NextFunction) {
+    try {
+      const userId = (req as any).user.id;
+      const pref = await NotificationService.getPreferences(userId);
+      res.status(200).json({ status: 'success', data: pref });
+    } catch (error) { next(error); }
+  }
+
+  static async updatePreferences(req: Request, res: Response, next: NextFunction) {
+    try {
+      const userId = (req as any).user.id;
+      const pref = await NotificationService.updatePreferences(userId, req.body);
+      res.status(200).json({ status: 'success', data: pref });
+    } catch (error) { next(error); }
+  }
 }

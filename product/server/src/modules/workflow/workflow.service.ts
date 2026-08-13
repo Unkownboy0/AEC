@@ -2,6 +2,8 @@ import { prisma } from '../../lib/prisma';
 import { BadRequestException, NotFoundException, UnauthorizedException } from '../../utils/exceptions';
 import { PrincipalDelegationResolverService } from '../principal-delegation/principal-delegation-resolver.service';
 import { PrincipalRequestRoutingService } from '../principal-availability/request-routing.service';
+import { WorkflowEngineService } from './workflow-engine.service';
+import { validateRequestDate } from '../../utils/leavePolicy';
 
 export class WorkflowService {
   /**
@@ -49,6 +51,10 @@ export class WorkflowService {
     if (faculty) {
       const startDate = startDateStr ? new Date(startDateStr) : null;
       const endDate = endDateStr ? new Date(endDateStr) : null;
+
+      if (startDate && (type.toUpperCase().includes('LEAVE') || type.toUpperCase().includes('OD'))) {
+        await validateRequestDate(startDate, type.toUpperCase().includes('OD'));
+      }
 
       // Determine initial step and target based on role
       const requesterRole = faculty.user?.role?.name || '';
@@ -169,6 +175,10 @@ export class WorkflowService {
 
     const startDate = startDateStr ? new Date(startDateStr) : null;
     const endDate = endDateStr ? new Date(endDateStr) : null;
+
+    if (startDate && (type.toUpperCase().includes('LEAVE') || type.toUpperCase().includes('OD'))) {
+      await validateRequestDate(startDate, type.toUpperCase().includes('OD'));
+    }
 
     const request = await prisma.workflowRequest.create({
       data: {

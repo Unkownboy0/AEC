@@ -2,18 +2,19 @@ import { prisma } from '../../lib/prisma';
 import { BadRequestException, NotFoundException, ForbiddenException } from '../../utils/exceptions';
 import { logger } from '../../utils/logger';
 import { broadcastRBACUpdate } from '../../lib/socket';
-import { validateRequestDate } from '../../utils/leavePolicy';
+import { validateRequestDate, validatePeriodOdWithTimetable, getTimetableForStudentDate } from '../../utils/leavePolicy';
 
 export interface SubmitLeaveInput {
   type: 'LEAVE' | 'ON_DUTY';
-  requestCategory?: string; // MEDICAL, PERSONAL, EMERGENCY, PERMISSION, HALF_DAY, INTERNSHIP, PLACEMENT, SPORTS, CULTURAL, WORKSHOP, INDUSTRIAL_VISIT, COMPETITION, OTHER
+  requestCategory?: string; // MEDICAL, PERSONAL, EMERGENCY, PERMISSION, HALF_DAY, PERIOD_OD, INTERNSHIP, PLACEMENT, SPORTS, CULTURAL, WORKSHOP, INDUSTRIAL_VISIT, COMPETITION, OTHER
   reason: string;
   description?: string;
   startDate: string; // ISO date string
   endDate: string;   // ISO date string
   startTime?: string;
   endTime?: string;
-  durationType?: 'FULL_DAY' | 'HALF_DAY';
+  durationType?: 'FULL_DAY' | 'HALF_DAY' | 'PERIOD';
+  periods?: number[]; // [1, 2, 3] for Period OD
   eventName?: string;
   eventLocation?: string;
   emergencyContact?: string;
@@ -123,8 +124,15 @@ export class StudentLeaveService {
 
     await validateRequestDate(start, input.type === 'ON_DUTY');
 
+    let periodNote = '';
+    if (input.requestCategory === 'PERIOD_OD' || input.durationType === 'PERIOD' || (input.periods && input.periods.length > 0)) {
+      const periodValidation = await validatePeriodOdWithTimetable(student.id, start, input.periods || []);
+      const slotSummary = periodValidation.matchedSlots.map(s => `P${s.slotIndex}: ${s.subject?.code || s.subject?.name || 'Class'}`).join(' | ');
+      periodNote = ` [Period OD: ${periodValidation.dayOfWeek} ${slotSummary}]`;
+    }
+
     const diffTime = Math.abs(end.getTime() - start.getTime());
-    const totalDays = input.durationType === 'HALF_DAY' ? 0.5 : Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+    const totalDays = input.durationType === 'HALF_DAY' ? 0.5 : input.durationType === 'PERIOD' ? 0.2 : Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
 
     // Resolve assigned HOD
     const hodInfo = student.departmentId ? await this.resolveDepartmentHodUser(student.departmentId) : null;
@@ -142,7 +150,7 @@ export class StudentLeaveService {
           type: input.type,
           requestCategory: input.requestCategory || 'PERSONAL',
           reason: input.reason,
-          description: input.description,
+          description: input.description ? `${input.description}${periodNote}` : periodNote ? periodNote.trim() : undefined,
           startDate: start,
           endDate: end,
           startTime: input.startTime,
@@ -1227,5 +1235,13 @@ export class StudentLeaveService {
     }
 
     throw new NotFoundException('Leave request not found');
+  }
+
+  async getTimetableForDate(userId: string, dateStr: string) {
+    const student = await prisma.student.findFirst({ where: { userId } });
+    if (!student) throw new NotFoundException('Student profile not found');
+    const date = new Date(dateStr);
+    if (isNaN(date.getTime())) throw new BadRequestException('Invalid date format');
+    return getTimetableForStudentDate(student.id, date);
   }
 }

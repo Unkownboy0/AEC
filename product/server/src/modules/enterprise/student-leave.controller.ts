@@ -164,4 +164,15 @@ export class StudentLeaveController {
       next(err);
     }
   }
+
+  async getTimetableForDate(req: Request, res: Response, next: NextFunction) {
+    try {
+      const userId = (req as any).user.id;
+      const dateStr = (req.query.date as string) || new Date().toISOString();
+      const data = await service.getTimetableForDate(userId, dateStr);
+      res.status(200).json({ status: 'success', data });
+    } catch (err) {
+      next(err);
+    }
+  }
 }
