@@ -14,6 +14,8 @@ import Roles from '../pages/admin/Roles';
 import { AcademicPortal } from '../pages/admin/AcademicPortal';
 import Users from '../pages/Users';
 import Settings from '../pages/admin/Settings';
+import Drive from '../pages/workspace/Drive';
+import DocEditor from '../pages/workspace/DocEditor';
 import MasterLists from '../pages/admin/MasterLists';
 import MediaLibrary from '../pages/admin/MediaLibrary';
 import BackupCenter from '../pages/admin/BackupCenter';
@@ -313,6 +315,8 @@ export const AppRouter: React.FC = () => {
           <Route path="backups" element={superAdminOnly(<BackupCenter />)} />
           <Route path="security-logs" element={superAdminOnly(<SecurityLogs />)} />
           <Route path="settings" element={superAdminOnly(<Settings />)} />
+          <Route path="workspace" element={<Drive />} />
+          <Route path="workspace/docs/:id" element={<DocEditor />} />
           <Route path="coe" element={<Navigate to="/coe/dashboard" replace />} />
           <Route path="coe/dashboard" element={<CoeWorkspacePage />} />
           <Route path="coe/exams" element={<Exams />} />

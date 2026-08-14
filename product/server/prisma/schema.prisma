@@ -421,6 +421,121 @@ model FeatureFlag {
   @@map("feature_flags")
 }
 
+// ==========================================
+// CAMPUSOS WORKSPACE (OFFICE SUITE) — PHASE A/B: DRIVE + DOCS
+// ==========================================
+
+model WorkspaceFolder {
+  id           String    @id @default(uuid())
+  name         String
+  ownerId      String
+  departmentId String?
+  scope        String    @default("PERSONAL") // PERSONAL | DEPARTMENT | INSTITUTION
+  parentId     String?
+  parent       WorkspaceFolder?  @relation("FolderTree", fields: [parentId], references: [id], onDelete: Cascade)
+  children     WorkspaceFolder[] @relation("FolderTree")
+  files        WorkspaceFile[]
+  archived     Boolean   @default(false)
+  deletedAt    DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([ownerId])
+  @@index([departmentId])
+  @@index([parentId])
+  @@map("workspace_folders")
+}
+
+model WorkspaceFile {
+  id             String    @id @default(uuid())
+  name           String
+  type           String    @default("DOCUMENT") // DOCUMENT | UPLOAD (more types land in later phases)
+  ownerId        String
+  departmentId   String?
+  folderId       String?
+  folder         WorkspaceFolder? @relation(fields: [folderId], references: [id], onDelete: SetNull)
+  scope          String    @default("PERSONAL") // PERSONAL | DEPARTMENT | INSTITUTION
+  content        String? // sanitized HTML for DOCUMENT type
+  templateKey    String?
+  mimeType       String?
+  storageKey     String? // relative path under the workspace uploads root, for UPLOAD type
+  fileSize       Int?
+  status         String    @default("DRAFT") // DRAFT | SUBMITTED | RETURNED | APPROVED | ARCHIVED
+  currentVersion Int       @default(1)
+  archived       Boolean   @default(false)
+  deletedAt      DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  versions WorkspaceFileVersion[]
+  shares   WorkspaceShare[]
+  comments WorkspaceComment[]
+  stars    WorkspaceStar[]
+
+  @@index([ownerId])
+  @@index([departmentId])
+  @@index([folderId])
+  @@map("workspace_files")
+}
+
+model WorkspaceFileVersion {
+  id          String   @id @default(uuid())
+  fileId      String
+  file        WorkspaceFile @relation(fields: [fileId], references: [id], onDelete: Cascade)
+  version     Int
+  content     String?
+  editorId    String
+  changeNote  String?
+  createdAt   DateTime @default(now())
+
+  @@index([fileId])
+  @@map("workspace_file_versions")
+}
+
+model WorkspaceShare {
+  id           String   @id @default(uuid())
+  fileId       String
+  file         WorkspaceFile @relation(fields: [fileId], references: [id], onDelete: Cascade)
+  scope        String // USER | ROLE | DEPARTMENT | INSTITUTION
+  userId       String?
+  roleName     String?
+  departmentId String?
+  permission   String   @default("VIEWER") // VIEWER | COMMENTER | EDITOR
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([fileId])
+  @@map("workspace_shares")
+}
+
+model WorkspaceComment {
+  id        String   @id @default(uuid())
+  fileId    String
+  file      WorkspaceFile @relation(fields: [fileId], references: [id], onDelete: Cascade)
+  authorId  String
+  body      String
+  parentId  String?
+  parent    WorkspaceComment?  @relation("CommentThread", fields: [parentId], references: [id], onDelete: Cascade)
+  replies   WorkspaceComment[] @relation("CommentThread")
+  resolved  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([fileId])
+  @@map("workspace_comments")
+}
+
+model WorkspaceStar {
+  id        String   @id @default(uuid())
+  fileId    String
+  file      WorkspaceFile @relation(fields: [fileId], references: [id], onDelete: Cascade)
+  userId    String
+  createdAt DateTime @default(now())
+
+  @@unique([fileId, userId])
+  @@map("workspace_stars")
+}
+
 model FeatureFlagOverride {
   id           String      @id @default(uuid())
   flagId       String

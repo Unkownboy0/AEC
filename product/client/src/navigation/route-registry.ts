@@ -63,8 +63,19 @@ const SUPER_ADMIN_ROUTES: NavEntry[] = [
   - order: controls sort within group (lower = higher)
 */
 
+const workspaceRoles = [
+  'Super Admin', 'SUPER_ADMIN', 'College Admin', 'Principal', 'PRINCIPAL', 'Vice Principal', 'VICE_PRINCIPAL',
+  'Academic Dean', 'ACADEMIC_DEAN', 'HOD', 'Head of Department', 'Faculty', 'FACULTY', 'FACULTY_MEMBER', 'faculty',
+  'Mentor', 'IQAC Dean', 'IQAC Executive Officer', 'IQAC Documentation Officer', 'Examination Cell', 'COE',
+  'Controller of Examinations', 'Accountant', 'ACCOUNTS_STAFF', 'ACCOUNTS_OFFICER', 'Student', 'STUDENT', 'student',
+];
+const WORKSPACE_ROUTES: NavEntry[] = [
+  { id: 'workspace-drive', label: 'Campus Workspace', description: 'Docs, drive and shared institutional files', icon: 'FolderKanban', path: '/workspace', roles: workspaceRoles, group: 'management', mobilePlacement: 'more', order: 90 },
+];
+
 export const ROUTE_REGISTRY: NavEntry[] = [
   ...SUPER_ADMIN_ROUTES,
+  ...WORKSPACE_ROUTES,
   ...ACCOUNTANT_FINANCE_ROUTES,
   ...AO_FINANCE_ROUTES,
   ...EXAMINATION_CELL_ROUTES,

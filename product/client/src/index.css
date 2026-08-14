@@ -464,3 +464,20 @@ img[src*="al-ameen-logo"] {
   opacity: var(--watermark-opacity-dark, 0.035) !important;
   filter: brightness(0) invert(1) opacity(0.6) contrast(110%) !important;
 }
+
+/* CAMPUS DOCS — A4 PAGE MODE */
+.doc-page {
+  box-sizing: border-box;
+}
+.doc-page table { border-collapse: collapse; width: 100%; }
+.doc-page td, .doc-page th { border: 1px solid #d1d5db; padding: 6px 8px; }
+.doc-page blockquote { border-left: 3px solid #cbd5e1; padding-left: 12px; color: #475569; }
+.doc-page pre { background: #f1f5f9; padding: 10px; border-radius: 6px; font-family: monospace; white-space: pre-wrap; }
+.doc-page img { max-width: 100%; }
+
+@media print {
+  @page { size: A4; margin: 20mm; }
+  body * { visibility: hidden; }
+  .doc-page, .doc-page * { visibility: visible; }
+  .doc-page { position: absolute; left: 0; top: 0; width: 100%; box-shadow: none; }
+}

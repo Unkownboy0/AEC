@@ -14,7 +14,7 @@
     "workspace:assign-coe": "ts-node src/scripts/assign-coe-workspace.ts",
     "verify:coe": "ts-node src/scripts/verify_coe_core.ts",
     "test": "npm run test:unit && npm run test:security",
-    "test:unit": "ts-node src/__tests__/workspace_access.test.ts && ts-node src/__tests__/student_access.test.ts && ts-node src/__tests__/integration_chains.test.ts",
+    "test:unit": "ts-node src/__tests__/workspace_access.test.ts && ts-node src/__tests__/student_access.test.ts && ts-node src/__tests__/integration_chains.test.ts && ts-node src/__tests__/feature_flags_resolve.test.ts && ts-node src/__tests__/workspace_sanitizer.test.ts && ts-node src/__tests__/workspace_permissions.test.ts && ts-node src/__tests__/workspace_merge_fields.test.ts",
     "test:security": "ts-node src/__tests__/security_boundaries.test.ts && ts-node src/__tests__/rbac_abac_boundaries.test.ts && ts-node src/__tests__/iqac_role_policy.test.ts && ts-node src/__tests__/settings_catalog.test.ts && ts-node src/__tests__/provisioning_validator.test.ts && ts-node src/__tests__/management_policy.test.ts && ts-node src/__tests__/principal_command_policy.test.ts && ts-node src/__tests__/vp_delegation_policy.test.ts && ts-node src/__tests__/administration_dean_policy.test.ts && ts-node src/__tests__/hod_department_scope.test.ts && ts-node src/__tests__/faculty_mentor_policy.test.ts",
     "db:inspect-baseline": "ts-node src/scripts/inspect_database_baseline.ts",
     "postinstall": "prisma generate"
