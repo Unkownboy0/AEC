@@ -1,9 +1,11 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { requireAuth, requireRole } from '../../core/middlewares/auth.middleware';
+import { requireFeature } from '../../core/middlewares/feature.middleware';
 import { IqacService } from './iqac.service';
 
 const router = Router();
 router.use(requireAuth);
+router.use(requireFeature('module.iqac'));
 const managers = [
   'IQAC Dean',
   'IQAC Executive Officer',

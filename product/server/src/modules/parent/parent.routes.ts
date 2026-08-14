@@ -1,10 +1,12 @@
 import { Router } from 'express';
 import { ParentController } from './parent.controller';
 import { requireAuth } from '../../core/middlewares/auth.middleware';
+import { requireFeature } from '../../core/middlewares/feature.middleware';
 
 const router = Router();
 
 router.use(requireAuth);
+router.use(requireFeature('feature.parent.portal'));
 
 router.get('/children', ParentController.getLinkedChildren);
 router.get('/child/:studentId/attendance', ParentController.getChildAttendance);
