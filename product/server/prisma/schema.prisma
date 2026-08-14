@@ -397,6 +397,46 @@ model SystemSetting {
   @@map("system_settings")
 }
 
+// ==========================================
+// PLATFORM CONTROL CENTER - FEATURE FLAG ENGINE
+// ==========================================
+
+model FeatureFlag {
+  id             String   @id @default(uuid())
+  key            String   @unique // e.g. "module.iqac", "feature.parent.portal"
+  name           String
+  description    String?
+  category       String   @default("feature") // module | feature | addon
+  status         String   @default("STABLE") // STABLE | BETA | EXPERIMENTAL | DEPRECATED
+  defaultEnabled Boolean  @default(false)
+  rolloutPercent Int      @default(100) // gradual rollout once defaultEnabled is true
+  startAt        DateTime? // scheduled activation
+  endAt          DateTime? // scheduled expiry
+  config         String? // JSON payload for feature-specific limits/config
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  overrides FeatureFlagOverride[]
+
+  @@map("feature_flags")
+}
+
+model FeatureFlagOverride {
+  id           String      @id @default(uuid())
+  flagId       String
+  flag         FeatureFlag @relation(fields: [flagId], references: [id], onDelete: Cascade)
+  scope        String // DEPARTMENT | ROLE | USER
+  departmentId String?
+  roleName     String?
+  userId       String?
+  enabled      Boolean
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  @@index([flagId])
+  @@map("feature_flag_overrides")
+}
+
 model AcademicYear {
   id                 String              @id @default(uuid())
   name               String              @unique // e.g. "2026-2027"

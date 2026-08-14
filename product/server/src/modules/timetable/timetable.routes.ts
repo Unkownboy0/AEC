@@ -1,11 +1,13 @@
 import { Router } from 'express';
 import { TimetableController } from './timetable.controller';
 import { requireAuth, requireRole } from '../../core/middlewares/auth.middleware';
+import { requireFeature } from '../../core/middlewares/feature.middleware';
 
 const router = Router();
 const controller = new TimetableController();
 
 router.use(requireAuth);
+router.use(requireFeature('module.timetable'));
 
 router.get('/slots', controller.listSlots);
 router.post('/slots', requireRole(['HOD', 'Academic Dean', 'Examination Cell', 'COE']), controller.createSlot);
