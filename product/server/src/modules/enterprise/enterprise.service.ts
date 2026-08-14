@@ -364,29 +364,15 @@ export class EnterpriseService {
     const phoneExists = await prisma.faculty.findFirst({ where: { phone, deleted: false } });
     if (phoneExists) throw new BadRequestException(`Mobile Number '${phone}' is already registered by another faculty member.`);
 
-    // 1. Resolve role name based on designation
-    let targetRoleName = 'Faculty';
-    const des = designation.toUpperCase();
-    if (des.includes('HOD') || des.includes('HEAD')) {
-      targetRoleName = 'HOD';
-    } else if (des.includes('ACADEMIC DEAN') || des.includes('DEAN OF ACADEMICS')) {
-      targetRoleName = 'Academic Dean';
-    } else if (des.includes('ADMISSION DEAN') || des.includes('DEAN OF ADMISSIONS') || des.includes('DEAN (ADMISSIONS)')) {
-      targetRoleName = 'Admission Dean';
-    } else if (des.includes('VICE PRINCIPAL') || des.includes('VP')) {
-      targetRoleName = 'Vice Principal';
-    } else if (des.includes('PRINCIPAL')) {
-      targetRoleName = 'Principal';
-    }
-
-    let facultyRole = await prisma.role.findFirst({ where: { name: targetRoleName } });
+    // Security role is never inferred from the free-text `designation` field.
+    // This endpoint only ever provisions the baseline 'Faculty' access role;
+    // elevated roles (HOD, Dean, Principal, etc.) must be granted explicitly
+    // through authorized role-management (Super Admin / College Admin role assignment).
+    let facultyRole = await prisma.role.findFirst({ where: { name: 'Faculty' } });
     if (!facultyRole) {
-      facultyRole = await prisma.role.findFirst({ where: { name: 'Faculty' } });
-      if (!facultyRole) {
-        facultyRole = await prisma.role.create({
-          data: { name: 'Faculty', description: 'Faculty Access Role', color: '#10b981', icon: 'UserCheck' }
-        });
-      }
+      facultyRole = await prisma.role.create({
+        data: { name: 'Faculty', description: 'Faculty Access Role', color: '#10b981', icon: 'UserCheck' }
+      });
     }
 
     // 2. Resolve email/username identifier

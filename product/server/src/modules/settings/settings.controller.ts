@@ -24,6 +24,65 @@ export class SettingsController {
       next(error);
     }
   };
+
+  /**
+   * Get active institutional branding and watermark configurations
+   */
+  getBranding = async (_req: Request, res: Response, next: NextFunction) => {
+    try {
+      const dbSettings = await prisma.systemSetting.findMany({
+        where: {
+          key: {
+            in: [
+              'COLLEGE_NAME',
+              'COLLEGE_ADDRESS',
+              'COLLEGE_PHONE',
+              'COLLEGE_WEBSITE',
+              'BRAND_COLOR',
+              'WATERMARK_ENABLED',
+              'WATERMARK_LOGO_URL',
+              'WATERMARK_OPACITY',
+              'WATERMARK_POSITION',
+              'WATERMARK_APPLY_PDF',
+              'WATERMARK_APPLY_PRINT',
+              'WATERMARK_APPLY_CERTIFICATES',
+              'WATERMARK_APPLY_RECEIPTS',
+              'WATERMARK_APPLY_DOCS',
+            ],
+          },
+        },
+      });
+
+      const map: Record<string, string> = {};
+      dbSettings.forEach((item) => {
+        map[item.key] = item.value;
+      });
+
+      res.status(200).json({
+        status: 'success',
+        data: {
+          collegeName: map['COLLEGE_NAME'] || 'Al-Ameen Engineering College',
+          collegeAddress: map['COLLEGE_ADDRESS'] || 'Karungalpalayam, Erode, Tamil Nadu 638104',
+          collegePhone: map['COLLEGE_PHONE'] || '+91 424 2500354',
+          collegeWebsite: map['COLLEGE_WEBSITE'] || 'https://alameen.ac.in',
+          brandColor: map['BRAND_COLOR'] || '#4f46e5',
+          watermark: {
+            enabled: map['WATERMARK_ENABLED'] !== 'false',
+            logoUrl: map['WATERMARK_LOGO_URL'] || '/branding/al-ameen-logo.png',
+            opacity: parseInt(map['WATERMARK_OPACITY'] || '4', 10),
+            position: map['WATERMARK_POSITION'] || 'CENTER',
+            applyPdf: map['WATERMARK_APPLY_PDF'] !== 'false',
+            applyPrint: map['WATERMARK_APPLY_PRINT'] !== 'false',
+            applyCertificates: map['WATERMARK_APPLY_CERTIFICATES'] !== 'false',
+            applyReceipts: map['WATERMARK_APPLY_RECEIPTS'] !== 'false',
+            applyDocs: map['WATERMARK_APPLY_DOCS'] !== 'false',
+          },
+        },
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
   /**
    * List all settings key-value pairs
    */

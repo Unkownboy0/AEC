@@ -103,4 +103,115 @@ export class FacultyLeaveNotificationService {
 
     facultyLeaveEvents.emit(`faculty.request.${action.toLowerCase()}`, { requestId: request.id, facultyUserId });
   }
+
+  /**
+   * Send notification to Substitute Faculty, Home HOD, Cross-Department HODs, and Applicant on Principal final approval.
+   */
+  static async notifySubstitutesAndStakeholdersOnApproval(params: {
+    request: any;
+    substitutions: any[];
+    applicantFaculty: any;
+  }) {
+    const { request, substitutions, applicantFaculty } = params;
+
+    // 1. Notify each assigned substitute faculty
+    const substituteMap = new Map<string, any[]>();
+    for (const sub of substitutions) {
+      if (sub.assignedSubstituteId) {
+        const list = substituteMap.get(sub.assignedSubstituteId) || [];
+        list.push(sub);
+        substituteMap.set(sub.assignedSubstituteId, list);
+      }
+    }
+
+    for (const [subFacultyId, sessions] of substituteMap.entries()) {
+      const subFaculty = await prisma.faculty.findUnique({
+        where: { id: subFacultyId },
+        include: { user: true },
+      });
+
+      if (subFaculty && subFaculty.userId) {
+        const sessionCount = sessions.length;
+        const firstSession = sessions[0];
+        const title = 'Substitution Duty Assigned';
+        const body = `You have been assigned as substitute for ${sessionCount} class session(s) (${firstSession.subjectName} - ${firstSession.periodDisplay}) for ${applicantFaculty.firstName} ${applicantFaculty.lastName} on ${firstSession.date}.`;
+        const deepLink = `/faculty/timetable`;
+
+        await prisma.notification.create({
+          data: {
+            recipientId: subFaculty.userId,
+            eventType: 'SUBSTITUTE_DUTY_ASSIGNED',
+            title,
+            message: body,
+            relatedEntityType: 'TimetableSlotOverride',
+            relatedEntityId: request.id,
+            deepLinkRoute: deepLink,
+            deliveryChannel: 'IN_APP',
+            deliveryState: 'DELIVERED',
+          },
+        }).catch(() => {});
+
+        await PushDispatchService.sendToUsers([subFaculty.userId], {
+          title,
+          body,
+          data: {
+            type: 'SUBSTITUTE_DUTY_ASSIGNED',
+            requestId: request.id,
+            deepLink,
+            nativeDeepLink: `campusos://faculty/timetable`,
+          },
+        });
+      }
+    }
+
+    // 2. Notify cross-department HODs where classes were substituted
+    const crossDeptIds = new Set<string>();
+    for (const sub of substitutions) {
+      if (sub.departmentId && sub.departmentId !== applicantFaculty.departmentId) {
+        crossDeptIds.add(sub.departmentId);
+      }
+    }
+
+    for (const deptId of crossDeptIds) {
+      const deptHod = await prisma.user.findFirst({
+        where: { departmentId: deptId, role: { name: 'HOD' } },
+      });
+      if (deptHod) {
+        const title = 'Cross-Department Substitution Active';
+        const body = `Approved leave substitution for ${applicantFaculty.firstName} ${applicantFaculty.lastName} in your department classes has been activated.`;
+        await prisma.notification.create({
+          data: {
+            recipientId: deptHod.id,
+            eventType: 'CROSS_DEPT_SUBSTITUTION_ACTIVE',
+            title,
+            message: body,
+            relatedEntityType: 'WorkflowRequest',
+            relatedEntityId: request.id,
+            deepLinkRoute: `/hod/faculty-requests`,
+            deliveryChannel: 'IN_APP',
+            deliveryState: 'DELIVERED',
+          },
+        }).catch(() => {});
+      }
+    }
+
+    // 3. Notify applicant faculty
+    if (applicantFaculty.userId) {
+      const title = 'Leave / OD Approved & Substitutions Activated';
+      const body = `Your ${request.leaveType || 'Leave'} application (${request.requestNumber}) has been approved by the Principal. All ${substitutions.length} class substitution(s) are active.`;
+      await prisma.notification.create({
+        data: {
+          recipientId: applicantFaculty.userId,
+          eventType: 'FACULTY_LEAVE_APPROVED_PRINCIPAL',
+          title,
+          message: body,
+          relatedEntityType: 'WorkflowRequest',
+          relatedEntityId: request.id,
+          deepLinkRoute: `/faculty/leave-od/${request.id}`,
+          deliveryChannel: 'IN_APP',
+          deliveryState: 'DELIVERED',
+        },
+      }).catch(() => {});
+    }
+  }
 }

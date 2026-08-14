@@ -118,6 +118,13 @@ model User {
   financeRequestsReviewed    FinanceRequest[]                @relation("FinanceRequestReviewer")
   reconciliationAssignments FinanceReconciliation[]         @relation("FinanceReconciliationAssignee")
   financeAuditActions        FinancialAuditLog[]             @relation("FinancialAuditActor")
+  authoredOfficeDocs         CampusOfficeDocument[]          @relation("OfficeDocAuthor")
+  authoredDocVersions        CampusDocumentVersion[]
+  authoredDocComments        CampusDocumentComment[]
+  ownedDriveItems            CampusDriveItem[]
+  publishedTimetableRevisions TimetableRevision[]            @relation("TimetableRevisionPublisher")
+  uploadedTimetableBatches   TimetableImportBatch[]
+  resolvedTimetableIssues    TimetableIssueReport[]          @relation("IssueReportResolver")
 
   @@index([email])
   @@index([username])
@@ -419,6 +426,9 @@ model AcademicYear {
   updatedAt          DateTime            @updatedAt
   MentorAssignment   MentorAssignment[]
   teachingGroups     TeachingGroup[]
+  timetableRevisions TimetableRevision[]
+  timetableImportBatches TimetableImportBatch[]
+  facultyAllocations DepartmentFacultyAllocation[]
 
   @@map("academic_years")
 }
@@ -479,6 +489,16 @@ model Department {
   teachingGroupMemberships      TeachingGroupDepartment[]
   iqacAuditAssignments          IqacAuditDepartment[]
   iqacEvidence                  IqacEvidence[]
+  homeTeachingAssignments       FacultyTeachingAssignment[]    @relation("HomeDeptAssignments")
+  teachingAssignments           FacultyTeachingAssignment[]    @relation("TeachingDeptAssignments")
+  transfersFrom                 FacultyDepartmentTransfer[]    @relation("TransferFromDept")
+  transfersTo                   FacultyDepartmentTransfer[]    @relation("TransferToDept")
+  officeDocuments               CampusOfficeDocument[]
+  driveItems                    CampusDriveItem[]
+  timetableRevisions            TimetableRevision[]
+  timetableImportBatches        TimetableImportBatch[]
+  timetableIssueReports         TimetableIssueReport[]
+  facultyAllocations            DepartmentFacultyAllocation[]
 
   @@map("departments")
 }
@@ -584,6 +604,9 @@ model Semester {
   createdAt          DateTime            @default(now())
   updatedAt          DateTime            @updatedAt
   MentorAssignment   MentorAssignment[]
+  timetableRevisions TimetableRevision[]
+  timetableImportBatches TimetableImportBatch[]
+  facultyAllocations DepartmentFacultyAllocation[]
 
   @@unique([number, courseId])
   @@index([courseId])
@@ -618,6 +641,7 @@ model Section {
   subjectAssignments       SubjectAssignment[]
   assignments              Assignment[]
   teachingGroupMemberships TeachingGroupSection[]
+  facultyAllocations       DepartmentFacultyAllocation[]
   createdAt                DateTime               @default(now())
   updatedAt                DateTime               @updatedAt
   MentorAssignment         MentorAssignment[]
@@ -666,7 +690,7 @@ model Subject {
   programId    String
   program      Program    @relation(fields: [programId], references: [id], onDelete: Cascade)
   sectionId    String?
-  section      Section?   @relation(fields: [sectionId], references: [id], onDelete: SetNull)
+  section      Section?   @relation(fields: [sectionId], references: [id], onDelete: Cascade)
 
   attendances        Attendance[]
   marks              Mark[]
@@ -674,12 +698,14 @@ model Subject {
   subjectAssignments SubjectAssignment[]
   assignments        Assignment[]
   teachingGroups     TeachingGroup[]
+  facultyAllocations DepartmentFacultyAllocation[]
 
   courseOutcomes    CourseOutcome[]
   curriculumUnits   CurriculumUnit[]
   materials         CurriculumMaterial[]
   questionBankItems QuestionBankItem[]
   labExperiments    LabExperiment[]
+  teachingAssignments FacultyTeachingAssignment[]
 
   archived   Boolean   @default(false)
   archivedAt DateTime?
@@ -1156,6 +1182,11 @@ model Faculty {
   reviewedStudentLeaves       StudentLeaveRequest[] @relation("MentorLeaveReview")
   appliedLeaves               FacultyLeaveRequest[] @relation("FacultyLeaveApplicant")
   teachingGroups              TeachingGroup[]
+  teachingAssignments         FacultyTeachingAssignment[]
+  departmentTransfers         FacultyDepartmentTransfer[]
+  leaveLedgerEntries          FacultyLeaveLedger[]
+  timetableIssueReports       TimetableIssueReport[]
+  facultyAllocations          DepartmentFacultyAllocation[]
 
   archived   Boolean   @default(false)
   archivedAt DateTime?
@@ -1814,30 +1845,40 @@ model WorkflowHistory {
 }
 
 model TimetableSlot {
-  id        String @id @default(uuid())
-  dayOfWeek String // MONDAY, TUESDAY, WEDNESDAY, THURSDAY, FRIDAY, SATURDAY
-  slotIndex Int // 1, 2, 3, 4, 5, 6, 7, 8
-  startTime String // e.g. "09:00"
-  endTime   String // e.g. "09:50"
+  id             String             @id @default(uuid())
+  dayOfWeek      String             // MONDAY, TUESDAY, WEDNESDAY, THURSDAY, FRIDAY, SATURDAY
+  slotIndex      Int                // 1, 2, 3, 4, 5, 6, 7, 8
+  startTime      String             // e.g. "09:00"
+  endTime        String             // e.g. "09:50"
 
   academicYearId String
-  academicYear   AcademicYear @relation(fields: [academicYearId], references: [id], onDelete: Cascade)
+  academicYear   AcademicYear       @relation(fields: [academicYearId], references: [id], onDelete: Cascade)
   departmentId   String
-  department     Department   @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  department     Department         @relation(fields: [departmentId], references: [id], onDelete: Cascade)
   semesterId     String
-  semester       Semester     @relation(fields: [semesterId], references: [id], onDelete: Cascade)
+  semester       Semester           @relation(fields: [semesterId], references: [id], onDelete: Cascade)
   sectionId      String
-  section        Section      @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  section        Section            @relation(fields: [sectionId], references: [id], onDelete: Cascade)
   subjectId      String
-  subject        Subject      @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  subject        Subject            @relation(fields: [subjectId], references: [id], onDelete: Cascade)
   facultyId      String
-  faculty        Faculty      @relation(fields: [facultyId], references: [id], onDelete: Cascade)
+  faculty        Faculty            @relation(fields: [facultyId], references: [id], onDelete: Cascade)
 
-  roomNo    String
-  isLab     Boolean  @default(false)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  roomNo         String?
+  isLab          Boolean            @default(false)
+  slotType       String             @default("THEORY") // THEORY, LAB, TUTORIAL, MENTOR, MINI_PROJECT, SEMINAR
+  revisionId     String?
+  revision       TimetableRevision? @relation(fields: [revisionId], references: [id], onDelete: SetNull)
+  status         String             @default("ACTIVE") // ACTIVE, DRAFT, SUPERSEDED, CANCELLED
+  overrides      TimetableSlotOverride[]
+  issueReports   TimetableIssueReport[]
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
 
+  @@index([facultyId, dayOfWeek, slotIndex])
+  @@index([roomNo, dayOfWeek, slotIndex])
+  @@index([departmentId, academicYearId, semesterId])
+  @@index([revisionId])
   @@map("timetable_slots")
 }
 
@@ -6295,4 +6336,373 @@ model WorkflowDefinition {
   @@unique([code, version])
   @@index([module, isActive])
   @@map("workflow_definitions")
+}
+
+// ==========================================
+// CROSS-DEPARTMENT FACULTY & TRANSFER SUITE
+// ==========================================
+
+model FacultyTeachingAssignment {
+  id                   String     @id @default(uuid())
+  facultyId            String
+  faculty              Faculty    @relation(fields: [facultyId], references: [id], onDelete: Cascade)
+  homeDepartmentId     String
+  homeDepartment       Department @relation("HomeDeptAssignments", fields: [homeDepartmentId], references: [id], onDelete: Cascade)
+  teachingDepartmentId String
+  teachingDepartment   Department @relation("TeachingDeptAssignments", fields: [teachingDepartmentId], references: [id], onDelete: Cascade)
+  subjectId            String
+  subject              Subject    @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  semesterId           String?
+  sectionId            String?
+  academicYearId       String?
+  periodsPerWeek       Int        @default(3)
+  startDate            DateTime   @default(now())
+  endDate              DateTime?
+  status               String     @default("ACTIVE") // DRAFT, REQUESTED, APPROVED, ACTIVE, COMPLETED, CANCELLED
+  requestedById        String?
+  approvedById         String?
+  remarks              String?
+  createdAt            DateTime   @default(now())
+  updatedAt            DateTime   @updatedAt
+
+  @@index([facultyId])
+  @@index([homeDepartmentId])
+  @@index([teachingDepartmentId])
+  @@index([status])
+  @@map("faculty_teaching_assignments")
+}
+
+model FacultyDepartmentTransfer {
+  id                  String     @id @default(uuid())
+  transferNumber      String     @unique
+  facultyId           String
+  faculty             Faculty    @relation(fields: [facultyId], references: [id], onDelete: Cascade)
+  fromDepartmentId    String
+  fromDepartment      Department @relation("TransferFromDept", fields: [fromDepartmentId], references: [id], onDelete: Cascade)
+  toDepartmentId      String
+  toDepartment        Department @relation("TransferToDept", fields: [toDepartmentId], references: [id], onDelete: Cascade)
+  effectiveDate       DateTime
+  reason              String
+  designationImpact   String?
+  handoverNotes       String?    // JSON: { mentorHandover, subjectHandover, assetHandover }
+  supportingDocUrl    String?
+  status              String     @default("PROPOSED") // PROPOSED, RECEIVING_HOD_APPROVED, HR_APPROVED, VP_APPROVED, PRINCIPAL_APPROVED, COMPLETED, REJECTED
+  currentApproverRole String     @default("RECEIVING_HOD")
+  approvalHistory     String     @default("[]") // JSON: [{ role, approverId, approverName, action, comments, timestamp }]
+  initiatedById       String
+  completedAt         DateTime?
+  createdAt           DateTime   @default(now())
+  updatedAt           DateTime   @updatedAt
+
+  @@index([facultyId])
+  @@index([fromDepartmentId])
+  @@index([toDepartmentId])
+  @@index([status])
+  @@map("faculty_department_transfers")
+}
+
+// ==========================================
+// FACULTY LEAVE POLICY & TRANSACTIONAL LEDGER
+// ==========================================
+
+model FacultyLeavePolicy {
+  id                      String   @id @default(uuid())
+  leaveType               String   @unique // CASUAL_LEAVE, MEDICAL_LEAVE, EARNED_LEAVE, ON_DUTY, MATERNITY_LEAVE, STUDY_LEAVE
+  name                    String
+  annualQuota             Float    @default(12)
+  monthlyLimit            Float?   @default(3)
+  consecutiveLimit        Float?   @default(3)
+  carryForwardAllowed     Boolean  @default(false)
+  maxCarryForward         Float?   @default(0)
+  minAdvanceNoticeDays    Int      @default(1)
+  attachmentRequired      Boolean  @default(false)
+  attachmentThresholdDays Int      @default(3)
+  halfDayAllowed          Boolean  @default(true)
+  probationAllowed        Boolean  @default(true)
+  blackoutDates           String   @default("[]") // JSON dates e.g. exam weeks
+  isActive                Boolean  @default(true)
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+
+  @@map("faculty_leave_policies")
+}
+
+model FacultyLeaveLedger {
+  id                 String   @id @default(uuid())
+  facultyId          String
+  faculty            Faculty  @relation(fields: [facultyId], references: [id], onDelete: Cascade)
+  leaveType          String   // CASUAL_LEAVE, MEDICAL_LEAVE, EARNED_LEAVE, ON_DUTY
+  academicYear       String   @default("2026-2027")
+  openingBalance     Float
+  credit             Float    @default(0)
+  debit              Float    @default(0)
+  adjustment         Float    @default(0)
+  closingBalance     Float
+  transactionType    String   // CREDIT_ANNUAL, DEBIT_LEAVE, REVERSAL_CANCELLATION, ADJUSTMENT_HR
+  referenceRequestId String?
+  remarks            String?
+  approvedBy         String?
+  createdAt          DateTime @default(now())
+
+  @@index([facultyId, leaveType, academicYear])
+  @@index([referenceRequestId])
+  @@map("faculty_leave_ledger")
+}
+
+model TimetableSlotOverride {
+  id                  String        @id @default(uuid())
+  timetableSlotId     String
+  timetableSlot       TimetableSlot @relation(fields: [timetableSlotId], references: [id], onDelete: Cascade)
+  date                DateTime
+  dayOfWeek           String
+  periodNumber        Int           @default(1)
+  originalFacultyId   String
+  substituteFacultyId String
+  leaveRequestId      String?
+  status              String    @default("ACTIVE") // ACTIVE, COMPLETED, CANCELLED
+  attendanceTaken     Boolean   @default(false)
+  attendanceTakenAt   DateTime?
+  attendanceNotes     String?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  @@unique([timetableSlotId, date])
+  @@index([originalFacultyId, date])
+  @@index([substituteFacultyId, date])
+  @@index([leaveRequestId])
+  @@map("timetable_slot_overrides")
+}
+
+// ==========================================
+// CAMPUS OFFICE PRODUCTIVITY SUITE
+// ==========================================
+
+model CampusOfficeDocument {
+  id                 String                  @id @default(uuid())
+  title              String
+  type               String                  @default("DOC") // DOC, SHEET, SLIDE, FORM, REPORT, PDF, NOTE
+  category           String                  @default("GENERAL") // ACADEMIC, DEPARTMENT, IQAC, REPORT, MINUTES, CURRICULUM, PERSONAL
+  contentJson        String                  @default("{}") // Structured rich document / sheet / slide / form definition JSON
+  contentHtml        String?                 // Rendered HTML snapshot for fast preview / export
+  templateKey        String?                 // E.g. "DEPT_MONTHLY_REPORT", "MEETING_MINUTES", "IQAC_DATA_COLLECTION"
+  authorId           String
+  author             User                    @relation("OfficeDocAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  departmentId       String?
+  department         Department?             @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  currentVersion     Int                     @default(1)
+  status             String                  @default("DRAFT") // DRAFT, SUBMITTED, IN_REVIEW, RETURNED, APPROVED, PUBLISHED, ARCHIVED
+  targetScope        String                  @default("PRIVATE") // PRIVATE, DEPARTMENT, SPECIFIC_USERS, ROLES, ALL_CAMPUS
+  targetUsers        String                  @default("[]") // JSON array of user IDs
+  targetRoles        String                  @default("[]") // JSON array of role names
+  workflowStep       String?                 // HOD, DEAN, VP, PRINCIPAL
+  assignedReviewerId String?
+  isLocked           Boolean                 @default(false)
+  lockedById         String?
+  lockedAt           DateTime?
+  tags               String                  @default("[]")
+  metadata           String                  @default("{}") // Attachments, tokens, export settings
+  versions           CampusDocumentVersion[]
+  comments           CampusDocumentComment[]
+  formResponses      CampusFormResponse[]
+  createdAt          DateTime                @default(now())
+  updatedAt          DateTime                @updatedAt
+
+  @@index([authorId])
+  @@index([departmentId])
+  @@index([type])
+  @@index([status])
+  @@map("campus_office_documents")
+}
+
+model CampusDocumentVersion {
+  id              String               @id @default(uuid())
+  documentId      String
+  document        CampusOfficeDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  versionNumber   Int
+  contentSnapshot String               // JSON snapshot
+  changeSummary   String?
+  authorId        String
+  author          User                 @relation(fields: [authorId], references: [id])
+  createdAt       DateTime             @default(now())
+
+  @@unique([documentId, versionNumber])
+  @@index([documentId])
+  @@map("campus_document_versions")
+}
+
+model CampusDocumentComment {
+  id           String               @id @default(uuid())
+  documentId   String
+  document     CampusOfficeDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  authorId     String
+  author       User                 @relation(fields: [authorId], references: [id])
+  commentText  String
+  resolved     Boolean              @default(false)
+  resolvedById String?
+  resolvedAt   DateTime?
+  anchorData   String?              // JSON for inline anchor position / selection
+  createdAt    DateTime             @default(now())
+  updatedAt    DateTime             @updatedAt
+
+  @@index([documentId])
+  @@map("campus_document_comments")
+}
+
+model CampusFormResponse {
+  id              String               @id @default(uuid())
+  documentId      String
+  document        CampusOfficeDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  respondentId    String?
+  respondentEmail String?
+  respondentName  String?
+  answersJson     String               // JSON { questionId: value }
+  status          String               @default("SUBMITTED") // DRAFT, SUBMITTED
+  submittedAt     DateTime             @default(now())
+
+  @@index([documentId])
+  @@index([respondentId])
+  @@map("campus_form_responses")
+}
+
+model CampusDriveItem {
+  id           String      @id @default(uuid())
+  name         String
+  isFolder     Boolean     @default(false)
+  parentId     String?
+  mimeType     String?
+  fileSize     Int?        @default(0)
+  fileUrl      String?
+  documentId   String?
+  ownerId      String
+  owner        User        @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  departmentId String?
+  department   Department? @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  scope        String      @default("PERSONAL") // PERSONAL, DEPARTMENT, SHARED_WITH_ME, COLLEGE_DRIVE
+  permissions  String      @default("[]") // JSON [{ userId, roleName, permission: "VIEW" | "COMMENT" | "EDIT" | "DOWNLOAD" }]
+  isStarred    Boolean     @default(false)
+  isTrashed    Boolean     @default(false)
+  trashedAt    DateTime?
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  @@index([ownerId])
+  @@index([departmentId])
+  @@index([parentId])
+  @@index([scope])
+  @@map("campus_drive_items")
+}
+
+// ==========================================
+// HOD CONTROLLED TIMETABLE MANAGEMENT SYSTEM
+// ==========================================
+
+model TimetableRevision {
+  id              String          @id @default(uuid())
+  revisionNumber  Int             @default(0) // 0, 1, 2...
+  revisionCode    String          // E.g. "REV-00", "REV-01"
+  departmentId    String
+  department      Department      @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  academicYearId  String
+  academicYear    AcademicYear    @relation(fields: [academicYearId], references: [id], onDelete: Cascade)
+  semesterId      String
+  semester        Semester        @relation(fields: [semesterId], references: [id], onDelete: Cascade)
+  effectiveFrom   DateTime        @default(now()) // W.E.F date
+  status          String          @default("DRAFT") // DRAFT, UNDER_REVIEW, APPROVED, PUBLISHED, SUPERSEDED, ARCHIVED
+  publishedById   String?
+  publishedBy     User?           @relation("TimetableRevisionPublisher", fields: [publishedById], references: [id])
+  publishedAt     DateTime?
+  changeSummary   String?
+  comparisonDiff  String?         @default("{}") // JSON diff: { added: [], removed: [], modified: [] }
+  slots           TimetableSlot[]
+  importBatches   TimetableImportBatch[]
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  @@unique([departmentId, academicYearId, semesterId, revisionNumber])
+  @@index([departmentId, status])
+  @@index([effectiveFrom])
+  @@map("timetable_revisions")
+}
+
+model TimetableImportBatch {
+  id               String             @id @default(uuid())
+  departmentId     String
+  department       Department         @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  academicYearId   String
+  academicYear     AcademicYear       @relation(fields: [academicYearId], references: [id], onDelete: Cascade)
+  semesterId       String
+  semester         Semester           @relation(fields: [semesterId], references: [id], onDelete: Cascade)
+  revisionId       String?
+  revision         TimetableRevision? @relation(fields: [revisionId], references: [id], onDelete: SetNull)
+  sourceFileName   String
+  fileUrl          String?
+  fileType         String             @default("XLSX") // XLSX, CSV, PDF, IMAGE
+  totalRows        Int                @default(0)
+  validRows        Int                @default(0)
+  warningRows      Int                @default(0)
+  errorRows        Int                @default(0)
+  conflictRows     Int                @default(0)
+  mappingJson      String             @default("{}") // Column header mappings
+  parsedRowsJson   String             @default("[]") // Extracted slot objects
+  errorsJson       String             @default("[]") // Detailed errors & suggestions
+  status           String             @default("UPLOADED") // UPLOADED, MAPPED, VALIDATED, DRAFT_SAVED, PUBLISHED, FAILED
+  uploadedById     String
+  uploadedBy       User               @relation(fields: [uploadedById], references: [id])
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+
+  @@index([departmentId, status])
+  @@map("timetable_import_batches")
+}
+
+model TimetableIssueReport {
+  id              String         @id @default(uuid())
+  facultyId       String
+  faculty         Faculty        @relation(fields: [facultyId], references: [id], onDelete: Cascade)
+  departmentId    String
+  department      Department     @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  timetableSlotId String?
+  timetableSlot   TimetableSlot? @relation(fields: [timetableSlotId], references: [id], onDelete: SetNull)
+  category        String         // WRONG_COURSE, WRONG_VENUE, TIMING_CONFLICT, MISSING_CLASS, OTHER
+  description     String
+  status          String         @default("PENDING") // PENDING, INVESTIGATING, RESOLVED, REJECTED
+  resolutionNotes String?
+  resolvedById    String?
+  resolvedBy      User?          @relation("IssueReportResolver", fields: [resolvedById], references: [id])
+  resolvedAt      DateTime?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  @@index([departmentId, status])
+  @@index([facultyId])
+  @@map("timetable_issue_reports")
+}
+
+model DepartmentFacultyAllocation {
+  id                   String       @id @default(uuid())
+  departmentId         String
+  department           Department   @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  academicYearId       String
+  academicYear         AcademicYear @relation(fields: [academicYearId], references: [id], onDelete: Cascade)
+  semesterId           String
+  semester             Semester     @relation(fields: [semesterId], references: [id], onDelete: Cascade)
+  sectionId            String
+  section              Section      @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  subjectId            String
+  subject              Subject      @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  facultyId            String
+  faculty              Faculty      @relation(fields: [facultyId], references: [id], onDelete: Cascade)
+  requiredTheoryHours  Int          @default(4)
+  requiredLabHours     Int          @default(0)
+  allocatedTheoryHours Int          @default(0)
+  allocatedLabHours    Int          @default(0)
+  isCrossDepartment    Boolean      @default(false)
+  status               String       @default("ACTIVE") // ACTIVE, ARCHIVED
+  createdAt            DateTime     @default(now())
+  updatedAt            DateTime     @updatedAt
+
+  @@unique([departmentId, semesterId, sectionId, subjectId, facultyId, academicYearId])
+  @@index([departmentId, academicYearId])
+  @@index([facultyId])
+  @@map("department_faculty_allocations")
 }

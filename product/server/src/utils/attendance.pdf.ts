@@ -3,6 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import { prisma } from '../lib/prisma';
 import { BadRequestException } from './exceptions';
+import { PdfWatermarkService } from '../services/pdf-watermark.service';
 
 interface AttendanceReportData {
   student: any;
@@ -40,6 +41,9 @@ export async function generateAttendanceReportPdf(data: AttendanceReportData): P
       size: 'A4',
       margins: { top: 40, bottom: 40, left: 40, right: 40 }
     });
+
+    // Apply institutional watermark across all pages
+    PdfWatermarkService.applyWatermark(doc);
 
     const chunks: Buffer[] = [];
     doc.on('data', (chunk) => chunks.push(chunk));

@@ -70,12 +70,12 @@ export const MentorDashboardPage: React.FC = () => {
     );
   }
 
-  const assignedStudents = data?.assignedStudents || data?.totalStudents || 0;
-  const presentToday = data?.presentToday || 0;
-  const absentToday = data?.absentToday || 0;
-  const pendingLeaveCount = data?.pendingLeaveCount || data?.pendingApprovalsCount || 0;
-  const criticalAttendanceCount = data?.criticalAttendanceCount || 0;
-  const academicRiskCount = data?.academicRiskCount || 0;
+  const assignedStudents = data?.metrics?.totalAssignedStudents || data?.assignedStudents || data?.totalStudents || 0;
+  const presentToday = data?.metrics?.presentToday || data?.presentToday || 0;
+  const absentToday = data?.metrics?.absentToday || data?.absentToday || 0;
+  const pendingLeaveCount = data?.metrics?.pendingLeaveOdApprovals || data?.pendingLeaveCount || data?.pendingApprovalsCount || 0;
+  const criticalAttendanceCount = data?.metrics?.attendanceRiskCount ?? data?.criticalAttendanceCount ?? 0;
+  const academicRiskCount = data?.metrics?.academicRiskCount ?? data?.academicRiskCount ?? 0;
 
   const pendingApprovals = data?.pendingApprovals || [];
   const riskStudents = data?.riskStudents || [];
@@ -324,10 +324,13 @@ export const MentorDashboardPage: React.FC = () => {
                   className="p-3.5 bg-surface-soft border border-border/70 rounded-xl flex items-center justify-between gap-3 hover:border-primary/40 transition-all"
                 >
                   <div>
-                    <h4 className="font-bold text-xs text-text-primary">{st.name} ({st.rollNo})</h4>
+                    <h4 className="font-bold text-xs text-text-primary">{st.name} ({st.admissionNo || st.rollNo})</h4>
                     <p className="text-[11px] text-text-muted mt-0.5">
-                      Attendance: <span className="font-bold text-rose-600 dark:text-rose-400">{st.attendancePercentage}%</span> • Arrears: {st.arrearsCount || 0}
+                      Attendance: <span className="font-bold text-rose-600 dark:text-rose-400">{st.attendancePercent ?? st.attendancePercentage ?? '—'}%</span> • Arrears: {st.arrearCount ?? st.arrearsCount ?? 0}
                     </p>
+                    {st.reason && (
+                      <p className="text-[10px] text-rose-600 dark:text-rose-400 mt-1">{st.reason}</p>
+                    )}
                   </div>
                   <button
                     type="button"

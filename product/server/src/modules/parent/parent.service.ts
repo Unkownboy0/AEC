@@ -190,19 +190,19 @@ export class ParentService {
     await this.verifyParentChildLink(userId, studentId);
 
     const payments = await prisma.feePayment.findMany({
-      where: { studentId, deleted: false },
-      include: { feeBill: { include: { category: true } } },
-      orderBy: { paymentDate: 'desc' },
+      where: { studentId },
+      include: { bill: { include: { category: true } } },
+      orderBy: { createdAt: 'desc' },
     });
 
-    return payments.map((p) => ({
+    return payments.map((p: any) => ({
       id: p.id,
       receiptNumber: p.receiptNumber,
-      categoryName: p.feeBill?.category?.name || 'Fee Payment',
-      amountPaid: p.amountPaid,
-      paymentMode: p.paymentMode,
+      categoryName: p.bill?.category?.name || 'Fee Payment',
+      amountPaid: p.amount,
+      paymentMode: p.method,
       transactionId: p.transactionId,
-      paymentDate: p.paymentDate.toISOString(),
+      paymentDate: (p.paymentDate || p.createdAt).toISOString(),
       status: p.status,
     }));
   }
@@ -307,12 +307,12 @@ export class ParentService {
 
     return {
       isAssigned: true,
-      routeNumber: route.routeNumber,
+      routeNumber: route.routeName,
       routeName: route.routeName,
-      busNumber: route.busNumber,
+      busNumber: route.vehicleNo,
       driverName: route.driverName,
       driverPhone: route.driverPhone,
-      vehicleReg: route.vehicleReg,
+      vehicleReg: route.vehicleNo,
       pickupStop: student.transportStopId || 'Campus Stop',
       stops,
       feeStatus: 'Paid',
@@ -466,8 +466,8 @@ export class ParentService {
     };
 
     try {
-      if (user.preferences) {
-        const parsed = JSON.parse(user.preferences);
+      if (user.notificationPreferences) {
+        const parsed = JSON.parse(user.notificationPreferences);
         prefs = { ...prefs, ...parsed };
       }
     } catch (_) {}
@@ -484,7 +484,7 @@ export class ParentService {
 
     await prisma.user.update({
       where: { id: userId },
-      data: { preferences: JSON.stringify(updated) },
+      data: { notificationPreferences: JSON.stringify(updated) },
     });
 
     return updated;

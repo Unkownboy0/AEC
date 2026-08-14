@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { RefreshCw, CheckCircle2, XCircle, AlertTriangle, Clock, ChevronRight, User, Calendar, Shield, Search, Filter } from 'lucide-react';
+import { RefreshCw, CheckCircle2, XCircle, AlertTriangle, Clock, ChevronRight, User, Calendar, Shield, Search, Filter, Building2 } from 'lucide-react';
 import { fetchHodDashboard, hodRecommendRequest, hodRejectRequest, hodReturnRequest } from '../../../faculty/leave-od/api/facultyLeaveApi';
 import { FacultyLeaveOdRequest, HodSummaryCards } from '../../../faculty/leave-od/types/facultyLeave.types';
 
@@ -115,67 +115,151 @@ export const HodFacultyRequestsPage: React.FC = () => {
       {/* Requests Queue */}
       <div className="space-y-3">
         {loading && <div className="p-8 text-center text-gray-400">Loading request queue...</div>}
-        {!loading && queue.length === 0 && <div className="p-12 text-center text-gray-400 bg-white rounded-2xl border">No requests found in this view</div>}
-        {!loading && queue.map(req => (
-          <div key={req.id} className="bg-white dark:bg-gray-900 p-5 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-            <div className="space-y-1">
-              <div className="flex items-center gap-2">
-                <span className={`px-2.5 py-0.5 rounded text-xs font-black ${req.type === 'LEAVE' ? 'bg-purple-50 text-purple-700' : 'bg-blue-50 text-blue-700'}`}>{req.type}</span>
-                <span className="font-bold text-sm text-gray-900 dark:text-white">
-                  {req.facultyRequester?.user ? `${req.facultyRequester.user.firstName} ${req.facultyRequester.user.lastName}` : 'Faculty Member'}
-                </span>
-                {req.isEmergency && <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-600 text-white">EMERGENCY</span>}
-              </div>
-              <p className="text-xs text-gray-500">{req.title} • {req.reason}</p>
-              <p className="text-xs text-gray-400">{new Date(req.startDate).toLocaleDateString('en-IN')} - {new Date(req.endDate).toLocaleDateString('en-IN')} ({req.totalDays} Days)</p>
-            </div>
+        {!loading && queue.length === 0 && <div className="p-12 text-center text-gray-400 bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800">No requests found in this view</div>}
+        {!loading && queue.map(req => {
+          let parsedSubs: any[] = [];
+          try {
+            if (req.substitutions) {
+              parsedSubs = JSON.parse(req.substitutions);
+            }
+          } catch (e) {}
 
-            <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
-              {req.status === 'PENDING' || req.currentStep === 'HOD' ? (
-                <>
-                  <button
-                    onClick={() => { setSelectedRequest(req); setActionType('RECOMMEND'); }}
-                    className="px-3 py-1.5 rounded-xl bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700"
-                  >
-                    Recommend
-                  </button>
-                  <button
-                    onClick={() => { setSelectedRequest(req); setActionType('RETURN'); }}
-                    className="px-3 py-1.5 rounded-xl bg-amber-500 text-white text-xs font-bold hover:bg-amber-600"
-                  >
-                    Return
-                  </button>
-                  <button
-                    onClick={() => { setSelectedRequest(req); setActionType('REJECT'); }}
-                    className="px-3 py-1.5 rounded-xl bg-red-600 text-white text-xs font-bold hover:bg-red-700"
-                  >
-                    Reject
-                  </button>
-                </>
-              ) : (
-                <span className="text-xs font-bold text-gray-500 bg-gray-100 px-3 py-1 rounded-lg">{req.status}</span>
+          return (
+            <div key={req.id} className="bg-white dark:bg-gray-900 p-5 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm space-y-3">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <span className={`px-2.5 py-0.5 rounded text-xs font-black ${req.type === 'LEAVE' ? 'bg-purple-50 text-purple-700 dark:bg-purple-950 dark:text-purple-300' : 'bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300'}`}>{req.type}</span>
+                    <span className="font-bold text-sm text-gray-900 dark:text-white">
+                      {req.facultyRequester?.user ? `${req.facultyRequester.user.firstName} ${req.facultyRequester.user.lastName}` : 'Faculty Member'}
+                    </span>
+                    <span className="text-xs text-gray-400 font-mono">#{req.requestNumber || req.id.slice(0, 8)}</span>
+                    {req.isEmergency && <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-600 text-white">EMERGENCY</span>}
+                  </div>
+                  <p className="text-xs text-gray-500">{req.title} • {req.reason}</p>
+                  <p className="text-xs text-gray-400">
+                    {new Date(req.startDate).toLocaleDateString('en-IN')} - {new Date(req.endDate).toLocaleDateString('en-IN')} ({req.totalDays} Days)
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+                  {req.status === 'PENDING_HOD' || req.status === 'PENDING' || req.currentStep === 'HOD' ? (
+                    <>
+                      <button
+                        onClick={() => { setSelectedRequest(req); setActionType('RECOMMEND'); }}
+                        className="px-3.5 py-1.5 rounded-xl bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700 shadow-sm"
+                      >
+                        Review & Recommend
+                      </button>
+                      <button
+                        onClick={() => { setSelectedRequest(req); setActionType('RETURN'); }}
+                        className="px-3 py-1.5 rounded-xl bg-amber-500 text-white text-xs font-bold hover:bg-amber-600"
+                      >
+                        Return
+                      </button>
+                      <button
+                        onClick={() => { setSelectedRequest(req); setActionType('REJECT'); }}
+                        className="px-3 py-1.5 rounded-xl bg-red-600 text-white text-xs font-bold hover:bg-red-700"
+                      >
+                        Reject
+                      </button>
+                    </>
+                  ) : (
+                    <span className="text-xs font-bold text-gray-500 bg-gray-100 dark:bg-gray-800 px-3 py-1 rounded-lg">{req.status}</span>
+                  )}
+                </div>
+              </div>
+
+              {/* Display Affected Classes & Department-Wise Substitutes in Request Card */}
+              {parsedSubs && parsedSubs.length > 0 && (
+                <div className="pt-2 border-t border-gray-100 dark:border-gray-800">
+                  <p className="text-[11px] font-bold text-gray-500 mb-1.5 flex items-center gap-1">
+                    <Building2 className="w-3.5 h-3.5 text-purple-600" />
+                    Affected Sessions ({parsedSubs.length}) & Proposed Substitutes:
+                  </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {parsedSubs.map((sub: any, sIdx: number) => (
+                      <div key={sub.sessionId || sIdx} className="p-2.5 rounded-xl bg-gray-50 dark:bg-gray-800/60 text-xs border border-gray-200/70 dark:border-gray-700/60 flex items-center justify-between gap-2">
+                        <div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="px-1.5 py-0.5 rounded text-[10px] font-black bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300">
+                              {sub.periodDisplay || `P${sub.slotIndex}`}
+                            </span>
+                            <span className="font-bold text-gray-800 dark:text-gray-200 truncate max-w-[140px]" title={sub.subjectName}>
+                              {sub.subjectName}
+                            </span>
+                            <span className="text-[10px] text-gray-400 font-mono">({sub.departmentCode || 'Dept'})</span>
+                          </div>
+                          <p className="text-[10px] text-gray-400 mt-0.5">{sub.sectionName || ''} • {sub.venue || 'Classroom'}</p>
+                        </div>
+                        <div className="text-right">
+                          <span className="text-[10px] font-semibold text-purple-600 dark:text-purple-400 block truncate max-w-[120px]">
+                            {sub.assignedSubstituteName || 'None'}
+                          </span>
+                          <span className="text-[9px] text-emerald-600">
+                            {sub.assignedSubstituteDept ? `${sub.assignedSubstituteDept} Dept` : 'Available'}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               )}
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* Action Modal */}
       {selectedRequest && actionType && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-          <div className="bg-white dark:bg-gray-900 w-full max-w-md rounded-2xl p-6 space-y-4 shadow-2xl">
+          <div className="bg-white dark:bg-gray-900 w-full max-w-lg rounded-2xl p-6 space-y-4 shadow-2xl border border-gray-100 dark:border-gray-800">
             <h3 className="font-bold text-lg text-gray-900 dark:text-white">
               {actionType === 'RECOMMEND' && 'Recommend & Forward to Principal'}
               {actionType === 'REJECT' && 'Reject Faculty Request'}
               {actionType === 'RETURN' && 'Return to Faculty for Clarification'}
             </h3>
             <p className="text-xs text-gray-500">
-              Request #{selectedRequest.requestNumber || selectedRequest.id.slice(0, 8)} by {selectedRequest.facultyRequester?.user?.firstName}
+              Request #{selectedRequest.requestNumber || selectedRequest.id.slice(0, 8)} by {selectedRequest.facultyRequester?.user?.firstName} {selectedRequest.facultyRequester?.user?.lastName}
             </p>
+
+            {/* If recommending, show summary of confirmed substitutions */}
+            {actionType === 'RECOMMEND' && (() => {
+              let parsedSubs: any[] = [];
+              try {
+                if (selectedRequest.substitutions) {
+                  parsedSubs = JSON.parse(selectedRequest.substitutions);
+                }
+              } catch (e) {}
+
+              if (!parsedSubs || parsedSubs.length === 0) return null;
+
+              return (
+                <div className="p-3 bg-purple-50/50 dark:bg-purple-950/30 rounded-xl border border-purple-100 dark:border-purple-900/50 space-y-2">
+                  <p className="text-[11px] font-bold text-purple-900 dark:text-purple-300">
+                    Confirmed Timetable Substitutions ({parsedSubs.length}):
+                  </p>
+                  <div className="max-h-40 overflow-y-auto space-y-1.5">
+                    {parsedSubs.map((sub: any, idx: number) => (
+                      <div key={sub.sessionId || idx} className="p-2 bg-white dark:bg-gray-850 rounded-lg border border-purple-200/60 dark:border-purple-800 text-[11px] flex items-center justify-between">
+                        <div>
+                          <span className="font-bold text-gray-800 dark:text-gray-200">{sub.periodDisplay}: {sub.subjectName}</span>
+                          <span className="text-[10px] text-gray-400 ml-1">({sub.departmentCode})</span>
+                        </div>
+                        <span className="font-semibold text-purple-600 dark:text-purple-400">
+                          {sub.assignedSubstituteName || 'No Substitute'}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
+
             <textarea
               rows={3}
-              className="w-full border rounded-xl p-3 text-xs resize-none"
-              placeholder={actionType === 'RECOMMEND' ? 'Optional recommendation remarks...' : 'Mandatory reason...'}
+              className="w-full border rounded-xl p-3 text-xs resize-none bg-white dark:bg-gray-800 text-gray-900 dark:text-white border-gray-200 dark:border-gray-700"
+              placeholder={actionType === 'RECOMMEND' ? 'Optional recommendation remarks to Principal...' : 'Mandatory reason...'}
               value={remarks}
               onChange={e => setRemarks(e.target.value)}
             />

@@ -11,6 +11,33 @@ export async function fetchFacultyRequestById(id: string): Promise<FacultyLeaveO
   return data.data ?? null;
 }
 
+export async function fetchAffectedSessions(params: {
+  startDate: string;
+  endDate: string;
+  isHalfDay?: boolean;
+  halfDayPeriod?: 'FIRST_HALF' | 'SECOND_HALF';
+}): Promise<{
+  sessions: any[];
+  totalSessions: number;
+  nonWorkingDays: string[];
+  noClassDays: string[];
+}> {
+  const { data } = await api.get('/faculty/leave-od/affected-sessions', { params });
+  return data.data ?? { sessions: [], totalSessions: 0, nonWorkingDays: [], noClassDays: [] };
+}
+
+export async function fetchAvailableSubstitutes(params: {
+  date: string;
+  periodStart: number;
+  periodEnd: number;
+  departmentId: string;
+  subjectId?: string;
+  includeCrossDept?: boolean;
+}): Promise<any[]> {
+  const { data } = await api.get('/faculty/leave-od/available-substitutes', { params });
+  return data.data ?? [];
+}
+
 export async function submitFacultyLeaveOd(payload: CreateFacultyLeavePayload): Promise<FacultyLeaveOdRequest> {
   const { data } = await api.post('/faculty/leave-od', payload);
   if (!data.success) throw new Error(data.error ?? 'Failed to submit request');

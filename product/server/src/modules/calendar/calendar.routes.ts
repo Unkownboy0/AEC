@@ -1,10 +1,12 @@
 import { Router } from 'express';
-import { requireAuth } from '../../core/middlewares/auth.middleware';
+import { requireAuth, requireRole } from '../../core/middlewares/auth.middleware';
 import { prisma } from '../../lib/prisma';
 import { Request, Response, NextFunction } from 'express';
 
 const router = Router();
 router.use(requireAuth);
+
+const calendarWriteGuard = requireRole(['Super Admin', 'College Admin', 'Principal', 'Vice Principal', 'Academic Dean', 'Admission Dean', 'IQAC Dean', 'HOD']);
 
 // Get calendar events (filtered by scope, date range, type)
 router.get('/', async (req: Request, res: Response, next: NextFunction) => {
@@ -25,7 +27,7 @@ router.get('/', async (req: Request, res: Response, next: NextFunction) => {
 });
 
 // Create event
-router.post('/', async (req: Request, res: Response, next: NextFunction) => {
+router.post('/', calendarWriteGuard, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const event = await prisma.calendarEvent.create({ data: { ...req.body, startDate: new Date(req.body.startDate), endDate: req.body.endDate ? new Date(req.body.endDate) : undefined, createdById: (req as any).user?.id, targetAudience: JSON.stringify(req.body.targetAudience || []) } });
     res.status(201).json({ status: 'success', data: event });
@@ -33,7 +35,7 @@ router.post('/', async (req: Request, res: Response, next: NextFunction) => {
 });
 
 // Update event
-router.patch('/:id', async (req: Request, res: Response, next: NextFunction) => {
+router.patch('/:id', calendarWriteGuard, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const event = await prisma.calendarEvent.update({ where: { id: req.params.id }, data: req.body });
     res.json({ status: 'success', data: event });
@@ -41,7 +43,7 @@ router.patch('/:id', async (req: Request, res: Response, next: NextFunction) => 
 });
 
 // Delete (cancel) event
-router.delete('/:id', async (req: Request, res: Response, next: NextFunction) => {
+router.delete('/:id', calendarWriteGuard, async (req: Request, res: Response, next: NextFunction) => {
   try {
     await prisma.calendarEvent.update({ where: { id: req.params.id }, data: { status: 'CANCELLED' } });
     res.json({ status: 'success', message: 'Event cancelled' });

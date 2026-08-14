@@ -233,6 +233,23 @@ export const FacultyWorkspacePortal: React.FC = () => {
                   </p>
                 </div>
 
+                <div className="flex flex-wrap gap-3">
+                  <button
+                    onClick={() => navigate('/faculty/hub')}
+                    className="flex items-center gap-2.5 px-5 py-3 rounded-2xl bg-gradient-to-r from-primary to-indigo-600 text-white font-bold text-sm shadow-md hover:opacity-95 transition"
+                  >
+                    <Sparkles className="h-4 w-4" />
+                    Open Cross-Dept Workload & Substitution Hub
+                  </button>
+                  <button
+                    onClick={() => navigate('/faculty/office')}
+                    className="flex items-center gap-2.5 px-5 py-3 rounded-2xl bg-card border border-border hover:border-primary/50 text-foreground font-bold text-sm shadow-sm transition"
+                  >
+                    <Layers className="h-4 w-4 text-primary" />
+                    Open Campus Office Suite (Docs / Sheets / Drive)
+                  </button>
+                </div>
+
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                   <MetricCard
                     title="Today's Classes"
@@ -262,13 +279,13 @@ export const FacultyWorkspacePortal: React.FC = () => {
                     onClick={() => { setWorkspaceType('MENTOR'); setActiveTab('students'); }}
                   />
                   <MetricCard
-                    title="Leave Balance"
+                    title="Leave & Substitution"
                     value={stats?.metrics?.pendingLeaveReviewsCount ?? 0}
-                    trend="Pending reviews"
+                    trend="Apply with Auto-Detect"
                     isPositive={true}
                     icon={Calendar}
                     colorClass="bg-amber-500/10 text-amber-600 dark:text-amber-400"
-                    onClick={() => setActiveTab('leave')}
+                    onClick={() => navigate('/faculty/hub?tab=leave')}
                   />
                 </div>
               </motion.div>

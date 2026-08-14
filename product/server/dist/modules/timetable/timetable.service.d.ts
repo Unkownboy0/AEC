@@ -141,6 +141,7 @@ export declare class TimetableService {
             portfolioWebsite: string | null;
         };
     } & {
+        status: string;
         id: string;
         departmentId: string;
         createdAt: Date;
@@ -148,7 +149,7 @@ export declare class TimetableService {
         academicYearId: string;
         semesterId: string;
         sectionId: string;
-        roomNo: string;
+        roomNo: string | null;
         facultyId: string;
         subjectId: string;
         dayOfWeek: string;
@@ -156,11 +157,14 @@ export declare class TimetableService {
         startTime: string;
         endTime: string;
         isLab: boolean;
+        slotType: string;
+        revisionId: string | null;
     })[]>;
     /**
      * Create a new timetable slot with strict conflict checks
      */
     createSlot(input: any): Promise<{
+        status: string;
         id: string;
         departmentId: string;
         createdAt: Date;
@@ -168,7 +172,7 @@ export declare class TimetableService {
         academicYearId: string;
         semesterId: string;
         sectionId: string;
-        roomNo: string;
+        roomNo: string | null;
         facultyId: string;
         subjectId: string;
         dayOfWeek: string;
@@ -176,6 +180,8 @@ export declare class TimetableService {
         startTime: string;
         endTime: string;
         isLab: boolean;
+        slotType: string;
+        revisionId: string | null;
     }>;
     /**
      * Delete a timetable slot
@@ -201,7 +207,7 @@ export declare class TimetableService {
         existingSlots: {
             id: string;
             sectionId: string;
-            roomNo: string;
+            roomNo: string | null;
             facultyId: string;
             dayOfWeek: string;
             slotIndex: number;

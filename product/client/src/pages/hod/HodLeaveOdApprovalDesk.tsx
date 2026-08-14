@@ -118,6 +118,8 @@ export const HodLeaveOdApprovalDesk: React.FC = () => {
     fetchRequests();
   }, [activeTab]);
 
+  const [applicantFilter, setApplicantFilter] = useState<'ALL' | 'FACULTY' | 'STUDENT'>('ALL');
+
   const filteredRequests = useMemo(() => {
     if (!Array.isArray(requests)) return [];
     return requests.filter(req => {
@@ -135,9 +137,21 @@ export const HodLeaveOdApprovalDesk: React.FC = () => {
 
       const matchType = selectedType === 'ALL' || req.type === selectedType;
 
-      return matchSearch && matchType;
+      const matchApplicant =
+        applicantFilter === 'ALL' ||
+        (applicantFilter === 'FACULTY' && (req as any).isFacultyRequest) ||
+        (applicantFilter === 'STUDENT' && !(req as any).isFacultyRequest);
+
+      return matchSearch && matchType && matchApplicant;
     });
-  }, [requests, searchQuery, selectedType]);
+  }, [requests, searchQuery, selectedType, applicantFilter]);
+
+  const counts = useMemo(() => {
+    if (!Array.isArray(requests)) return { all: 0, faculty: 0, student: 0 };
+    const faculty = requests.filter((r: any) => r.isFacultyRequest).length;
+    const student = requests.filter((r: any) => !r.isFacultyRequest).length;
+    return { all: requests.length, faculty, student };
+  }, [requests]);
 
   const handleAction = async (id: string, action: 'approve' | 'reject' | 'return-to-mentor' | 'return-to-student' | 'escalate') => {
     if ((action === 'reject' || action === 'return-to-mentor' || action === 'return-to-student') && !actionRemarks.trim()) {
@@ -147,7 +161,6 @@ export const HodLeaveOdApprovalDesk: React.FC = () => {
 
     // Optimistic UI Update: Instantly remove/update request state in frontend UI
     const targetRequest = requests.find((r) => r.id === id);
-    const updatedStatus = action === 'approve' ? 'APPROVED_HOD' : action === 'reject' ? 'REJECTED_HOD' : 'RETURNED';
     setRequests((prev) => prev.filter((r) => r.id !== id));
 
     try {
@@ -159,6 +172,7 @@ export const HodLeaveOdApprovalDesk: React.FC = () => {
       showToast(`Request successfully processed (${action.toUpperCase()})`, 'success');
       setShowDetailModal(false);
       setActionRemarks('');
+      fetchRequests();
     } catch (err: any) {
       // Rollback optimistic change on network failure
       if (targetRequest) {
@@ -169,7 +183,6 @@ export const HodLeaveOdApprovalDesk: React.FC = () => {
       setSubmittingAction(false);
     }
   };
-
 
   const handleBulkActionSubmit = async () => {
     if (selectedIds.length === 0) return;
@@ -206,7 +219,7 @@ export const HodLeaveOdApprovalDesk: React.FC = () => {
 
   const exportCSV = () => {
     if (filteredRequests.length === 0) return;
-    const headers = ['Request No', 'Student', 'Register No', 'Type', 'Category', 'From Date', 'To Date', 'Days', 'Reason', 'Status'];
+    const headers = ['Request No', 'Applicant', 'ID/Register', 'Type', 'Category', 'From Date', 'To Date', 'Days', 'Reason', 'Status'];
     const rows = filteredRequests.map(r => [
       r.requestNumber,
       `"${r.student.firstName} ${r.student.lastName}"`,
@@ -240,7 +253,7 @@ export const HodLeaveOdApprovalDesk: React.FC = () => {
           </div>
           <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Leave & OD Approval Workspace</h1>
           <p className="text-sm text-slate-500 dark:text-slate-400">
-            Review, approve, return, or escalate student leave and on-duty authorization requests.
+            Review, recommend to Principal, or approve department faculty and student authorization requests.
           </p>
         </div>
 
@@ -283,16 +296,38 @@ export const HodLeaveOdApprovalDesk: React.FC = () => {
         </div>
       </div>
 
+      {/* Applicant Scope Toggle */}
+      <div className="flex gap-2">
+        <button
+          onClick={() => setApplicantFilter('ALL')}
+          className={`px-4 py-2 rounded-xl text-xs font-bold transition ${applicantFilter === 'ALL' ? 'bg-indigo-600 text-white shadow-sm' : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700'}`}
+        >
+          All Requests ({counts.all})
+        </button>
+        <button
+          onClick={() => setApplicantFilter('FACULTY')}
+          className={`px-4 py-2 rounded-xl text-xs font-bold transition ${applicantFilter === 'FACULTY' ? 'bg-purple-600 text-white shadow-sm' : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700'}`}
+        >
+          Faculty Applications ({counts.faculty})
+        </button>
+        <button
+          onClick={() => setApplicantFilter('STUDENT')}
+          className={`px-4 py-2 rounded-xl text-xs font-bold transition ${applicantFilter === 'STUDENT' ? 'bg-blue-600 text-white shadow-sm' : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700'}`}
+        >
+          Student Applications ({counts.student})
+        </button>
+      </div>
+
       {/* Tabs */}
       <div className="flex items-center gap-1 border-b border-slate-200 dark:border-slate-700 overflow-x-auto pb-1">
         {[
           { id: 'PENDING_HOD', label: 'Pending HOD Queue', icon: Clock },
-          { id: 'ALL', label: 'All Requests', icon: FileText },
-          { id: 'APPROVED', label: 'Approved', icon: CheckCircle2 },
+          { id: 'ALL', label: 'All Statuses', icon: FileText },
+          { id: 'APPROVED', label: 'Approved / Forwarded', icon: CheckCircle2 },
           { id: 'REJECTED', label: 'Rejected', icon: XCircle },
           { id: 'RETURNED', label: 'Returned', icon: RotateCcw },
           { id: 'EMERGENCY', label: 'Emergency', icon: AlertTriangle },
-          { id: 'ESCALATED', label: 'Escalated to Dean', icon: ArrowUpRight },
+          { id: 'ESCALATED', label: 'Escalated', icon: ArrowUpRight },
         ].map(tab => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
@@ -318,7 +353,7 @@ export const HodLeaveOdApprovalDesk: React.FC = () => {
           <Search className="absolute left-3.5 top-3 w-4 h-4 text-slate-400" />
           <input
             type="text"
-            placeholder="Search by student name, register no, request no..."
+            placeholder="Search by name, ID, request no, reason..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full pl-10 pr-4 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
@@ -352,7 +387,7 @@ export const HodLeaveOdApprovalDesk: React.FC = () => {
           <div className="p-12 text-center text-slate-500 dark:text-slate-400">
             <FileText className="w-12 h-12 mx-auto mb-3 opacity-30" />
             <p className="text-base font-semibold">No requests found in this queue</p>
-            <p className="text-xs">There are no pending requests matching your active filter criteria.</p>
+            <p className="text-xs">There are no requests matching your active filter criteria.</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -371,19 +406,24 @@ export const HodLeaveOdApprovalDesk: React.FC = () => {
                     />
                   </th>
                   <th className="p-4">Request No</th>
-                  <th className="p-4">Student</th>
+                  <th className="p-4">Applicant</th>
                   <th className="p-4">Type & Category</th>
                   <th className="p-4">Duration & Dates</th>
-                  <th className="p-4">Attendance</th>
-                  <th className="p-4">Mentor Status</th>
+                  <th className="p-4">Verification</th>
                   <th className="p-4">Status</th>
                   <th className="p-4 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
                 {filteredRequests.map(req => {
-                  const attendancePct = calculateAttendance(req.student.attendanceRecords);
+                  const isFaculty = (req as any).isFacultyRequest;
                   const isSelected = selectedIds.includes(req.id);
+                  let parsedSubs: any[] = [];
+                  try {
+                    if ((req as any).substitutions) {
+                      parsedSubs = JSON.parse((req as any).substitutions);
+                    }
+                  } catch (e) {}
 
                   return (
                     <tr key={req.id} className={`hover:bg-slate-50 dark:hover:bg-slate-700/50 transition ${isSelected ? 'bg-indigo-50/40 dark:bg-indigo-950/20' : ''}`}>
@@ -399,9 +439,14 @@ export const HodLeaveOdApprovalDesk: React.FC = () => {
                         />
                       </td>
                       <td className="p-4 font-mono font-semibold text-slate-900 dark:text-white">
-                        {req.requestNumber}
+                        <div className="flex items-center gap-1.5">
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-black ${isFaculty ? 'bg-purple-100 text-purple-700 dark:bg-purple-950 dark:text-purple-300' : 'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300'}`}>
+                            {isFaculty ? 'FACULTY' : 'STUDENT'}
+                          </span>
+                          <span>{req.requestNumber}</span>
+                        </div>
                         {req.isEmergency && (
-                          <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300">
+                          <span className="mt-1 inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300">
                             EMERGENCY
                           </span>
                         )}
@@ -411,7 +456,7 @@ export const HodLeaveOdApprovalDesk: React.FC = () => {
                           {req.student.firstName} {req.student.lastName}
                         </div>
                         <div className="text-xs text-slate-500 font-mono">
-                          {req.student.admissionNo} • {req.student.section?.name || 'A'}
+                          {req.student.admissionNo}
                         </div>
                       </td>
                       <td className="p-4">
@@ -426,26 +471,27 @@ export const HodLeaveOdApprovalDesk: React.FC = () => {
                         <div className="font-medium text-slate-800 dark:text-slate-200">
                           {new Date(req.startDate).toLocaleDateString()} - {new Date(req.endDate).toLocaleDateString()}
                         </div>
-                        <div className="text-xs text-slate-500 font-semibold">{req.totalDays} Day(s) ({req.durationType || 'FULL_DAY'})</div>
+                        <div className="text-xs text-slate-500 font-semibold">{req.totalDays} Day(s)</div>
                       </td>
                       <td className="p-4">
-                        <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-xs font-bold ${
-                          attendancePct < 75 ? 'bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300' : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300'
-                        }`}>
-                          {attendancePct}%
-                        </span>
-                      </td>
-                      <td className="p-4">
-                        <div className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
-                          <CheckCircle2 className="w-3.5 h-3.5" /> Endorsed by Mentor
-                        </div>
-                        {req.mentor && (
-                          <div className="text-xs text-slate-400">{req.mentor.firstName} {req.mentor.lastName}</div>
+                        {isFaculty ? (
+                          parsedSubs.length > 0 ? (
+                            <div className="text-xs font-semibold text-purple-600 dark:text-purple-400">
+                              {parsedSubs.length} Timetable Substitutions
+                            </div>
+                          ) : (
+                            <div className="text-xs text-slate-400">No Affected Classes</div>
+                          )
+                        ) : (
+                          <div className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                            <CheckCircle2 className="w-3.5 h-3.5" /> Endorsed by Mentor
+                          </div>
                         )}
                       </td>
                       <td className="p-4">
                         <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold ${
                           req.workflowStatus === 'APPROVED' ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300' :
+                          req.workflowStatus === 'FORWARDED' ? 'bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300' :
                           req.workflowStatus.includes('REJECTED') ? 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300' :
                           'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'
                         }`}>
@@ -470,187 +516,172 @@ export const HodLeaveOdApprovalDesk: React.FC = () => {
       </div>
 
       {/* Detailed Request Modal */}
-      {showDetailModal && selectedRequest && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white dark:bg-slate-800 rounded-2xl max-w-3xl w-full border border-slate-200 dark:border-slate-700 shadow-2xl overflow-hidden my-8">
-            <div className="p-6 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between bg-slate-50 dark:bg-slate-900/50">
-              <div>
-                <span className="text-xs font-mono font-semibold text-indigo-600 dark:text-indigo-400">
-                  {selectedRequest.requestNumber}
-                </span>
-                <h3 className="text-xl font-bold text-slate-900 dark:text-white">
-                  {selectedRequest.type} Request Review
-                </h3>
-              </div>
-              <button onClick={() => setShowDetailModal(false)} className="p-2 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl">
-                <X className="w-5 h-5 text-slate-500" />
-              </button>
-            </div>
+      {showDetailModal && selectedRequest && (() => {
+        const isFaculty = (selectedRequest as any).isFacultyRequest;
+        let parsedSubs: any[] = [];
+        try {
+          if ((selectedRequest as any).substitutions) {
+            parsedSubs = JSON.parse((selectedRequest as any).substitutions);
+          }
+        } catch (e) {}
 
-            <div className="p-6 space-y-6 max-h-[70vh] overflow-y-auto">
-              {/* Student Header Card */}
-              <div className="p-4 rounded-xl bg-indigo-50/50 dark:bg-indigo-950/20 border border-indigo-100 dark:border-indigo-900/50 flex flex-col sm:flex-row justify-between gap-4">
+        return (
+          <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+            <div className="bg-white dark:bg-slate-800 rounded-2xl max-w-3xl w-full border border-slate-200 dark:border-slate-700 shadow-2xl overflow-hidden my-8">
+              <div className="p-6 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between bg-slate-50 dark:bg-slate-900/50">
                 <div>
-                  <div className="text-xs text-indigo-600 dark:text-indigo-400 font-bold uppercase tracking-wider">Student Profile</div>
-                  <div className="text-lg font-bold text-slate-900 dark:text-white">
-                    {selectedRequest.student.firstName} {selectedRequest.student.lastName}
+                  <div className="flex items-center gap-2">
+                    <span className={`px-2 py-0.5 rounded text-[10px] font-black ${isFaculty ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}`}>
+                      {isFaculty ? 'FACULTY APPLICATION' : 'STUDENT APPLICATION'}
+                    </span>
+                    <span className="text-xs font-mono font-semibold text-slate-500">
+                      {selectedRequest.requestNumber}
+                    </span>
                   </div>
-                  <div className="text-xs text-slate-500 font-mono mt-0.5">
-                    Admission No: {selectedRequest.student.admissionNo} • Section: {selectedRequest.student.section?.name || 'A'}
-                  </div>
-                  <div className="text-xs text-slate-500 mt-1">
-                    Emergency Phone: {selectedRequest.emergencyContact || selectedRequest.student.phone || 'N/A'}
-                  </div>
+                  <h3 className="text-xl font-bold text-slate-900 dark:text-white mt-1">
+                    {selectedRequest.type} Request Review
+                  </h3>
                 </div>
-
-                <div className="text-right">
-                  <div className="text-xs text-slate-500 font-semibold">Attendance Record</div>
-                  <div className="text-2xl font-black text-indigo-600 dark:text-indigo-400">
-                    {calculateAttendance(selectedRequest.student.attendanceRecords)}%
-                  </div>
-                  <div className="text-xs text-slate-400">Overall Semester Avg</div>
-                </div>
+                <button onClick={() => setShowDetailModal(false)} className="p-2 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl">
+                  <X className="w-5 h-5 text-slate-500" />
+                </button>
               </div>
 
-              {/* Request Details Grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
-                <div className="p-3 bg-slate-50 dark:bg-slate-900/50 rounded-xl">
-                  <div className="text-xs text-slate-400 font-semibold">Category</div>
-                  <div className="font-bold text-slate-800 dark:text-slate-200">{selectedRequest.requestCategory || 'Personal'}</div>
-                </div>
-                <div className="p-3 bg-slate-50 dark:bg-slate-900/50 rounded-xl">
-                  <div className="text-xs text-slate-400 font-semibold">Duration & Days</div>
-                  <div className="font-bold text-slate-800 dark:text-slate-200">{selectedRequest.totalDays} Day(s) ({selectedRequest.durationType || 'FULL_DAY'})</div>
-                </div>
-                <div className="p-3 bg-slate-50 dark:bg-slate-900/50 rounded-xl">
-                  <div className="text-xs text-slate-400 font-semibold">Start Date</div>
-                  <div className="font-bold text-slate-800 dark:text-slate-200">{new Date(selectedRequest.startDate).toLocaleDateString()}</div>
-                </div>
-                <div className="p-3 bg-slate-50 dark:bg-slate-900/50 rounded-xl">
-                  <div className="text-xs text-slate-400 font-semibold">End Date</div>
-                  <div className="font-bold text-slate-800 dark:text-slate-200">{new Date(selectedRequest.endDate).toLocaleDateString()}</div>
-                </div>
-              </div>
-
-              {/* Reason & Event Details */}
-              <div className="p-4 bg-slate-50 dark:bg-slate-900/50 rounded-xl space-y-2">
-                <div className="text-xs text-slate-400 font-bold uppercase">Reason for Request</div>
-                <div className="text-slate-800 dark:text-slate-200 font-medium text-sm">{selectedRequest.reason}</div>
-                {selectedRequest.description && (
-                  <div className="text-xs text-slate-600 dark:text-slate-400 border-t border-slate-200 dark:border-slate-700 pt-2">
-                    {selectedRequest.description}
-                  </div>
-                )}
-                {selectedRequest.eventName && (
-                  <div className="text-xs text-amber-700 dark:text-amber-300 font-semibold pt-1">
-                    Event / Activity: {selectedRequest.eventName} ({selectedRequest.eventLocation || 'On Campus'})
-                  </div>
-                )}
-              </div>
-
-              {/* Attachments Preview */}
-              {selectedRequest.attachmentUrl && (
-                <div className="p-4 bg-slate-50 dark:bg-slate-900/50 rounded-xl flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-sm font-semibold text-slate-800 dark:text-slate-200">
-                    <Paperclip className="w-4 h-4 text-indigo-500" /> Supporting Document Attached
-                  </div>
-                  <a
-                    href={selectedRequest.attachmentUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-xs font-semibold hover:bg-indigo-700"
-                  >
-                    Preview / Download
-                  </a>
-                </div>
-              )}
-
-              {/* Workflow History Timeline */}
-              <div>
-                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Workflow Audit Timeline</h4>
-                <div className="space-y-3">
-                  <div className="flex gap-3 text-xs">
-                    <div className="w-2 h-2 rounded-full bg-emerald-500 mt-1.5" />
-                    <div>
-                      <div className="font-semibold text-slate-800 dark:text-slate-200">Student Submitted Request</div>
-                      <div className="text-slate-400">{new Date(selectedRequest.createdAt).toLocaleString()}</div>
+              <div className="p-6 space-y-6 max-h-[70vh] overflow-y-auto">
+                {/* Applicant Header Card */}
+                <div className={`p-4 rounded-xl border flex flex-col sm:flex-row justify-between gap-4 ${isFaculty ? 'bg-purple-50/50 dark:bg-purple-950/20 border-purple-100 dark:border-purple-900/50' : 'bg-indigo-50/50 dark:bg-indigo-950/20 border-indigo-100 dark:border-indigo-900/50'}`}>
+                  <div>
+                    <div className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                      {isFaculty ? 'Faculty Member' : 'Student Profile'}
+                    </div>
+                    <div className="text-lg font-bold text-slate-900 dark:text-white">
+                      {selectedRequest.student.firstName} {selectedRequest.student.lastName}
+                    </div>
+                    <div className="text-xs text-slate-500 font-mono mt-0.5">
+                      {selectedRequest.student.admissionNo}
                     </div>
                   </div>
-                  <div className="flex gap-3 text-xs">
-                    <div className="w-2 h-2 rounded-full bg-indigo-500 mt-1.5" />
-                    <div>
-                      <div className="font-semibold text-slate-800 dark:text-slate-200">
-                        Mentor Endorsed Request ({selectedRequest.mentor ? `${selectedRequest.mentor.firstName} ${selectedRequest.mentor.lastName}` : 'Assigned Mentor'})
-                      </div>
-                      <div className="text-slate-400">{selectedRequest.forwardedToHodAt ? new Date(selectedRequest.forwardedToHodAt).toLocaleString() : 'Completed'}</div>
-                      <div className="text-slate-500 italic mt-0.5">"{selectedRequest.mentorRemarks || 'Endorsed by Mentor'}"</div>
+
+                  <div className="text-right">
+                    <div className="text-xs text-slate-500 font-semibold">Total Duration</div>
+                    <div className="text-2xl font-black text-indigo-600 dark:text-indigo-400">
+                      {selectedRequest.totalDays} Day(s)
+                    </div>
+                    <div className="text-xs text-slate-400">
+                      {new Date(selectedRequest.startDate).toLocaleDateString()} - {new Date(selectedRequest.endDate).toLocaleDateString()}
                     </div>
                   </div>
                 </div>
+
+                {/* Reason Details */}
+                <div className="p-4 bg-slate-50 dark:bg-slate-900/50 rounded-xl space-y-1">
+                  <div className="text-xs text-slate-400 font-bold uppercase">Reason for Request</div>
+                  <div className="text-slate-800 dark:text-slate-200 font-medium text-sm">{selectedRequest.reason}</div>
+                </div>
+
+                {/* Affected Classes & Substitutions for Faculty */}
+                {isFaculty && parsedSubs.length > 0 && (
+                  <div className="p-4 rounded-xl border border-purple-100 dark:border-purple-900/40 bg-purple-50/30 dark:bg-purple-950/20 space-y-3">
+                    <h4 className="text-xs font-bold text-purple-900 dark:text-purple-300 uppercase tracking-wider flex items-center gap-1.5">
+                      Affected Timetable Sessions & Department Substitutes ({parsedSubs.length})
+                    </h4>
+                    <div className="grid grid-cols-1 gap-2">
+                      {parsedSubs.map((sub: any, sIdx: number) => (
+                        <div key={sub.sessionId || sIdx} className="p-3 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 text-xs">
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="px-2 py-0.5 rounded text-[10px] font-black bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300">
+                                {sub.periodDisplay || `Period ${sub.slotIndex}`}
+                              </span>
+                              <span className="font-bold text-slate-900 dark:text-white">
+                                {sub.subjectName} ({sub.departmentCode || 'Dept'})
+                              </span>
+                              <span className="text-[10px] text-slate-400">{sub.sectionName || ''} • {sub.venue || 'Classroom'}</span>
+                            </div>
+                            <p className="text-[11px] text-slate-500 mt-0.5">
+                              {new Date(sub.date).toLocaleDateString()} • {sub.startTime} – {sub.endTime}
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            <span className="text-[10px] text-slate-400 block font-medium">Assigned Substitute</span>
+                            <span className="font-bold text-purple-600 dark:text-purple-400">
+                              {sub.assignedSubstituteName || 'None'}
+                            </span>
+                            {sub.assignedSubstituteDept && (
+                              <span className="text-[10px] text-slate-400 block">({sub.assignedSubstituteDept} Dept)</span>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Action Form */}
+                {selectedRequest.workflowStatus === 'PENDING_HOD' && (
+                  <div className="p-4 bg-indigo-50/50 dark:bg-indigo-950/30 rounded-2xl border border-indigo-200 dark:border-indigo-800 space-y-3">
+                    <label className="block text-xs font-bold text-indigo-900 dark:text-indigo-200 uppercase">
+                      HOD Remarks / Recommendation Notes
+                    </label>
+                    <textarea
+                      rows={2}
+                      value={actionRemarks}
+                      onChange={(e) => setActionRemarks(e.target.value)}
+                      placeholder={isFaculty ? 'Optional recommendation remarks to Principal...' : 'Mandatory remarks for rejection/return or optional notes for approval...'}
+                      className="w-full p-3 bg-white dark:bg-slate-900 border border-indigo-200 dark:border-indigo-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                  </div>
+                )}
               </div>
 
-              {/* Action Form */}
-              {selectedRequest.workflowStatus === 'PENDING_HOD' && (
-                <div className="p-4 bg-indigo-50/50 dark:bg-indigo-950/30 rounded-2xl border border-indigo-200 dark:border-indigo-800 space-y-3">
-                  <label className="block text-xs font-bold text-indigo-900 dark:text-indigo-200 uppercase">
-                    HOD Remarks / Decision Notes
-                  </label>
-                  <textarea
-                    rows={2}
-                    value={actionRemarks}
-                    onChange={(e) => setActionRemarks(e.target.value)}
-                    placeholder="Add mandatory remarks for rejection/return or optional notes for approval..."
-                    className="w-full p-3 bg-white dark:bg-slate-900 border border-indigo-200 dark:border-indigo-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  />
-                </div>
-              )}
-            </div>
+              {/* Action Footer */}
+              <div className="p-4 border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 flex flex-wrap items-center justify-between gap-3">
+                <button
+                  onClick={() => setShowDetailModal(false)}
+                  className="px-4 py-2 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl text-sm font-semibold"
+                >
+                  Close
+                </button>
 
-            {/* Action Footer */}
-            <div className="p-4 border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 flex flex-wrap items-center justify-between gap-3">
-              <button
-                onClick={() => setShowDetailModal(false)}
-                className="px-4 py-2 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl text-sm font-semibold"
-              >
-                Close
-              </button>
-
-              {selectedRequest.workflowStatus === 'PENDING_HOD' && (
-                <div className="flex flex-wrap items-center gap-2">
-                  <button
-                    disabled={submittingAction}
-                    onClick={() => handleAction(selectedRequest.id, 'return-to-student')}
-                    className="px-3.5 py-2 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 text-slate-800 dark:text-white rounded-xl text-xs font-semibold transition"
-                  >
-                    Return to Student
-                  </button>
-                  <button
-                    disabled={submittingAction}
-                    onClick={() => handleAction(selectedRequest.id, 'return-to-mentor')}
-                    className="px-3.5 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-semibold transition"
-                  >
-                    Return to Mentor
-                  </button>
-                  <button
-                    disabled={submittingAction}
-                    onClick={() => handleAction(selectedRequest.id, 'reject')}
-                    className="px-3.5 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-semibold transition"
-                  >
-                    Reject Request
-                  </button>
-                  <button
-                    disabled={submittingAction}
-                    onClick={() => handleAction(selectedRequest.id, 'approve')}
-                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-semibold transition flex items-center gap-1.5"
-                  >
-                    <Check className="w-4 h-4" /> Final Approve
-                  </button>
-                </div>
-              )}
+                {selectedRequest.workflowStatus === 'PENDING_HOD' && (
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      disabled={submittingAction}
+                      onClick={() => handleAction(selectedRequest.id, 'return-to-student')}
+                      className="px-3.5 py-2 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 text-slate-800 dark:text-white rounded-xl text-xs font-semibold transition"
+                    >
+                      {isFaculty ? 'Return to Faculty' : 'Return to Student'}
+                    </button>
+                    {!isFaculty && (
+                      <button
+                        disabled={submittingAction}
+                        onClick={() => handleAction(selectedRequest.id, 'return-to-mentor')}
+                        className="px-3.5 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-semibold transition"
+                      >
+                        Return to Mentor
+                      </button>
+                    )}
+                    <button
+                      disabled={submittingAction}
+                      onClick={() => handleAction(selectedRequest.id, 'reject')}
+                      className="px-3.5 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-semibold transition"
+                    >
+                      Reject Request
+                    </button>
+                    <button
+                      disabled={submittingAction}
+                      onClick={() => handleAction(selectedRequest.id, 'approve')}
+                      className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-semibold transition flex items-center gap-1.5"
+                    >
+                      <Check className="w-4 h-4" /> {isFaculty ? 'Recommend & Forward to Principal' : 'Approve Request'}
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* Bulk Action Confirmation Modal */}
       {showBulkActionModal && (

@@ -58,6 +58,9 @@ import HodTaskWorkspace from '../pages/hod/HodTaskWorkspace';
 import HodReportsWorkspace from '../pages/hod/HodReportsWorkspace';
 
 import { WorkManagementWorkspace } from '../pages/enterprise/WorkManagementWorkspace';
+import FacultyWorkspaceHub from '../modules/faculty/FacultyWorkspaceHub';
+import CampusOfficeWorkspace from '../modules/enterprise/office/CampusOfficeWorkspace';
+import HodTimetableControlCenter from '../modules/hod/timetable/HodTimetableControlCenter';
 import { GovernanceSuite } from '../pages/enterprise/GovernanceSuite';
 import { InstitutionAvailabilityDashboard } from '../pages/shared/InstitutionAvailabilityDashboard';
 import { ComplaintsPage } from '../pages/shared/ComplaintsPage';
@@ -362,6 +365,10 @@ export const AppRouter: React.FC = () => {
           {/* ─── Faculty Routes ───────────────────────────── */}
           <Route path="faculty" element={<Navigate to="/faculty/dashboard" replace />} />
           <Route path="faculty/dashboard" element={<FacultyWorkspacePortal />} />
+          <Route path="faculty/hub" element={<FacultyWorkspaceHub />} />
+          <Route path="faculty/workspace" element={<FacultyWorkspaceHub />} />
+          <Route path="faculty/office" element={<CampusOfficeWorkspace />} />
+          <Route path="office" element={<CampusOfficeWorkspace />} />
           <Route path="faculty/timetable" element={<FacultyWorkspacePortal />} />
           <Route path="faculty/subjects" element={<FacultyWorkspacePortal />} />
           <Route path="faculty/attendance" element={<FacultyWorkspacePortal />} />
@@ -534,7 +541,8 @@ export const AppRouter: React.FC = () => {
           <Route path="hod/mentors" element={<HodMentorsWorkspace />} />
           <Route path="hod/academics" element={<AcademicPerformance />} />
           <Route path="hod/attendance" element={<HodAttendanceWorkspace />} />
-          <Route path="hod/timetable" element={<TimetableEngine />} />
+          <Route path="hod/timetable" element={<HodTimetableControlCenter />} />
+          <Route path="hod/timetable-control" element={<HodTimetableControlCenter />} />
           <Route path="hod/tasks" element={<HodTasksPage />} />
           <Route path="hod/tasks/:id" element={<HodTasksPage />} />
           <Route path="hod/circulars" element={<HodCircularPage />} />

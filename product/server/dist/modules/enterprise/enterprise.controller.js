@@ -54,7 +54,7 @@ class EnterpriseController {
                     program: true,
                     academicYear: true,
                     mentor: true,
-                    attendanceRecords: { where: { deleted: false } },
+                    attendanceRecords: { where: { deleted: false }, include: { subject: { select: { id: true, name: true, code: true } } } },
                     marks: { where: { deleted: false }, include: { subject: { select: { credits: true } } } },
                     feeBills: { where: { deleted: false } },
                     workflowRequests: { where: { status: { in: ['APPROVED', 'PENDING_MENTOR', 'PENDING_HOD', 'PENDING_DEAN'] } } },
@@ -66,6 +66,13 @@ class EnterpriseController {
             if (!student) {
                 return res.status(404).json({ status: 'error', message: 'Student profile not found.' });
             }
+            // Fetch department subjects for student
+            const departmentSubjects = student.departmentId
+                ? await prisma_1.prisma.subject.findMany({
+                    where: { departmentId: student.departmentId, deleted: false },
+                    select: { id: true, code: true, name: true, credits: true }
+                })
+                : [];
             // 1. Calculate Attendance %
             const totalAttendanceCount = student.attendanceRecords.length;
             const presentCount = student.attendanceRecords.filter(a => a.status === 'PRESENT').length;
@@ -212,10 +219,37 @@ class EnterpriseController {
             catch (e) {
                 console.error('[StudentDashboard] MentorMessages fetch error:', e);
             }
+            // 15. Next Class calculation from todaySlots
+            let nextClass = null;
+            if (todaySlots.length > 0) {
+                const now = new Date();
+                const currentMins = now.getHours() * 60 + now.getMinutes();
+                for (const slot of todaySlots) {
+                    if (slot.startTime) {
+                        const [h, m] = slot.startTime.split(':').map((v) => parseInt(v, 10));
+                        if (!isNaN(h) && (h * 60 + (m || 0)) > currentMins) {
+                            nextClass = slot;
+                            break;
+                        }
+                    }
+                }
+                if (!nextClass) {
+                    nextClass = todaySlots[0];
+                }
+            }
+            // 16. Fee Dues Summary
+            const unpaidBills = student.feeBills.filter((b) => b.status !== 'PAID' && b.status !== 'CANCELLED');
+            const feeDuesAmount = unpaidBills.reduce((sum, b) => sum + (b.totalAmount || b.amount || 0), 0);
+            // 17. Transport & Hostel Eligibility Flags
+            const isHostelEligible = Boolean(student.hostelId || student.roomNo);
+            const isTransportEligible = Boolean(student.transportRouteId || student.transportStopId);
             res.status(200).json({
                 status: 'success',
                 data: {
-                    student,
+                    student: {
+                        ...student,
+                        enrolledSubjects: departmentSubjects,
+                    },
                     metrics: {
                         attendancePercentage,
                         cgpa,
@@ -227,9 +261,13 @@ class EnterpriseController {
                         leaveStatus,
                         odStatus,
                         placementsEligible,
-                        internshipStatus
+                        internshipStatus,
+                        feeDuesAmount,
+                        isHostelEligible,
+                        isTransportEligible,
                     },
                     todaySlots,
+                    nextClass,
                     upcomingExams,
                     circulars,
                     notifications,

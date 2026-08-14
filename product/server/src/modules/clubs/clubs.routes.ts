@@ -7,6 +7,8 @@ import crypto from 'crypto';
 const router = Router();
 router.use(requireAuth);
 
+const clubStaffGuard = requireRole(['Super Admin', 'College Admin', 'Student Affairs', 'HOD', 'Faculty']);
+
 // Clubs
 router.get('/clubs', async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -44,7 +46,7 @@ router.patch('/memberships/:id', async (req: Request, res: Response, next: NextF
 });
 
 // Events
-router.post('/events', async (req: Request, res: Response, next: NextFunction) => {
+router.post('/events', clubStaffGuard, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const event = await prisma.clubEvent.create({ data: { ...req.body, startDate: new Date(req.body.startDate), endDate: new Date(req.body.endDate), registrationDeadline: req.body.registrationDeadline ? new Date(req.body.registrationDeadline) : undefined, organizerId: (req as any).user?.id, attachments: JSON.stringify(req.body.attachments || []) } });
     res.status(201).json({ status: 'success', data: event });
@@ -83,7 +85,7 @@ router.post('/events/:id/register', async (req: Request, res: Response, next: Ne
 });
 
 // Event Attendance
-router.post('/events/:id/attendance', async (req: Request, res: Response, next: NextFunction) => {
+router.post('/events/:id/attendance', clubStaffGuard, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const records = await Promise.all((req.body.students || []).map((studentId: string) =>
       prisma.eventAttendance.upsert({
@@ -97,7 +99,7 @@ router.post('/events/:id/attendance', async (req: Request, res: Response, next: 
 });
 
 // Issue Certificates
-router.post('/events/:id/certificates', async (req: Request, res: Response, next: NextFunction) => {
+router.post('/events/:id/certificates', clubStaffGuard, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const certificates = await Promise.all((req.body.recipients || []).map((r: any) =>
       prisma.eventCertificate.create({ data: { eventId: req.params.id, studentId: r.studentId, type: r.type || 'PARTICIPATION', qrHash: crypto.randomBytes(8).toString('hex'), issuedById: (req as any).user?.id } })

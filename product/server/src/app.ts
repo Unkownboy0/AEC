@@ -156,7 +156,6 @@ import administrationDeanRoutes from './modules/administration-dean/administrati
 app.use('/api/enterprise/student-leave', studentLeaveRoutes);
 app.use('/api/student/leave-od', studentLeaveRoutes);
 app.use('/api/mentor/leave-od', studentLeaveRoutes);
-app.use('/api/hod/leave-od', studentLeaveRoutes);
 app.use('/api/hod', academicDeanHodRoutes);
 app.use('/api/hod', hodPortalRoutes);
 app.use('/api/enterprise/faculty-leave', facultyLeaveRoutes);
@@ -179,9 +178,14 @@ import delegationRoutes from './modules/principal-delegation/delegation.routes';
 import principalAvailabilityRouter from './modules/principal-availability/availability.routes';
 import customFacultyLeaveRoutes from './modules/faculty-leave/faculty-leave.routes';
 import hodTaskRoutes from './modules/hod-tasks/hod-task.routes';
+import campusOfficeRoutes from './modules/enterprise/campus-office.routes';
+import hodTimetableRoutes from './modules/timetable/hod-timetable.routes';
 
 app.use('/api', customFacultyLeaveRoutes);
 app.use('/api', hodTaskRoutes);
+app.use('/api/campus-office', campusOfficeRoutes);
+app.use('/api/hod-timetable', hodTimetableRoutes);
+app.use('/api/hod/timetable-mgmt', hodTimetableRoutes);
 
 app.use('/api/academic-dean', academicDeanRoutes);
 app.use('/api/admission-dean', admissionDeanRoutes);

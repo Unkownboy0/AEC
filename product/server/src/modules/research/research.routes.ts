@@ -6,6 +6,14 @@ import { Request, Response, NextFunction } from 'express';
 const router = Router();
 router.use(requireAuth);
 
+// `requireRole` was imported but never wired to any route here — every write
+// endpoint below (project/publication/patent create+edit) was reachable by
+// any authenticated user, including Students, with no ownership check on
+// PATCH /projects/:id (any faculty could edit any other faculty's project).
+// Gating to research-eligible staff roles closes the Student-writes-research-data
+// gap; per-record ownership (piId/coPiIds match) is a separate follow-up.
+const researchWriteGuard = requireRole(['Super Admin', 'College Admin', 'Faculty', 'HOD', 'Academic Dean', 'IQAC Dean']);
+
 // Research Projects
 router.get('/projects', async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -19,7 +27,7 @@ router.get('/projects', async (req: Request, res: Response, next: NextFunction) 
   } catch (e) { next(e); }
 });
 
-router.post('/projects', async (req: Request, res: Response, next: NextFunction) => {
+router.post('/projects', researchWriteGuard, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const project = await prisma.researchProject.create({ data: { ...req.body, startDate: req.body.startDate ? new Date(req.body.startDate) : undefined, endDate: req.body.endDate ? new Date(req.body.endDate) : undefined, coPiIds: JSON.stringify(req.body.coPiIds || []), milestones: JSON.stringify(req.body.milestones || []) } });
     res.status(201).json({ status: 'success', data: project });
@@ -34,8 +42,23 @@ router.get('/projects/:id', async (req: Request, res: Response, next: NextFuncti
   } catch (e) { next(e); }
 });
 
-router.patch('/projects/:id', async (req: Request, res: Response, next: NextFunction) => {
+const RESEARCH_OVERSIGHT_ROLES = ['Super Admin', 'College Admin', 'HOD', 'Academic Dean', 'IQAC Dean'];
+
+router.patch('/projects/:id', researchWriteGuard, async (req: Request, res: Response, next: NextFunction) => {
   try {
+    const user = (req as any).user;
+    const existing = await prisma.researchProject.findUnique({ where: { id: req.params.id } });
+    if (!existing) return res.status(404).json({ status: 'error', message: 'Project not found' });
+
+    if (!RESEARCH_OVERSIGHT_ROLES.includes(user?.role)) {
+      const faculty = await prisma.faculty.findFirst({ where: { userId: user.id } });
+      const coPiIds: string[] = JSON.parse(existing.coPiIds || '[]');
+      const isOwner = !!faculty && (existing.piId === faculty.id || coPiIds.includes(faculty.id));
+      if (!isOwner) {
+        return res.status(403).json({ status: 'error', message: 'Only the project PI, co-PIs, or department/institution oversight roles may edit this project.' });
+      }
+    }
+
     const project = await prisma.researchProject.update({ where: { id: req.params.id }, data: req.body });
     res.json({ status: 'success', data: project });
   } catch (e) { next(e); }
@@ -55,7 +78,7 @@ router.get('/publications', async (req: Request, res: Response, next: NextFuncti
   } catch (e) { next(e); }
 });
 
-router.post('/publications', async (req: Request, res: Response, next: NextFunction) => {
+router.post('/publications', researchWriteGuard, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const pub = await prisma.researchPublication.create({ data: { ...req.body, authors: JSON.stringify(req.body.authors || []), keywords: JSON.stringify(req.body.keywords || []) } });
     res.status(201).json({ status: 'success', data: pub });
@@ -74,7 +97,7 @@ router.get('/patents', async (req: Request, res: Response, next: NextFunction) =
   } catch (e) { next(e); }
 });
 
-router.post('/patents', async (req: Request, res: Response, next: NextFunction) => {
+router.post('/patents', researchWriteGuard, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const patent = await prisma.patent.create({ data: { ...req.body, filingDate: req.body.filingDate ? new Date(req.body.filingDate) : undefined, inventors: JSON.stringify(req.body.inventors || []), documents: JSON.stringify(req.body.documents || []) } });
     res.status(201).json({ status: 'success', data: patent });

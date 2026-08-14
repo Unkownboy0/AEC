@@ -41,8 +41,10 @@ router.post('/', async (req: Request, res: Response, next: NextFunction) => {
   } catch (e) { next(e); }
 });
 
-// Update profile
-router.patch('/:id', async (req: Request, res: Response, next: NextFunction) => {
+// Update profile — no ownership linkage between AlumniProfile and User exists
+// in this model yet, so self-service editing can't be safely scoped; staff-only
+// until that linkage is added.
+router.patch('/:id', alumniGuard, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const profile = await prisma.alumniProfile.update({ where: { id: req.params.id }, data: req.body });
     res.json({ status: 'success', data: profile });
@@ -50,7 +52,7 @@ router.patch('/:id', async (req: Request, res: Response, next: NextFunction) => 
 });
 
 // Add employment
-router.post('/:id/employment', async (req: Request, res: Response, next: NextFunction) => {
+router.post('/:id/employment', alumniGuard, async (req: Request, res: Response, next: NextFunction) => {
   try {
     if (req.body.isCurrent) {
       await prisma.alumniEmployment.updateMany({ where: { alumniId: req.params.id, isCurrent: true }, data: { isCurrent: false, endDate: new Date() } });

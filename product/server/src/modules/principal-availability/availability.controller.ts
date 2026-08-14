@@ -58,25 +58,6 @@ export class PrincipalAvailabilityController {
   }
 
   /**
-   * GET /api/principal/availability/eligible-delegates
-   */
-  static async getEligibleDelegates(req: AuthenticatedRequest, res: Response) {
-    try {
-      const delegates = await PrincipalAvailabilityService.getEligibleDelegates();
-      return res.status(200).json({
-        success: true,
-        data: delegates,
-      });
-    } catch (error: any) {
-      logger.error('Error fetching eligible delegates:', error);
-      return res.status(500).json({
-        success: false,
-        error: error.message || 'Failed to fetch eligible delegates',
-      });
-    }
-  }
-
-  /**
    * GET /api/principal/availability/context & GET /api/vp/acting-principal/context
    */
   static async getContext(req: AuthenticatedRequest, res: Response) {

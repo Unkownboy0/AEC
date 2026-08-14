@@ -1,10 +1,11 @@
 import { Router } from 'express';
 import { MentorController } from './mentor.controller';
-import { requireAuth } from '../../core/middlewares/auth.middleware';
+import { requireAuth, requireRole } from '../../core/middlewares/auth.middleware';
 
 const router = Router();
 
 router.use(requireAuth);
+router.use(requireRole(['Mentor', 'Faculty', 'HOD', 'Super Admin', 'College Admin']));
 
 router.get('/dashboard', MentorController.getDashboardStats);
 router.get('/students', MentorController.getAssignedStudents);

@@ -87,15 +87,49 @@ export class EnterpriseRepository {
       await SecurityHelper.applySecurityFilters(user, where, 'faculties');
     }
 
+    // Directory-safe field set: administrative/HR fields (Aadhaar, PAN, DOB,
+    // home address, emergency contact, personal email/phone) are only
+    // returned via the dedicated full-profile endpoint, which is guarded
+    // more strictly than this general-purpose directory listing.
+    const isAdminViewer = !!user && ['Super Admin', 'College Admin', 'HOD', 'Principal', 'Vice Principal'].includes(user.role || '');
+
     const [items, totalCount] = await Promise.all([
       prisma.faculty.findMany({
         where,
         skip,
         take: pageSize,
         orderBy: { createdAt: 'desc' },
-        include: { 
+        select: isAdminViewer ? {
+          id: true,
+          employeeId: true,
+          firstName: true,
+          lastName: true,
+          email: true,
+          phone: true,
+          dob: true,
+          dateOfJoining: true,
+          designation: true,
+          qualification: true,
+          experience: true,
+          departmentId: true,
+          status: true,
+          documents: true,
+          subjectMappings: true,
+          gender: true,
           department: true,
-          user: { select: { profilePhoto: true } }
+          user: { select: { profilePhoto: true } },
+        } : {
+          id: true,
+          employeeId: true,
+          firstName: true,
+          lastName: true,
+          email: true,
+          designation: true,
+          qualification: true,
+          departmentId: true,
+          status: true,
+          department: true,
+          user: { select: { profilePhoto: true } },
         },
       }),
       prisma.faculty.count({ where }),

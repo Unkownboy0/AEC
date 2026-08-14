@@ -3,6 +3,15 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.TimetableController = void 0;
 const timetable_service_1 = require("./timetable.service");
 const prisma_1 = require("../../lib/prisma");
+const exceptions_1 = require("../../utils/exceptions");
+const assertHodDepartment = async (req, departmentId) => {
+    const role = String(req.user?.role || '').toUpperCase().replace(/[^A-Z]/g, '');
+    if (!['HOD', 'HEADOFDEPARTMENT'].includes(role))
+        return;
+    const assigned = await prisma_1.prisma.departmentHodAssignment.count({ where: { hodUserId: req.user.id, departmentId, isActive: true, effectiveFrom: { lte: new Date() }, OR: [{ effectiveTo: null }, { effectiveTo: { gt: new Date() } }] } });
+    if (!assigned)
+        throw new exceptions_1.ForbiddenException('Cross-department timetable access denied');
+};
 class TimetableController {
     service = new timetable_service_1.TimetableService();
     listSlots = async (req, res, next) => {
@@ -16,6 +25,7 @@ class TimetableController {
     };
     createSlot = async (req, res, next) => {
         try {
+            await assertHodDepartment(req, req.body.departmentId);
             const data = await this.service.createSlot(req.body);
             res.status(201).json({ status: 'success', data });
         }
@@ -26,6 +36,9 @@ class TimetableController {
     deleteSlot = async (req, res, next) => {
         try {
             const { id } = req.params;
+            const slot = await prisma_1.prisma.timetableSlot.findUnique({ where: { id }, select: { departmentId: true } });
+            if (slot)
+                await assertHodDepartment(req, slot.departmentId);
             const data = await this.service.deleteSlot(id);
             res.status(200).json({ status: 'success', data });
         }
@@ -36,6 +49,7 @@ class TimetableController {
     generateAIDraft = async (req, res, next) => {
         try {
             const { departmentId, semesterId, academicYearId } = req.body;
+            await assertHodDepartment(req, departmentId);
             const data = await this.service.generateAIDraft(departmentId, semesterId, academicYearId);
             res.status(200).json({ status: 'success', data });
         }
@@ -172,6 +186,7 @@ class TimetableController {
     submitForReview = async (req, res, next) => {
         try {
             const { departmentId, semesterId, academicYearId } = req.body;
+            await assertHodDepartment(req, departmentId);
             const record = await prisma_1.prisma.timetablePublish.upsert({
                 where: { id: `${departmentId}_${semesterId}_${academicYearId}` },
                 update: { status: 'HOD_REVIEW' },

@@ -1,6 +1,7 @@
 import { prisma } from '../../lib/prisma';
 import { HodRepository } from './hod.repository';
 import { WorkflowService } from '../workflow/workflow.service';
+import { FacultyLeaveService } from '../faculty-leave/faculty-leave.service';
 import {
   HodReviewActionPayload,
   SubjectAllocationPayload,
@@ -26,12 +27,39 @@ export class HodService {
     hodUserId: string,
     payload: HodReviewActionPayload
   ) {
-    // 1. Check if request exists in WorkflowRequest table
-    const wfRequest = await prisma.workflowRequest.findUnique({
+    const normAction = (payload.action || '').toUpperCase().replace(/-/g, '_');
+
+    // 1. Check if request exists in FacultyLeaveRequest table
+    const flRequest = await prisma.facultyLeaveRequest.findUnique({
       where: { id: payload.requestId },
     });
 
-    const normAction = (payload.action || '').toUpperCase().replace(/-/g, '_');
+    if (flRequest) {
+      if (normAction === 'APPROVE' || normAction === 'RECOMMEND' || normAction === 'FORWARD') {
+        return FacultyLeaveService.hodRecommend(
+          hodUserId,
+          flRequest.id,
+          payload.remarks || 'Recommended by HOD and forwarded to Principal'
+        );
+      } else if (normAction.includes('REJECT')) {
+        return FacultyLeaveService.hodReject(
+          hodUserId,
+          flRequest.id,
+          payload.rejectionReason || payload.remarks || 'Rejected by HOD'
+        );
+      } else if (normAction.includes('RETURN')) {
+        return FacultyLeaveService.hodReturn(
+          hodUserId,
+          flRequest.id,
+          payload.remarks || 'Returned to faculty by HOD'
+        );
+      }
+    }
+
+    // 2. Check if request exists in WorkflowRequest table
+    const wfRequest = await prisma.workflowRequest.findUnique({
+      where: { id: payload.requestId },
+    });
 
     if (wfRequest) {
       const user = await prisma.user.findUnique({ where: { id: hodUserId } });
@@ -49,8 +77,8 @@ export class HodService {
       );
     }
 
-    // 2. Otherwise handle StudentLeaveRequest table
-    const request = await this.repository.getLeaveOdRequestById(payload.requestId, departmentId);
+    // 3. Otherwise handle StudentLeaveRequest table
+    const request: any = await this.repository.getLeaveOdRequestById(payload.requestId, departmentId);
     if (!request) {
       throw new Error('Request not found or does not belong to your department.');
     }
@@ -91,15 +119,16 @@ export class HodService {
       },
     });
 
-    if (request.student?.userId) {
+    const studentUserId = request.student?.userId || request.student?.user?.id;
+    if (studentUserId) {
       await prisma.notification.create({
         data: {
-          recipientId: request.student.userId,
+          recipientId: studentUserId,
           title: `HOD Decision: ${request.requestNumber}`,
           message: `Your ${request.type} request has been ${status.toLowerCase()} by HOD.`,
           eventType: 'STUDENT_LEAVE_SUBMITTED',
         },
-      });
+      }).catch(() => {});
     }
 
     return updated;

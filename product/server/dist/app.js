@@ -163,8 +163,13 @@ const delegation_routes_1 = __importDefault(require("./modules/principal-delegat
 const availability_routes_1 = __importDefault(require("./modules/principal-availability/availability.routes"));
 const faculty_leave_routes_2 = __importDefault(require("./modules/faculty-leave/faculty-leave.routes"));
 const hod_task_routes_1 = __importDefault(require("./modules/hod-tasks/hod-task.routes"));
+const campus_office_routes_1 = __importDefault(require("./modules/enterprise/campus-office.routes"));
+const hod_timetable_routes_1 = __importDefault(require("./modules/timetable/hod-timetable.routes"));
 app.use('/api', faculty_leave_routes_2.default);
 app.use('/api', hod_task_routes_1.default);
+app.use('/api/campus-office', campus_office_routes_1.default);
+app.use('/api/hod-timetable', hod_timetable_routes_1.default);
+app.use('/api/hod/timetable-mgmt', hod_timetable_routes_1.default);
 app.use('/api/academic-dean', academic_dean_routes_1.default);
 app.use('/api/admission-dean', admission_dean_routes_1.default);
 app.use('/api/administration-dean', administration_dean_routes_1.default);
@@ -179,6 +184,53 @@ repair_principal_availability_1.PrincipalDataRepairScript.runCleanup()
     .then(res => logger_1.logger.info(`⚡ Principal Availability Cleanup completed: ${res.revokedInvalidDelegations} revoked, ${res.expiredDelegations} expired`))
     .catch(err => logger_1.logger.warn('Principal Availability cleanup failed:', err));
 delegation_expiry_job_1.DelegationExpiryJob.startCron();
+// ─── CampusOS Modules 09–51 ──────────────────────────────────────────────
+const library_routes_1 = __importDefault(require("./modules/library/library.routes"));
+const hostel_routes_1 = __importDefault(require("./modules/hostel/hostel.routes"));
+const transport_routes_1 = __importDefault(require("./modules/transport/transport.routes"));
+const campus_security_routes_1 = __importDefault(require("./modules/campus-security/campus-security.routes"));
+const appraisal_routes_1 = __importDefault(require("./modules/appraisal/appraisal.routes"));
+const evidence_routes_1 = __importDefault(require("./modules/evidence/evidence.routes"));
+const student_services_routes_1 = __importDefault(require("./modules/student-services/student-services.routes"));
+const purchase_routes_1 = __importDefault(require("./modules/purchase/purchase.routes"));
+const inventory_routes_1 = __importDefault(require("./modules/inventory/inventory.routes"));
+const vendor_routes_1 = __importDefault(require("./modules/vendor/vendor.routes"));
+const maintenance_routes_1 = __importDefault(require("./modules/maintenance/maintenance.routes"));
+const room_booking_routes_1 = __importDefault(require("./modules/room-booking/room-booking.routes"));
+const meeting_routes_1 = __importDefault(require("./modules/meeting/meeting.routes"));
+const research_routes_1 = __importDefault(require("./modules/research/research.routes"));
+const scholarship_routes_1 = __importDefault(require("./modules/scholarship/scholarship.routes"));
+const clubs_routes_1 = __importDefault(require("./modules/clubs/clubs.routes"));
+const alumni_routes_1 = __importDefault(require("./modules/alumni/alumni.routes"));
+const calendar_routes_1 = __importDefault(require("./modules/calendar/calendar.routes"));
+const emergency_routes_1 = __importDefault(require("./modules/emergency/emergency.routes"));
+const activity_routes_1 = __importDefault(require("./modules/activity/activity.routes"));
+const student_360_routes_1 = __importDefault(require("./modules/student-360/student-360.routes"));
+const staff_360_routes_1 = __importDefault(require("./modules/staff-360/staff-360.routes"));
+const integration_chain_routes_1 = __importDefault(require("./modules/integration/integration-chain.routes"));
+app.use('/api/library', library_routes_1.default);
+app.use('/api/hostel', hostel_routes_1.default);
+app.use('/api/transport', transport_routes_1.default);
+app.use('/api/campus-security', campus_security_routes_1.default);
+app.use('/api/appraisal', appraisal_routes_1.default);
+app.use('/api/evidence', evidence_routes_1.default);
+app.use('/api/student-services', student_services_routes_1.default);
+app.use('/api/purchase', purchase_routes_1.default);
+app.use('/api/inventory', inventory_routes_1.default);
+app.use('/api/vendors', vendor_routes_1.default);
+app.use('/api/maintenance', maintenance_routes_1.default);
+app.use('/api/room-booking', room_booking_routes_1.default);
+app.use('/api/meetings', meeting_routes_1.default);
+app.use('/api/research', research_routes_1.default);
+app.use('/api/scholarships', scholarship_routes_1.default);
+app.use('/api/clubs', clubs_routes_1.default);
+app.use('/api/alumni', alumni_routes_1.default);
+app.use('/api/calendar', calendar_routes_1.default);
+app.use('/api/emergency', emergency_routes_1.default);
+app.use('/api/activities', activity_routes_1.default);
+app.use('/api/student-360', student_360_routes_1.default);
+app.use('/api/staff-360', staff_360_routes_1.default);
+app.use('/api/integration', integration_chain_routes_1.default);
 // Fallback Route for API endpoints
 app.use('/api/*', (req, res) => {
     res.status(404).json({

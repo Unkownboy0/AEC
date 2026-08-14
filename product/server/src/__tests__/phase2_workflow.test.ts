@@ -41,13 +41,17 @@ async function runPhase2Tests() {
 
     assert.ok(studentUser && mentorUser && hodUser, 'Student, Mentor, and HOD test users exist');
 
+    const now = new Date();
+    const startDate = new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    const endDate = new Date(now.getTime() + 48 * 60 * 60 * 1000).toISOString().split('T')[0];
+
     const request = await workflowService.createRequest(
       studentUser.email,
       'LEAVE',
       'Phase 2 Automated Test Leave',
       'Attending Academic Symposium',
-      '2026-08-01',
-      '2026-08-02'
+      startDate,
+      endDate
     );
 
     assert.strictEqual(request.currentStep, 'MENTOR', 'Initial request step is MENTOR');
@@ -85,13 +89,15 @@ async function runPhase2Tests() {
     const vpUser = await prisma.user.findUnique({ where: { email: 'vp@geetorus.com' } });
 
     if (facultyUser && vpUser) {
+      const facStartDate = new Date(now.getTime() + 72 * 60 * 60 * 1000).toISOString().split('T')[0];
+      const facEndDate = new Date(now.getTime() + 96 * 60 * 60 * 1000).toISOString().split('T')[0];
       const facRequest = await workflowService.createRequest(
         facultyUser.email,
         'FACULTY_LEAVE',
         'Faculty Conference Duty Leave',
         'Presenting Research Paper',
-        '2026-08-10',
-        '2026-08-12'
+        facStartDate,
+        facEndDate
       );
 
       // HOD approves faculty leave -> moves to PRINCIPAL step

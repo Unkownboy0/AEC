@@ -10,22 +10,28 @@ const adminGuard = requireRole(['Super Admin', 'College Admin', 'Principal', 'HO
 // Chain 1: Admission → Student Master → User → Parent → Fees → Digital ID
 router.post('/admission-to-student', adminGuard, IntegrationChainController.runAdmissionToStudentChain);
 
+// Chains 2-7 had no guard at all despite triggering system-wide batch
+// reprocessing (payment reconciliation, leave workflow re-sync, etc.) —
+// only Chain 1 had `adminGuard` applied. Any authenticated user, including
+// Student, could trigger them (confirmed live: 500 crash from an empty
+// payload reaching the handler, not a 403).
+
 // Chain 2: Timetable → Attendance → Leave Override
-router.post('/timetable-attendance', IntegrationChainController.runTimetableAttendanceChain);
+router.post('/timetable-attendance', adminGuard, IntegrationChainController.runTimetableAttendanceChain);
 
 // Chain 3: Payment → Fee → Ledger → Accounts → Receipt → Parent Alert
-router.post('/payment-reconciliation', IntegrationChainController.runPaymentReconciliationChain);
+router.post('/payment-reconciliation', adminGuard, IntegrationChainController.runPaymentReconciliationChain);
 
 // Chain 4: Leave/OD → Workflow → Approver → Availability → Calendar
-router.post('/leave-workflow', IntegrationChainController.runLeaveWorkflowChain);
+router.post('/leave-workflow', adminGuard, IntegrationChainController.runLeaveWorkflowChain);
 
 // Chain 5: Evidence → Profile → Appraisal → IQAC Repository
-router.post('/evidence-appraisal', IntegrationChainController.runEvidenceAppraisalChain);
+router.post('/evidence-appraisal', adminGuard, IntegrationChainController.runEvidenceAppraisalChain);
 
 // Chain 6: Grievance → Responsible Unit → SLA → Maintenance Ticket
-router.post('/grievance-escalation', IntegrationChainController.runGrievanceEscalationChain);
+router.post('/grievance-escalation', adminGuard, IntegrationChainController.runGrievanceEscalationChain);
 
 // Chain 7: Meeting → Minutes → Action Item → Task → Calendar → Notification
-router.post('/meeting-action-items', IntegrationChainController.runMeetingActionItemChain);
+router.post('/meeting-action-items', adminGuard, IntegrationChainController.runMeetingActionItemChain);
 
 export default router;

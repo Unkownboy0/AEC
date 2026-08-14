@@ -58,7 +58,7 @@ export interface HodLeaveOdQueryFilters {
 
 export interface HodReviewActionPayload {
   requestId: string;
-  action: 'APPROVE' | 'REJECT' | 'RETURN_TO_MENTOR' | 'RETURN_TO_STUDENT' | 'ESCALATE';
+  action: 'APPROVE' | 'REJECT' | 'RETURN_TO_MENTOR' | 'RETURN_TO_STUDENT' | 'ESCALATE' | 'RECOMMEND' | 'FORWARD' | 'RETURN';
   remarks?: string;
   rejectionReason?: string;
   escalatedToRole?: string;

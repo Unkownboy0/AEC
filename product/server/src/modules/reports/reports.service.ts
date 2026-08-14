@@ -1,12 +1,16 @@
 import PDFDocument from 'pdfkit';
 import ExcelJS from 'exceljs';
 import { Response } from 'express';
+import { PdfWatermarkService } from '../../services/pdf-watermark.service';
 
 export class ReportsService {
   async generatePDFReport(reportType: string, user: any, data: any, res: Response) {
     return new Promise<void>((resolve, reject) => {
       try {
         const doc = new PDFDocument({ margin: 50, size: 'A4' });
+
+        // Apply institutional watermark across all pages
+        PdfWatermarkService.applyWatermark(doc);
 
         // Set response headers
         const dateStr = new Date().toISOString().split('T')[0];

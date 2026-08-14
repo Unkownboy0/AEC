@@ -111,6 +111,72 @@ export class MentorService {
       where: { mentorId: faculty.id },
     });
 
+    // Configurable risk thresholds — see settings.catalog.ts. Never hardcode
+    // these; a college may set stricter/looser policy per SystemSetting.
+    const [attendanceThresholdSetting, arrearThresholdSetting] = await Promise.all([
+      prisma.systemSetting.findUnique({ where: { key: 'ATTENDANCE_RISK_THRESHOLD' }, select: { value: true } }),
+      prisma.systemSetting.findUnique({ where: { key: 'ACADEMIC_RISK_ARREAR_THRESHOLD' }, select: { value: true } }),
+    ]);
+    const attendanceRiskThreshold = parseInt(attendanceThresholdSetting?.value || '75', 10);
+    const arrearRiskThreshold = parseInt(arrearThresholdSetting?.value || '1', 10);
+
+    // Attendance risk: overall attendance % (all-time, all recorded sessions)
+    // below the configured threshold, computed per mentee.
+    let attendanceRiskCount = 0;
+    let academicRiskCount = 0;
+    const riskStudentIds: string[] = [];
+    const riskDetailByStudent = new Map<string, { attendancePercent: number | null; arrearCount: number; isAttendanceRisk: boolean; isAcademicRisk: boolean; reasons: string[] }>();
+
+    if (studentIds.length > 0) {
+      const [attendanceRows, arrearGroups] = await Promise.all([
+        prisma.attendance.groupBy({
+          by: ['studentId', 'status'],
+          where: { studentId: { in: studentIds } },
+          _count: { _all: true },
+        }),
+        prisma.mark.groupBy({
+          by: ['studentId'],
+          where: { studentId: { in: studentIds }, status: 'PUBLISHED', grade: 'F' },
+          _count: { _all: true },
+        }),
+      ]);
+
+      const perStudentAttendance = new Map<string, { present: number; total: number }>();
+      for (const row of attendanceRows) {
+        const entry = perStudentAttendance.get(row.studentId) || { present: 0, total: 0 };
+        entry.total += row._count._all;
+        if (row.status === 'PRESENT') entry.present += row._count._all;
+        perStudentAttendance.set(row.studentId, entry);
+      }
+
+      const arrearsByStudent = new Map(arrearGroups.map((g) => [g.studentId, g._count._all]));
+
+      for (const studentId of studentIds) {
+        const att = perStudentAttendance.get(studentId);
+        const pct = att && att.total > 0 ? (att.present / att.total) * 100 : 100;
+        const arrears = arrearsByStudent.get(studentId) || 0;
+
+        const isAttendanceRisk = att && att.total > 0 && pct < attendanceRiskThreshold;
+        const isAcademicRisk = arrears >= arrearRiskThreshold;
+
+        if (isAttendanceRisk) attendanceRiskCount++;
+        if (isAcademicRisk) academicRiskCount++;
+        if (isAttendanceRisk || isAcademicRisk) {
+          riskStudentIds.push(studentId);
+          riskDetailByStudent.set(studentId, {
+            attendancePercent: att && att.total > 0 ? Math.round(pct * 10) / 10 : null,
+            arrearCount: arrears,
+            isAttendanceRisk: !!isAttendanceRisk,
+            isAcademicRisk,
+            reasons: [
+              ...(isAttendanceRisk ? [`Attendance ${Math.round(pct * 10) / 10}% is below the ${attendanceRiskThreshold}% threshold`] : []),
+              ...(isAcademicRisk ? [`${arrears} arrear${arrears === 1 ? '' : 's'} (threshold ${arrearRiskThreshold})`] : []),
+            ],
+          });
+        }
+      }
+    }
+
     return {
       mentorInfo: {
         id: faculty.id,
@@ -126,7 +192,26 @@ export class MentorService {
         studentsOnOdToday,
         pendingLeaveOdApprovals: pendingLeaveRequests,
         openCounselingCases,
+        attendanceRiskCount,
+        academicRiskCount,
+        attendanceRiskThreshold,
+        arrearRiskThreshold,
       },
+      riskStudents: assignedStudents
+        .filter((s) => riskStudentIds.includes(s.id))
+        .map((s) => {
+          const detail = riskDetailByStudent.get(s.id);
+          return {
+            id: s.id,
+            admissionNo: s.admissionNo,
+            name: `${s.firstName} ${s.lastName}`,
+            attendancePercent: detail?.attendancePercent ?? null,
+            arrearCount: detail?.arrearCount ?? 0,
+            isAttendanceRisk: detail?.isAttendanceRisk ?? false,
+            isAcademicRisk: detail?.isAcademicRisk ?? false,
+            reason: detail?.reasons.join('; ') ?? '',
+          };
+        }),
       recentStudents: assignedStudents.slice(0, 10).map((s) => ({
         id: s.id,
         admissionNo: s.admissionNo,

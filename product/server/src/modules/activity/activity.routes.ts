@@ -6,8 +6,10 @@ import { Request, Response, NextFunction } from 'express';
 const router = Router();
 router.use(requireAuth);
 
+const activityStaffGuard = requireRole(['Super Admin', 'College Admin', 'Faculty', 'HOD', 'Mentor']);
+
 // Activities
-router.post('/activities', async (req: Request, res: Response, next: NextFunction) => {
+router.post('/activities', activityStaffGuard, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const activity = await prisma.campusActivity.create({ data: { ...req.body, startDate: new Date(req.body.startDate), endDate: new Date(req.body.endDate), organizerId: (req as any).user?.id, audience: JSON.stringify(req.body.audience || []) } });
     res.status(201).json({ status: 'success', data: activity });
@@ -39,7 +41,7 @@ router.get('/activities/:id', async (req: Request, res: Response, next: NextFunc
 });
 
 // Sessions
-router.post('/activities/:id/sessions', async (req: Request, res: Response, next: NextFunction) => {
+router.post('/activities/:id/sessions', activityStaffGuard, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const session = await prisma.activitySession.create({ data: { ...req.body, activityId: req.params.id, date: new Date(req.body.date) } });
     res.status(201).json({ status: 'success', data: session });
@@ -47,7 +49,7 @@ router.post('/activities/:id/sessions', async (req: Request, res: Response, next
 });
 
 // Session Attendance
-router.post('/sessions/:sessionId/attendance', async (req: Request, res: Response, next: NextFunction) => {
+router.post('/sessions/:sessionId/attendance', activityStaffGuard, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const records = await Promise.all((req.body.students || []).map((s: any) =>
       prisma.activityAttendanceRecord.upsert({
@@ -61,7 +63,7 @@ router.post('/sessions/:sessionId/attendance', async (req: Request, res: Respons
 });
 
 // Session Assessment
-router.post('/sessions/:sessionId/assessment', async (req: Request, res: Response, next: NextFunction) => {
+router.post('/sessions/:sessionId/assessment', activityStaffGuard, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const session = await prisma.activitySession.findUnique({ where: { id: req.params.sessionId } });
     if (!session) return res.status(404).json({ status: 'error', message: 'Session not found' });

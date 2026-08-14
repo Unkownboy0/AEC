@@ -28,6 +28,53 @@ export type OdCategory =
   | 'Official Meeting'
   | 'Other On Duty';
 
+export interface SubstituteCandidate {
+  facultyId: string;
+  employeeId: string;
+  name: string;
+  designation: string;
+  department: { id: string; name: string; code: string };
+  isHomeDept: boolean;
+  weeklyLoadHours: number;
+  maxWeeklyHours: number;
+  workloadDisplay: string;
+  subjectMatch: 'SAME_SUBJECT' | 'TAUGHT_SUBJECT' | 'RELATED_DOMAIN' | 'DEPARTMENT_FACULTY' | 'CROSS_DEPARTMENT';
+  subjectMatchLabel: string;
+  availabilityStatus: 'AVAILABLE' | 'BUSY' | 'ON_LEAVE';
+  score: number;
+}
+
+export interface AffectedClassSession {
+  sessionId: string;
+  date: string;
+  dayOfWeek: string;
+  periodDisplay: string;
+  periodStart: number;
+  periodEnd: number;
+  startTime: string;
+  endTime: string;
+  departmentId: string;
+  departmentName: string;
+  departmentCode: string;
+  isHomeDepartment: boolean;
+  subjectId: string;
+  subjectName: string;
+  subjectCode: string;
+  sectionId?: string;
+  sectionName?: string;
+  venue?: string;
+  roomNo?: string;
+  slotType: string;
+  isLab: boolean;
+  slotIds: string[];
+  eligibleSubstitutes: SubstituteCandidate[];
+  assignedSubstituteId?: string;
+  assignedSubstituteName?: string;
+  assignedSubstituteDept?: string;
+  assignedSubstituteWorkload?: string;
+  subjectMatch?: string;
+}
+
 export interface WorkflowHistory {
   id: string;
   requestId: string;
@@ -59,6 +106,8 @@ export interface FacultyLeaveOdRequest {
   currentStep: string;
   attachments?: string;
   workHandoverDetails?: string;
+  substitutions?: string;
+  substitutionsList?: AffectedClassSession[];
   preferredSubstituteId?: string;
   confirmedSubstituteId?: string;
   preferredSubstitute?: { id: string; firstName: string; lastName: string; designation?: string };
@@ -81,6 +130,7 @@ export interface CreateFacultyLeavePayload {
   startDate: string;
   endDate: string;
   isHalfDay?: boolean;
+  halfDayPeriod?: 'FIRST_HALF' | 'SECOND_HALF';
   startTime?: string;
   endTime?: string;
   totalDays: number;
@@ -90,7 +140,8 @@ export interface CreateFacultyLeavePayload {
   contactNumber?: string;
   supportingDocumentUrl?: string;
   supportingDocumentName?: string;
-  affectedPeriods?: string[];
+  affectedPeriods?: any[];
+  substitutionsList?: AffectedClassSession[];
   workHandoverDetails?: string;
   preferredSubstituteId?: string;
   remarks?: string;

@@ -6,96 +6,102 @@ export class HodRepository {
    * Get HOD Dashboard metrics strictly for departmentId
    */
   async getDashboardMetrics(departmentId: string) {
-    const [
-      slLeave,
-      slOd,
-      wfLeave,
-      wfOd,
-    ] = await Promise.all([
-      prisma.studentLeaveRequest.count({
-        where: {
-          student: { departmentId },
-          type: 'LEAVE',
-          OR: [
-            { workflowStatus: 'PENDING_HOD' },
-            { status: 'PENDING_HOD' },
-            { status: 'APPROVED_MENTOR' }
-          ]
-        },
-      }),
-      prisma.studentLeaveRequest.count({
-        where: {
-          student: { departmentId },
-          type: 'ON_DUTY',
-          OR: [
-            { workflowStatus: 'PENDING_HOD' },
-            { status: 'PENDING_HOD' },
-            { status: 'APPROVED_MENTOR' }
-          ]
-        },
-      }),
-      prisma.workflowRequest.count({
-        where: {
-          OR: [{ departmentId }, { student: { departmentId } }],
-          type: { in: ['LEAVE', 'FACULTY_LEAVE'] },
-          status: { in: ['PENDING', 'MENTOR_APPROVED'] },
-        },
-      }),
-      prisma.workflowRequest.count({
-        where: {
-          OR: [{ departmentId }, { student: { departmentId } }],
-          type: { in: ['OD', 'FACULTY_OD', 'ON_DUTY'] },
-          status: { in: ['PENDING', 'MENTOR_APPROVED'] },
-        },
-      }),
-    ]);
+    let slLeave = 0;
+    let slOd = 0;
+    let flLeave = 0;
+    let flOd = 0;
 
-    const pendingLeaveRequests = slLeave + wfLeave;
-    const pendingOdRequests = slOd + wfOd;
+    try {
+      [slLeave, slOd, flLeave, flOd] = await Promise.all([
+        prisma.studentLeaveRequest.count({
+          where: {
+            student: { departmentId },
+            type: 'LEAVE',
+            OR: [
+              { workflowStatus: 'PENDING_HOD' },
+              { status: 'PENDING_HOD' },
+              { status: 'APPROVED_MENTOR' },
+            ],
+          },
+        }),
+        prisma.studentLeaveRequest.count({
+          where: {
+            student: { departmentId },
+            type: 'ON_DUTY',
+            OR: [
+              { workflowStatus: 'PENDING_HOD' },
+              { status: 'PENDING_HOD' },
+              { status: 'APPROVED_MENTOR' },
+            ],
+          },
+        }),
+        prisma.facultyLeaveRequest.count({
+          where: {
+            departmentId,
+            leaveType: { not: 'ON_DUTY' },
+            status: { in: ['PENDING', 'PENDING_HOD', 'SUBMITTED', 'IN_REVIEW'] },
+          },
+        }),
+        prisma.facultyLeaveRequest.count({
+          where: {
+            departmentId,
+            leaveType: 'ON_DUTY',
+            status: { in: ['PENDING', 'PENDING_HOD', 'SUBMITTED', 'IN_REVIEW'] },
+          },
+        }),
+      ]);
+    } catch (e) {
+      console.warn('[HOD Repository]: Leave/OD count warning:', e);
+    }
 
-    const [
-      totalStudents,
-      activeStudents,
-      totalFaculty,
-      activeFaculty,
-      totalMentors,
-      unassignedStudents,
-      emergencyRequests,
-      attendanceCorrectionRequests,
-      facultyLeaveRequests,
-      pendingTasks,
-      overdueTasks,
-      activeComplaints,
-      upcomingEvents,
-    ] = await Promise.all([
-      prisma.student.count({ where: { departmentId } }),
-      prisma.student.count({ where: { departmentId, status: 'ACTIVE' } }),
-      prisma.faculty.count({ where: { departmentId } }),
-      prisma.faculty.count({ where: { departmentId, status: 'ACTIVE' } }),
-      prisma.faculty.count({ where: { departmentId } }),
-      prisma.student.count({ where: { departmentId, mentorId: null } }),
-      prisma.studentLeaveRequest.count({
-        where: { student: { departmentId }, isEmergency: true, workflowStatus: 'PENDING_HOD' },
-      }),
-      (prisma as any).attendanceCorrection ? (prisma as any).attendanceCorrection.count({
-        where: { student: { departmentId }, status: 'PENDING' },
-      }) : 0,
-      prisma.workflowRequest.count({
-        where: { OR: [{ departmentId }, { facultyRequester: { departmentId } }], facultyRequesterId: { not: null }, status: { in: ['PENDING', 'HOD_APPROVED'] } },
-      }),
-      prisma.task.count({
-        where: { departmentId, status: { in: ['PENDING', 'IN_PROGRESS'] } },
-      }),
-      prisma.task.count({
-        where: { departmentId, status: { in: ['PENDING', 'IN_PROGRESS'] }, dueDate: { lt: new Date() } },
-      }),
-      (prisma as any).complaint ? (prisma as any).complaint.count({
-        where: { departmentId, status: { in: ['NEW', 'ACKNOWLEDGED', 'UNDER_REVIEW', 'ACTION_REQUIRED'] } },
-      }) : 0,
-      (prisma as any).departmentActivity ? (prisma as any).departmentActivity.count({
-        where: { departmentId, startDate: { gte: new Date() } },
-      }) : 0,
-    ]);
+    const pendingLeaveRequests = slLeave + flLeave;
+    const pendingOdRequests = slOd + flOd;
+
+    let totalStudents = 0;
+    let activeStudents = 0;
+    let totalFaculty = 0;
+    let activeFaculty = 0;
+    let totalMentors = 0;
+    let unassignedStudents = 0;
+    let emergencyRequests = 0;
+    let attendanceCorrectionRequests = 0;
+    let facultyLeaveRequests = flLeave + flOd;
+    let pendingTasks = 0;
+    let overdueTasks = 0;
+    let activeComplaints = 0;
+    let upcomingEvents = 0;
+
+    try {
+      [
+        totalStudents,
+        activeStudents,
+        totalFaculty,
+        activeFaculty,
+        totalMentors,
+        unassignedStudents,
+        emergencyRequests,
+        pendingTasks,
+        overdueTasks,
+      ] = await Promise.all([
+        prisma.student.count({ where: { departmentId } }),
+        prisma.student.count({ where: { departmentId, status: 'ACTIVE' } }),
+        prisma.faculty.count({ where: { departmentId } }),
+        prisma.faculty.count({ where: { departmentId, status: 'ACTIVE' } }),
+        prisma.faculty.count({ where: { departmentId } }),
+        prisma.student.count({ where: { departmentId, mentorId: null } }),
+        prisma.studentLeaveRequest.count({
+          where: { student: { departmentId }, isEmergency: true, workflowStatus: 'PENDING_HOD' },
+        }),
+        prisma.task.count({
+          where: { departmentId, status: { in: ['PENDING', 'IN_PROGRESS'] } },
+        }),
+        prisma.task.count({
+          where: { departmentId, status: { in: ['PENDING', 'IN_PROGRESS'] }, dueDate: { lt: new Date() } },
+        }),
+      ]);
+    } catch (e) {
+      console.warn('[HOD Repository]: General metrics count warning:', e);
+    }
 
     return {
       totalStudents,
@@ -138,7 +144,28 @@ export class HodRepository {
     }
     if (filters.isEmergency) slWhere.isEmergency = true;
 
-    // 2. Fetch from WorkflowRequest table
+    // 2. Fetch from FacultyLeaveRequest table
+    const flWhere: any = { departmentId };
+    if (filters.status && filters.status !== 'ALL') {
+      if (filters.status === 'PENDING' || filters.status === 'PENDING_HOD') {
+        flWhere.status = { in: ['PENDING_HOD', 'PENDING', 'SUBMITTED', 'IN_REVIEW'] };
+      } else if (filters.status === 'APPROVED') {
+        flWhere.status = { in: ['APPROVED_PRINCIPAL', 'FORWARDED_TO_PRINCIPAL', 'APPROVED'] };
+      } else if (filters.status === 'REJECTED') {
+        flWhere.status = { in: ['REJECTED_HOD', 'REJECTED_PRINCIPAL', 'REJECTED'] };
+      } else if (filters.status === 'RETURNED') {
+        flWhere.status = { in: ['RETURNED_HOD', 'RETURNED'] };
+      }
+    }
+    if (filters.requestType && filters.requestType !== 'ALL') {
+      if (filters.requestType === 'OD') {
+        flWhere.leaveType = 'ON_DUTY';
+      } else {
+        flWhere.leaveType = { not: 'ON_DUTY' };
+      }
+    }
+
+    // 3. Fetch from WorkflowRequest table
     const wfWhere: any = {
       OR: [
         { departmentId },
@@ -156,7 +183,7 @@ export class HodRepository {
       }
     }
 
-    const [slItems, wfItems] = await Promise.all([
+    const [slItems, flItems, wfItems] = await Promise.all([
       prisma.studentLeaveRequest.findMany({
         where: slWhere,
         orderBy: { createdAt: 'desc' },
@@ -168,6 +195,19 @@ export class HodRepository {
               mentor: { include: { user: true } },
             },
           },
+        },
+      }),
+      prisma.facultyLeaveRequest.findMany({
+        where: flWhere,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          faculty: {
+            include: {
+              user: true,
+              department: true,
+            },
+          },
+          department: true,
         },
       }),
       prisma.workflowRequest.findMany({
@@ -190,6 +230,49 @@ export class HodRepository {
         },
       }),
     ]);
+
+    // Format FacultyLeaveRequests into unified items
+    const formattedFlItems = flItems.map((fl: any) => {
+      let wfStatus = 'PENDING_HOD';
+      if (fl.status === 'APPROVED_PRINCIPAL' || fl.status === 'APPROVED') wfStatus = 'APPROVED';
+      else if (fl.status === 'FORWARDED_TO_PRINCIPAL') wfStatus = 'FORWARDED';
+      else if (fl.status.includes('REJECT')) wfStatus = 'REJECTED';
+      else if (fl.status.includes('RETURN')) wfStatus = 'RETURNED';
+
+      const isOD = fl.leaveType === 'ON_DUTY' || fl.leaveType === 'OD';
+
+      return {
+        id: fl.id,
+        requestNumber: fl.requestNumber || `FLV-${fl.id.slice(0, 6).toUpperCase()}`,
+        type: isOD ? 'ON_DUTY' : 'LEAVE',
+        requestCategory: fl.leaveType || 'FACULTY_LEAVE',
+        reason: fl.reason || 'Faculty Leave / OD Request',
+        startDate: new Date(fl.startDate).toISOString(),
+        endDate: new Date(fl.endDate).toISOString(),
+        totalDays: fl.totalDays || 1,
+        status: fl.status,
+        workflowStatus: wfStatus,
+        substitutions: fl.substitutions,
+        isFacultyRequest: true,
+        student: {
+          id: fl.faculty?.id || 'FAC',
+          firstName: fl.faculty?.firstName || fl.faculty?.user?.firstName || 'Faculty',
+          lastName: fl.faculty?.lastName || fl.faculty?.user?.lastName || 'Member',
+          admissionNo: `EMP: ${fl.faculty?.employeeId || 'N/A'}`,
+          department: fl.department || fl.faculty?.department,
+          isFaculty: true,
+        },
+        facultyRequester: {
+          id: fl.faculty?.id,
+          employeeId: fl.faculty?.employeeId,
+          firstName: fl.faculty?.firstName,
+          lastName: fl.faculty?.lastName,
+          user: fl.faculty?.user,
+          department: fl.department,
+        },
+        createdAt: new Date(fl.createdAt).toISOString(),
+      };
+    });
 
     // Format WorkflowRequests into unified items
     const formattedWfItems = wfItems.map((wf: any) => {
@@ -253,12 +336,14 @@ export class HodRepository {
       endDate: new Date(sl.endDate).toISOString(),
       createdAt: new Date(sl.createdAt).toISOString(),
       isWorkflowRequest: false,
+      isFacultyRequest: false,
     }));
 
     // Deduplicate and combine (prefer WorkflowRequest if duplicate IDs exist)
     const combinedMap = new Map<string, any>();
     formattedSlItems.forEach((item: any) => combinedMap.set(item.id, item));
     formattedWfItems.forEach((item: any) => combinedMap.set(item.id, item));
+    formattedFlItems.forEach((item: any) => combinedMap.set(item.id, item));
 
     let allItems = Array.from(combinedMap.values());
 
@@ -293,7 +378,7 @@ export class HodRepository {
    * Find single Leave/OD request by ID within department
    */
   async getLeaveOdRequestById(id: string, departmentId: string) {
-    return prisma.studentLeaveRequest.findFirst({
+    const sl = await prisma.studentLeaveRequest.findFirst({
       where: {
         id,
         student: { departmentId },
@@ -309,6 +394,49 @@ export class HodRepository {
         },
       },
     });
+    if (sl) return { ...sl, isFacultyRequest: false };
+
+    const fl = await prisma.facultyLeaveRequest.findFirst({
+      where: {
+        id,
+        departmentId,
+      },
+      include: {
+        faculty: {
+          include: {
+            user: true,
+            department: true,
+          },
+        },
+        department: true,
+      },
+    });
+    if (fl) {
+      return {
+        ...fl,
+        type: fl.leaveType === 'ON_DUTY' ? 'ON_DUTY' : 'LEAVE',
+        requestCategory: fl.leaveType,
+        workflowStatus: fl.status === 'PENDING_HOD' ? 'PENDING_HOD' : fl.status,
+        isFacultyRequest: true,
+        student: {
+          id: fl.faculty?.id || 'FAC',
+          firstName: fl.faculty?.firstName || fl.faculty?.user?.firstName || 'Faculty',
+          lastName: fl.faculty?.lastName || fl.faculty?.user?.lastName || 'Member',
+          admissionNo: `EMP: ${fl.faculty?.employeeId || 'N/A'}`,
+          department: fl.department || fl.faculty?.department,
+          isFaculty: true,
+        },
+        facultyRequester: {
+          id: fl.faculty?.id,
+          employeeId: fl.faculty?.employeeId,
+          firstName: fl.faculty?.firstName,
+          lastName: fl.faculty?.lastName,
+          user: fl.faculty?.user,
+          department: fl.department,
+        },
+      };
+    }
+    return null;
   }
 
   /**

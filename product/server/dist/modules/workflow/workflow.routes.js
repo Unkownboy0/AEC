@@ -10,5 +10,10 @@ router.post('/requests', controller.createRequest);
 router.get('/requests', controller.listRequests);
 router.post('/requests/:id/action', controller.takeAction);
 router.post('/requests/:id/cancel', controller.cancelRequest);
+// Workflow Definitions & Configuration
+router.get('/definitions', controller.listDefinitions);
+router.get('/definitions/:module', controller.getDefinition);
+router.post('/definitions', controller.createOrUpdateDefinition);
+router.patch('/definitions/:id/activate', controller.toggleDefinitionActive);
 exports.default = router;
 //# sourceMappingURL=workflow.routes.js.map

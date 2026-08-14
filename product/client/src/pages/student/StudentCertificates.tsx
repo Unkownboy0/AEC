@@ -66,6 +66,26 @@ export const StudentCertificates: React.FC = () => {
     }
   };
 
+  const handleDownloadCertificate = async (cert: any) => {
+    try {
+      const res = await api.get(`/enterprise/certificates/download/${cert.verificationHash || cert.id}`, {
+        responseType: 'blob',
+      });
+      const blob = new Blob([res.data], { type: 'application/pdf' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `${cert.type}_Certificate_${cert.verificationHash || 'verified'}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.parentNode?.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      toast.success(`Official ${cert.type.replace(/_/g, ' ')} Certificate PDF downloaded with institutional watermark.`);
+    } catch (err: any) {
+      toast.error('Failed to download certificate PDF');
+    }
+  };
+
   if (isLoading) return <Loading text="Loading Digital Certificate Portal..." />;
 
   return (
@@ -150,7 +170,7 @@ export const StudentCertificates: React.FC = () => {
                       <QrCode className="h-3.5 w-3.5 text-indigo-600" /> QR Verify
                     </button>
                     <button
-                      onClick={() => toast.success(`Downloading official ${cert.type} PDF certificate`)}
+                      onClick={() => handleDownloadCertificate(cert)}
                       className="px-3 py-1.5 bg-indigo-600 text-white rounded-xl text-[10px] font-extrabold hover:bg-indigo-700 shadow flex items-center gap-1"
                     >
                       <Download className="h-3.5 w-3.5" /> PDF

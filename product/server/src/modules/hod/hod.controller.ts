@@ -14,7 +14,18 @@ export class HodController {
     try {
       const deptId = req.hodContext?.departmentId!;
       const summary = await this.service.getDashboardSummary(deptId);
-      return res.json({ success: true, data: summary });
+      return res.json({
+        success: true,
+        data: {
+          summaryCards: summary,
+          department: {
+            id: req.hodContext?.departmentId,
+            name: req.hodContext?.departmentName,
+            code: req.hodContext?.departmentCode,
+          },
+          widgets: { recentRequests: summary?.recentActivities || [] },
+        },
+      });
     } catch (error: any) {
       console.error('[HOD Dashboard Error]:', error);
       return res.status(500).json({ success: false, error: error.message });

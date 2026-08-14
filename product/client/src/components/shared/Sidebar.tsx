@@ -300,8 +300,9 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed }) => {
                   {[
                     { name: 'Dashboard', path: '/hod/dashboard', icon: LucideIcons.LayoutDashboard },
                     { name: 'Approvals', path: '/hod/leave-approvals', icon: LucideIcons.FileCheck, badge: pendingWfCount },
+                    { name: 'Faculty & Availability', path: '/hod/faculty', icon: LucideIcons.UserCheck },
+                    { name: 'Campus Office', path: '/office', icon: LucideIcons.Layers },
                     { name: 'Students', path: '/hod/students', icon: LucideIcons.Users },
-                    { name: 'Faculty', path: '/hod/faculty', icon: LucideIcons.UserCheck },
                     { name: 'Mentors', path: '/hod/mentors', icon: LucideIcons.UserPlus },
                     { name: 'Academics', path: '/hod/academics', icon: LucideIcons.BookOpen },
                     { name: 'Attendance', path: '/hod/attendance', icon: LucideIcons.Clock },
@@ -387,12 +388,14 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed }) => {
                   </div>
                   {[
                     { name: 'Dashboard', path: '/faculty/dashboard', icon: LucideIcons.LayoutDashboard },
+                    { name: 'Cross-Dept Hub', path: '/faculty/hub', icon: LucideIcons.Sparkles },
+                    { name: 'Campus Office', path: '/faculty/office', icon: LucideIcons.Layers },
                     { name: 'My Timetable', path: '/faculty/timetable', icon: LucideIcons.Clock },
                     { name: 'My Subjects', path: '/faculty/subjects', icon: LucideIcons.BookOpen },
                     { name: 'Period Attendance', path: '/faculty/attendance', icon: LucideIcons.CheckSquare },
                     { name: 'Assignments', path: '/faculty/assignments', icon: LucideIcons.FileText },
                     { name: 'Internal Marks', path: '/faculty/internal-marks', icon: LucideIcons.Award },
-                    { name: 'Leave & OD', path: '/faculty/leave-od', icon: LucideIcons.FileCheck },
+                    { name: 'Leave & Substitution', path: '/faculty/hub?tab=leave', icon: LucideIcons.Calendar },
                     { name: 'Tasks Workspace', path: '/faculty/tasks', icon: LucideIcons.CheckSquare },
                     { name: 'Circulars', path: '/faculty/circulars', icon: LucideIcons.Megaphone },
                     { name: 'Department Board', path: '/faculty/department-availability', icon: LucideIcons.Calendar },

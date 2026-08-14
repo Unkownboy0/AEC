@@ -1,4 +1,5 @@
 import PDFDocument from 'pdfkit';
+import { PdfWatermarkService } from '../../services/pdf-watermark.service';
 
 const money = (value: unknown) => `INR ${Number(value || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
 
@@ -8,6 +9,9 @@ export function writeFeeReceipt(doc: PDFKit.PDFDocument, payment: any) {
   const college = process.env.COLLEGE_NAME || 'CampusOS College';
   const left = 52;
   const right = 543;
+
+  // 1. Draw Institutional Background Watermark
+  PdfWatermarkService.drawWatermarkOnCurrentPage(doc, { isReceipt: true });
 
   doc.rect(0, 0, 595.28, 116).fill('#111827');
   doc.fillColor('#8b5cf6').fontSize(13).font('Helvetica-Bold').text('CAMPUSOS', left, 34);

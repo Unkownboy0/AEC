@@ -5,6 +5,7 @@ const prisma_1 = require("../../lib/prisma");
 const exceptions_1 = require("../../utils/exceptions");
 const principal_delegation_resolver_service_1 = require("../principal-delegation/principal-delegation-resolver.service");
 const request_routing_service_1 = require("../principal-availability/request-routing.service");
+const leavePolicy_1 = require("../../utils/leavePolicy");
 class WorkflowService {
     /**
      * Submit a new student leave/document request
@@ -40,6 +41,9 @@ class WorkflowService {
         if (faculty) {
             const startDate = startDateStr ? new Date(startDateStr) : null;
             const endDate = endDateStr ? new Date(endDateStr) : null;
+            if (startDate && (type.toUpperCase().includes('LEAVE') || type.toUpperCase().includes('OD'))) {
+                await (0, leavePolicy_1.validateRequestDate)(startDate, type.toUpperCase().includes('OD'));
+            }
             // Determine initial step and target based on role
             const requesterRole = faculty.user?.role?.name || '';
             const isExecutiveRequester = ['HOD', 'Head of Department', 'Vice Principal', 'Academic Dean', 'Admission Dean', 'IQAC Dean'].includes(requesterRole) ||
@@ -133,6 +137,9 @@ class WorkflowService {
         const departmentId = student.departmentId || null;
         const startDate = startDateStr ? new Date(startDateStr) : null;
         const endDate = endDateStr ? new Date(endDateStr) : null;
+        if (startDate && (type.toUpperCase().includes('LEAVE') || type.toUpperCase().includes('OD'))) {
+            await (0, leavePolicy_1.validateRequestDate)(startDate, type.toUpperCase().includes('OD'));
+        }
         const request = await prisma_1.prisma.workflowRequest.create({
             data: {
                 studentId: student.id,

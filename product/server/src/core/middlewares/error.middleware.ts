@@ -1,7 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { HttpException } from '../../utils/exceptions';
 import { logger } from '../../utils/logger';
-import { env } from '../../config/env';
 import { ZodError } from 'zod';
 
 export const errorHandler = (
@@ -49,6 +48,5 @@ export const errorHandler = (
     statusCode: status,
     message,
     errors,
-    stack: env.NODE_ENV === 'development' ? error.stack : undefined,
   });
 };

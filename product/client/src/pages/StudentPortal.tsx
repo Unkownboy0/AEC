@@ -564,13 +564,20 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ user }) => {
         logging: false
       });
 
-      const imgData = canvas.toDataURL('image/jpeg', 0.7); // Compress canvas to JPEG at 70% quality
+      const imgData = canvas.toDataURL('image/jpeg', 0.85);
 
       const pdf = new jsPDF({
         orientation: 'portrait',
         unit: 'mm',
         format: 'a4'
       });
+
+      // Embed Institutional Background Watermark
+      const { getWatermarkBase64, drawPdfWatermark } = await import('../services/pdfExportService');
+      const watermarkBase64 = await getWatermarkBase64('/branding/al-ameen-logo.png');
+      if (watermarkBase64) {
+        drawPdfWatermark(pdf, watermarkBase64, { opacity: 0.045, orientation: 'portrait' });
+      }
 
       // A4 dimensions: 210mm x 297mm
       pdf.addImage(imgData, 'JPEG', 0, 0, 210, 297, undefined, 'FAST');

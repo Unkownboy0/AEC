@@ -50,12 +50,13 @@ router.put('/students/:id', requirePermission('students:write'), controller.upda
 router.delete('/students/:id', requirePermission('students:write'), controller.deleteStudent);
 
 // Faculty
+const facultyWriteGuard = requireRole(['Super Admin', 'College Admin', 'HOD', 'Principal']);
 router.get('/faculty', controller.listFaculties);
 router.get('/faculty/:id/full-profile', controller.getFacultyFullProfile);
 router.get('/faculty/:id', controller.getFaculty);
-router.post('/faculty', controller.createFaculty);
-router.put('/faculty/:id', controller.updateFaculty);
-router.delete('/faculty/:id', controller.deleteFaculty);
+router.post('/faculty', facultyWriteGuard, controller.createFaculty);
+router.put('/faculty/:id', facultyWriteGuard, controller.updateFaculty);
+router.delete('/faculty/:id', facultyWriteGuard, controller.deleteFaculty);
 
 // Attendance
 router.get('/attendance', controller.listAttendances);
@@ -90,25 +91,28 @@ router.get('/fees/external-payments', requirePermission('fees:write'), StudentFe
 router.post('/fees/external-payments/:id/review', requirePermission('fees:write'), StudentFeeController.reviewExternal);
 
 // Library
+const facilityAdminGuard = requireRole(['Super Admin', 'College Admin', 'Librarian', 'Library Staff']);
 router.get('/library/books', controller.listLibraryBooks);
 router.get('/library/books/:id', controller.getLibraryBook);
-router.post('/library/books', controller.createLibraryBook);
-router.put('/library/books/:id', controller.updateLibraryBook);
-router.delete('/library/books/:id', controller.deleteLibraryBook);
+router.post('/library/books', facilityAdminGuard, controller.createLibraryBook);
+router.put('/library/books/:id', facilityAdminGuard, controller.updateLibraryBook);
+router.delete('/library/books/:id', facilityAdminGuard, controller.deleteLibraryBook);
 
 // Transport
+const transportAdminGuard = requireRole(['Super Admin', 'College Admin', 'Transport Manager', 'Transport Staff']);
 router.get('/transport/routes', controller.listTransportRoutes);
 router.get('/transport/routes/:id', controller.getTransportRoute);
-router.post('/transport/routes', controller.createTransportRoute);
-router.put('/transport/routes/:id', controller.updateTransportRoute);
-router.delete('/transport/routes/:id', controller.deleteTransportRoute);
+router.post('/transport/routes', transportAdminGuard, controller.createTransportRoute);
+router.put('/transport/routes/:id', transportAdminGuard, controller.updateTransportRoute);
+router.delete('/transport/routes/:id', transportAdminGuard, controller.deleteTransportRoute);
 
 // Hostel
+const hostelAdminGuard = requireRole(['Super Admin', 'College Admin', 'Hostel Warden', 'Hostel Staff']);
 router.get('/hostel/buildings', controller.listHostels);
 router.get('/hostel/buildings/:id', controller.getHostel);
-router.post('/hostel/buildings', controller.createHostel);
-router.put('/hostel/buildings/:id', controller.updateHostel);
-router.delete('/hostel/buildings/:id', controller.deleteHostel);
+router.post('/hostel/buildings', hostelAdminGuard, controller.createHostel);
+router.put('/hostel/buildings/:id', hostelAdminGuard, controller.updateHostel);
+router.delete('/hostel/buildings/:id', hostelAdminGuard, controller.deleteHostel);
 
 // Tickets
 router.get('/tickets', controller.listTickets);
@@ -128,10 +132,12 @@ router.get('/internships/documents', controller.listAllInternshipDocuments);
 router.post('/internships/documents/:id/verify', controller.verifyInternshipDocument);
 
 // Mentor Assignments & Counseling
-router.post('/mentors/assign', controller.assignStudentsToMentor);
-router.post('/mentors/remove', controller.removeStudentFromMentor);
-router.get('/counseling', controller.listCounselingRecords);
-router.post('/counseling', controller.createCounselingRecord);
+const mentorAssignmentGuard = requireRole(['Super Admin', 'College Admin', 'HOD', 'Academic Dean']);
+const counselingGuard = requireRole(['Super Admin', 'College Admin', 'HOD', 'Mentor', 'Faculty']);
+router.post('/mentors/assign', mentorAssignmentGuard, controller.assignStudentsToMentor);
+router.post('/mentors/remove', mentorAssignmentGuard, controller.removeStudentFromMentor);
+router.get('/counseling', counselingGuard, controller.listCounselingRecords);
+router.post('/counseling', counselingGuard, controller.createCounselingRecord);
 
 // Placements Dashboard (Read-Only & Audit)
 import { PlacementController } from './placement.controller';
@@ -141,27 +147,29 @@ router.get('/placements/records', placementController.getRecords);
 router.post('/placements/audit', placementController.recordAudit);
 
 // Placement Drive Management
+const placementStaffGuard = requireRole(['Super Admin', 'College Admin', 'Placement Officer', 'Placement Coordinator']);
 router.get('/placements/drives', placementController.listDrives);
-router.post('/placements/drives', placementController.createDrive);
-router.put('/placements/drives/:id', placementController.updateDrive);
-router.delete('/placements/drives/:id', placementController.deleteDrive);
+router.post('/placements/drives', placementStaffGuard, placementController.createDrive);
+router.put('/placements/drives/:id', placementStaffGuard, placementController.updateDrive);
+router.delete('/placements/drives/:id', placementStaffGuard, placementController.deleteDrive);
 router.post('/placements/drives/apply', placementController.applyToDrive);
 router.get('/placements/student-portal', placementController.getStudentPortal);
 router.post('/placements/student/apply', placementController.studentApplyToDrive);
 router.post('/placements/student/applications/:id/withdraw', placementController.studentWithdrawApplication);
 router.get('/placements/drives/:driveId/applications', placementController.listApplications);
-router.put('/placements/applications/:id/status', placementController.updateApplicationStatus);
-router.post('/placements/applications/:id/offer-letter', placementController.uploadOfferLetter);
+router.put('/placements/applications/:id/status', placementStaffGuard, placementController.updateApplicationStatus);
+router.post('/placements/applications/:id/offer-letter', placementStaffGuard, placementController.uploadOfferLetter);
 
 // Complaint Monitoring Center (Institution-Wide Read-Only & Escalation)
 import { ComplaintController } from './complaint.controller';
 const complaintController = new ComplaintController();
-router.get('/complaints/analytics', complaintController.getAnalytics);
-router.get('/complaints/feed', complaintController.getFeed);
+const complaintStaffGuard = requireRole(['Super Admin', 'College Admin', 'Principal', 'Vice Principal', 'HOD', 'Grievance', 'Grievance Officer']);
+router.get('/complaints/analytics', complaintStaffGuard, complaintController.getAnalytics);
+router.get('/complaints/feed', complaintStaffGuard, complaintController.getFeed);
 router.post('/complaints', controller.createTicket);
-router.post('/complaints/:id/remarks', complaintController.addInternalRemark);
-router.post('/complaints/:id/escalate', complaintController.escalateComplaint);
-router.post('/complaints/audit', complaintController.recordAudit);
+router.post('/complaints/:id/remarks', complaintStaffGuard, complaintController.addInternalRemark);
+router.post('/complaints/:id/escalate', complaintStaffGuard, complaintController.escalateComplaint);
+router.post('/complaints/audit', complaintStaffGuard, complaintController.recordAudit);
 
 // Campus Activities Monitoring Center (Read-Only & NAAC/NBA Accreditation Reports)
 import { ActivityController } from './activity.controller';
@@ -209,6 +217,7 @@ const certController = new CertificateController();
 router.post('/certificates/apply', certController.apply);
 router.get('/certificates/my-list', certController.listMyCertificates);
 router.get('/certificates/verify/:hash', certController.verify);
+router.get('/certificates/download/:hash', certController.download);
 
 // Gamification Engine
 import { GamificationController } from './gamification.controller';
@@ -228,10 +237,11 @@ router.post('/quizzes/:id/submit', quizController.submitQuiz);
 // Centralized Master Timetable Engine (COE & Dean Academics Control)
 import { MasterTimetableController } from './master-timetable.controller';
 const masterTimetableController = new MasterTimetableController();
+const timetableControlGuard = requireRole(['Super Admin', 'College Admin', 'Academic Dean', 'Examination Cell', 'COE']);
 router.get('/master-timetable/view', masterTimetableController.getCentralizedTimetable);
-router.post('/master-timetable/conflict-check', masterTimetableController.runConflictCheck);
-router.post('/master-timetable/publish', masterTimetableController.publishTimetable);
-router.get('/master-timetable/audit-logs', masterTimetableController.getAuditLogs);
+router.post('/master-timetable/conflict-check', timetableControlGuard, masterTimetableController.runConflictCheck);
+router.post('/master-timetable/publish', timetableControlGuard, masterTimetableController.publishTimetable);
+router.get('/master-timetable/audit-logs', timetableControlGuard, masterTimetableController.getAuditLogs);
 
 // Enterprise HOD & Dean Workspaces
 router.get('/hod/dashboard', enforceDepartmentScope as any, HODController.getDashboard);
@@ -255,12 +265,13 @@ router.post('/tasks/:taskId/comments', TaskController.addComment);
 
 // Enterprise Governance & Digital Document Management Suite
 import { GovernanceController } from './governance.controller';
+const governanceGuard = requireRole(['Super Admin', 'College Admin', 'Principal', 'Vice Principal', 'Academic Dean', 'Admission Dean', 'IQAC Dean', 'HOD']);
 router.get('/governance/verify/:qrToken', GovernanceController.verifySignature);
-router.post('/governance/documents', GovernanceController.createDocument);
-router.patch('/governance/documents/:id/state', GovernanceController.updateState);
-router.post('/governance/documents/:id/sign', GovernanceController.signDocument);
+router.post('/governance/documents', governanceGuard, GovernanceController.createDocument);
+router.patch('/governance/documents/:id/state', governanceGuard, GovernanceController.updateState);
+router.post('/governance/documents/:id/sign', governanceGuard, GovernanceController.signDocument);
 router.get('/governance/sop-library', GovernanceController.getSopLibrary);
-router.post('/governance/sop-library', GovernanceController.createSopItem);
+router.post('/governance/sop-library', governanceGuard, GovernanceController.createSopItem);
 
 // Enterprise Executive Portal Architecture Endpoints
 import { ExecutiveController } from './executive.controller';
@@ -269,7 +280,7 @@ router.get('/executive/health-scores', executiveController.getDepartmentHealthSc
 router.get('/executive/ai-insights', executiveController.getAIExecutiveInsights);
 router.get('/executive/inbox', executiveController.getExecutiveInbox);
 router.post('/executive/presence', executiveController.updatePresenceStatus);
-router.post('/executive/command-action', executiveController.executeCommandAction);
+router.post('/executive/command-action', requireRole(['Super Admin', 'College Admin', 'Principal', 'Vice Principal', 'Academic Dean', 'Admission Dean', 'IQAC Dean']), executiveController.executeCommandAction);
 
 // Realtime Department Availability Board for HOD, Dean, VP, Principal
 import { availabilityBoardController } from './availability-board.controller';

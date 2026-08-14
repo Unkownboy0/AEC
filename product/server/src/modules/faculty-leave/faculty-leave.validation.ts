@@ -30,12 +30,44 @@ export const OdCategoryEnum = z.enum([
   'Other On Duty',
 ]);
 
+export const TimetableSubstitutionItemSchema = z.object({
+  sessionId: z.string().optional(),
+  date: z.string(),
+  dayOfWeek: z.string(),
+  periodDisplay: z.string().optional(),
+  periodStart: z.number().optional(),
+  periodEnd: z.number().optional(),
+  slotIds: z.array(z.string()).optional(),
+  timetableSlotId: z.string().optional(),
+  slotIndex: z.number().optional(),
+  startTime: z.string().optional(),
+  endTime: z.string().optional(),
+  departmentId: z.string(),
+  departmentName: z.string().optional(),
+  departmentCode: z.string().optional(),
+  subjectId: z.string(),
+  subjectName: z.string().optional(),
+  subjectCode: z.string().optional(),
+  sectionId: z.string().optional().nullable(),
+  sectionName: z.string().optional().nullable(),
+  venue: z.string().optional().nullable(),
+  roomNo: z.string().optional().nullable(),
+  slotType: z.string().optional(),
+  isLab: z.boolean().optional(),
+  assignedSubstituteId: z.string().optional().nullable(),
+  assignedSubstituteName: z.string().optional().nullable(),
+  assignedSubstituteDept: z.string().optional().nullable(),
+  assignedSubstituteWorkload: z.string().optional().nullable(),
+  subjectMatch: z.string().optional().nullable(),
+});
+
 export const CreateFacultyLeaveOdSchema = z.object({
   requestType: z.enum(['LEAVE', 'OD']),
   category: z.string().min(1, 'Category is required'),
   startDate: z.string().min(1, 'Start date is required'),
   endDate: z.string().min(1, 'End date is required'),
   isHalfDay: z.boolean().default(false),
+  halfDayPeriod: z.enum(['FIRST_HALF', 'SECOND_HALF']).optional().nullable(),
   startTime: z.string().optional().nullable(),
   endTime: z.string().optional().nullable(),
   totalDays: z.number().min(0.5, 'Total days must be at least 0.5'),
@@ -45,7 +77,8 @@ export const CreateFacultyLeaveOdSchema = z.object({
   contactNumber: z.string().optional().nullable(),
   supportingDocumentUrl: z.string().optional().nullable(),
   supportingDocumentName: z.string().optional().nullable(),
-  affectedPeriods: z.array(z.string()).default([]),
+  affectedPeriods: z.array(z.union([z.string(), TimetableSubstitutionItemSchema])).default([]),
+  substitutionsList: z.array(TimetableSubstitutionItemSchema).optional(),
   workHandoverDetails: z.string().optional().nullable(),
   preferredSubstituteId: z.string().optional().nullable(),
   remarks: z.string().optional().nullable(),
@@ -58,7 +91,6 @@ export const CreateFacultyLeaveOdSchema = z.object({
   invitationLetterUrl: z.string().optional().nullable(),
   expectedOutcome: z.string().optional().nullable(),
 
-
   // Medical specific
   medicalCertificateUrl: z.union([z.string().url(), z.literal('')]).optional().nullable(),
   hospitalDetails: z.string().optional().nullable(),
@@ -69,6 +101,7 @@ export type CreateFacultyLeaveOdDto = z.infer<typeof CreateFacultyLeaveOdSchema>
 export const HodActionSchema = z.object({
   remarks: z.string().optional().nullable(),
   confirmedSubstituteId: z.string().optional().nullable(),
+  confirmedSubstitutions: z.array(TimetableSubstitutionItemSchema).optional(),
   handoverInstructions: z.string().optional().nullable(),
 });
 

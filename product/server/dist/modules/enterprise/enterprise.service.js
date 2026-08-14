@@ -6,6 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.EnterpriseService = void 0;
 const enterprise_repository_1 = require("./enterprise.repository");
 const prisma_1 = require("../../lib/prisma");
+const socket_1 = require("../../lib/socket");
 const exceptions_1 = require("../../utils/exceptions");
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const student_access_service_1 = require("../security/student-access.service");
@@ -483,6 +484,8 @@ class EnterpriseService {
         });
         const targetType = studentId ? 'Student' : 'Faculty';
         await this.logActivity(userId, 'CREATE', 'ATTENDANCE', `Recorded ${type || 'DAILY'} Attendance for ${targetType} - Status: ${status}`, ip, ua);
+        const departmentId = studentId ? (await prisma_1.prisma.student.findUnique({ where: { id: studentId }, select: { departmentId: true } }))?.departmentId : facultyId ? (await prisma_1.prisma.faculty.findUnique({ where: { id: facultyId }, select: { departmentId: true } }))?.departmentId : null;
+        (0, socket_1.broadcastRBACUpdate)({ type: 'ATTENDANCE_UPDATED', payload: { departmentId, subjectId, recordedAt: new Date().toISOString() } });
         return attendance;
     }
     async recordBulkAttendance(input, userId, ip, ua) {
@@ -519,6 +522,9 @@ class EnterpriseService {
             count++;
         }
         await this.logActivity(userId, 'CREATE', 'ATTENDANCE', `Recorded bulk attendance for ${count} students`, ip, ua);
+        const firstStudentId = records.find((record) => record.studentId)?.studentId;
+        const departmentId = firstStudentId ? (await prisma_1.prisma.student.findUnique({ where: { id: firstStudentId }, select: { departmentId: true } }))?.departmentId : null;
+        (0, socket_1.broadcastRBACUpdate)({ type: 'ATTENDANCE_UPDATED', payload: { departmentId, subjectId, count, recordedAt: new Date().toISOString() } });
         return { count };
     }
     // ==========================================
@@ -876,9 +882,16 @@ class EnterpriseService {
             const departmentIds = Array.from(new Set([...(user.departmentId ? [user.departmentId] : []), ...departments.map((item) => item.departmentId)]));
             return this.repo.findTickets({ ...rest, scopeWhere: { OR: [{ student: { departmentId: { in: departmentIds } } }, { faculty: { departmentId: { in: departmentIds } } }] } });
         }
-        const roleCategory = { 'Admission Dean': 'HOSTEL', 'Academic Dean': 'ACADEMIC', 'IQAC Dean': 'IQAC' };
-        if (roleCategory[user.role])
-            return this.repo.findTickets({ ...rest, category: roleCategory[user.role] });
+        const roleCategories = { 'Admission Dean': ['HOSTEL', 'ADMINISTRATION', 'ADMIN', 'STUDENT_SERVICE', 'DOCUMENT', 'ADMISSION'], 'Administration & Admission Dean': ['HOSTEL', 'ADMINISTRATION', 'ADMIN', 'STUDENT_SERVICE', 'DOCUMENT', 'ADMISSION'], 'ADMINISTRATION_AND_ADMISSION_DEAN': ['HOSTEL', 'ADMINISTRATION', 'ADMIN', 'STUDENT_SERVICE', 'DOCUMENT', 'ADMISSION'], 'Academic Dean': ['ACADEMIC'], 'IQAC Dean': ['IQAC'] };
+        if (roleCategories[user.role]) {
+            let categories = roleCategories[user.role];
+            if (['Admission Dean', 'Administration & Admission Dean', 'ADMINISTRATION_AND_ADMISSION_DEAN'].includes(user.role)) {
+                const policy = await prisma_1.prisma.systemSetting.findUnique({ where: { key: 'HOSTEL_ADMINISTRATION_DEAN_OVERSIGHT' }, select: { value: true } });
+                if (!['true', 'enabled', '1', 'yes'].includes(String(policy?.value || '').toLowerCase()))
+                    categories = categories.filter((category) => category !== 'HOSTEL');
+            }
+            return this.repo.findTickets({ ...rest, scopeWhere: { ...(rest.scopeWhere || {}), category: { in: categories } } });
+        }
         if (!['Principal', 'Vice Principal', 'Super Admin', 'College Admin'].includes(user.role))
             throw new exceptions_1.UnauthorizedException('Your active workspace cannot access complaints.');
         return this.repo.findTickets(rest);
@@ -927,8 +940,8 @@ class EnterpriseService {
         if (!['LOW', 'MEDIUM', 'HIGH', 'URGENT', 'CRITICAL'].includes(normalizedPriority))
             throw new exceptions_1.BadRequestException('Invalid complaint priority');
         let assignedToUserId = null;
-        if (normalizedCategory === 'HOSTEL') {
-            const admissionWorkspace = await prisma_1.prisma.userWorkspace.findFirst({ where: { workspaceCode: 'ADMISSION', status: 'ACTIVE', user: { status: 'ACTIVE' } }, orderBy: { isPrimary: 'desc' }, select: { userId: true } });
+        if (['HOSTEL', 'ADMINISTRATION', 'ADMIN', 'STUDENT_SERVICE', 'DOCUMENT', 'ADMISSION'].includes(normalizedCategory)) {
+            const admissionWorkspace = await prisma_1.prisma.userWorkspace.findFirst({ where: { status: 'ACTIVE', user: { status: 'ACTIVE' }, OR: [{ workspaceCode: { in: ['ADMISSION', 'ADMINISTRATION'] } }, { roleName: { in: ['Admission Dean', 'Administration & Admission Dean'] } }] }, orderBy: { isPrimary: 'desc' }, select: { userId: true } });
             assignedToUserId = admissionWorkspace?.userId || null;
         }
         const ticket = await prisma_1.prisma.ticket.create({
@@ -972,10 +985,15 @@ class EnterpriseService {
             await this.logActivity(userId, 'UPDATE', 'SUPPORT', `Student added reply for ticket #${ticket.id}`, ip, ua);
             return updated;
         }
-        const categoryByRole = { 'Admission Dean': 'HOSTEL', 'Academic Dean': 'ACADEMIC', 'IQAC Dean': 'IQAC' };
-        if (categoryByRole[role] && ticket.category !== categoryByRole[role])
+        const categoriesByRole = { 'Admission Dean': ['HOSTEL', 'ADMINISTRATION', 'ADMIN', 'STUDENT_SERVICE', 'DOCUMENT', 'ADMISSION'], 'Administration & Admission Dean': ['HOSTEL', 'ADMINISTRATION', 'ADMIN', 'STUDENT_SERVICE', 'DOCUMENT', 'ADMISSION'], 'ADMINISTRATION_AND_ADMISSION_DEAN': ['HOSTEL', 'ADMINISTRATION', 'ADMIN', 'STUDENT_SERVICE', 'DOCUMENT', 'ADMISSION'], 'Academic Dean': ['ACADEMIC'], 'IQAC Dean': ['IQAC'] };
+        if (['Admission Dean', 'Administration & Admission Dean', 'ADMINISTRATION_AND_ADMISSION_DEAN'].includes(role) && ticket.category === 'HOSTEL') {
+            const policy = await prisma_1.prisma.systemSetting.findUnique({ where: { key: 'HOSTEL_ADMINISTRATION_DEAN_OVERSIGHT' }, select: { value: true } });
+            if (!['true', 'enabled', '1', 'yes'].includes(String(policy?.value || '').toLowerCase()))
+                throw new exceptions_1.UnauthorizedException('Hostel oversight is not assigned to this workspace by institution policy.');
+        }
+        if (categoriesByRole[role] && !categoriesByRole[role].includes(ticket.category))
             throw new exceptions_1.UnauthorizedException('Your active workspace cannot modify this complaint.');
-        const isDeanOrAdmin = ['Academic Dean', 'Admission Dean', 'IQAC Dean', 'Principal', 'Vice Principal', 'Super Admin', 'College Admin'].includes(role);
+        const isDeanOrAdmin = ['Academic Dean', 'Admission Dean', 'Administration & Admission Dean', 'ADMINISTRATION_AND_ADMISSION_DEAN', 'IQAC Dean', 'Principal', 'Vice Principal', 'Super Admin', 'College Admin'].includes(role);
         if (!isDeanOrAdmin) {
             throw new exceptions_1.UnauthorizedException('Only Deans and executive administrators can modify complaints.');
         }

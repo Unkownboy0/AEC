@@ -9022,3 +9022,324 @@ Error validating datasource `db`: the URL must start with the protocol `prisma:/
 [2026-08-13 13:13:59] [ERROR]: TypeError: fetch failed
 [2026-08-13 13:14:02] [ERROR]: TypeError: fetch failed
 [2026-08-13 13:14:06] [ERROR]: TypeError: fetch failed
+[2026-08-14 12:37:12] [ERROR]: Error: Department not found
+    at HodTimetableService.getDepartmentFacultyRoster (D:\local\crm\product\server\src\modules\timetable\hod-timetable.service.ts:40:28)
+    at getFacultyRoster (D:\local\crm\product\server\src\modules\timetable\hod-timetable.controller.ts:12:20)
+[2026-08-14 12:37:12] [ERROR]: Error: Department not found
+    at HodTimetableService.getDepartmentFacultyRoster (D:\local\crm\product\server\src\modules\timetable\hod-timetable.service.ts:40:28)
+    at getFacultyRoster (D:\local\crm\product\server\src\modules\timetable\hod-timetable.controller.ts:12:20)
+[2026-08-14 12:38:01] [ERROR]: Error: Department not found
+    at HodTimetableService.getDepartmentFacultyRoster (D:\local\crm\product\server\src\modules\timetable\hod-timetable.service.ts:40:28)
+    at getFacultyRoster (D:\local\crm\product\server\src\modules\timetable\hod-timetable.controller.ts:12:20)
+[2026-08-14 12:38:01] [ERROR]: Error: Department not found
+    at HodTimetableService.getDepartmentFacultyRoster (D:\local\crm\product\server\src\modules\timetable\hod-timetable.service.ts:40:28)
+    at getFacultyRoster (D:\local\crm\product\server\src\modules\timetable\hod-timetable.controller.ts:12:20)
+[2026-08-14 12:38:49] [ERROR]: Error: Department not found
+    at HodTimetableService.getDepartmentFacultyRoster (D:\local\crm\product\server\src\modules\timetable\hod-timetable.service.ts:40:28)
+    at getFacultyRoster (D:\local\crm\product\server\src\modules\timetable\hod-timetable.controller.ts:12:20)
+[2026-08-14 12:38:49] [ERROR]: Error: Department not found
+    at HodTimetableService.getDepartmentFacultyRoster (D:\local\crm\product\server\src\modules\timetable\hod-timetable.service.ts:40:28)
+    at getFacultyRoster (D:\local\crm\product\server\src\modules\timetable\hod-timetable.controller.ts:12:20)
+[2026-08-14 12:40:03] [ERROR]: Error: Department not found
+    at HodTimetableService.getDepartmentFacultyRoster (D:\local\crm\product\server\src\modules\timetable\hod-timetable.service.ts:40:28)
+    at getFacultyRoster (D:\local\crm\product\server\src\modules\timetable\hod-timetable.controller.ts:12:20)
+[2026-08-14 12:40:03] [ERROR]: Error: Department not found
+    at HodTimetableService.getDepartmentFacultyRoster (D:\local\crm\product\server\src\modules\timetable\hod-timetable.service.ts:40:28)
+    at getFacultyRoster (D:\local\crm\product\server\src\modules\timetable\hod-timetable.controller.ts:12:20)
+[2026-08-14 12:47:02] [ERROR]: Error: Department not found
+    at HodTimetableService.getDepartmentFacultyRoster (D:\local\crm\product\server\src\modules\timetable\hod-timetable.service.ts:40:28)
+    at getFacultyRoster (D:\local\crm\product\server\src\modules\timetable\hod-timetable.controller.ts:12:20)
+[2026-08-14 15:20:47] [ERROR]: PrismaClientValidationError: 
+Invalid `prisma.researchProject.create()` invocation in
+D:\local\crm\product\server\src\modules\research\research.routes.ts:32:50
+
+  29 
+  30 router.post('/projects', researchWriteGuard, async (req: Request, res: Response, next: NextFunction) => {
+  31   try {
+→ 32     const project = await prisma.researchProject.create({
+           data: {
+             startDate: undefined,
+             endDate: undefined,
+             coPiIds: "[]",
+             milestones: "[]",
+         +   title: String
+           }
+         })
+
+Argument `title` is missing.
+    at wn (D:\local\crm\product\server\node_modules\@prisma\client\runtime\library.js:29:1363)
+    at $n.handleRequestError (D:\local\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6958)
+    at $n.handleAndLogRequestError (D:\local\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6623)
+    at $n.request (D:\local\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6307)
+    at l (D:\local\crm\product\server\node_modules\@prisma\client\runtime\library.js:130:9633)
+    at D:\local\crm\product\server\src\modules\research\research.routes.ts:32:21
+[2026-08-14 15:20:48] [ERROR]: PrismaClientValidationError: 
+Invalid `prisma.clubEvent.create()` invocation in
+D:\local\crm\product\server\src\modules\clubs\clubs.routes.ts:51:42
+
+  48 // Events
+  49 router.post('/events', clubStaffGuard, async (req: Request, res: Response, next: NextFunction) => {
+  50   try {
+→ 51     const event = await prisma.clubEvent.create({
+           data: {
+             startDate: new Date("Invalid Date"),
+                        ~~~~~~~~~~~~~~~~~~~~~~~~
+             endDate: new Date("Invalid Date"),
+             registrationDeadline: undefined,
+             organizerId: "bb59086b-d838-4aa1-9041-21b94ea11e86",
+             attachments: "[]"
+           }
+         })
+
+Invalid value for argument `startDate`: Provided Date object is invalid. Expected Date.
+    at wn (D:\local\crm\product\server\node_modules\@prisma\client\runtime\library.js:29:1363)
+    at e.throwValidationError (D:\local\crm\product\server\node_modules\@prisma\client\runtime\library.js:29:10206)
+    at sa (D:\local\crm\product\server\node_modules\@prisma\client\runtime\library.js:29:7746)
+    at aa (D:\local\crm\product\server\node_modules\@prisma\client\runtime\library.js:29:8908)
+    at sa (D:\local\crm\product\server\node_modules\@prisma\client\runtime\library.js:29:8439)
+    at aa (D:\local\crm\product\server\node_modules\@prisma\client\runtime\library.js:29:8908)
+    at mr (D:\local\crm\product\server\node_modules\@prisma\client\runtime\library.js:29:6037)
+    at vn (D:\local\crm\product\server\node_modules\@prisma\client\runtime\library.js:29:5902)
+    at D:\local\crm\product\server\node_modules\@prisma\client\runtime\library.js:130:10186
+    at Object.runInChildSpan (D:\local\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:1509)
+    at t._executeRequest (D:\local\crm\product\server\node_modules\@prisma\client\runtime\library.js:130:10165)
+    at Na (D:\local\crm\product\server\node_modules\@prisma\client\runtime\library.js:31:9955)
+    at l (D:\local\crm\product\server\node_modules\@prisma\client\runtime\library.js:130:9639)
+    at D:\local\crm\product\server\node_modules\@prisma\client\runtime\library.js:130:9933
+    at AsyncResource.runInAsyncScope (node:async_hooks:227:14)
+    at D:\local\crm\product\server\node_modules\@prisma\client\runtime\library.js:130:9913
+[2026-08-14 16:03:21] [ERROR]: PrismaClientValidationError: 
+Invalid `prisma.feeBill.findUnique()` invocation in
+D:\local\crm\product\server\src\modules\integration\integration-chain.service.ts:316:39
+
+  313   payerUserId: string;
+  314   remarks?: string;
+  315 }) {
+→ 316   const bill = await prisma.feeBill.findUnique({
+          where: {
+            id: undefined,
+        ?   invoiceNumber?: String,
+        ?   AND?: FeeBillWhereInput | FeeBillWhereInput[],
+        ?   OR?: FeeBillWhereInput[],
+        ?   NOT?: FeeBillWhereInput | FeeBillWhereInput[],
+        ?   amount?: FloatFilter | Float,
+        ?   scholarshipDiscount?: FloatFilter | Float,
+        ?   fine?: FloatFilter | Float,
+        ?   paidAmount?: FloatFilter | Float,
+        ?   status?: StringFilter | String,
+        ?   billingDate?: DateTimeFilter | DateTime,
+        ?   dueDate?: DateTimeFilter | DateTime,
+        ?   paymentHistory?: StringFilter | String,
+        ?   receipts?: StringFilter | String,
+        ?   academicYearLabel?: StringNullableFilter | String | Null,
+        ?   semesterLabel?: StringNullableFilter | String | Null,
+        ?   allowPartialPayment?: BoolFilter | Boolean,
+        ?   studentId?: StringFilter | String,
+        ?   categoryId?: StringFilter | String,
+        ?   archived?: BoolFilter | Boolean,
+        ?   archivedAt?: DateTimeNullableFilter | DateTime | Null,
+        ?   deleted?: BoolFilter | Boolean,
+        ?   deletedAt?: DateTimeNullableFilter | DateTime | Null,
+        ?   createdAt?: DateTimeFilter | DateTime,
+        ?   updatedAt?: DateTimeFilter | DateTime,
+        ?   student?: StudentRelationFilter | StudentWhereInput,
+        ?   category?: FeeCategoryRelationFilter | FeeCategoryWhereInput,
+        ?   payments?: FeePaymentListRelationFilter,
+        ?   ledgerEntries?: FinanceLedgerEntryListRelationFilter,
+        ?   financeRequests?: FinanceRequestListRelationFilter
+          },
+          include: {
+            student: true,
+            category: true
+          }
+        })
+
+Argument `where` of type FeeBillWhereUniqueInput needs at least one of `id` or `invoiceNumber` arguments. Available options are marked with ?.
+    at wn (D:\local\crm\product\server\node_modules\@prisma\client\runtime\library.js:29:1363)
+    at $n.handleRequestError (D:\local\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6958)
+    at $n.handleAndLogRequestError (D:\local\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6623)
+    at $n.request (D:\local\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6307)
+    at l (D:\local\crm\product\server\node_modules\@prisma\client\runtime\library.js:130:9633)
+    at IntegrationChainService.executePaymentReconciliationChain (D:\local\crm\product\server\src\modules\integration\integration-chain.service.ts:316:18)
+    at runPaymentReconciliationChain (D:\local\crm\product\server\src\modules\integration\integration-chain.controller.ts:29:22)
+[2026-08-14 16:03:56] [ERROR]: PrismaClientValidationError: 
+Invalid `prisma.calendarEvent.create()` invocation in
+D:\local\crm\product\server\src\modules\calendar\calendar.routes.ts:30:46
+
+  27 // Create event
+  28 router.post('/', async (req: Request, res: Response, next: NextFunction) => {
+  29   try {
+→ 30     const event = await prisma.calendarEvent.create({
+           data: {
+             startDate: new Date("Invalid Date"),
+                        ~~~~~~~~~~~~~~~~~~~~~~~~
+             endDate: undefined,
+             createdById: "6547ab9e-30b5-4a63-bc24-56e564be1768",
+             targetAudience: "[]"
+           }
+         })
+
+Invalid value for argument `startDate`: Provided Date object is invalid. Expected Date.
+    at wn (D:\local\crm\product\server\node_modules\@prisma\client\runtime\library.js:29:1363)
+    at e.throwValidationError (D:\local\crm\product\server\node_modules\@prisma\client\runtime\library.js:29:10206)
+    at sa (D:\local\crm\product\server\node_modules\@prisma\client\runtime\library.js:29:7746)
+    at aa (D:\local\crm\product\server\node_modules\@prisma\client\runtime\library.js:29:8908)
+    at sa (D:\local\crm\product\server\node_modules\@prisma\client\runtime\library.js:29:8439)
+    at aa (D:\local\crm\product\server\node_modules\@prisma\client\runtime\library.js:29:8908)
+    at mr (D:\local\crm\product\server\node_modules\@prisma\client\runtime\library.js:29:6037)
+    at vn (D:\local\crm\product\server\node_modules\@prisma\client\runtime\library.js:29:5902)
+    at D:\local\crm\product\server\node_modules\@prisma\client\runtime\library.js:130:10186
+    at Object.runInChildSpan (D:\local\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:1509)
+    at t._executeRequest (D:\local\crm\product\server\node_modules\@prisma\client\runtime\library.js:130:10165)
+    at Na (D:\local\crm\product\server\node_modules\@prisma\client\runtime\library.js:31:9955)
+    at l (D:\local\crm\product\server\node_modules\@prisma\client\runtime\library.js:130:9639)
+    at D:\local\crm\product\server\node_modules\@prisma\client\runtime\library.js:130:9933
+    at AsyncResource.runInAsyncScope (node:async_hooks:227:14)
+    at D:\local\crm\product\server\node_modules\@prisma\client\runtime\library.js:130:9913
+[2026-08-14 16:04:49] [ERROR]: PrismaClientValidationError: 
+Invalid `prisma.campusActivity.create()` invocation in
+D:\local\crm\product\server\src\modules\activity\activity.routes.ts:12:50
+
+   9 // Activities
+  10 router.post('/activities', async (req: Request, res: Response, next: NextFunction) => {
+  11   try {
+→ 12     const activity = await prisma.campusActivity.create({
+           data: {
+             startDate: new Date("Invalid Date"),
+                        ~~~~~~~~~~~~~~~~~~~~~~~~
+             endDate: new Date("Invalid Date"),
+             organizerId: "6547ab9e-30b5-4a63-bc24-56e564be1768",
+             audience: "[]"
+           }
+         })
+
+Invalid value for argument `startDate`: Provided Date object is invalid. Expected Date.
+    at wn (D:\local\crm\product\server\node_modules\@prisma\client\runtime\library.js:29:1363)
+    at e.throwValidationError (D:\local\crm\product\server\node_modules\@prisma\client\runtime\library.js:29:10206)
+    at sa (D:\local\crm\product\server\node_modules\@prisma\client\runtime\library.js:29:7746)
+    at aa (D:\local\crm\product\server\node_modules\@prisma\client\runtime\library.js:29:8908)
+    at sa (D:\local\crm\product\server\node_modules\@prisma\client\runtime\library.js:29:8439)
+    at aa (D:\local\crm\product\server\node_modules\@prisma\client\runtime\library.js:29:8908)
+    at mr (D:\local\crm\product\server\node_modules\@prisma\client\runtime\library.js:29:6037)
+    at vn (D:\local\crm\product\server\node_modules\@prisma\client\runtime\library.js:29:5902)
+    at D:\local\crm\product\server\node_modules\@prisma\client\runtime\library.js:130:10186
+    at Object.runInChildSpan (D:\local\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:1509)
+    at t._executeRequest (D:\local\crm\product\server\node_modules\@prisma\client\runtime\library.js:130:10165)
+    at Na (D:\local\crm\product\server\node_modules\@prisma\client\runtime\library.js:31:9955)
+    at l (D:\local\crm\product\server\node_modules\@prisma\client\runtime\library.js:130:9639)
+    at D:\local\crm\product\server\node_modules\@prisma\client\runtime\library.js:130:9933
+    at AsyncResource.runInAsyncScope (node:async_hooks:227:14)
+    at D:\local\crm\product\server\node_modules\@prisma\client\runtime\library.js:130:9913
+[2026-08-14 16:06:03] [ERROR]: PrismaClientValidationError: 
+Invalid `prisma.campusActivity.create()` invocation in
+D:\local\crm\product\server\src\modules\activity\activity.routes.ts:14:50
+
+  11 // Activities
+  12 router.post('/activities', activityStaffGuard, async (req: Request, res: Response, next: NextFunction) => {
+  13   try {
+→ 14     const activity = await prisma.campusActivity.create({
+           data: {
+             startDate: new Date("Invalid Date"),
+                        ~~~~~~~~~~~~~~~~~~~~~~~~
+             endDate: new Date("Invalid Date"),
+             organizerId: "f0c21a22-df4b-4f9f-9a19-c09b0312ac99",
+             audience: "[]"
+           }
+         })
+
+Invalid value for argument `startDate`: Provided Date object is invalid. Expected Date.
+    at wn (D:\local\crm\product\server\node_modules\@prisma\client\runtime\library.js:29:1363)
+    at e.throwValidationError (D:\local\crm\product\server\node_modules\@prisma\client\runtime\library.js:29:10206)
+    at sa (D:\local\crm\product\server\node_modules\@prisma\client\runtime\library.js:29:7746)
+    at aa (D:\local\crm\product\server\node_modules\@prisma\client\runtime\library.js:29:8908)
+    at sa (D:\local\crm\product\server\node_modules\@prisma\client\runtime\library.js:29:8439)
+    at aa (D:\local\crm\product\server\node_modules\@prisma\client\runtime\library.js:29:8908)
+    at mr (D:\local\crm\product\server\node_modules\@prisma\client\runtime\library.js:29:6037)
+    at vn (D:\local\crm\product\server\node_modules\@prisma\client\runtime\library.js:29:5902)
+    at D:\local\crm\product\server\node_modules\@prisma\client\runtime\library.js:130:10186
+    at Object.runInChildSpan (D:\local\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:1509)
+    at t._executeRequest (D:\local\crm\product\server\node_modules\@prisma\client\runtime\library.js:130:10165)
+    at Na (D:\local\crm\product\server\node_modules\@prisma\client\runtime\library.js:31:9955)
+    at l (D:\local\crm\product\server\node_modules\@prisma\client\runtime\library.js:130:9639)
+    at D:\local\crm\product\server\node_modules\@prisma\client\runtime\library.js:130:9933
+    at AsyncResource.runInAsyncScope (node:async_hooks:227:14)
+    at D:\local\crm\product\server\node_modules\@prisma\client\runtime\library.js:130:9913
+[2026-08-14 16:06:04] [ERROR]: PrismaClientValidationError: 
+Invalid `prisma.feeBill.findUnique()` invocation in
+D:\local\crm\product\server\src\modules\integration\integration-chain.service.ts:316:39
+
+  313   payerUserId: string;
+  314   remarks?: string;
+  315 }) {
+→ 316   const bill = await prisma.feeBill.findUnique({
+          where: {
+            id: undefined,
+        ?   invoiceNumber?: String,
+        ?   AND?: FeeBillWhereInput | FeeBillWhereInput[],
+        ?   OR?: FeeBillWhereInput[],
+        ?   NOT?: FeeBillWhereInput | FeeBillWhereInput[],
+        ?   amount?: FloatFilter | Float,
+        ?   scholarshipDiscount?: FloatFilter | Float,
+        ?   fine?: FloatFilter | Float,
+        ?   paidAmount?: FloatFilter | Float,
+        ?   status?: StringFilter | String,
+        ?   billingDate?: DateTimeFilter | DateTime,
+        ?   dueDate?: DateTimeFilter | DateTime,
+        ?   paymentHistory?: StringFilter | String,
+        ?   receipts?: StringFilter | String,
+        ?   academicYearLabel?: StringNullableFilter | String | Null,
+        ?   semesterLabel?: StringNullableFilter | String | Null,
+        ?   allowPartialPayment?: BoolFilter | Boolean,
+        ?   studentId?: StringFilter | String,
+        ?   categoryId?: StringFilter | String,
+        ?   archived?: BoolFilter | Boolean,
+        ?   archivedAt?: DateTimeNullableFilter | DateTime | Null,
+        ?   deleted?: BoolFilter | Boolean,
+        ?   deletedAt?: DateTimeNullableFilter | DateTime | Null,
+        ?   createdAt?: DateTimeFilter | DateTime,
+        ?   updatedAt?: DateTimeFilter | DateTime,
+        ?   student?: StudentRelationFilter | StudentWhereInput,
+        ?   category?: FeeCategoryRelationFilter | FeeCategoryWhereInput,
+        ?   payments?: FeePaymentListRelationFilter,
+        ?   ledgerEntries?: FinanceLedgerEntryListRelationFilter,
+        ?   financeRequests?: FinanceRequestListRelationFilter
+          },
+          include: {
+            student: true,
+            category: true
+          }
+        })
+
+Argument `where` of type FeeBillWhereUniqueInput needs at least one of `id` or `invoiceNumber` arguments. Available options are marked with ?.
+    at wn (D:\local\crm\product\server\node_modules\@prisma\client\runtime\library.js:29:1363)
+    at $n.handleRequestError (D:\local\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6958)
+    at $n.handleAndLogRequestError (D:\local\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6623)
+    at $n.request (D:\local\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6307)
+    at l (D:\local\crm\product\server\node_modules\@prisma\client\runtime\library.js:130:9633)
+    at IntegrationChainService.executePaymentReconciliationChain (D:\local\crm\product\server\src\modules\integration\integration-chain.service.ts:316:18)
+    at runPaymentReconciliationChain (D:\local\crm\product\server\src\modules\integration\integration-chain.controller.ts:29:22)
+[2026-08-14 16:06:04] [ERROR]: PrismaClientValidationError: 
+Invalid `prisma.calendarEvent.create()` invocation in
+D:\local\crm\product\server\src\modules\calendar\calendar.routes.ts:32:46
+
+  29 // Create event
+  30 router.post('/', calendarWriteGuard, async (req: Request, res: Response, next: NextFunction) => {
+  31   try {
+→ 32     const event = await prisma.calendarEvent.create({
+           data: {
+             title: "t",
+             startDate: new Date("2026-09-01T00:00:00.000Z"),
+             endDate: undefined,
+             createdById: "bb59086b-d838-4aa1-9041-21b94ea11e86",
+             targetAudience: "[]",
+         +   eventType: String
+           }
+         })
+
+Argument `eventType` is missing.
+    at wn (D:\local\crm\product\server\node_modules\@prisma\client\runtime\library.js:29:1363)
+    at $n.handleRequestError (D:\local\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6958)
+    at $n.handleAndLogRequestError (D:\local\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6623)
+    at $n.request (D:\local\crm\product\server\node_modules\@prisma\client\runtime\library.js:121:6307)
+    at l (D:\local\crm\product\server\node_modules\@prisma\client\runtime\library.js:130:9633)
+    at D:\local\crm\product\server\src\modules\calendar\calendar.routes.ts:32:19

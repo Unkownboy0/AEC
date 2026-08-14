@@ -5,4 +5,8 @@ export declare class WorkflowController {
     listRequests: (req: Request, res: Response, next: NextFunction) => Promise<void>;
     takeAction: (req: Request, res: Response, next: NextFunction) => Promise<void>;
     cancelRequest: (req: Request, res: Response, next: NextFunction) => Promise<void>;
+    listDefinitions: (req: Request, res: Response, next: NextFunction) => Promise<void>;
+    getDefinition: (req: Request, res: Response, next: NextFunction) => Promise<void>;
+    createOrUpdateDefinition: (req: Request, res: Response, next: NextFunction) => Promise<void>;
+    toggleDefinitionActive: (req: Request, res: Response, next: NextFunction) => Promise<void>;
 }

@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { requireAuth } from '../../core/middlewares/auth.middleware';
+import { requireAuth, requireRole } from '../../core/middlewares/auth.middleware';
 import { prisma } from '../../lib/prisma';
 import { Request, Response, NextFunction } from 'express';
 import crypto from 'crypto';
@@ -74,10 +74,12 @@ async function verifyEvidence(req: Request, res: Response, next: NextFunction) {
   } catch (e) { next(e); }
 }
 
+const iqacVerifyGuard = requireRole(['Super Admin', 'College Admin', 'IQAC Dean', 'IQAC Executive Officer', 'IQAC Documentation Officer']);
+
 router.post('/', uploadEvidence);
 router.get('/my', listMyEvidence);
 router.get('/:id', getEvidence);
 router.post('/link', linkEvidence);
-router.post('/:id/verify', verifyEvidence);
+router.post('/:id/verify', iqacVerifyGuard, verifyEvidence);
 
 export default router;

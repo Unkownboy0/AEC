@@ -93,7 +93,7 @@ export class SearchController {
             }),
       };
 
-      const [students, faculty, departments, subjects, circulars] = await Promise.all([
+      const [students, faculty, legacyCirculars, departments, subjects, circulars] = await Promise.all([
         prisma.student.findMany({
           where: studentSearchWhere,
           take: 8,
@@ -122,13 +122,13 @@ export class SearchController {
           },
         }),
 
-        // 4. Circulars (matches title, description, circularNumber)
+        // 4. Legacy Circulars fallback
         (prisma as any).circular?.findMany?.({
           where: {
             OR: [
-              { title: { contains: searchPattern } },
-              { circularNumber: { contains: searchPattern } },
-              { description: { contains: searchPattern } },
+              { title: { contains: query } },
+              { circularNumber: { contains: query } },
+              { description: { contains: query } },
             ],
             status: 'PUBLISHED',
           },
