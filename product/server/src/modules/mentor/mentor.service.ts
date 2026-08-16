@@ -143,13 +143,17 @@ export class MentorService {
 
       const perStudentAttendance = new Map<string, { present: number; total: number }>();
       for (const row of attendanceRows) {
+        if (!row.studentId) continue;
         const entry = perStudentAttendance.get(row.studentId) || { present: 0, total: 0 };
         entry.total += row._count._all;
         if (row.status === 'PRESENT') entry.present += row._count._all;
         perStudentAttendance.set(row.studentId, entry);
       }
 
-      const arrearsByStudent = new Map(arrearGroups.map((g) => [g.studentId, g._count._all]));
+      const arrearsByStudent = new Map(
+        arrearGroups.filter((g): g is typeof g & { studentId: string } => g.studentId !== null)
+          .map((g) => [g.studentId, g._count._all])
+      );
 
       for (const studentId of studentIds) {
         const att = perStudentAttendance.get(studentId);

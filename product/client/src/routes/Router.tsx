@@ -516,7 +516,7 @@ export const AppRouter: React.FC = () => {
           {/* ─── IQAC Dean Routes ─────────────────────────── */}
           <Route path="iqac-dean" element={<IQACDeanPortal user={user} />} />
           <Route path="iqac-executive" element={<IQACExecutivePortal user={user} />} />
-          <Route path="iqac-documentation" element={<IQACDeanPortal user={user} />} />
+          <Route path="iqac-documentation" element={<IQACDocumentationPortal user={user} />} />
           <Route path="iqac" element={<Navigate to="/iqac/dashboard" replace />} />
           <Route path="iqac/dashboard" element={<IQACDeanPortal user={user} />} />
           <Route path="iqac/accreditation" element={<IQACDeanPortal user={user} />} />
@@ -540,6 +540,11 @@ export const AppRouter: React.FC = () => {
           <Route path="hod/faculty" element={<HodFacultyWorkspace />} />
           <Route path="hod/mentors" element={<HodMentorsWorkspace />} />
           <Route path="hod/academics" element={<AcademicPerformance />} />
+          <Route path="hod/academic-performance" element={<AcademicPerformance />} />
+          <Route path="hod/department-overview" element={<DepartmentOverview />} />
+          <Route path="hod/department-results" element={<DepartmentResults />} />
+          <Route path="hod/faculty-performance" element={<FacultyPerformance />} />
+          <Route path="hod/subjects" element={<DepartmentSubjects />} />
           <Route path="hod/attendance" element={<HodAttendanceWorkspace />} />
           <Route path="hod/timetable" element={<HodTimetableControlCenter />} />
           <Route path="hod/timetable-control" element={<HodTimetableControlCenter />} />
