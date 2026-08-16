@@ -26,6 +26,13 @@ const envSchema = z.object({
   RAZORPAY_KEY_ID: z.string().optional(),
   RAZORPAY_KEY_SECRET: z.string().optional(),
   CAMPUS_TENANT_ID: z.string().min(1).default('campusos-default'),
+  EMAIL_PROVIDER: z.enum(['SMTP', 'DISABLED']).default('DISABLED'),
+  SMTP_HOST: z.string().optional(),
+  SMTP_PORT: z.coerce.number().int().min(1).max(65535).default(587),
+  SMTP_SECURE: z.coerce.boolean().default(false),
+  SMTP_USER: z.string().optional(),
+  SMTP_PASS: z.string().optional(),
+  SMTP_FROM: z.string().default('GEETORUS CAMPUSOS <no-reply@campusos.local>'),
 });
 
 const parsed = envSchema.safeParse(process.env);
