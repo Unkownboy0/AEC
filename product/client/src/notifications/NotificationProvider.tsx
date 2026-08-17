@@ -79,7 +79,6 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
             description: 'Instant notification alerts for leave, approvals, tasks & circulars',
             importance: 5, // MAX importance for heads-up pop-up banner
             visibility: 1,
-            sound: 'beep.wav',
             vibration: true,
           });
         } catch (e) {
