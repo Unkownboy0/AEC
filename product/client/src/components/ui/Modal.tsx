@@ -44,6 +44,12 @@ export const Modal: React.FC<ModalProps> = ({
     <div
       onClick={handleOverlayClick}
       className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm p-4 animate-in fade-in-0 duration-200"
+      style={{
+        // Keeps the modal card clear of the status bar / gesture bar on native mobile,
+        // where a tall (size="full") card can otherwise butt right up against them.
+        paddingTop: 'max(1rem, var(--safe-area-top))',
+        paddingBottom: 'max(1rem, var(--safe-area-bottom))',
+      }}
     >
       <div
         className={cn(

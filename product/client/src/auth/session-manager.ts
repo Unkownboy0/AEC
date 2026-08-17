@@ -2,20 +2,37 @@ import apiClient, { apiGet, apiPost } from '../shared/api/api-client';
 import { getStoredAccessToken, getStoredRefreshToken, setStoredTokens, clearStoredTokens, setStoredActiveRole } from './token-storage';
 import { refreshAuthSession } from './session-refresh';
 
+export interface ProfileImage {
+  fileId?: string | null;
+  url?: string | null;
+  thumbnailUrl?: string | null;
+}
+
 export interface User {
   id: string;
   email: string;
   firstName: string;
   lastName: string;
+  fullName?: string;
+  username?: string;
+  phone?: string | null;
+  status?: string;
   role: string;
+  roles?: string[];
   permissions: string[];
   menus: any[];
-  profilePhoto?: string;
+  profilePhoto?: string | null;
+  profileImage?: ProfileImage | null;
   forcePasswordChange?: boolean;
   workspaces?: string[];
+  primaryWorkspace?: string;
   activeWorkspace?: string;
   department?: string;
   departmentId?: string;
+  student?: any;
+  faculty?: any;
+  employee?: any;
+  parent?: any;
 }
 
 export async function fetchCurrentUser(): Promise<User | null> {
@@ -57,20 +74,20 @@ export async function switchUserWorkspace(targetRole: string): Promise<User | nu
       return res.user;
     }
     return await fetchCurrentUser();
-  } catch (err) {
-    console.error('Failed to switch workspace:', err);
+  } catch (err: any) {
+    console.error('Failed to switch workspace:', err?.message || 'Unknown error');
     throw err;
   }
 }
 
 export async function logoutUser(): Promise<void> {
   try {
-    const refreshToken = localStorage.getItem('geetorus_refresh_token');
+    const refreshToken = await getStoredRefreshToken();
     if (refreshToken) {
       await apiPost('/auth/logout', { refreshToken });
     }
-  } catch (e) {
-    console.warn('Logout API error ignored during cleanup:', e);
+  } catch (e: any) {
+    console.warn('Logout API error ignored during cleanup:', e?.message || 'Network/Server Error');
   } finally {
     await clearStoredTokens();
   }

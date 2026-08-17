@@ -1,6 +1,7 @@
 import { prisma } from '../../lib/prisma';
 import { BadRequestException, NotFoundException, ForbiddenException, UnauthorizedException } from '../../utils/exceptions';
 import { logger } from '../../utils/logger';
+import { NotificationService } from '../notifications/notification.service';
 
 export interface PublishCircularInput {
   title: string;
@@ -133,16 +134,15 @@ export class CircularEngineService {
 
     for (const uid of topRecipients) {
       try {
-        await prisma.notification.create({
-          data: {
-            recipientId: uid,
-            eventType: 'CIRCULAR_PUBLISHED',
-            title: `📢 Circular: ${circular.title}`,
-            message: circular.content.substring(0, 120) + '...',
-            relatedEntityType: 'INSTITUTIONAL_CIRCULAR',
-            relatedEntityId: circular.id,
-            deepLinkRoute: `/circulars?id=${circular.id}`,
-          },
+        await NotificationService.sendNotification({
+          recipientId: uid,
+          eventType: 'CIRCULAR_PUBLISHED',
+          title: `📢 Circular: ${circular.title}`,
+          message: circular.content.substring(0, 120) + '...',
+          relatedEntityType: 'INSTITUTIONAL_CIRCULAR',
+          relatedEntityId: circular.id,
+          deepLinkRoute: `/circulars?id=${circular.id}`,
+          priority: 'HIGH',
         });
       } catch (_) {}
     }

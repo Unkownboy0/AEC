@@ -11,11 +11,17 @@ const passwordValidation = z
     'Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character (@$!%*?&)'
   );
 
-export const loginSchema = z.object({
-  email: z.string().email('Please enter a valid email address'),
-  password: z.string().min(1, 'Password is required'),
-  rememberMe: z.boolean().optional().default(false),
-});
+export const loginSchema = z
+  .object({
+    email: z.string().min(1, 'Email, username, or ID is required').optional(),
+    identifier: z.string().min(1, 'Email, username, or ID is required').optional(),
+    password: z.string().min(1, 'Password is required'),
+    rememberMe: z.boolean().optional().default(false),
+  })
+  .refine((data) => Boolean(data.email || data.identifier), {
+    message: 'Email, username, or ID is required',
+    path: ['email'],
+  });
 
 export const changePasswordSchema = z.object({
   currentPassword: z.string().min(1, 'Current password is required'),

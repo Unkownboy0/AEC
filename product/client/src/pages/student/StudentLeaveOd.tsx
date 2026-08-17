@@ -1,10 +1,29 @@
 import React, { useState, useEffect } from "react";
+import { useParams, useNavigate } from "react-router-dom";
 import {
-  CalendarDays, FileText, Send, Clock, CheckCircle, AlertTriangle, XCircle, Plus, ChevronRight, ArrowLeft, Ban
+  CalendarDays, FileText, Send, Clock, CheckCircle, AlertTriangle, XCircle, Plus, ChevronRight, ArrowLeft, Ban, RotateCcw
 } from "lucide-react";
 import { toast } from "../../components/ui/Toast";
 import { Loading } from "../../components/ui/Loading";
 import api from "../../lib/axios";
+
+// Real Prisma states (schema.prisma StudentLeaveRequest.status), grouped into
+// the 7 user-facing stages: Draft / Submitted / Under Review / Returned /
+// Approved / Rejected / Completed.
+const STATUS_GROUPS: Record<string, { label: string; className: string; Icon: any }> = {
+  DRAFT: { label: 'Draft', className: 'bg-slate-100 text-slate-600 border-slate-200', Icon: FileText },
+  PENDING_MENTOR: { label: 'Under Review (Mentor)', className: 'bg-amber-50 text-amber-700 border-amber-100', Icon: Clock },
+  PENDING_HOD: { label: 'Under Review (HOD)', className: 'bg-amber-50 text-amber-700 border-amber-100', Icon: Clock },
+  PENDING_DEAN: { label: 'Under Review (Dean)', className: 'bg-amber-50 text-amber-700 border-amber-100', Icon: Clock },
+  RETURNED_TO_STUDENT: { label: 'Returned — action needed', className: 'bg-orange-50 text-orange-700 border-orange-200', Icon: AlertTriangle },
+  RETURNED_TO_MENTOR: { label: 'Under Review (Mentor)', className: 'bg-amber-50 text-amber-700 border-amber-100', Icon: Clock },
+  REJECTED_BY_MENTOR: { label: 'Rejected', className: 'bg-rose-50 text-rose-700 border-rose-100', Icon: XCircle },
+  REJECTED_BY_HOD: { label: 'Rejected', className: 'bg-rose-50 text-rose-700 border-rose-100', Icon: XCircle },
+  APPROVED: { label: 'Approved', className: 'bg-emerald-50 text-emerald-700 border-emerald-100', Icon: CheckCircle },
+  CANCELLED: { label: 'Cancelled', className: 'bg-slate-100 text-slate-500 border-slate-200', Icon: Ban },
+  EXPIRED: { label: 'Expired', className: 'bg-slate-100 text-slate-500 border-slate-200', Icon: Clock },
+  COMPLETED: { label: 'Completed', className: 'bg-emerald-50 text-emerald-700 border-emerald-100', Icon: CheckCircle },
+};
 
 const OD_MIN_ADVANCE_DAYS = 2;
 
@@ -15,6 +34,8 @@ function minStartDate(type: string): string {
 }
 
 export const StudentLeaveOd: React.FC = () => {
+  const { id: routeId } = useParams<{ id?: string }>();
+  const navigate = useNavigate();
   const [requests, setRequests] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedRequest, setSelectedRequest] = useState<any>(null);
@@ -100,6 +121,25 @@ export const StudentLeaveOd: React.FC = () => {
     fetchTimetable();
   }, []);
 
+  // Deep-link entry point: /student/leave-od/:id (from a notification tap or
+  // a direct link). Fetches that specific request and opens its detail panel.
+  useEffect(() => {
+    if (!routeId) return;
+    (async () => {
+      try {
+        const res = await api.get(`/student/leave-od/details/${routeId}`);
+        if (res.data?.status === 'success' && res.data.data) {
+          setSelectedRequest(res.data.data);
+          setMobileView('apply');
+        } else {
+          toast.error('This request could not be found.');
+        }
+      } catch (err: any) {
+        toast.error(err.response?.data?.message || 'Unable to open this request.');
+      }
+    })();
+  }, [routeId]);
+
   const togglePeriod = (periodNum: number) => {
     setSelectedPeriods(prev => 
       prev.includes(periodNum) 
@@ -178,17 +218,28 @@ export const StudentLeaveOd: React.FC = () => {
   };
 
   const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'APPROVED':
-      case 'COMPLETED':
-        return <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-50 text-emerald-700 border border-emerald-100 flex items-center gap-1 w-fit"><CheckCircle className="h-3 w-3" /> Approved</span>;
-      case 'REJECTED':
-      case 'REJECTED_BY_MENTOR':
-      case 'REJECTED_BY_HOD':
-        return <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-rose-50 text-rose-700 border border-rose-100 flex items-center gap-1 w-fit"><XCircle className="h-3 w-3" /> Rejected</span>;
-      default:
-        return <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-50 text-amber-700 border border-amber-100 flex items-center gap-1 w-fit"><Clock className="h-3 w-3 animate-pulse" /> Pending</span>;
-    }
+    const cfg = STATUS_GROUPS[status] || STATUS_GROUPS.PENDING_MENTOR;
+    const Icon = cfg.Icon;
+    return (
+      <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold border flex items-center gap-1 w-fit ${cfg.className}`}>
+        <Icon className="h-3 w-3" /> {cfg.label}
+      </span>
+    );
+  };
+
+  const startResubmit = (request: any) => {
+    setFormData({
+      type: request.type === 'ON_DUTY' ? 'OD' : 'LEAVE',
+      title: request.title || request.requestCategory || '',
+      reason: request.reason || '',
+      startDate: request.startDate ? String(request.startDate).slice(0, 10) : '',
+      endDate: request.endDate ? String(request.endDate).slice(0, 10) : '',
+      attachments: request.attachmentUrl || '',
+    });
+    setSelectedRequest(null);
+    setMobileView('apply');
+    if (routeId) navigate('/student/leave-od');
+    toast.info('Review the details below and resubmit your request.');
   };
 
   const cancelRequest = async (id: string) => {
@@ -206,7 +257,7 @@ export const StudentLeaveOd: React.FC = () => {
   if (isLoading) return <Loading text="Loading Leave & OD Requests..." />;
 
   return (
-    <main className="mx-auto max-w-[1320px] space-y-5 pb-24 text-left sm:space-y-7 sm:pb-14">
+    <div className="mx-auto max-w-[1320px] space-y-5 pb-6 text-left sm:space-y-7 sm:pb-12">
       
       {/* Page Header */}
       <header className="relative overflow-hidden rounded-[1.75rem] bg-[#111722] px-5 py-6 text-white shadow-[0_28px_80px_-44px_rgba(15,23,42,0.9)] sm:px-8 sm:py-8">
@@ -293,13 +344,24 @@ export const StudentLeaveOd: React.FC = () => {
             <section className="space-y-5 rounded-[1.5rem] border border-slate-200/70 bg-white p-4 shadow-[0_20px_60px_-42px_rgba(15,23,42,0.45)] sm:p-6 dark:border-slate-800 dark:bg-[#10141d]">
               <div className="flex justify-between items-center border-b pb-3">
                 <button
-                  onClick={() => setSelectedRequest(null)}
+                  onClick={() => { setSelectedRequest(null); if (routeId) navigate('/student/leave-od'); }}
                   className="flex items-center gap-1 text-[10px] font-extrabold text-indigo-600 hover:text-indigo-700 transition-colors uppercase tracking-wider"
                 >
                   <ArrowLeft className="h-3.5 w-3.5" /> Back to Apply
                 </button>
                 {getStatusBadge(selectedRequest.status)}
-                {(selectedRequest.status === 'DRAFT' || selectedRequest.status.startsWith('PENDING') || selectedRequest.status === 'MENTOR_APPROVED' || selectedRequest.status === 'RETURNED_TO_STUDENT') && <button type="button" onClick={() => cancelRequest(selectedRequest.id)} className="ml-auto inline-flex items-center gap-1.5 rounded-lg border border-rose-200 px-3 py-1.5 text-xs font-semibold text-rose-600 hover:bg-rose-50"><Ban className="h-3.5 w-3.5" /> Cancel request</button>}
+                <div className="ml-auto flex items-center gap-2">
+                  {selectedRequest.status === 'RETURNED_TO_STUDENT' && (
+                    <button type="button" onClick={() => startResubmit(selectedRequest)} className="inline-flex items-center gap-1.5 rounded-lg border border-indigo-200 px-3 py-1.5 text-xs font-semibold text-indigo-600 hover:bg-indigo-50">
+                      <RotateCcw className="h-3.5 w-3.5" /> Edit & resubmit
+                    </button>
+                  )}
+                  {(selectedRequest.status === 'DRAFT' || selectedRequest.status.startsWith('PENDING') || selectedRequest.status === 'MENTOR_APPROVED' || selectedRequest.status === 'RETURNED_TO_STUDENT') && (
+                    <button type="button" onClick={() => cancelRequest(selectedRequest.id)} className="inline-flex items-center gap-1.5 rounded-lg border border-rose-200 px-3 py-1.5 text-xs font-semibold text-rose-600 hover:bg-rose-50">
+                      <Ban className="h-3.5 w-3.5" /> Cancel request
+                    </button>
+                  )}
+                </div>
               </div>
 
               <div className="space-y-2.5">
@@ -592,7 +654,7 @@ export const StudentLeaveOd: React.FC = () => {
         </div>
 
       </section>
-    </main>
+    </div>
   );
 };
 

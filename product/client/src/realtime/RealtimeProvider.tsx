@@ -6,6 +6,8 @@ import { ReconnectManager } from './reconnect-manager';
 import type { RealtimeConnectionStatus } from './realtime.types';
 import { useAuth } from '../context/AuthContext';
 
+import { getStoredAccessToken } from '../auth/token-storage';
+
 interface RealtimeContextValue {
   status: RealtimeConnectionStatus;
   reconnect: () => void;
@@ -13,13 +15,12 @@ interface RealtimeContextValue {
 
 const RealtimeContext = createContext<RealtimeContextValue>({
   status: 'disconnected',
-  reconnect: () => {},
+  reconnect: () => { },
 });
 
 export const RealtimeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const queryClient = useQueryClient();
   const { isAuthenticated } = useAuth();
-  const token = typeof window !== 'undefined' ? localStorage.getItem('geetorus_access_token') : null;
   const [status, setStatus] = useState<RealtimeConnectionStatus>('disconnected');
 
   useEffect(() => {
@@ -30,31 +31,47 @@ export const RealtimeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   }, []);
 
   useEffect(() => {
-    if (!isAuthenticated || !token) {
-      realtimeClient.disconnect();
-      return;
+    let isCancelled = false;
+    let eventUnsub: (() => void) | undefined;
+    let reconnectManager: ReconnectManager | undefined;
+
+    async function initRealtime() {
+      if (!isAuthenticated) {
+        realtimeClient.disconnect();
+        return;
+      }
+
+      const token = await getStoredAccessToken();
+      if (isCancelled || !token) {
+        realtimeClient.disconnect();
+        return;
+      }
+
+      const eventRegistry = new EventRegistry(queryClient);
+      realtimeClient.connect(token);
+
+      eventUnsub = realtimeClient.subscribe((event) => {
+        eventRegistry.handleEvent(event);
+      });
+
+      reconnectManager = new ReconnectManager(async () => {
+        const latestToken = await getStoredAccessToken();
+        if (latestToken) realtimeClient.connect(latestToken);
+      });
+      reconnectManager.init();
     }
 
-    const eventRegistry = new EventRegistry(queryClient);
-
-    realtimeClient.connect(token);
-
-    const eventUnsub = realtimeClient.subscribe((event) => {
-      eventRegistry.handleEvent(event);
-    });
-
-    const reconnectManager = new ReconnectManager(() => {
-      if (token) realtimeClient.connect(token);
-    });
-    reconnectManager.init();
+    initRealtime();
 
     return () => {
-      eventUnsub();
-      reconnectManager.destroy();
+      isCancelled = true;
+      if (eventUnsub) eventUnsub();
+      if (reconnectManager) reconnectManager.destroy();
     };
-  }, [isAuthenticated, token, queryClient]);
+  }, [isAuthenticated, queryClient]);
 
-  const handleManualReconnect = () => {
+  const handleManualReconnect = async () => {
+    const token = await getStoredAccessToken();
     if (token) {
       realtimeClient.disconnect();
       realtimeClient.connect(token);

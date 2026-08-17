@@ -7,7 +7,9 @@ product/server/node_modules/
 dist/
 build/
 product/client/dist/
+product/client/dist-mobile/
 product/server/dist/
+product/server/uploads/
 
 # Local databases and journals
 *.db
@@ -32,6 +34,10 @@ product/server/logs/
 .idea/
 .DS_Store
 Thumbs.db
+
+# Secrets & Service Accounts
+*service-account*.json
+firebase-*.json
 
 # User-uploaded runtime content (profile photos, resumes, ID cards, circular
 # attachments, etc). These are generated at runtime per deployment and must

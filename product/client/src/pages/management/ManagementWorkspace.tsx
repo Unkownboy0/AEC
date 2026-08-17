@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Activity, AlertTriangle, ArrowDownRight, ArrowUpRight, Award, BarChart3, BriefcaseBusiness, Building2, Download, GraduationCap, IndianRupee, RefreshCw, ShieldCheck, Sparkles, Users } from 'lucide-react';
 import api from '../../lib/axios';
 import { toast } from '../../components/ui/Toast';
+import { downloadAndOpen } from '../../platform/download';
 
 const money = (value = 0) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', notation: 'compact', maximumFractionDigits: 1 }).format(value);
 const number = (value = 0) => new Intl.NumberFormat('en-IN').format(value);
@@ -43,11 +44,22 @@ export const ManagementWorkspace: React.FC = () => {
 
   const exportReport = async () => {
     try {
-      const response = await api.get('/management/export', { params: { periodDays, ...(departmentId ? { departmentId } : {}) }, responseType: 'blob' });
-      const url = URL.createObjectURL(response.data); const link = document.createElement('a');
-      link.href = url; link.download = `campusos-management-${new Date().toISOString().slice(0, 10)}.csv`; link.click(); URL.revokeObjectURL(url);
-      toast.success('Executive report exported.');
-    } catch (err: any) { toast.error(err.response?.data?.message || 'Executive report export failed.'); }
+      const queryParams = new URLSearchParams({
+        periodDays,
+        ...(departmentId ? { departmentId } : {}),
+      }).toString();
+      const res = await downloadAndOpen(
+        `/management/export?${queryParams}`,
+        `CampusOS_Management_Report_${new Date().toISOString().slice(0, 10)}.csv`
+      );
+      if (res.success) {
+        toast.success('Executive report exported.');
+      } else {
+        toast.error(res.error || 'Executive report export failed.');
+      }
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Executive report export failed.');
+    }
   };
 
   if (loading && !data) return <main className="mx-auto max-w-[1440px] space-y-5 p-4 md:p-7"><div className="h-40 animate-pulse rounded-2xl bg-muted" /><div className="grid grid-cols-2 gap-3 lg:grid-cols-4">{Array.from({ length: 8 }).map((_, index) => <div key={index} className="h-28 animate-pulse rounded-xl bg-muted" />)}</div></main>;

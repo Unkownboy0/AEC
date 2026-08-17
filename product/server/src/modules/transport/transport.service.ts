@@ -50,7 +50,38 @@ export class TransportService {
     const existing = await prisma.transportAllocation.findFirst({ where: { passengerId: data.passengerId, passengerType: data.passengerType, status: 'ACTIVE' } });
     if (existing) throw new BadRequestException('Passenger already has an active transport allocation');
 
-    return prisma.transportAllocation.create({ data: { ...data, startDate: new Date(data.startDate), monthlyFee: data.monthlyFee || 0, status: 'ACTIVE' } });
+    const allocation = await prisma.transportAllocation.create({ data: { ...data, startDate: new Date(data.startDate), monthlyFee: data.monthlyFee || 0, status: 'ACTIVE' } });
+
+    if (data.passengerType === 'STUDENT') {
+      try {
+        await prisma.student.update({
+          where: { id: data.passengerId },
+          data: {
+            residentialType: 'DAY_SCHOLAR',
+            transportMode: 'COLLEGE_BUS',
+            transportRouteId: data.routeId,
+            transportStopId: data.stopId,
+          },
+        });
+
+        // Close pending TRANSPORT_ALLOCATION_REQUIRED workflow task
+        await (prisma as any).workflowRequest.updateMany({
+          where: {
+            studentId: data.passengerId,
+            type: 'TRANSPORT_ALLOCATION_REQUIRED',
+            status: { startsWith: 'PENDING' },
+          },
+          data: {
+            status: 'COMPLETED',
+            currentStage: 'ALLOCATION_COMPLETED',
+          },
+        });
+      } catch (e) {
+        // Non-blocking
+      }
+    }
+
+    return allocation;
   }
 
   async cancelAllocation(allocationId: string) {

@@ -3,20 +3,88 @@ import { BadRequestException, NotFoundException } from '../../utils/exceptions';
 
 export class TimetableService {
   /**
-   * Get timetable slots based on section, faculty, department, or student
+   * Get timetable slots based on section, faculty, department, or student.
+   * Resolves authenticated student context automatically when studentId='me' or unset.
+   * Always returns 200 with an array, never 404.
    */
-  async listSlots(params: any) {
+  async listSlots(params: any, reqUser?: any) {
     const { sectionId, facultyId, studentId, departmentId, semesterId } = params;
     const filter: any = {};
 
     if (sectionId) {
       filter.sectionId = sectionId;
     } else if (studentId) {
-      const student = await prisma.student.findUnique({ where: { id: studentId } });
-      if (!student) throw new NotFoundException('Student not found');
-      filter.sectionId = student.sectionId;
+      let student = null;
+      if (studentId === 'me' || studentId === 'current') {
+        if (reqUser?.id) {
+          student = await prisma.student.findFirst({ where: { userId: reqUser.id } });
+        }
+      } else {
+        student = await prisma.student.findFirst({
+          where: {
+            OR: [
+              { id: studentId },
+              { userId: studentId },
+              { admissionNo: studentId },
+            ],
+          },
+        });
+      }
+
+      if (student) {
+        let slots: any[] = [];
+        if (student.sectionId) {
+          slots = await prisma.timetableSlot.findMany({
+            where: { sectionId: student.sectionId },
+            include: { subject: true, faculty: true, section: true, semester: true },
+            orderBy: [{ dayOfWeek: 'asc' }, { slotIndex: 'asc' }],
+          });
+        }
+        if (slots.length === 0 && student.departmentId) {
+          slots = await prisma.timetableSlot.findMany({
+            where: { departmentId: student.departmentId },
+            include: { subject: true, faculty: true, section: true, semester: true },
+            orderBy: [{ dayOfWeek: 'asc' }, { slotIndex: 'asc' }],
+          });
+        }
+        return slots;
+      } else {
+        return [];
+      }
+    } else if (!facultyId && !departmentId && reqUser?.id) {
+      // Auto-infer authenticated context
+      const student = await prisma.student.findFirst({ where: { userId: reqUser.id } });
+      if (student) {
+        let slots: any[] = [];
+        if (student.sectionId) {
+          slots = await prisma.timetableSlot.findMany({
+            where: { sectionId: student.sectionId },
+            include: { subject: true, faculty: true, section: true, semester: true },
+            orderBy: [{ dayOfWeek: 'asc' }, { slotIndex: 'asc' }],
+          });
+        }
+        if (slots.length === 0 && student.departmentId) {
+          slots = await prisma.timetableSlot.findMany({
+            where: { departmentId: student.departmentId },
+            include: { subject: true, faculty: true, section: true, semester: true },
+            orderBy: [{ dayOfWeek: 'asc' }, { slotIndex: 'asc' }],
+          });
+        }
+        return slots;
+      } else {
+        const faculty = await prisma.faculty.findFirst({ where: { userId: reqUser.id } });
+        if (faculty) {
+          filter.facultyId = faculty.id;
+        }
+      }
     } else if (facultyId) {
-      filter.facultyId = facultyId;
+      if (facultyId === 'me' && reqUser?.id) {
+        const faculty = await prisma.faculty.findFirst({ where: { userId: reqUser.id } });
+        if (faculty) filter.facultyId = faculty.id;
+        else return [];
+      } else {
+        filter.facultyId = facultyId;
+      }
     } else if (departmentId) {
       filter.departmentId = departmentId;
       if (semesterId) filter.semesterId = semesterId;
@@ -32,8 +100,77 @@ export class TimetableService {
       },
       orderBy: [
         { dayOfWeek: 'asc' },
-        { slotIndex: 'asc' }
-      ]
+        { slotIndex: 'asc' },
+      ],
+    });
+  }
+
+  /**
+   * Calculate affected timetable scheduled sessions across a date range for a Student or Faculty
+   */
+  async getAffectedSessions(params: any, reqUser?: any) {
+    const dateFromStr = params.dateFrom || params.startDate || params.from;
+    const dateToStr = params.dateTo || params.endDate || params.to || dateFromStr;
+
+    if (!dateFromStr) {
+      return [];
+    }
+
+    const slots = await this.listSlots(params, reqUser);
+    if (!Array.isArray(slots) || slots.length === 0) {
+      return [];
+    }
+
+    const dayNameMap = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'];
+    const sessions: any[] = [];
+
+    const startDate = new Date(dateFromStr);
+    const endDate = new Date(dateToStr);
+
+    // Limit iteration to maximum 90 days to prevent runaway loops
+    const maxDays = 90;
+    let iteration = 0;
+    const curDate = new Date(startDate);
+
+    while (curDate <= endDate && iteration < maxDays) {
+      const dayOfWeekStr = dayNameMap[curDate.getDay()];
+      const dateIso = curDate.toISOString().split('T')[0];
+
+      const matchingSlots = slots.filter(
+        (s) => s.dayOfWeek?.toUpperCase() === dayOfWeekStr
+      );
+
+      for (const slot of matchingSlots) {
+        sessions.push({
+          sessionId: `${slot.id}-${dateIso}`,
+          slotId: slot.id,
+          date: dateIso,
+          day: dayOfWeekStr,
+          periodNumber: slot.slotIndex,
+          slotIndex: slot.slotIndex,
+          startTime: slot.startTime,
+          endTime: slot.endTime,
+          subject: slot.subject?.name || 'Subject',
+          subjectCode: slot.subject?.code || '',
+          faculty: slot.faculty
+            ? `${slot.faculty.firstName} ${slot.faculty.lastName}`
+            : 'Faculty',
+          facultyId: slot.facultyId,
+          class: slot.section?.name || 'Class',
+          sectionId: slot.sectionId,
+          room: slot.roomNo || '',
+          sessionType: slot.slotType || (slot.isLab ? 'LAB' : 'THEORY'),
+          timetableRevisionId: slot.revisionId || null,
+        });
+      }
+
+      curDate.setDate(curDate.getDate() + 1);
+      iteration++;
+    }
+
+    return sessions.sort((a, b) => {
+      if (a.date !== b.date) return a.date.localeCompare(b.date);
+      return a.slotIndex - b.slotIndex;
     });
   }
 
@@ -56,54 +193,89 @@ export class TimetableService {
       isLab,
     } = input;
 
-    if (!dayOfWeek || !slotIndex || !startTime || !endTime || !academicYearId || !departmentId || !semesterId || !sectionId || !subjectId || !facultyId || !roomNo) {
-      throw new BadRequestException('All timing parameters, mappings, teacher, and classroom are required');
+    if (
+      !dayOfWeek ||
+      !slotIndex ||
+      !startTime ||
+      !endTime ||
+      !academicYearId ||
+      !departmentId ||
+      !semesterId ||
+      !sectionId ||
+      !subjectId ||
+      !facultyId ||
+      !roomNo
+    ) {
+      throw new BadRequestException(
+        'All timing parameters, mappings, teacher, and classroom are required'
+      );
     }
 
-    // Resolve helper names for meaningful error logs
-    const faculty = await prisma.faculty.findUnique({ where: { id: facultyId } });
-    const subject = await prisma.subject.findUnique({ where: { id: subjectId } });
-    const section = await prisma.section.findUnique({ where: { id: sectionId } });
-
-    const facultyName = faculty ? `${faculty.firstName} ${faculty.lastName}` : 'Faculty member';
-    const subjectName = subject ? subject.name : 'Subject';
-    const sectionName = section ? section.name : 'Section';
-
-    // 1. Check Faculty Conflict
+    // 1. Check Faculty Conflict (same faculty, same day, same slot)
     const facultyConflict = await prisma.timetableSlot.findFirst({
-      where: { academicYearId, dayOfWeek, slotIndex, facultyId }
+      where: {
+        academicYearId,
+        dayOfWeek,
+        slotIndex: Number(slotIndex),
+        facultyId,
+      },
+      include: {
+        faculty: true,
+        section: true,
+      },
     });
+
     if (facultyConflict) {
+      const facName = facultyConflict.faculty
+        ? `${facultyConflict.faculty.firstName} ${facultyConflict.faculty.lastName}`
+        : 'Faculty';
+      const secName = facultyConflict.section ? facultyConflict.section.name : 'another section';
       throw new BadRequestException(
-        `Conflict detected: Faculty ${facultyName} is already scheduled for another class during ${dayOfWeek} Period ${slotIndex}.`
+        `Faculty Conflict: ${facName} is already scheduled in ${secName} during Period ${slotIndex} on ${dayOfWeek}`
       );
     }
 
-    // 2. Check Classroom / Lab Conflict
+    // 2. Check Room/Lab Conflict (same room, same day, same slot)
     const roomConflict = await prisma.timetableSlot.findFirst({
-      where: { academicYearId, dayOfWeek, slotIndex, roomNo }
+      where: {
+        academicYearId,
+        dayOfWeek,
+        slotIndex: Number(slotIndex),
+        roomNo,
+      },
+      include: {
+        section: true,
+      },
     });
+
     if (roomConflict) {
+      const secName = roomConflict.section ? roomConflict.section.name : 'another section';
       throw new BadRequestException(
-        `Conflict detected: Classroom/Lab ${roomNo} is already occupied by another class during ${dayOfWeek} Period ${slotIndex}.`
+        `Room Conflict: Room ${roomNo} is already occupied by ${secName} during Period ${slotIndex} on ${dayOfWeek}`
       );
     }
 
-    // 3. Check Section Conflict
+    // 3. Check Section Conflict (same section, same day, same slot)
     const sectionConflict = await prisma.timetableSlot.findFirst({
-      where: { academicYearId, dayOfWeek, slotIndex, sectionId }
+      where: {
+        academicYearId,
+        dayOfWeek,
+        slotIndex: Number(slotIndex),
+        sectionId,
+      },
     });
+
     if (sectionConflict) {
       throw new BadRequestException(
-        `Conflict detected: Student ${sectionName} already has ${subjectName} or another class scheduled during ${dayOfWeek} Period ${slotIndex}.`
+        `Section Conflict: This section already has a class scheduled during Period ${slotIndex} on ${dayOfWeek}`
       );
     }
 
-    // Create slot
+    // Create the slot
     const slot = await prisma.timetableSlot.create({
       data: {
         dayOfWeek,
-        slotIndex: parseInt(slotIndex),
+        slotIndex: Number(slotIndex),
         startTime,
         endTime,
         academicYearId,
@@ -113,9 +285,35 @@ export class TimetableService {
         subjectId,
         facultyId,
         roomNo,
-        isLab: !!isLab,
+        isLab: Boolean(isLab),
+      },
+      include: {
+        subject: true,
+        faculty: true,
+        section: true,
+        semester: true,
       },
     });
+
+    const sectionName = slot.section?.name || 'Section';
+    const subjectName = slot.subject?.name || 'Subject';
+
+    // Emit TIMETABLE_CHANGED domain event to section students and department faculty
+    try {
+      const { NotificationService } = await import('../notifications/notification.service');
+      NotificationService.dispatchDomainEvent({
+        eventType: 'TIMETABLE_CHANGED',
+        entityType: 'TIMETABLE_SLOT',
+        entityId: slot.id,
+        title: `Timetable Updated: ${sectionName}`,
+        body: `Schedule updated for ${dayOfWeek} Period ${slotIndex}: ${subjectName} in Room ${roomNo}.`,
+        priority: 'NORMAL',
+        category: 'ACADEMIC',
+        deepLinkRoute: '/student/timetable',
+        sectionId: slot.sectionId,
+        departmentId: slot.departmentId,
+      }).catch((err) => console.error('[TimetableService] Notification dispatch error:', err));
+    } catch (err) {}
 
     return slot;
   }
@@ -132,9 +330,7 @@ export class TimetableService {
   }
 
   /**
-   * Scheduling preview. This endpoint must never delete or mutate the live
-   * timetable. A real optimizer can consume configured period/workload policy
-   * later; until then we return the authoritative inputs and conflicts only.
+   * Scheduling preview.
    */
   async generateAIDraft(departmentId: string, semesterId: string, academicYearId: string) {
     const subjects = await prisma.subject.findMany({ where: { departmentId, semesterId } });

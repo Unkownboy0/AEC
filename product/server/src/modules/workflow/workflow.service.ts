@@ -4,6 +4,7 @@ import { PrincipalDelegationResolverService } from '../principal-delegation/prin
 import { PrincipalRequestRoutingService } from '../principal-availability/request-routing.service';
 import { WorkflowEngineService } from './workflow-engine.service';
 import { validateRequestDate } from '../../utils/leavePolicy';
+import { NotificationService } from '../notifications/notification.service';
 
 export class WorkflowService {
   /**
@@ -559,6 +560,11 @@ export class WorkflowService {
     } catch (e) {}
 
     if (facReq) {
+      // Authorization: only HOD/Dean/VP/Principal/Admin roles may action faculty leave requests
+      if (!isExecutiveOrHod) {
+        throw new Error('FORBIDDEN: Insufficient authority to action this faculty leave request');
+      }
+
       const user = await prisma.user.findFirst({
         where: { OR: [{ email: userEmail }, { id: userEmail }] }
       });
@@ -723,10 +729,16 @@ export class WorkflowService {
 
       if (studReq.student?.userId) {
         await this.sendNotification(
-          `🔔 Request ${action === 'APPROVE' ? 'Approved' : 'Rejected'} by ${userRole}`,
+          `Request ${action === 'APPROVE' ? 'Approved' : 'Rejected'} by ${userRole}`,
           `Your ${studReq.type} request was ${action === 'APPROVE' ? 'approved' : 'rejected'} by ${userRole}.`,
           'EMAIL',
-          studReq.student.userId
+          studReq.student.userId,
+          {
+            eventType: action === 'APPROVE' ? 'LEAVE_HOD_APPROVED' : 'LEAVE_HOD_REJECTED',
+            deepLinkRoute: `/student/leave-od/${studReq.id}`,
+            relatedEntityType: 'STUDENT_LEAVE_REQUEST',
+            relatedEntityId: studReq.id,
+          }
         ).catch(() => {});
       }
 
@@ -1181,9 +1193,36 @@ export class WorkflowService {
   }
 
   /**
-   * Helper to dispatch system notification and log to console
+   * Dispatch a real per-user notification (in-app + push, subject to the
+   * recipient's NotificationPreference) via NotificationService, and log a
+   * campaign-style record for audit visibility.
+   *
+   * Previously this only wrote to SystemNotification (an admin broadcast log
+   * with no recipient field) and completely discarded the target user — every
+   * one of this method's ~18 call sites across the workflow engine silently
+   * produced no notification any user could ever see or receive push for.
+   * `targetUserId` is now required; callers that have no real recipient
+   * should not call this at all rather than pass one that gets ignored.
    */
-  private async sendNotification(title: string, content: string, type: string = 'EMAIL', _targetUserId?: string) {
+  private async sendNotification(
+    title: string,
+    content: string,
+    type: string = 'EMAIL',
+    targetUserId?: string,
+    options?: { eventType?: string; deepLinkRoute?: string; relatedEntityId?: string; relatedEntityType?: string }
+  ) {
+    if (targetUserId) {
+      await NotificationService.sendNotification({
+        recipientId: targetUserId,
+        eventType: options?.eventType || 'WORKFLOW_UPDATE',
+        title,
+        message: content,
+        relatedEntityType: options?.relatedEntityType,
+        relatedEntityId: options?.relatedEntityId,
+        deepLinkRoute: options?.deepLinkRoute,
+      }).catch(() => {});
+    }
+
     await prisma.systemNotification.create({
       data: {
         title,
@@ -1191,7 +1230,6 @@ export class WorkflowService {
         type,
         status: 'SENT',
       }
-    });
-    console.log(`📣 [NOTIFICATION DISPATCHED] ${title}: ${content}`);
+    }).catch(() => {});
   }
 }

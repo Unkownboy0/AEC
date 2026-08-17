@@ -94,11 +94,32 @@
     --sidebar-width: 260px;
     --sidebar-collapsed-width: 68px;
 
-    /* Safe Area */
-    --safe-area-top: env(safe-area-inset-top, 0px);
-    --safe-area-bottom: env(safe-area-inset-bottom, 0px);
-    --safe-area-left: env(safe-area-inset-left, 0px);
-    --safe-area-right: env(safe-area-inset-right, 0px);
+    /*
+      Safe Area
+      Capacitor >=8.3 (SystemBars, insetsHandling:"css") injects its own
+      --safe-area-inset-* custom properties computed natively from
+      WindowInsetsCompat, sidestepping a real Android WebView bug where
+      env(safe-area-inset-*) returns 0 / wrong values on WebView < 140.
+      We read the injected variable first and fall back to the CSS env()
+      function (correct on iOS and modern WebViews) and finally 0px for
+      desktop/browser preview. Do not read env() directly anywhere else in
+      the app — always go through these tokens.
+    */
+    --safe-area-top: var(--safe-area-inset-top, env(safe-area-inset-top, 0px));
+    --safe-area-bottom: var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px));
+    --safe-area-left: var(--safe-area-inset-left, env(safe-area-inset-left, 0px));
+    --safe-area-right: var(--safe-area-inset-right, env(safe-area-inset-right, 0px));
+
+    /*
+      Mobile app shell layout tokens (see AppShell.tsx / TopHeader.tsx / MobileBottomNav.tsx).
+      These describe the CONTENT height of each bar, excluding safe-area insets, which are
+      added separately via .pt-safe / .pb-safe / --safe-area-* so nothing double-counts.
+      --mobile-header-height matches TopHeader's h-16 (64px) row.
+      --mobile-bottom-nav-height matches MobileBottomNav's built-in vertical padding/content.
+    */
+    --mobile-header-height: 64px;
+    --mobile-bottom-nav-height: 64px;
+    --keyboard-height: 0px;
   }
 
   /*
@@ -204,8 +225,15 @@
     background-color: hsl(var(--app-bg));
     color: hsl(var(--foreground));
     line-height: 1.6;
-    padding-top: var(--safe-area-top);
-    padding-bottom: var(--safe-area-bottom);
+    /*
+      Top/bottom safe-area padding is intentionally NOT applied here.
+      TopHeader/MobileHeader (top) and MobileBottomNav/QuickActionFAB (bottom)
+      are fixed/sticky elements that own their own safe-area padding directly
+      (see .pt-safe / .pb-safe usage in those components). Applying it here too
+      would double the inset (extra dead whitespace below the header) — see
+      CAMPUSOS_MOBILE_RELEASE_REPORT.md for the fix history.
+      Left/right insets are still applied globally for landscape notch clearance.
+    */
     padding-left: var(--safe-area-left);
     padding-right: var(--safe-area-right);
   }
@@ -339,12 +367,15 @@
     border-color: hsl(var(--border-strong));
   }
 
-  /* Safe Area */
+  /* Safe Area & Keyboard Awareness */
   .pb-safe {
     padding-bottom: max(var(--safe-area-bottom), 16px);
   }
   .pt-safe {
     padding-top: max(var(--safe-area-top), 0px);
+  }
+  .pb-keyboard {
+    padding-bottom: max(var(--safe-area-bottom), var(--keyboard-height, 0px));
   }
 
   /* Mobile Touch Target (44px minimum per WCAG) */
@@ -452,16 +483,22 @@
   }
 }
 
-/* INSTITUTIONAL WATERMARK THEME STYLING */
+/* INSTITUTIONAL WATERMARK THEME STYLING (IMAGE 2) */
 .watermark-img,
-img[src*="al-ameen-logo"] {
-  opacity: var(--watermark-opacity-light, 0.045) !important;
+img[src*="official-logo"],
+img[src*="watermark-logo"],
+img[src*="al-ameen-logo"],
+img[src*="institution-logo"] {
+  opacity: var(--watermark-opacity-light, 0.04) !important;
   filter: grayscale(100%) sepia(15%) hue-rotate(210deg) saturate(110%) contrast(105%);
 }
 
 .dark .watermark-img,
-.dark img[src*="al-ameen-logo"] {
-  opacity: var(--watermark-opacity-dark, 0.035) !important;
+.dark img[src*="official-logo"],
+.dark img[src*="watermark-logo"],
+.dark img[src*="al-ameen-logo"],
+.dark img[src*="institution-logo"] {
+  opacity: var(--watermark-opacity-dark, 0.025) !important;
   filter: brightness(0) invert(1) opacity(0.6) contrast(110%) !important;
 }
 
@@ -498,6 +535,7 @@ img[src*="al-ameen-logo"] {
     object-fit: contain !important;
     filter: grayscale(100%) !important;
     -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
 
   .print\\:hidden,
@@ -526,3 +564,100 @@ img[src*="al-ameen-logo"] {
   }
 }
 
+/* ─── Campus Workspace — TipTap Editor Styles ─────────────────────────────── */
+.ProseMirror {
+  outline: none;
+  min-height: 200px;
+}
+
+.ProseMirror p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  color: #9ca3af;
+  pointer-events: none;
+  float: left;
+  height: 0;
+}
+
+.ProseMirror h1 { font-size: 2em; font-weight: 700; margin: 0.8em 0 0.4em; line-height: 1.2; }
+.ProseMirror h2 { font-size: 1.5em; font-weight: 600; margin: 0.7em 0 0.35em; }
+.ProseMirror h3 { font-size: 1.25em; font-weight: 600; margin: 0.6em 0 0.3em; }
+.ProseMirror h4 { font-size: 1.1em; font-weight: 600; margin: 0.5em 0 0.25em; }
+.ProseMirror p { margin: 0.5em 0; line-height: 1.7; }
+.ProseMirror ul, .ProseMirror ol { padding-left: 1.5em; margin: 0.5em 0; }
+.ProseMirror li { margin: 0.2em 0; line-height: 1.6; }
+.ProseMirror blockquote {
+  border-left: 3px solid #d1d5db;
+  padding-left: 1em;
+  margin: 0.75em 0;
+  color: #6b7280;
+  font-style: italic;
+}
+.ProseMirror code {
+  background: #f1f5f9;
+  border-radius: 4px;
+  padding: 0.15em 0.4em;
+  font-size: 0.875em;
+  font-family: 'Courier New', monospace;
+}
+.ProseMirror pre {
+  background: #1e293b;
+  color: #e2e8f0;
+  border-radius: 8px;
+  padding: 1em;
+  margin: 0.75em 0;
+  overflow-x: auto;
+  font-family: 'Courier New', monospace;
+  font-size: 0.875em;
+}
+.ProseMirror pre code {
+  background: none;
+  padding: 0;
+  color: inherit;
+}
+.ProseMirror hr { border: none; border-top: 2px solid #e5e7eb; margin: 1.5em 0; }
+.ProseMirror a { color: #2563eb; text-decoration: underline; cursor: pointer; }
+.ProseMirror img { max-width: 100%; height: auto; border-radius: 8px; margin: 0.5em 0; }
+
+/* TipTap Table */
+.ProseMirror table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 0.75em 0;
+  table-layout: fixed;
+}
+.ProseMirror table td,
+.ProseMirror table th {
+  border: 1px solid #d1d5db;
+  padding: 8px 12px;
+  min-width: 100px;
+  vertical-align: top;
+  position: relative;
+}
+.ProseMirror table th {
+  background: #f9fafb;
+  font-weight: 600;
+  text-align: left;
+}
+.ProseMirror table .selectedCell:after {
+  content: '';
+  position: absolute;
+  left: 0; right: 0; top: 0; bottom: 0;
+  background: rgba(37, 99, 235, 0.08);
+  pointer-events: none;
+}
+
+/* Task list */
+.ProseMirror ul[data-type="taskList"] { list-style: none; padding-left: 0; }
+.ProseMirror ul[data-type="taskList"] > li { display: flex; align-items: flex-start; gap: 8px; margin: 0.25em 0; }
+.ProseMirror ul[data-type="taskList"] > li > label { flex-shrink: 0; margin-top: 2px; }
+.ProseMirror ul[data-type="taskList"] > li[data-checked="true"] > div { color: #9ca3af; text-decoration: line-through; }
+
+/* Note editor (slightly larger) */
+.note-editor .ProseMirror { min-height: 400px; font-size: 15px; line-height: 1.8; }
+
+/* ─── Workspace Misc ────────────────────────────────────────────────────────── */
+/* Scrollbar styling for workspace panels */
+.workspace-panel::-webkit-scrollbar { width: 4px; }
+.workspace-panel::-webkit-scrollbar-track { background: transparent; }
+.workspace-panel::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 4px; }
+.workspace-panel::-webkit-scrollbar-thumb:hover { background: #9ca3af; }

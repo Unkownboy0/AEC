@@ -1,11 +1,13 @@
 import { Router } from 'express';
 import { SportsController } from './sports.controller';
 import { requireAuth, requireRole } from '../../core/middlewares/auth.middleware';
+import { requireFeature } from '../../core/middlewares/requireFeature.middleware';
 
 const router = Router();
 const controller = new SportsController();
 
 router.use(requireAuth);
+router.use(requireFeature('MODULE_SPORTS_ENABLED'));
 
 const sportsAdmin = requireRole([
   'Super Admin',

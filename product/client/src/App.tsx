@@ -10,9 +10,12 @@ import { NotificationProvider } from './notifications/NotificationProvider';
 import { Toaster } from './components/ui/Toast';
 import { AppRouter } from './routes/Router';
 import { AppBootstrap } from './app/bootstrap/AppBootstrap';
+import { BiometricLockGate } from './components/shared/BiometricLockGate';
 import { MobileDebugOverlay } from './components/mobile/MobileDebugOverlay';
 import { useEffect } from 'react';
 import { CapacitorNativeService } from './lib/capacitor-native';
+import { InstitutionProvider } from './context/InstitutionContext';
+import { KeyboardProvider } from './context/KeyboardContext';
 
 /*
   App root.
@@ -45,8 +48,18 @@ const queryClient = new QueryClient({
 
 function AppInit() {
   useEffect(() => {
-    // Only native UI init here — push is handled by NotificationProvider
+    // Native UI init (splash screen)
     CapacitorNativeService.initNativeAppUI();
+
+    // Mobile & web sensitive screen protection
+    import('./platform/screen-security').then(({ ScreenSecurityService }) => {
+      ScreenSecurityService.init();
+    });
+
+    // Mobile device capability policy sync
+    import('./platform/device-capabilities.manager').then(({ deviceCapabilities }) => {
+      deviceCapabilities.loadEffectivePolicy().catch(() => {});
+    });
   }, []);
   return null;
 }
@@ -56,27 +69,33 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
         <DeviceProvider>
-          <BrowserRouter>
-            <AuthProvider>
-              <DelegationProvider>
-                <RBACProvider>
-                  <ProfileDrawerProvider>
-                    <NotificationProvider>
-                      <AppInit />
-                      <AppBootstrap>
-                        <AppRouter />
-                        {import.meta.env.DEV && import.meta.env.VITE_ENABLE_MOBILE_DEBUG === 'true' && (
-                          <MobileDebugOverlay />
-                        )}
-                      </AppBootstrap>
-                      {/* Global toast notifications */}
-                      <Toaster />
-                    </NotificationProvider>
-                  </ProfileDrawerProvider>
-                </RBACProvider>
-              </DelegationProvider>
-            </AuthProvider>
-          </BrowserRouter>
+          <KeyboardProvider>
+            <InstitutionProvider>
+              <BrowserRouter>
+                <AuthProvider>
+                  <DelegationProvider>
+                    <RBACProvider>
+                      <ProfileDrawerProvider>
+                        <NotificationProvider>
+                        <AppInit />
+                        <AppBootstrap>
+                          <BiometricLockGate>
+                            <AppRouter />
+                            {import.meta.env.DEV && import.meta.env.VITE_ENABLE_MOBILE_DEBUG === 'true' && (
+                              <MobileDebugOverlay />
+                            )}
+                          </BiometricLockGate>
+                        </AppBootstrap>
+                        {/* Global toast notifications */}
+                        <Toaster />
+                        </NotificationProvider>
+                      </ProfileDrawerProvider>
+                    </RBACProvider>
+                  </DelegationProvider>
+                </AuthProvider>
+              </BrowserRouter>
+            </InstitutionProvider>
+          </KeyboardProvider>
         </DeviceProvider>
       </ThemeProvider>
     </QueryClientProvider>

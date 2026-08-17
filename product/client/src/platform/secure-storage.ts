@@ -1,25 +1,34 @@
-import { Preferences } from '@capacitor/preferences';
 import { Capacitor } from '@capacitor/core';
+import { CampusOSSecureStorage } from './native-secure-storage';
 
+/**
+ * Platform Secure Storage abstraction
+ * On Native (Android/iOS): Hardware-backed Android Keystore / iOS Keychain.
+ * On Web: Browser storage architecture.
+ */
 export async function setSecureItem(key: string, value: string): Promise<void> {
   if (Capacitor.isNativePlatform()) {
-    await Preferences.set({ key, value });
+    await CampusOSSecureStorage.set({ key, value });
   } else {
     try {
-      localStorage.setItem(key, value);
-    } catch (e) {
-      console.warn('[Storage] localStorage setItem failed:', e);
-    }
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem(key, value);
+      }
+    } catch {}
   }
 }
 
 export async function getSecureItem(key: string): Promise<string | null> {
   if (Capacitor.isNativePlatform()) {
-    const { value } = await Preferences.get({ key });
-    return value;
+    try {
+      const { value } = await CampusOSSecureStorage.get({ key });
+      return value;
+    } catch {
+      return null;
+    }
   } else {
     try {
-      return localStorage.getItem(key);
+      return typeof localStorage !== 'undefined' ? localStorage.getItem(key) : null;
     } catch {
       return null;
     }
@@ -28,20 +37,28 @@ export async function getSecureItem(key: string): Promise<string | null> {
 
 export async function removeSecureItem(key: string): Promise<void> {
   if (Capacitor.isNativePlatform()) {
-    await Preferences.remove({ key });
+    try {
+      await CampusOSSecureStorage.remove({ key });
+    } catch {}
   } else {
     try {
-      localStorage.removeItem(key);
+      if (typeof localStorage !== 'undefined') {
+        localStorage.removeItem(key);
+      }
     } catch {}
   }
 }
 
 export async function clearSecureStorage(): Promise<void> {
   if (Capacitor.isNativePlatform()) {
-    await Preferences.clear();
+    try {
+      await CampusOSSecureStorage.clear();
+    } catch {}
   } else {
     try {
-      localStorage.clear();
+      if (typeof localStorage !== 'undefined') {
+        localStorage.clear();
+      }
     } catch {}
   }
 }

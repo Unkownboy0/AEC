@@ -2,25 +2,20 @@ import React, { useState, useEffect } from 'react';
 import {
   Calendar,
   Clock,
-  BookOpen,
   Send,
-  UserCheck,
-  FileText,
-  AlertTriangle,
-  CheckCircle2,
   Briefcase,
-  Users,
-  ChevronRight,
   Sparkles,
-  Plus
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import api from '../../lib/axios';
 import { useAuth } from '../../context/AuthContext';
 import { toast } from '../../components/ui/Toast';
 import { CampusOfficeWorkspace } from '../enterprise/office/CampusOfficeWorkspace';
+import { fetchFacultyRequests } from './leave-od/api/facultyLeaveApi';
 
 export const FacultyWorkspaceHub: React.FC = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [activeSection, setActiveSection] = useState<'SCHEDULE' | 'LEAVE' | 'OFFICE'>('SCHEDULE');
   const [facultyProfile, setFacultyProfile] = useState<any>(null);
   const [workload, setWorkload] = useState<any>(null);
@@ -28,32 +23,17 @@ export const FacultyWorkspaceHub: React.FC = () => {
   const [myLeaveRequests, setMyLeaveRequests] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Leave Form State
-  const [leaveType, setLeaveType] = useState('CASUAL_LEAVE');
-  const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0]);
-  const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
-  const [reason, setReason] = useState('');
-  const [affectedPeriods, setAffectedPeriods] = useState<any[]>([]);
-  const [substitutions, setSubstitutions] = useState<Record<string, { substituteId: string; substituteName: string }>>({});
-  const [availableSubstitutes, setAvailableSubstitutes] = useState<Record<string, any[]>>({});
-  const [isSubmittingLeave, setIsSubmittingLeave] = useState(false);
-
   useEffect(() => {
     loadFacultyData();
   }, [user]);
 
-  useEffect(() => {
-    if (startDate && endDate && facultyProfile?.id) {
-      detectAffectedClasses();
-    }
-  }, [startDate, endDate, facultyProfile]);
-
   const loadFacultyData = async () => {
     setLoading(true);
     try {
-      // 1. Get Faculty info
-      const facultyRes = await api.get('/faculty/profile');
-      const faculty = facultyRes.data?.data;
+      // 1. Get Faculty info (the dashboard endpoint returns the faculty record we need,
+      // since a dedicated /faculty/profile endpoint does not exist server-side)
+      const facultyRes = await api.get('/faculty/dashboard');
+      const faculty = facultyRes.data?.data?.faculty;
       setFacultyProfile(faculty);
 
       if (faculty?.id) {
@@ -64,98 +44,16 @@ export const FacultyWorkspaceHub: React.FC = () => {
         // 3. Leave Balances
         const balRes = await api.get(`/campus-office/leave/balances/${faculty.id}`);
         setLeaveBalances(balRes.data?.data || []);
-
-        // 4. My Leave Requests
-        const reqRes = await api.get('/faculty/leave/my-requests');
-        setMyLeaveRequests(reqRes.data?.data || []);
       }
-    } catch (e) {
+
+      // 4. My Leave/OD Requests — sourced from the real faculty-leave module
+      const requests = await fetchFacultyRequests();
+      setMyLeaveRequests(requests || []);
+    } catch (e: any) {
       console.error('Error loading faculty workspace data', e);
+      toast.error(e.response?.data?.message || 'Failed to load faculty workspace data.');
     } finally {
       setLoading(false);
-    }
-  };
-
-  const detectAffectedClasses = async () => {
-    if (!facultyProfile?.id) return;
-    try {
-      const res = await api.get(`/campus-office/leave/affected-periods/${facultyProfile.id}`, {
-        params: { startDate, endDate },
-      });
-      const periods = res.data?.data || [];
-      setAffectedPeriods(periods);
-
-      // Query available free faculty for each period
-      for (const p of periods) {
-        loadFreeFacultyForSlot(p);
-      }
-    } catch (e) {
-      console.error('Failed to detect affected classes', e);
-    }
-  };
-
-  const loadFreeFacultyForSlot = async (period: any) => {
-    try {
-      const res = await api.get('/campus-office/availability/free-faculty', {
-        params: {
-          date: startDate,
-          periodNumber: period.slotIndex,
-          departmentId: period.departmentId,
-          subjectId: period.subjectId,
-        },
-      });
-      setAvailableSubstitutes(prev => ({
-        ...prev,
-        [period.id]: res.data?.data?.suggestions || [],
-      }));
-    } catch (e) {
-      console.error('Failed to find free faculty', e);
-    }
-  };
-
-  const handleApplyLeave = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!reason.trim()) {
-      toast.error('Please specify a reason for leave/OD.');
-      return;
-    }
-
-    // Check if substitutions are chosen for all affected periods
-    const substitutionsList = affectedPeriods.map(p => {
-      const sub = substitutions[p.id];
-      return {
-        ...p,
-        assignedSubstituteId: sub?.substituteId || '',
-        assignedSubstituteName: sub?.substituteName || '',
-      };
-    });
-
-    const unassigned = substitutionsList.filter(s => !s.assignedSubstituteId);
-    if (unassigned.length > 0) {
-      toast.error(`Please assign a substitute for all ${unassigned.length} affected class periods.`);
-      return;
-    }
-
-    setIsSubmittingLeave(true);
-    try {
-      await api.post('/faculty/leave/apply', {
-        requestType: leaveType === 'ON_DUTY' ? 'OD' : 'LEAVE',
-        category: leaveType,
-        startDate,
-        endDate,
-        reason,
-        totalDays: 1,
-        substitutionsList,
-      });
-
-      toast.success('Leave / OD request submitted to HOD for approval.');
-      setReason('');
-      loadFacultyData();
-      setActiveSection('SCHEDULE');
-    } catch (err: any) {
-      toast.error(err.response?.data?.error || 'Failed to submit leave request.');
-    } finally {
-      setIsSubmittingLeave(false);
     }
   };
 
@@ -316,139 +214,22 @@ export const FacultyWorkspaceHub: React.FC = () => {
       {/* SECTION 2: Leave & Substitution Flow */}
       {activeSection === 'LEAVE' && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Leave Application Wizard */}
-          <div className="lg:col-span-2 bg-card border border-border p-6 rounded-2xl shadow-sm space-y-5">
+          {/* Apply Leave/OD — links out to the real, fully-working leave/OD workflow
+              (affected-session detection + substitute picking + HOD approval chain) */}
+          <div className="lg:col-span-2 bg-card border border-border p-6 rounded-2xl shadow-sm space-y-4">
             <div>
               <h2 className="text-xl font-bold">Apply for Leave / On-Duty (OD)</h2>
               <p className="text-xs text-muted-foreground mt-0.5">
-                Classes in affected periods will be auto-detected across your Home & Visiting departments.
+                Affected classes are auto-detected and a substitute must be assigned for each one before HOD review.
               </p>
             </div>
-
-            <form onSubmit={handleApplyLeave} className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div>
-                  <label className="text-xs font-bold block mb-1">Leave Type</label>
-                  <select
-                    value={leaveType}
-                    onChange={e => setLeaveType(e.target.value)}
-                    className="w-full bg-background border border-border rounded-xl p-2.5 text-xs font-semibold"
-                  >
-                    <option value="CASUAL_LEAVE">Casual Leave (CL)</option>
-                    <option value="MEDICAL_LEAVE">Medical Leave (ML)</option>
-                    <option value="ON_DUTY">On Duty (OD)</option>
-                    <option value="EARNED_LEAVE">Earned Leave (EL)</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="text-xs font-bold block mb-1">Start Date</label>
-                  <input
-                    type="date"
-                    value={startDate}
-                    onChange={e => setStartDate(e.target.value)}
-                    className="w-full bg-background border border-border rounded-xl p-2.5 text-xs"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-xs font-bold block mb-1">End Date</label>
-                  <input
-                    type="date"
-                    value={endDate}
-                    onChange={e => setEndDate(e.target.value)}
-                    className="w-full bg-background border border-border rounded-xl p-2.5 text-xs"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="text-xs font-bold block mb-1">Reason / Purpose</label>
-                <textarea
-                  rows={2}
-                  placeholder="State the purpose for leave or official duty..."
-                  value={reason}
-                  onChange={e => setReason(e.target.value)}
-                  className="w-full bg-background border border-border rounded-xl p-3 text-xs outline-none"
-                />
-              </div>
-
-              {/* Auto-detected Affected Classes */}
-              <div className="space-y-3 border-t border-border pt-4">
-                <div className="flex items-center justify-between">
-                  <h4 className="font-bold text-sm flex items-center gap-1.5">
-                    <AlertTriangle className="h-4 w-4 text-amber-500" />
-                    Affected Timetable Periods ({affectedPeriods.length})
-                  </h4>
-                  <span className="text-xs text-muted-foreground">Mandatory substitute arrangement</span>
-                </div>
-
-                {affectedPeriods.length === 0 ? (
-                  <p className="text-xs text-muted-foreground py-2">
-                    No timetable classes found for the selected date(s).
-                  </p>
-                ) : (
-                  <div className="space-y-3">
-                    {affectedPeriods.map((period: any) => {
-                      const suggestions = availableSubstitutes[period.id] || [];
-                      const chosenSub = substitutions[period.id];
-
-                      return (
-                        <div key={period.id} className="p-4 rounded-xl border border-border bg-muted/20 space-y-2">
-                          <div className="flex items-center justify-between">
-                            <span className="font-bold text-xs text-primary">
-                              Period {period.slotIndex} · {period.subjectName} ({period.subjectCode})
-                            </span>
-                            <span className="text-[11px] font-semibold text-muted-foreground">
-                              {period.departmentName} · {period.sectionName}
-                            </span>
-                          </div>
-
-                          <div className="flex items-center gap-3">
-                            <select
-                              value={chosenSub?.substituteId || ''}
-                              onChange={e => {
-                                const selectedId = e.target.value;
-                                const selectedFaculty = suggestions.find(s => s.facultyId === selectedId);
-                                setSubstitutions(prev => ({
-                                  ...prev,
-                                  [period.id]: {
-                                    substituteId: selectedId,
-                                    substituteName: selectedFaculty?.name || 'Selected Substitute',
-                                  },
-                                }));
-                              }}
-                              className="flex-1 bg-background border border-border rounded-lg p-2 text-xs font-semibold"
-                            >
-                              <option value="">-- Choose Eligible Substitute Faculty --</option>
-                              {suggestions.map(s => (
-                                <option key={s.facultyId} value={s.facultyId}>
-                                  {s.name} ({s.departmentCode}) - {s.isFree ? 'Free Now' : 'Alternative'}
-                                </option>
-                              ))}
-                            </select>
-                            {chosenSub?.substituteId && (
-                              <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-
-              <div className="border-t border-border pt-4 flex justify-end">
-                <button
-                  type="submit"
-                  disabled={isSubmittingLeave}
-                  className="flex items-center gap-2 px-5 py-2.5 bg-primary text-primary-foreground font-semibold text-xs rounded-xl shadow hover:opacity-90 transition"
-                >
-                  <Send className="h-3.5 w-3.5" />
-                  Submit to HOD for Recommendation
-                </button>
-              </div>
-            </form>
+            <button
+              onClick={() => navigate('/faculty/leave-od')}
+              className="flex items-center gap-2 px-5 py-2.5 bg-primary text-primary-foreground font-semibold text-xs rounded-xl shadow hover:opacity-90 transition"
+            >
+              <Send className="h-3.5 w-3.5" />
+              Open Leave / OD Application
+            </button>
           </div>
 
           {/* Past Applications List */}
@@ -460,12 +241,17 @@ export const FacultyWorkspaceHub: React.FC = () => {
                   <p className="text-xs text-muted-foreground py-3">No past leave applications.</p>
                 ) : (
                   myLeaveRequests.map(req => (
-                    <div key={req.id} className="p-3 bg-muted/20 border border-border rounded-xl space-y-1">
+                    <div
+                      key={req.id}
+                      onClick={() => navigate(`/faculty/leave-od/${req.id}`)}
+                      className="p-3 bg-muted/20 border border-border rounded-xl space-y-1 cursor-pointer hover:border-primary/50 transition"
+                    >
                       <div className="flex items-center justify-between text-xs">
-                        <span className="font-bold">{req.leaveType}</span>
+                        <span className="font-bold">{req.category || req.type}</span>
                         <span className={`px-2 py-0.5 rounded text-[10px] font-extrabold ${
-                          req.status === 'APPROVED_PRINCIPAL' ? 'bg-emerald-500/10 text-emerald-600' :
-                          req.status === 'FORWARDED_TO_PRINCIPAL' ? 'bg-blue-500/10 text-blue-600' :
+                          req.status?.includes('APPROVED') ? 'bg-emerald-500/10 text-emerald-600' :
+                          req.status?.includes('FORWARDED') ? 'bg-blue-500/10 text-blue-600' :
+                          req.status?.includes('REJECTED') || req.status?.includes('RETURN') ? 'bg-rose-500/10 text-rose-600' :
                           'bg-amber-500/10 text-amber-600'
                         }`}>
                           {req.status}

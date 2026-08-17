@@ -56,7 +56,7 @@ export const NotificationBell: React.FC = () => {
     }
     setIsOpen(false);
 
-    const targetRoute = resolveNotificationRoute(n.eventType, n.relatedEntityId, n.deepLinkRoute || undefined);
+    const targetRoute = resolveNotificationRoute(n.eventType, n.relatedEntityId, n.deepLinkRoute || undefined, user?.role);
     if (targetRoute) {
       navigate(targetRoute);
     }
@@ -75,7 +75,7 @@ export const NotificationBell: React.FC = () => {
       <button
         onClick={handleOpenDropdown}
         type="button"
-        className="relative p-2 text-text-secondary hover:text-text-primary hover:bg-surface-soft rounded-xl transition-colors"
+        className="relative p-2 text-text-secondary hover:text-text-primary hover:bg-surface-soft rounded-xl transition-colors touch-target flex items-center justify-center"
         aria-label="Notifications"
         title="Notifications"
       >

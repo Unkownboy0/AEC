@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
-import { Capacitor } from '@capacitor/core';
+import { Capacitor, SystemBars, SystemBarsStyle, SystemBarType } from '@capacitor/core';
 import { StatusBar, Style } from '@capacitor/status-bar';
 
 /*
@@ -39,15 +39,33 @@ function resolveTheme(preference: ThemePreference): ResolvedTheme {
 async function applyNativeStatusBar(resolved: ResolvedTheme): Promise<void> {
   if (!Capacitor.isNativePlatform()) return;
   try {
-    if (resolved === 'dark') {
-      await StatusBar.setStyle({ style: Style.Dark });
-      await StatusBar.setBackgroundColor({ color: '#0D1016' });
-    } else {
-      await StatusBar.setStyle({ style: Style.Light });
-      await StatusBar.setBackgroundColor({ color: '#FFFFFF' });
-    }
+    const isDark = resolved === 'dark';
+
+    // 1. Ensure status bar is always visible
+    try {
+      await StatusBar.show();
+    } catch (_) {}
+
+    // 2. Modern SystemBars plugin API
+    try {
+      const systemBarStyle = isDark ? SystemBarsStyle.Dark : SystemBarsStyle.Light;
+      await SystemBars.setStyle({ bar: SystemBarType.StatusBar, style: systemBarStyle });
+      await SystemBars.setStyle({ bar: SystemBarType.NavigationBar, style: systemBarStyle });
+    } catch (_) {}
+
+    // 3. StatusBar plugin API for native status bar styling & background color
+    try {
+      await StatusBar.setStyle({
+        style: isDark ? Style.Dark : Style.Light,
+      });
+      if (Capacitor.getPlatform() === 'android') {
+        await StatusBar.setBackgroundColor({
+          color: isDark ? '#020617' : '#ffffff',
+        });
+      }
+    } catch (_) {}
   } catch (err) {
-    console.warn('[Theme] Status bar update failed:', err);
+    console.warn('[Theme] System bar style update failed:', err);
   }
 }
 

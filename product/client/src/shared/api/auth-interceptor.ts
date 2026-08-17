@@ -39,6 +39,11 @@ export function setupAuthInterceptors(axiosInstance: AxiosInstance): void {
       const originalRequest = error.config as any;
       const status = error.response?.status;
 
+      // SECURITY: scrub Authorization from config before any further logging/propagation
+      if (originalRequest?.headers?.Authorization) {
+        originalRequest.headers.Authorization = '[REDACTED]';
+      }
+
       if (status === 401 && originalRequest && !originalRequest._retry) {
         if (isRefreshing) {
           return new Promise((resolve, reject) => {

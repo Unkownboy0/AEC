@@ -49,6 +49,18 @@ export const FacultyWorkspacePortal: React.FC = () => {
   const [assignTitle, setAssignTitle] = useState('');
   const [assignDesc, setAssignDesc] = useState('');
   const [assignDueDate, setAssignDueDate] = useState('');
+  const [assignSubjectAssignmentId, setAssignSubjectAssignmentId] = useState('');
+  const [isCreatingAssignment, setIsCreatingAssignment] = useState(false);
+
+  // Assignment Submissions / Grading
+  const [isSubmissionsModalOpen, setIsSubmissionsModalOpen] = useState(false);
+  const [selectedAssignmentForSubmissions, setSelectedAssignmentForSubmissions] = useState<any>(null);
+  const [submissionsList, setSubmissionsList] = useState<any[]>([]);
+  const [isLoadingSubmissions, setIsLoadingSubmissions] = useState(false);
+  const [selectedSubmissionForGrading, setSelectedSubmissionForGrading] = useState<any>(null);
+  const [gradeMarks, setGradeMarks] = useState('');
+  const [gradeFeedback, setGradeFeedback] = useState('');
+  const [isSavingGrade, setIsSavingGrade] = useState(false);
 
   useEffect(() => {
     const path = location.pathname;
@@ -90,7 +102,7 @@ export const FacultyWorkspacePortal: React.FC = () => {
     if (activeTab === 'timetable') fetchTimetable();
     if (activeTab === 'subjects') fetchSubjects();
     if (activeTab === 'leave') fetchLeaveRequests();
-    if (activeTab === 'assignments') fetchAssignments();
+    if (activeTab === 'assignments') { fetchAssignments(); fetchSubjects(); }
     if (activeTab === 'circulars') fetchCirculars();
     if (activeTab === 'tasks') fetchTasks();
     if (activeTab === 'attendance') fetchAttendanceSessions();
@@ -194,19 +206,76 @@ export const FacultyWorkspacePortal: React.FC = () => {
   const handleCreateAssignment = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!assignTitle.trim()) return;
+    const selectedAssignment = subjects.find((s) => s.id === assignSubjectAssignmentId);
+    if (!selectedAssignment) {
+      toast.error('Please select a subject for this assignment.');
+      return;
+    }
     try {
+      setIsCreatingAssignment(true);
       await api.post('/assignments', {
         title: assignTitle,
         description: assignDesc,
         dueDate: assignDueDate,
+        subjectId: selectedAssignment.subjectId,
+        sectionId: selectedAssignment.sectionId,
+        semesterId: selectedAssignment.semesterId,
+        academicYearId: selectedAssignment.academicYearId,
+        programId: selectedAssignment.section?.programId,
+        departmentId: selectedAssignment.section?.departmentId,
       });
       toast.success('Assignment created & published');
       setIsAssignModalOpen(false);
       setAssignTitle('');
       setAssignDesc('');
+      setAssignDueDate('');
+      setAssignSubjectAssignmentId('');
       fetchAssignments();
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Failed to create assignment');
+    } finally {
+      setIsCreatingAssignment(false);
+    }
+  };
+
+  const handleViewSubmissions = async (assignment: any) => {
+    setSelectedAssignmentForSubmissions(assignment);
+    setIsSubmissionsModalOpen(true);
+    setSelectedSubmissionForGrading(null);
+    setIsLoadingSubmissions(true);
+    try {
+      const res = await api.get(`/assignments/${assignment.id}/submissions`);
+      if (res.data?.status === 'success') setSubmissionsList(res.data.data || []);
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Failed to retrieve assignment submissions.');
+    } finally {
+      setIsLoadingSubmissions(false);
+    }
+  };
+
+  const handleGradeSubmission = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedSubmissionForGrading) return;
+    try {
+      setIsSavingGrade(true);
+      const res = await api.put(`/assignments/submissions/${selectedSubmissionForGrading.id}/grade`, {
+        marksObtained: gradeMarks,
+        feedback: gradeFeedback,
+      });
+      if (res.data?.status === 'success') {
+        toast.success('Submission graded successfully.');
+        setSelectedSubmissionForGrading(null);
+        setGradeMarks('');
+        setGradeFeedback('');
+        if (selectedAssignmentForSubmissions) {
+          const updated = await api.get(`/assignments/${selectedAssignmentForSubmissions.id}/submissions`);
+          if (updated.data?.status === 'success') setSubmissionsList(updated.data.data || []);
+        }
+      }
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Failed to grade submission.');
+    } finally {
+      setIsSavingGrade(false);
     }
   };
 
@@ -299,43 +368,63 @@ export const FacultyWorkspacePortal: React.FC = () => {
                     <RefreshCw className="h-3.5 w-3.5" /> Refresh
                   </button>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'].map((day) => (
-                    <div key={day} className="bg-card border border-border rounded-xl p-4 shadow-2xs space-y-2">
-                      <h4 className="font-bold text-xs uppercase text-primary border-b border-border pb-1">{day}</h4>
-                      <div className="p-3 bg-muted/40 rounded-lg text-xs space-y-1">
-                        <span className="font-bold text-foreground block">Data Structures & Algorithms</span>
-                        <span className="text-muted-foreground block text-[11px]">CSE-A • Room 302 • 09:30 AM - 10:30 AM</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                {timetable.length === 0 ? (
+                  <div className="text-center py-12 border border-dashed rounded-xl text-xs text-muted-foreground">
+                    No timetable slots have been assigned to you yet.
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY']
+                      .map((day) => ({
+                        day,
+                        slots: timetable
+                          .filter((slot) => slot.dayOfWeek === day)
+                          .sort((a, b) => (a.slotIndex ?? 0) - (b.slotIndex ?? 0)),
+                      }))
+                      .filter(({ slots }) => slots.length > 0)
+                      .map(({ day, slots }) => (
+                        <div key={day} className="bg-card border border-border rounded-xl p-4 shadow-2xs space-y-2">
+                          <h4 className="font-bold text-xs uppercase text-primary border-b border-border pb-1">{day.charAt(0) + day.slice(1).toLowerCase()}</h4>
+                          {slots.map((slot) => (
+                            <div key={slot.id} className="p-3 bg-muted/40 rounded-lg text-xs space-y-1">
+                              <span className="font-bold text-foreground block">{slot.subject?.name || 'Untitled Subject'}</span>
+                              <span className="text-muted-foreground block text-[11px]">
+                                {slot.section?.name || 'Section N/A'} • {slot.roomNo || 'Room N/A'} • {slot.startTime} - {slot.endTime}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      ))}
+                  </div>
+                )}
               </motion.div>
             )}
 
             {activeTab === 'subjects' && (
               <motion.div key="subjects" variants={pageVariants} initial="initial" animate="animate" exit="exit" className="space-y-4">
                 <h3 className="text-base font-bold text-foreground">Assigned Coursework & Subjects</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {[
-                    { code: 'CS301', name: 'Data Structures & Algorithms', sem: 'Semester III', sec: 'Sec A', students: 64, load: '4 Hrs/Wk' },
-                    { code: 'CS304', name: 'Database Management Systems', sem: 'Semester III', sec: 'Sec B', students: 58, load: '3 Hrs/Wk' },
-                    { code: 'CS502', name: 'Web Application Development', sem: 'Semester V', sec: 'Sec A', students: 62, load: '4 Hrs/Wk' },
-                  ].map((sub) => (
-                    <div key={sub.code} className="p-4 bg-card border border-border rounded-xl shadow-2xs space-y-3">
-                      <div className="flex items-center justify-between">
-                        <span className="px-2 py-0.5 bg-primary/10 text-primary font-mono text-xs font-bold rounded">
-                          {sub.code}
-                        </span>
-                        <span className="text-[10px] font-bold text-muted-foreground">{sub.sem}</span>
+                {subjects.length === 0 ? (
+                  <div className="text-center py-12 border border-dashed rounded-xl text-xs text-muted-foreground">
+                    No subjects have been assigned to you yet.
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {subjects.map((assignment) => (
+                      <div key={assignment.id} className="p-4 bg-card border border-border rounded-xl shadow-2xs space-y-3">
+                        <div className="flex items-center justify-between">
+                          <span className="px-2 py-0.5 bg-primary/10 text-primary font-mono text-xs font-bold rounded">
+                            {assignment.subject?.code || 'N/A'}
+                          </span>
+                          <span className="text-[10px] font-bold text-muted-foreground">{assignment.subject?.credits ?? 0} Credits</span>
+                        </div>
+                        <div>
+                          <h4 className="font-bold text-foreground text-sm">{assignment.subject?.name || 'Untitled Subject'}</h4>
+                          <p className="text-xs text-muted-foreground mt-0.5">{assignment.section?.name || 'Section N/A'}</p>
+                        </div>
                       </div>
-                      <div>
-                        <h4 className="font-bold text-foreground text-sm">{sub.name}</h4>
-                        <p className="text-xs text-muted-foreground mt-0.5">{sub.sec} • {sub.students} Enrolled Students</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                )}
               </motion.div>
             )}
 
@@ -389,12 +478,23 @@ export const FacultyWorkspacePortal: React.FC = () => {
                     </div>
                   ) : (
                     assignments.map((a) => (
-                      <div key={a.id} className="p-4 bg-card border rounded-xl flex justify-between items-center">
+                      <div key={a.id} className="p-4 bg-card border rounded-xl flex flex-col sm:flex-row justify-between sm:items-center gap-3">
                         <div>
                           <h4 className="font-bold text-foreground text-xs">{a.title}</h4>
                           <p className="text-xs text-muted-foreground">{a.description}</p>
+                          <p className="text-[10px] text-muted-foreground mt-1">
+                            {a.subject?.name || a.targetSubject || 'Subject N/A'} · {a.section?.name || a.targetClass || 'Class N/A'} · {a._count?.submissions ?? 0} submission{(a._count?.submissions ?? 0) === 1 ? '' : 's'}
+                          </p>
                         </div>
-                        <StatusBadge status={a.status || 'PUBLISHED'} size="sm" />
+                        <div className="flex items-center gap-2 shrink-0">
+                          <StatusBadge status={a.status || 'PUBLISHED'} size="sm" />
+                          <button
+                            onClick={() => handleViewSubmissions(a)}
+                            className="px-3 py-1.5 rounded-lg border border-primary/30 text-primary hover:bg-primary/10 text-[11px] font-bold flex items-center gap-1"
+                          >
+                            <Eye className="h-3.5 w-3.5" /> View Submissions
+                          </button>
+                        </div>
                       </div>
                     ))
                   )}
@@ -489,6 +589,25 @@ export const FacultyWorkspacePortal: React.FC = () => {
       >
         <form onSubmit={handleCreateAssignment} className="space-y-4 text-xs">
           <div>
+            <label className="font-bold text-muted-foreground block mb-1">Subject & Class</label>
+            <select
+              required
+              value={assignSubjectAssignmentId}
+              onChange={(e) => setAssignSubjectAssignmentId(e.target.value)}
+              className="w-full bg-background border p-2.5 rounded-xl outline-none"
+            >
+              <option value="">-- Select assigned subject --</option>
+              {subjects.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.subject?.code ? `${s.subject.code} — ` : ''}{s.subject?.name || 'Untitled Subject'} ({s.section?.name || 'Section N/A'})
+                </option>
+              ))}
+            </select>
+            {subjects.length === 0 && (
+              <p className="text-[11px] text-amber-600 dark:text-amber-400 mt-1">No subjects are assigned to you yet, so an assignment cannot be published.</p>
+            )}
+          </div>
+          <div>
             <label className="font-bold text-muted-foreground block mb-1">Assignment Title</label>
             <input
               type="text"
@@ -529,12 +648,136 @@ export const FacultyWorkspacePortal: React.FC = () => {
             </button>
             <button
               type="submit"
-              className="px-5 py-2 bg-primary text-primary-foreground font-bold rounded-xl"
+              disabled={isCreatingAssignment || subjects.length === 0}
+              className="px-5 py-2 bg-primary text-primary-foreground font-bold rounded-xl disabled:opacity-50"
             >
-              Publish Assignment
+              {isCreatingAssignment ? 'Publishing…' : 'Publish Assignment'}
             </button>
           </div>
         </form>
+      </Modal>
+
+      {/* Submissions & Grading Modal */}
+      <Modal
+        isOpen={isSubmissionsModalOpen}
+        onClose={() => { setIsSubmissionsModalOpen(false); setSelectedAssignmentForSubmissions(null); setSelectedSubmissionForGrading(null); }}
+        title="Evaluate Submissions"
+        subtitle={selectedAssignmentForSubmissions?.title}
+        maxWidth="2xl"
+      >
+        <div className="space-y-4 text-xs">
+          {isLoadingSubmissions ? (
+            <div className="text-center py-10 text-muted-foreground">Loading submissions…</div>
+          ) : submissionsList.length === 0 ? (
+            <div className="text-center py-10 border border-dashed rounded-xl text-muted-foreground">
+              No solutions have been submitted yet for this assignment.
+            </div>
+          ) : (
+            <div className="border border-border rounded-xl overflow-hidden">
+              <div className="w-full overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-muted/40 border-b border-border text-[10px] uppercase text-muted-foreground font-bold">
+                      <th className="p-3">Student</th>
+                      <th className="p-3">File</th>
+                      <th className="p-3">Submitted</th>
+                      <th className="p-3">Status</th>
+                      <th className="p-3">Grade</th>
+                      <th className="p-3 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {submissionsList.map((sub: any) => (
+                      <tr key={sub.id} className="border-b border-border/60 hover:bg-muted/20">
+                        <td className="p-3">
+                          <p className="font-bold text-foreground">{sub.student?.firstName} {sub.student?.lastName}</p>
+                          <p className="text-[10px] text-muted-foreground">{sub.student?.admissionNo}</p>
+                        </td>
+                        <td className="p-3">
+                          {sub.fileUrl ? (
+                            <a href={sub.fileUrl} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline font-bold block max-w-[140px] truncate">
+                              {sub.fileName || 'Download File'}
+                            </a>
+                          ) : (
+                            <span className="text-muted-foreground">No file</span>
+                          )}
+                        </td>
+                        <td className="p-3 text-muted-foreground">
+                          {sub.submittedAt ? new Date(sub.submittedAt).toLocaleDateString('en-IN') : '—'}
+                        </td>
+                        <td className="p-3">
+                          <span className={`text-[9px] px-1.5 py-0.5 rounded font-extrabold uppercase ${
+                            sub.status === 'GRADED' ? 'bg-emerald-500/10 text-emerald-600' :
+                            sub.status === 'LATE' ? 'bg-amber-500/10 text-amber-600' :
+                            'bg-blue-500/10 text-blue-600'
+                          }`}>{sub.status}</span>
+                        </td>
+                        <td className="p-3">
+                          {sub.status === 'GRADED' ? (
+                            <div>
+                              <p className="font-bold text-foreground">{sub.marksObtained}/{selectedAssignmentForSubmissions?.maxMarks ?? 100}</p>
+                              {sub.feedback && <p className="text-[10px] text-emerald-600 italic">"{sub.feedback}"</p>}
+                            </div>
+                          ) : (
+                            <span className="text-muted-foreground">Ungraded</span>
+                          )}
+                        </td>
+                        <td className="p-3 text-right">
+                          <button
+                            onClick={() => { setSelectedSubmissionForGrading(sub); setGradeMarks(String(sub.marksObtained ?? '')); setGradeFeedback(sub.feedback || ''); }}
+                            className="px-2.5 py-1 bg-primary text-primary-foreground rounded text-[10px] font-bold"
+                          >
+                            Grade
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {selectedSubmissionForGrading && (
+            <form onSubmit={handleGradeSubmission} className="border-t border-border pt-4 space-y-3 bg-muted/20 p-4 rounded-xl">
+              <h4 className="font-bold text-foreground uppercase text-[10px]">
+                Grade submission for {selectedSubmissionForGrading.student?.firstName} {selectedSubmissionForGrading.student?.lastName}
+              </h4>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
+                <div className="flex flex-col gap-1">
+                  <label className="text-[10px] uppercase font-bold text-muted-foreground">Marks (Max: {selectedAssignmentForSubmissions?.maxMarks ?? 100})</label>
+                  <input
+                    type="number"
+                    required
+                    min={0}
+                    max={selectedAssignmentForSubmissions?.maxMarks ?? 100}
+                    value={gradeMarks}
+                    onChange={(e) => setGradeMarks(e.target.value)}
+                    className="h-9 border border-border rounded-lg bg-background px-3"
+                  />
+                </div>
+                <div className="flex flex-col gap-1 md:col-span-2">
+                  <label className="text-[10px] uppercase font-bold text-muted-foreground">Feedback</label>
+                  <div className="flex flex-wrap gap-2">
+                    <input
+                      type="text"
+                      value={gradeFeedback}
+                      onChange={(e) => setGradeFeedback(e.target.value)}
+                      placeholder="e.g. Excellent solution structure and analysis."
+                      className="h-9 border border-border rounded-lg bg-background px-3 flex-1"
+                    />
+                    <button type="submit" disabled={isSavingGrade} className="px-4 bg-primary text-primary-foreground font-bold h-9 rounded-lg disabled:opacity-50">
+                      {isSavingGrade ? 'Saving…' : 'Save Grade'}
+                    </button>
+                    <button type="button" onClick={() => setSelectedSubmissionForGrading(null)} className="px-3 border border-border font-bold h-9 rounded-lg">
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </form>
+          )}
+        </div>
       </Modal>
     </div>
   );

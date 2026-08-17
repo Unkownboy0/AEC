@@ -1,6 +1,7 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { useKeyboardState } from '../../context/KeyboardContext';
 import { getMobileTabsForRole } from '../../navigation/navigation.utils';
 import { AppIcon } from '../../design-system/icons/AppIcon';
 import { clsx } from 'clsx';
@@ -14,6 +15,7 @@ import { clsx } from 'clsx';
   - Clear active indicator with primary theme color
   - Icon + non-truncated label
   - Safe-area aware for iOS / Android bottom gesture bar
+  - Auto-hides immediately whenever software keyboard opens to prevent layout collision
 */
 
 interface MobileBottomNavProps {
@@ -26,6 +28,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
   isMoreActive = false,
 }) => {
   const { user } = useAuth();
+  const { isKeyboardOpen } = useKeyboardState();
 
   if (!user) return null;
 
@@ -44,21 +47,27 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
 
   return (
     <nav
+      aria-hidden={isKeyboardOpen}
       className={clsx(
         'lg:hidden fixed bottom-0 left-0 right-0 z-40',
         'bg-surface border-t border-border shadow-2xl',
-        'px-2 pt-1.5 pb-safe'
+        'px-2 pt-1.5 pb-safe',
+        'transition-all duration-150 ease-out transform',
+        isKeyboardOpen
+          ? 'translate-y-full opacity-0 pointer-events-none invisible'
+          : 'translate-y-0 opacity-100 visible'
       )}
     >
-      <div className="flex items-center justify-around max-w-lg mx-auto">
+      <div className="flex items-stretch justify-around max-w-lg mx-auto">
         {tabs.map((tab) => (
           <NavLink
             key={tab.id}
             to={tab.path}
             onClick={triggerHaptic}
+            tabIndex={isKeyboardOpen ? -1 : 0}
             className={({ isActive }) =>
               clsx(
-                'relative flex flex-col items-center justify-center py-1 px-2.5 rounded-xl transition-all duration-150 touch-target',
+                'relative flex flex-1 flex-col items-center justify-center py-1 px-1 rounded-xl transition-all duration-150 touch-target',
                 isActive
                   ? 'text-primary font-bold scale-105'
                   : 'text-text-secondary hover:text-text-primary font-medium'
@@ -99,9 +108,10 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
               triggerHaptic();
               onOpenMore();
             }}
+            tabIndex={isKeyboardOpen ? -1 : 0}
             type="button"
             className={clsx(
-              'relative flex flex-col items-center justify-center py-1 px-2.5 rounded-xl transition-all duration-150 touch-target',
+              'relative flex flex-1 flex-col items-center justify-center py-1 px-1 rounded-xl transition-all duration-150 touch-target',
               isMoreActive
                 ? 'text-primary font-bold scale-105'
                 : 'text-text-secondary hover:text-text-primary font-medium'

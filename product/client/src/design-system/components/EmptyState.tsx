@@ -92,14 +92,14 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
   const effectivePrimaryAction = onPrimaryAction || onAction;
 
   return (
-    <div className={`flex flex-col items-center justify-center p-8 text-center bg-white rounded-2xl border border-slate-200 shadow-2xs space-y-4 my-4 ${className || ''}`}>
-      <div className="w-14 h-14 bg-purple-50 text-purple-600 rounded-2xl flex items-center justify-center border border-purple-100 shadow-2xs">
+    <div className={`flex flex-col items-center justify-center p-8 text-center bg-card rounded-2xl border border-border shadow-2xs space-y-4 my-4 ${className || ''}`}>
+      <div className="w-14 h-14 bg-primary/10 text-primary rounded-2xl flex items-center justify-center border border-primary/20 shadow-2xs">
         <IconComponent className="w-7 h-7 stroke-[1.8]" />
       </div>
 
       <div className="max-w-md space-y-1">
-        <h3 className="text-base font-bold text-slate-900 tracking-tight">{finalTitle}</h3>
-        <p className="text-xs text-slate-500 leading-relaxed">{finalDescription}</p>
+        <h3 className="text-base font-bold text-foreground tracking-tight">{finalTitle}</h3>
+        <p className="text-xs text-muted-foreground leading-relaxed">{finalDescription}</p>
       </div>
 
       {(effectivePrimaryLabel || secondaryActionLabel) && (

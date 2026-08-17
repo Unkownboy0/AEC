@@ -113,7 +113,7 @@ export class CampusOfficeService {
       '{{department.name}}': tokens.departmentName || 'Computer Science & Engineering',
       '{{department.code}}': tokens.departmentCode || 'CSE',
       '{{academic_year}}': tokens.academicYear || '2026-2027',
-      '{{college.name}}': tokens.collegeName || 'Al-Ameen Engineering College',
+      '{{college.name}}': tokens.collegeName || 'CampusOS Institution',
       '{{date}}': tokens.currentDate || new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }),
     };
 
@@ -139,13 +139,20 @@ export class CampusOfficeService {
     if (input.templateKey) {
       const template = this.getStandardTemplates().find(t => t.key === input.templateKey);
       if (template) {
+        // Load college name and current academic year from DB
+        const [nameSettings, activeYear] = await Promise.all([
+          prisma.systemSetting.findMany({ where: { key: { in: ['COLLEGE_NAME'] } } }),
+          prisma.academicYear.findFirst({ where: { isCurrent: true } }),
+        ]);
+        const nameMap = Object.fromEntries(nameSettings.map((s) => [s.key, s.value]));
+
         const tokens: DocumentTokenContext = {
           facultyName: user?.faculty ? `${user.faculty.firstName} ${user.faculty.lastName}` : `${user?.firstName} ${user?.lastName}`,
           employeeId: user?.faculty?.employeeId,
           departmentName: user?.faculty?.department?.name,
           departmentCode: user?.faculty?.department?.code,
-          academicYear: '2026-2027',
-          collegeName: 'Al-Ameen Engineering College',
+          academicYear: activeYear?.name || new Date().getFullYear() + '-' + (new Date().getFullYear() + 1),
+          collegeName: nameMap['COLLEGE_NAME'] || 'CampusOS Institution',
           currentDate: new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }),
         };
 

@@ -743,14 +743,32 @@ export class UsersService {
         if (ext.includes('+')) ext = ext.split('+')[0];
         const base64Data = profilePhoto.split(';base64,').pop();
         if (base64Data) {
-          const uploadsDir = path.resolve(process.cwd(), 'uploads');
+          const uploadsDir = path.resolve(process.env.STORAGE_ROOT || path.join(process.cwd(), 'uploads'));
           if (!fs.existsSync(uploadsDir)) {
             fs.mkdirSync(uploadsDir, { recursive: true });
           }
           const filename = `profile_${userId}_${Date.now()}.${ext}`;
           const filePath = path.join(uploadsDir, filename);
-          fs.writeFileSync(filePath, Buffer.from(base64Data, 'base64'));
-          profilePhotoUrl = `/uploads/${filename}`;
+          const buffer = Buffer.from(base64Data, 'base64');
+          fs.writeFileSync(filePath, buffer);
+
+          const targetWebPath = `/uploads/${filename}`;
+          const mediaFile = await prisma.mediaFile.upsert({
+            where: { path: targetWebPath },
+            update: {
+              fileSize: buffer.length,
+              mimeType,
+            },
+            create: {
+              name: filename,
+              path: targetWebPath,
+              mimeType,
+              fileSize: buffer.length,
+              folder: 'profiles',
+            },
+          });
+
+          profilePhotoUrl = `/api/files/${mediaFile.id}/content`;
         }
       } catch (err: any) {
         throw new BadRequestException('Storage Error: Unable to write profile image to disk.');

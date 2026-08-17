@@ -3,6 +3,7 @@ import { ShieldCheck, CheckCircle2, XCircle, Clock, FileText, User, Filter, Sear
 import { useDelegationContext } from '../context/DelegationContext';
 import { ActorAttributionLabel } from '../../delegation/ActorAttributionLabel';
 import { useAuth } from '../../../context/AuthContext';
+import { apiGet, apiPost } from '../../../shared/api/api-client';
 
 export const ActingPrincipalApprovalCenter: React.FC = () => {
   const { user } = useAuth();
@@ -17,14 +18,11 @@ export const ActingPrincipalApprovalCenter: React.FC = () => {
   const fetchQueue = async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/vp/acting-principal/approval-center', {
-        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
-      });
-      if (res.ok) {
-        const json = await res.json();
-        if (json.success && json.data) {
-          setRequests(json.data.requests || []);
-        }
+      const json = await apiGet<any>('/vp/acting-principal/approval-center');
+      if (json?.requests) {
+        setRequests(json.requests);
+      } else if (json?.data?.requests) {
+        setRequests(json.data.requests);
       }
     } catch (err) {
       console.error('Failed to fetch delegated approval queue:', err);
@@ -40,19 +38,10 @@ export const ActingPrincipalApprovalCenter: React.FC = () => {
   const handleApprove = async (id: string) => {
     setSubmitting(true);
     try {
-      const res = await fetch(`/api/vp/acting-principal/approvals/${id}/approve`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${localStorage.getItem('token')}`
-        },
-        body: JSON.stringify({ comment })
-      });
-      if (res.ok) {
-        setComment('');
-        setSelectedReq(null);
-        fetchQueue();
-      }
+      await apiPost(`/vp/acting-principal/approvals/${id}/approve`, { comment });
+      setComment('');
+      setSelectedReq(null);
+      fetchQueue();
     } catch (err) {
       console.error('Approve failed:', err);
     } finally {
@@ -63,19 +52,10 @@ export const ActingPrincipalApprovalCenter: React.FC = () => {
   const handleReject = async (id: string) => {
     setSubmitting(true);
     try {
-      const res = await fetch(`/api/vp/acting-principal/approvals/${id}/reject`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${localStorage.getItem('token')}`
-        },
-        body: JSON.stringify({ comment })
-      });
-      if (res.ok) {
-        setComment('');
-        setSelectedReq(null);
-        fetchQueue();
-      }
+      await apiPost(`/vp/acting-principal/approvals/${id}/reject`, { comment });
+      setComment('');
+      setSelectedReq(null);
+      fetchQueue();
     } catch (err) {
       console.error('Reject failed:', err);
     } finally {

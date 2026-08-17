@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+      CampusOS Color Resources
+      White-label default palette. Institutions may override at build time.
+      Primary: #6547E8 (CampusOS brand purple — locked)
+      Note: ic_launcher_background is defined in ic_launcher_background.xml (separate file, Capacitor default)
+    -->
+
+    <!-- Brand primary (used by AppTheme for action bar, status bar tinting) -->
+    <color name="colorPrimary">#6547E8</color>
+    <color name="colorPrimaryDark">#4f35d1</color>
+    <color name="colorAccent">#7C63EC</color>
+
+    <!-- App launch / splash background -->
+    <color name="colorSplashBackground">#020617</color>
+
+    <!-- Status bar background -->
+    <color name="colorStatusBar">#020617</color>
+</resources>
+

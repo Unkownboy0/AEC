@@ -91,6 +91,89 @@ export class FilesController {
   };
 
   /**
+   * Stream file content for inline rendering (avatars, attachments, media)
+   */
+  getContent = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const targetId = req.params.id || (req.query.id as string) || (req.query.path as string) || (req.query.file as string);
+      if (!targetId) {
+        return this.sendFallbackSvg(res);
+      }
+
+      // 1. Try finding by ID or filename or path in database
+      let file = await prisma.mediaFile.findUnique({ where: { id: targetId } }).catch(() => null);
+      if (!file) {
+        file = await prisma.mediaFile.findFirst({
+          where: {
+            OR: [
+              { id: targetId },
+              { name: targetId },
+              { path: targetId },
+              { path: `/uploads/${targetId.replace(/^\/+/, '')}` },
+            ],
+          },
+        }).catch(() => null);
+      }
+
+      let physicalPath: string | null = null;
+      let mimeType = 'image/jpeg';
+
+      if (file) {
+        const relativePath = file.path.replace(/^[/\\]uploads[/\\]?/, '');
+        physicalPath = path.resolve(this.uploadsDir, relativePath);
+        mimeType = file.mimeType || this.inferMimeType(file.name);
+      } else {
+        // Direct physical lookup in uploadsDir
+        const cleanTarget = targetId.replace(/^(\/api\/files\/|\/uploads\/|\/)/, '');
+        const candidate = path.resolve(this.uploadsDir, cleanTarget);
+        const relativeToRoot = path.relative(this.uploadsDir, candidate);
+        if (!relativeToRoot.startsWith('..') && !path.isAbsolute(relativeToRoot) && fs.existsSync(candidate)) {
+          physicalPath = candidate;
+          mimeType = this.inferMimeType(candidate);
+        }
+      }
+
+      if (physicalPath && fs.existsSync(physicalPath) && fs.statSync(physicalPath).isFile()) {
+        res.setHeader('Content-Type', mimeType);
+        res.setHeader('Content-Disposition', 'inline');
+        res.setHeader('X-Content-Type-Options', 'nosniff');
+        res.setHeader('Cache-Control', 'public, max-age=86400, stale-while-revalidate=604800');
+        return res.sendFile(physicalPath);
+      }
+
+      // Safe fallback SVG to prevent broken image icons
+      return this.sendFallbackSvg(res);
+    } catch (error) {
+      return this.sendFallbackSvg(res);
+    }
+  };
+
+  private inferMimeType(filePath: string): string {
+    const ext = path.extname(filePath).toLowerCase();
+    switch (ext) {
+      case '.png': return 'image/png';
+      case '.jpg':
+      case '.jpeg': return 'image/jpeg';
+      case '.webp': return 'image/webp';
+      case '.gif': return 'image/gif';
+      case '.svg': return 'image/svg+xml';
+      case '.pdf': return 'application/pdf';
+      default: return 'application/octet-stream';
+    }
+  }
+
+  private sendFallbackSvg(res: Response) {
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">
+      <rect width="100" height="100" fill="#4f46e5" rx="50"/>
+      <circle cx="50" cy="40" r="18" fill="#ffffff" opacity="0.9"/>
+      <path d="M22 84 C22 68 35 58 50 58 C65 58 78 68 78 84" fill="#ffffff" opacity="0.9"/>
+    </svg>`;
+    res.setHeader('Content-Type', 'image/svg+xml');
+    res.setHeader('Cache-Control', 'public, max-age=3600');
+    return res.status(200).send(svg);
+  }
+
+  /**
    * Upload file via base64 JSON payload (hardened)
    */
   upload = async (req: Request, res: Response, next: NextFunction) => {

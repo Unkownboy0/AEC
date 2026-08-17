@@ -248,7 +248,7 @@ export const StudentDashboard: React.FC = () => {
           </button>
 
           <button
-            onClick={() => navigate('/student/documents')}
+            onClick={() => navigate('/student/certificates')}
             className="flex flex-col items-center justify-center p-4 rounded-2xl border bg-card hover:border-indigo-400 hover:shadow-md transition-all text-center group"
           >
             <div className="p-3 rounded-xl bg-cyan-50 text-cyan-600 dark:bg-cyan-900/30 dark:text-cyan-400 group-hover:scale-110 transition-transform">

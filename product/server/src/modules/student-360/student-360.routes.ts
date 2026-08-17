@@ -1,225 +1,416 @@
 import { Router } from 'express';
-import { requireAuth, requireRole } from '../../core/middlewares/auth.middleware';
+import { requireAuth } from '../../core/middlewares/auth.middleware';
 import { prisma } from '../../lib/prisma';
 import { Request, Response, NextFunction } from 'express';
+import crypto from 'crypto';
 
 const router = Router();
 router.use(requireAuth);
 
 /**
- * Student 360° Profile — aggregates ALL authorized data from Student Master
- * and linked modules into a single holistic view.
- *
- * RBAC: Students see their own data. Faculty/Mentors see mentee data.
- * HOD/Admin see department students. Super Admin sees all.
+ * Canonical Student 360° Profile API
+ * Aggregates all authorized student data across 18+ institution domains
+ * Single Source of Truth — Zero Data Duplication.
  */
 router.get('/:studentId', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { studentId } = req.params;
     const user = (req as any).user;
-    const sections = (req.query.sections as string)?.split(',') || ['profile', 'academic', 'attendance', 'fees', 'leave', 'documents', 'activities', 'skills', 'hostel', 'transport', 'library', 'placements', 'complaints'];
+    const requestedSections = (req.query.sections as string)?.split(',') || [
+      'profile',
+      'academic',
+      'attendance',
+      'marks',
+      'fees',
+      'leave',
+      'documents',
+      'mentor',
+      'activities',
+      'skills',
+      'placements',
+      'library',
+      'hostel',
+      'transport',
+      'complaints',
+      'account',
+      'timeline',
+      'residential_history',
+    ];
 
-    // Authorization check
-    const student = await prisma.student.findUnique({
+    // 1. Fetch canonical Student record with academic hierarchy
+    const student = await (prisma as any).student.findUnique({
       where: { id: studentId },
-      include: { department: true, program: true, section: true, semester: true, mentor: { select: { userId: true, firstName: true, lastName: true } } },
+      include: {
+        department: true,
+        programDepartment: true,
+        operatingDepartment: true,
+        program: true,
+        course: true,
+        section: true,
+        semester: true,
+        academicYear: true,
+        user: { select: { id: true, email: true, username: true, status: true, accountStatus: true, profilePhoto: true, createdAt: true } },
+        mentor: { select: { id: true, userId: true, firstName: true, lastName: true, email: true, phone: true, designation: true } },
+      },
     });
-    if (!student) return res.status(404).json({ status: 'error', message: 'Student not found' });
 
+    if (!student || student.deleted) {
+      return res.status(404).json({ status: 'error', message: 'Student record not found' });
+    }
+
+    // 2. Authorization Engine
     const isOwnProfile = student.userId === user?.id;
-    const isMentor = student.mentor?.userId === user?.id;
-    const isAdmin = ['Super Admin', 'College Admin', 'Principal', 'Vice Principal'].includes(user?.roleName);
-    const isHOD = user?.roleName === 'HOD' || user?.roleName === 'Head of Department';
+    const isMentor =
+      student.mentor?.userId === user?.id ||
+      (await (prisma as any).mentorAssignment.count({
+        where: { studentId: student.id, mentor: { userId: user?.id }, status: 'ACTIVE' },
+      })) > 0;
 
-    if (!isOwnProfile && !isMentor && !isAdmin && !isHOD) {
-      return res.status(403).json({ status: 'error', message: 'Not authorized to view this student profile' });
+    const isClassAdviser =
+      student.classAdvisorId === user?.id ||
+      (await (prisma as any).classAdviserAssignment?.count?.({
+        where: { sectionId: student.sectionId, faculty: { userId: user?.id }, status: 'ACTIVE' },
+      })) > 0;
+
+    const isParent =
+      (await (prisma as any).parentStudentRelation.count({
+        where: { studentId: student.id, parent: { userId: user?.id } },
+      })) > 0 || student.parentEmail === user?.email;
+
+    const userRole = user?.roleName || user?.role || '';
+    const isAdmin = ['Super Admin', 'SUPER_ADMIN', 'College Admin', 'COLLEGE_ADMIN', 'Principal', 'Vice Principal'].includes(userRole);
+    const isDean = ['Academic Dean', 'Admission Dean', 'Administration Dean', 'IQAC Dean', 'Dean'].includes(userRole);
+    const isCOE = ['COE', 'Examination Cell'].includes(userRole);
+    const isHOD = ['HOD', 'Head of Department'].includes(userRole);
+
+    // HOD Department Verification (Supports Home Department & Year 1 S&H Operating Department)
+    let isAuthorizedHOD = false;
+    if (isHOD) {
+      const faculty = await (prisma as any).faculty.findFirst({ where: { userId: user?.id } });
+      if (faculty?.departmentId) {
+        if (
+          student.departmentId === faculty.departmentId ||
+          student.operatingDepartmentId === faculty.departmentId ||
+          student.programDepartmentId === faculty.departmentId
+        ) {
+          isAuthorizedHOD = true;
+        }
+      }
+    }
+
+    // Strict Negative Authorization Gate
+    if (!isOwnProfile && !isParent && !isMentor && !isClassAdviser && !isAdmin && !isDean && !isCOE && !isAuthorizedHOD) {
+      return res.status(403).json({ status: 'error', message: 'Access denied: You are not authorized to view this student profile.' });
     }
 
     const result: any = {};
 
-    // Profile — from Student Master (never fabricated)
-    if (sections.includes('profile')) {
+    // 3. Section: Basic Identity & Academic Identity
+    if (requestedSections.includes('profile')) {
       result.profile = {
         id: student.id,
         admissionNo: student.admissionNo,
         firstName: student.firstName,
         lastName: student.lastName,
+        fullName: `${student.firstName} ${student.lastName}`,
         email: student.email,
         phone: student.phone,
+        altPhone: student.altPhone,
         gender: student.gender,
         dob: student.dob,
-        parentName: student.parentName,
-        parentPhone: student.parentPhone,
-        department: student.department?.name,
-        program: student.program?.name,
-        section: student.section?.name,
-        semester: student.semester?.name,
+        bloodGroup: student.bloodGroup,
         dateOfAdmission: student.dateOfAdmission,
         status: student.status,
-        mentor: student.mentor ? `${student.mentor.firstName} ${student.mentor.lastName}` : null,
+        profilePhoto: student.user?.profilePhoto || null,
+        degree: student.program?.degree || student.course?.code,
+        program: student.program?.name,
+        programCode: student.program?.code,
+        department: student.department?.name,
+        departmentCode: student.department?.code,
+        operatingDepartment: student.operatingDepartment?.name || student.department?.name,
+        academicYear: student.academicYear?.name,
+        semester: student.semester?.name,
+        semesterNumber: student.semester?.number,
+        section: student.section?.name,
+        residentialType: student.residentialType || 'DAY_SCHOLAR',
+        transportMode: student.transportMode || 'OTHER',
+        parentName: student.parentName,
+        parentPhone: student.parentPhone,
+        parentEmail: student.parentEmail,
+        currentAddress: student.currentAddress,
+        permanentAddress: student.permanentAddress,
+        city: student.city,
+        district: student.district,
+        state: student.state,
+        pinCode: student.pinCode,
+        emergencyContactName: student.emergencyContactName,
+        emergencyContactPhone: student.emergencyContactPhone,
+        emergencyContactRelation: student.emergencyContactRelation,
+        mentor: student.mentor ? { id: student.mentor.id, name: `${student.mentor.firstName} ${student.mentor.lastName}`, email: student.mentor.email, phone: student.mentor.phone } : null,
       };
     }
 
-    // Academic — marks
-    if (sections.includes('academic')) {
-      const marks = await prisma.mark.findMany({ where: { studentId }, orderBy: { createdAt: 'desc' }, take: 50 });
-      result.academic = { marks };
+    // 4. Section: Academics & Timetable
+    if (requestedSections.includes('academic')) {
+      const [curriculumUnits, subjects, assignments] = await Promise.all([
+        (prisma as any).curriculumUnit?.findMany?.({
+          where: { programId: student.programId, semesterId: student.semesterId },
+          take: 20,
+        }) || [],
+        (prisma as any).subject?.findMany?.({
+          where: { departmentId: student.departmentId, semesterId: student.semesterId },
+          take: 30,
+        }) || [],
+        (prisma as any).assignment?.findMany?.({
+          where: { sectionId: student.sectionId, status: 'ACTIVE' },
+          orderBy: { dueDate: 'asc' },
+          take: 20,
+        }) || [],
+      ]);
+      result.academic = { curriculumUnits, subjects, assignments };
     }
 
-    // Attendance
-    if (sections.includes('attendance')) {
-      const attendance = await prisma.attendance.findMany({
-        where: { studentId },
+    // 5. Section: Attendance (with OD calculation & Risk)
+    if (requestedSections.includes('attendance')) {
+      const attendance = await (prisma as any).attendance.findMany({
+        where: { studentId: student.id },
         orderBy: { date: 'desc' },
         take: 100,
-        select: { date: true, status: true, subjectId: true, type: true },
+        include: { subject: { select: { name: true, code: true } } },
       });
       const total = attendance.length;
-      const present = attendance.filter((a: any) => a.status === 'PRESENT').length;
-      result.attendance = { records: attendance, total, present, percentage: total > 0 ? Math.round((present / total) * 100) : 0 };
+      const present = attendance.filter((a: any) => a.status === 'PRESENT' || a.status === 'ON_DUTY').length;
+      const percentage = total > 0 ? Math.round((present / total) * 100) : 100;
+      const isShortage = percentage < 75;
+
+      result.attendance = {
+        records: attendance,
+        total,
+        present,
+        percentage,
+        isShortage,
+        riskLevel: percentage < 65 ? 'CRITICAL' : percentage < 75 ? 'WARNING' : 'NORMAL',
+      };
     }
 
-    // Fees
-    if (sections.includes('fees')) {
-      const [bills, payments] = await Promise.all([
-        prisma.feeBill.findMany({ where: { studentId }, orderBy: { createdAt: 'desc' } }),
-        prisma.feePayment.findMany({ where: { studentId }, orderBy: { createdAt: 'desc' } }),
-      ]);
-      const totalDue = bills.reduce((s: number, b: any) => s + (b.totalAmount || 0), 0);
-      const totalPaid = payments.reduce((s: number, p: any) => s + (p.amount || 0), 0);
-      result.fees = { bills, payments, totalDue, totalPaid, balance: totalDue - totalPaid };
-    }
+    // 6. Section: Examination, Marks & Results (MANDATORY: UNPUBLISHED RESULTS HIDDEN FROM STUDENT/PARENT)
+    if (requestedSections.includes('marks') || requestedSections.includes('results')) {
+      const marksWhere: any = { studentId: student.id };
+      if (isOwnProfile || isParent) {
+        marksWhere.status = 'PUBLISHED'; // STRICT SECURITY ENFORCEMENT
+      }
 
-    // Leave/OD
-    if (sections.includes('leave')) {
-      const requests = await prisma.workflowRequest.findMany({
-        where: { studentId, type: { in: ['LEAVE', 'OD', 'MEDICAL_LEAVE', 'HOSTEL_LEAVE'] } },
+      const marks = await (prisma as any).mark.findMany({
+        where: marksWhere,
+        include: { exam: true, subject: true },
         orderBy: { createdAt: 'desc' },
-        take: 20,
+        take: 100,
       });
-      result.leave = requests;
+
+      const publishedMarks = marks.filter((m: any) => m.status === 'PUBLISHED');
+      const gpas = publishedMarks.filter((m: any) => m.gpa != null).map((m: any) => Number(m.gpa));
+      const cgpa = gpas.length > 0 ? Math.round((gpas.reduce((s: number, g: number) => s + g, 0) / gpas.length) * 100) / 100 : null;
+      const arrears = publishedMarks.filter((m: any) => m.grade === 'F').length;
+
+      result.marks = {
+        records: marks,
+        publishedCount: publishedMarks.length,
+        cgpa,
+        arrearsCount: arrears,
+      };
     }
 
-    // Documents/Certificates
-    if (sections.includes('documents')) {
-      const certificates = await prisma.certificateGeneration.findMany({
-        where: { studentId },
+    // 7. Section: Leave & OD
+    if (requestedSections.includes('leave')) {
+      const leaveRequests = await (prisma as any).studentLeaveRequest.findMany({
+        where: { studentId: student.id },
+        orderBy: { createdAt: 'desc' },
+        take: 30,
+      });
+      result.leave = leaveRequests;
+    }
+
+    // 8. Section: Fees & Finance (Receivables, Payments, Immutable Receipts)
+    if (requestedSections.includes('fees')) {
+      const [bills, payments] = await Promise.all([
+        (prisma as any).feeBill.findMany({
+          where: { studentId: student.id, deleted: false },
+          include: { category: true },
+          orderBy: { createdAt: 'desc' },
+        }),
+        (prisma as any).feePayment.findMany({
+          where: { studentId: student.id },
+          include: { bill: { include: { category: true } } },
+          orderBy: { createdAt: 'desc' },
+        }),
+      ]);
+
+      const totalAssessed = bills.reduce((s: number, b: any) => s + (b.amount || 0), 0);
+      const totalScholarship = bills.reduce((s: number, b: any) => s + (b.scholarshipDiscount || 0), 0);
+      const totalFines = bills.reduce((s: number, b: any) => s + (b.fine || 0), 0);
+      const totalPaid = payments
+        .filter((p: any) => p.status === 'SUCCEEDED' || p.status === 'COMPLETED')
+        .reduce((s: number, p: any) => s + (p.amount || 0), 0);
+      const outstanding = Math.max(0, totalAssessed - totalScholarship + totalFines - totalPaid);
+
+      result.fees = {
+        bills,
+        payments,
+        summary: { totalAssessed, totalScholarship, totalFines, totalPaid, outstanding },
+      };
+    }
+
+    // 9. Section: Documents & Certificates
+    if (requestedSections.includes('documents')) {
+      const certs = await (prisma as any).certificateGeneration.findMany({
+        where: { studentId: student.id },
         include: { template: { select: { name: true, type: true } } },
         orderBy: { createdAt: 'desc' },
       });
-      result.documents = certificates;
+      result.documents = certs;
     }
 
-    // Activities participated
-    if (sections.includes('activities')) {
-      const activityRecords = await prisma.activityAttendanceRecord.findMany({
-        where: { studentId },
-        include: { session: { include: { activity: { select: { title: true, category: true, startDate: true } } } } },
-        orderBy: { date: 'desc' },
-        take: 50,
-      });
-      const eventRegistrations = await prisma.eventRegistration.findMany({
-        where: { studentId },
-        include: { event: { select: { title: true, type: true, startDate: true } } },
-        orderBy: { registeredAt: 'desc' },
-        take: 20,
-      });
-      result.activities = { activityRecords, eventRegistrations };
+    // 10. Section: Mentor Notes & Counseling (Confidential notes hidden from student/parent)
+    if (requestedSections.includes('mentor')) {
+      const counselingWhere: any = { studentId: student.id };
+      if (isOwnProfile || isParent) {
+        counselingWhere.privacyLevel = { notIn: ['MENTOR_ONLY', 'CONFIDENTIAL'] };
+      }
+      const [counseling, mentorHistory] = await Promise.all([
+        (prisma as any).counselingRecord.findMany({
+          where: counselingWhere,
+          orderBy: { createdAt: 'desc' },
+        }),
+        (prisma as any).mentorAssignment.findMany({
+          where: { studentId: student.id },
+          include: { mentor: { select: { firstName: true, lastName: true, designation: true } } },
+          orderBy: { createdAt: 'desc' },
+        }),
+      ]);
+      result.mentor = {
+        currentMentor: student.mentor ? `${student.mentor.firstName} ${student.mentor.lastName}` : null,
+        counselingRecords: counseling,
+        history: mentorHistory,
+      };
     }
 
-    // Skills
-    if (sections.includes('skills')) {
-      result.skills = await prisma.studentSkill.findMany({ where: { studentId }, orderBy: { createdAt: 'desc' } });
+    // 11. Section: Projects, Activities & Skills
+    if (requestedSections.includes('activities') || requestedSections.includes('skills')) {
+      const [skills, achievements, activityRecords] = await Promise.all([
+        (prisma as any).studentSkill.findMany({ where: { studentId: student.id }, orderBy: { createdAt: 'desc' } }),
+        (prisma as any).studentAchievement.findMany({ where: { studentId: student.id }, orderBy: { createdAt: 'desc' } }),
+        (prisma as any).activityAttendanceRecord.findMany({
+          where: { studentId: student.id },
+          include: { session: { include: { activity: true } } },
+          orderBy: { date: 'desc' },
+          take: 20,
+        }),
+      ]);
+      result.skills = skills;
+      result.achievements = achievements;
+      result.activities = activityRecords;
     }
 
-    // Hostel (if allocated)
-    if (sections.includes('hostel')) {
-      const allocation = await prisma.hostelAllocation.findFirst({ where: { studentId, status: 'ACTIVE' }, include: { room: { include: { floor: { include: { block: true } } } } } });
-      result.hostel = allocation;
+    // 12. Section: Placement & Internships
+    if (requestedSections.includes('placements')) {
+      const [placements, internships] = await Promise.all([
+        (prisma as any).placementApplication.findMany({ where: { studentId: student.id }, orderBy: { appliedAt: 'desc' } }),
+        (prisma as any).internship.findMany({ where: { studentId: student.id }, orderBy: { id: 'desc' } }),
+      ]);
+      result.placements = { applications: placements, internships };
     }
 
-    // Transport (if allocated)
-    if (sections.includes('transport')) {
-      const allocation = await prisma.transportAllocation.findFirst({ where: { passengerId: studentId, passengerType: 'STUDENT', status: 'ACTIVE' }, include: { route: { select: { routeName: true } }, stop: { select: { name: true } } } });
-      result.transport = allocation;
-    }
-
-    // Library
-    if (sections.includes('library')) {
-      const issues = await prisma.libraryIssue.findMany({ where: { borrowerId: studentId, status: 'ISSUED' }, include: { book: { select: { title: true, author: true } } } });
-      const fines = await prisma.libraryFine.findMany({ where: { borrowerId: studentId, status: 'PENDING' } });
+    // 13. Section: Library
+    if (requestedSections.includes('library')) {
+      const [issues, fines] = await Promise.all([
+        (prisma as any).libraryIssue.findMany({
+          where: { borrowerId: student.id, status: 'ISSUED' },
+          include: { book: { select: { title: true, author: true, isbn: true } } },
+        }),
+        (prisma as any).libraryFine.findMany({
+          where: { borrowerId: student.id, status: 'PENDING' },
+        }),
+      ]);
       result.library = { currentIssues: issues, pendingFines: fines };
     }
 
-    // Placements
-    if (sections.includes('placements')) {
-      const placements = await prisma.placementApplication.findMany({ where: { studentId }, orderBy: { appliedAt: 'desc' } });
-      result.placements = placements;
+    // 14. Section: Hostel (Active Allocation Based)
+    if (requestedSections.includes('hostel')) {
+      const allocation = await (prisma as any).hostelAllocation.findFirst({
+        where: { studentId: student.id, status: 'ACTIVE' },
+        include: { room: { include: { floor: { include: { block: true } } } }, bed: true },
+      });
+      result.hostel = allocation;
     }
 
-    // Complaints/Grievances
-    if (sections.includes('complaints')) {
-      const tickets = await prisma.ticket.findMany({ where: { studentId: student.id }, orderBy: { createdAt: 'desc' }, take: 10 });
+    // 15. Section: Transport (Active College Bus Allocation Based)
+    if (requestedSections.includes('transport')) {
+      const allocation = await (prisma as any).transportAllocation.findFirst({
+        where: { passengerId: student.id, passengerType: 'STUDENT', status: 'ACTIVE' },
+        include: { route: true, stop: true },
+      });
+      result.transport = allocation;
+    }
+
+    // 16. Section: Complaints / Grievances
+    if (requestedSections.includes('complaints')) {
+      const tickets = await (prisma as any).ticket.findMany({
+        where: { studentId: student.id },
+        orderBy: { createdAt: 'desc' },
+        take: 20,
+      });
       result.complaints = tickets;
     }
 
+    // 17. Section: Account & Security Access (Never expose passwords/hashes)
+    if (requestedSections.includes('account') && (isAdmin || isOwnProfile)) {
+      const sessions = await (prisma as any).userSession.findMany({
+        where: { userId: student.userId || '' },
+        orderBy: { createdAt: 'desc' },
+        take: 5,
+        select: { id: true, ipAddress: true, userAgent: true, lastActivity: true, expiresAt: true },
+      });
+      result.account = {
+        userId: student.userId,
+        email: student.user?.email,
+        username: student.user?.username,
+        accountStatus: student.user?.accountStatus || 'ACTIVE',
+        status: student.user?.status || 'ACTIVE',
+        createdAt: student.user?.createdAt,
+        recentSessions: sessions,
+      };
+    }
+
+    // 18. Section: Residential History
+    if (requestedSections.includes('residential_history')) {
+      const history = await (prisma as any).studentResidentialHistory.findMany({
+        where: { studentId: student.id },
+        orderBy: { createdAt: 'desc' },
+        take: 20,
+      });
+      result.residentialHistory = history;
+    }
+
+    // Digital ID Secure Token Generation
+    const digitalIdPayload = {
+      studentId: student.id,
+      admissionNo: student.admissionNo,
+      name: `${student.firstName} ${student.lastName}`,
+      department: student.department?.name,
+      validUntil: new Date(Date.now() + 365 * 86400000).toISOString(),
+    };
+    const secureToken = crypto.createHmac('sha256', 'campusos-id-secret').update(JSON.stringify(digitalIdPayload)).digest('hex');
+
+    result.digitalId = {
+      ...digitalIdPayload,
+      secureToken,
+      qrUrl: `/api/verify/${secureToken}`,
+    };
+
     res.json({ status: 'success', data: result });
-  } catch (e) { next(e); }
-});
-
-/**
- * Student workspace — "What does the student need right now?"
- * Quick-access dashboard for the logged-in student.
- */
-router.get('/my/workspace', async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const userId = (req as any).user?.id;
-    const student = await prisma.student.findFirst({ where: { userId }, include: { department: true, program: true, section: true } });
-    if (!student) return res.status(404).json({ status: 'error', message: 'Student profile not found' });
-
-    const today = new Date(); today.setHours(0, 0, 0, 0);
-    const tomorrow = new Date(today); tomorrow.setDate(tomorrow.getDate() + 1);
-
-    const [
-      todayAttendance,
-      pendingAssignments,
-      unreadNotifications,
-      pendingLeaves,
-      currentIssues,
-      pendingFines,
-      hostelAllocation,
-      transportAllocation,
-      upcomingEvents,
-      pendingCertificates,
-    ] = await Promise.all([
-      prisma.attendance.findMany({ where: { studentId: student.id, date: { gte: today, lt: tomorrow } } }),
-      prisma.assignment.findMany({ where: { sectionId: student.sectionId, dueDate: { gte: today }, status: 'ACTIVE' }, take: 10, orderBy: { dueDate: 'asc' } }),
-      prisma.notification.count({ where: { recipientId: userId, isRead: false } }),
-      prisma.workflowRequest.findMany({ where: { studentId: student.id, type: { in: ['LEAVE', 'OD'] }, status: { startsWith: 'PENDING' } }, take: 5 }),
-      prisma.libraryIssue.findMany({ where: { borrowerId: student.id, status: 'ISSUED' }, include: { book: { select: { title: true } } } }),
-      prisma.libraryFine.count({ where: { borrowerId: student.id, status: 'PENDING' } }),
-      prisma.hostelAllocation.findFirst({ where: { studentId: student.id, status: 'ACTIVE' }, include: { room: true } }),
-      prisma.transportAllocation.findFirst({ where: { passengerId: student.id, passengerType: 'STUDENT', status: 'ACTIVE' }, include: { route: { select: { routeName: true } }, stop: { select: { name: true } } } }),
-      prisma.calendarEvent.findMany({ where: { status: 'ACTIVE', startDate: { gte: today, lte: new Date(today.getTime() + 7 * 86400000) } }, take: 5, orderBy: { startDate: 'asc' } }),
-      prisma.certificateGeneration.findMany({ where: { studentId: student.id, status: { notIn: ['PUBLISHED', 'REJECTED'] } }, take: 5 }),
-    ]);
-
-    res.json({
-      status: 'success',
-      data: {
-        student: { id: student.id, name: `${student.firstName} ${student.lastName}`, admissionNo: student.admissionNo, department: student.department?.name, program: student.program?.name, section: student.section?.name },
-        todayAttendance,
-        pendingAssignments,
-        unreadNotifications,
-        pendingLeaves,
-        library: { currentIssues, pendingFines },
-        hostel: hostelAllocation,
-        transport: transportAllocation,
-        upcomingEvents,
-        pendingCertificates,
-      },
-    });
-  } catch (e) { next(e); }
+  } catch (e) {
+    next(e);
+  }
 });
 
 export default router;

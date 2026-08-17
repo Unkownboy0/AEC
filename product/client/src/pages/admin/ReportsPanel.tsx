@@ -5,6 +5,7 @@ import {
 import { toast } from '../../components/ui/Toast';
 import { Button } from '../../components/ui/Button';
 import api from '../../lib/axios';
+import { saveBlobAndOpen } from '../../platform/download';
 
 export const ReportsPanel: React.FC = () => {
   const [stats, setStats] = useState<any>({
@@ -68,12 +69,13 @@ export const ReportsPanel: React.FC = () => {
       ];
 
       const blob = new Blob([csvLines.join('\n')], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.setAttribute('href', url);
-      link.setAttribute('download', `${moduleKey}_report_${Date.now()}.csv`);
-      link.click();
-      toast.success('Report downloaded successfully');
+      const filename = `CampusOS_${moduleKey}_report_${Date.now()}.csv`;
+      const saveRes = await saveBlobAndOpen(blob, filename, 'text/csv');
+      if (saveRes.success) {
+        toast.success('Report downloaded successfully');
+      } else {
+        toast.error(saveRes.error || 'Failed to export CSV report');
+      }
     } catch (err) {
       toast.error('Failed to export CSV report');
     }

@@ -3,6 +3,7 @@ import { Award, FileText, CheckCircle, Clock, Download, QrCode, Plus, ShieldChec
 import { toast } from '../../components/ui/Toast';
 import { Loading } from '../../components/ui/Loading';
 import api from '../../lib/axios';
+import { downloadAndOpen } from '../../platform/download';
 
 const CERT_TYPES = [
   { id: 'BONAFIDE', title: 'Bonafide Certificate', desc: 'Official proof of student enrollment for bank, passport, or bus pass applications' },
@@ -67,22 +68,14 @@ export const StudentCertificates: React.FC = () => {
   };
 
   const handleDownloadCertificate = async (cert: any) => {
-    try {
-      const res = await api.get(`/enterprise/certificates/download/${cert.verificationHash || cert.id}`, {
-        responseType: 'blob',
-      });
-      const blob = new Blob([res.data], { type: 'application/pdf' });
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', `${cert.type}_Certificate_${cert.verificationHash || 'verified'}.pdf`);
-      document.body.appendChild(link);
-      link.click();
-      link.parentNode?.removeChild(link);
-      window.URL.revokeObjectURL(url);
+    const result = await downloadAndOpen(
+      `/enterprise/certificates/download/${cert.verificationHash || cert.id}`,
+      `${cert.type}_Certificate_${cert.verificationHash || 'verified'}.pdf`
+    );
+    if (result.success) {
       toast.success(`Official ${cert.type.replace(/_/g, ' ')} Certificate PDF downloaded with institutional watermark.`);
-    } catch (err: any) {
-      toast.error('Failed to download certificate PDF');
+    } else {
+      toast.error(result.error || 'Failed to download certificate PDF');
     }
   };
 

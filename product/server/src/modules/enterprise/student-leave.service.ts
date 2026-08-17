@@ -1,6 +1,7 @@
 import { prisma } from '../../lib/prisma';
 import { BadRequestException, NotFoundException, ForbiddenException } from '../../utils/exceptions';
 import { logger } from '../../utils/logger';
+import { NotificationService } from '../notifications/notification.service';
 import { broadcastRBACUpdate } from '../../lib/socket';
 import { validateRequestDate, validatePeriodOdWithTimetable, getTimetableForStudentDate } from '../../utils/leavePolicy';
 
@@ -56,6 +57,11 @@ export class StudentLeaveService {
         return { hodUserId: dept.hodUserId, hodFacultyId: hodFac?.id };
       }
       if (dept.hodId) {
+        const directUser = await prisma.user.findUnique({ where: { id: dept.hodId } });
+        if (directUser) {
+          const hodFac = dept.faculties.find(f => f.userId === directUser.id);
+          return { hodUserId: directUser.id, hodFacultyId: hodFac?.id };
+        }
         const hodFac = dept.faculties.find(f => f.id === dept.hodId);
         if (hodFac?.userId) {
           return { hodUserId: hodFac.userId, hodFacultyId: hodFac.id };
@@ -93,6 +99,21 @@ export class StudentLeaveService {
 
     if (hodFaculty?.userId) {
       return { hodUserId: hodFaculty.userId, hodFacultyId: hodFaculty.id };
+    }
+
+    // Strategy 4: Fallback to any active HOD or College Admin in institution
+    const fallbackHodUser = await prisma.user.findFirst({
+      where: {
+        role: {
+          name: { in: ['HOD', 'Head of Department', 'Department HOD', 'Principal', 'College Admin', 'Super Admin'] }
+        },
+        status: 'ACTIVE'
+      }
+    });
+
+    if (fallbackHodUser) {
+      const fac = await prisma.faculty.findFirst({ where: { userId: fallbackHodUser.id } });
+      return { hodUserId: fallbackHodUser.id, hodFacultyId: fac?.id };
     }
 
     return null;
@@ -134,6 +155,21 @@ export class StudentLeaveService {
     const diffTime = Math.abs(end.getTime() - start.getTime());
     const totalDays = input.durationType === 'HALF_DAY' ? 0.5 : input.durationType === 'PERIOD' ? 0.2 : Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
 
+    // Resolve assigned Mentor (with fallback to MentorAssignment)
+    let mentorUserId = student.mentor?.userId;
+    let mentorFacultyId = student.mentorId;
+
+    if (!mentorUserId) {
+      const assignment = await prisma.mentorAssignment.findFirst({
+        where: { studentId: student.id, status: 'ACTIVE' },
+        include: { mentor: { select: { id: true, userId: true } } },
+      });
+      if (assignment?.mentor?.userId) {
+        mentorUserId = assignment.mentor.userId;
+        mentorFacultyId = assignment.mentor.id;
+      }
+    }
+
     // Resolve assigned HOD
     const hodInfo = student.departmentId ? await this.resolveDepartmentHodUser(student.departmentId) : null;
 
@@ -169,7 +205,7 @@ export class StudentLeaveService {
           finalStatus: 'PENDING',
           priority: input.isEmergency ? 'URGENT' : 'NORMAL',
           isEmergency: !!input.isEmergency,
-          mentorId: student.mentorId,
+          mentorId: mentorFacultyId || student.mentorId,
           hodId: hodInfo?.hodFacultyId,
         },
         include: {
@@ -206,18 +242,26 @@ export class StudentLeaveService {
       return created;
     });
 
-    // Notify Mentor (Level 1)
-    if (student.mentor?.userId) {
+    // Notify Mentor ONLY (Level 1 reviewer)
+    if (mentorUserId) {
       try {
-        await prisma.notification.create({
-          data: {
-            recipientId: student.mentor.userId,
-            eventType: 'STUDENT_LEAVE_SUBMITTED',
-            title: `New ${input.type} Request: ${student.firstName} ${student.lastName}`,
-            message: `Student ${student.firstName} ${student.lastName} (${student.admissionNo}) submitted a ${input.type} request (${totalDays} day(s)) for your review.`,
-            relatedEntityType: 'STUDENT_LEAVE_REQUEST',
-            relatedEntityId: request.id,
-            deepLinkRoute: `/faculty/mentor-approvals?requestId=${request.id}`,
+        const eventType = input.type === 'ON_DUTY' ? 'STUDENT_OD_SUBMITTED' : 'STUDENT_LEAVE_SUBMITTED';
+        await NotificationService.dispatchDomainEvent({
+          eventType,
+          actorUserId: userId,
+          entityType: 'STUDENT_LEAVE_REQUEST',
+          entityId: request.id,
+          title: `New ${input.type === 'ON_DUTY' ? 'OD' : 'Leave'} Request: ${student.firstName} ${student.lastName}`,
+          body: `Student ${student.firstName} ${student.lastName} (${student.admissionNo}) submitted a ${input.type === 'ON_DUTY' ? 'On-Duty' : 'Leave'} request (${totalDays} day(s)) for your review.`,
+          priority: input.isEmergency ? 'CRITICAL' : 'HIGH',
+          category: 'APPROVALS',
+          deepLinkRoute: `/faculty/mentor/leave-od/${request.id}`,
+          targetUserIds: [mentorUserId],
+          metadata: {
+            requestId: request.id,
+            requestNumber,
+            studentId: student.id,
+            type: input.type,
           },
         });
       } catch (err) {
@@ -225,7 +269,7 @@ export class StudentLeaveService {
       }
     }
 
-    broadcastRBACUpdate({ type: 'APPROVAL_UPDATED', userId: student.mentor?.userId || undefined, payload: { requestId: request.id } });
+    broadcastRBACUpdate({ type: 'APPROVAL_UPDATED', userId: mentorUserId || undefined, payload: { requestId: request.id } });
 
     logger.info(`📝 Student Leave Request ${requestNumber} created by ${student.firstName} ${student.lastName}`);
     return request;
@@ -355,31 +399,36 @@ export class StudentLeaveService {
       // Notify Student
       if (request.student.userId) {
         try {
-          await prisma.notification.create({
-            data: {
-              recipientId: request.student.userId,
-              eventType: 'LEAVE_MENTOR_APPROVED',
-              title: `${request.type} Request Endorsed by Mentor`,
-              message: `Your ${request.type} request (${request.requestNumber}) was endorsed by Mentor and automatically forwarded to HOD for final approval.`,
-              relatedEntityType: 'STUDENT_LEAVE_REQUEST',
-              relatedEntityId: request.id,
-            },
+          const studentEvent = request.type === 'ON_DUTY' ? 'STUDENT_OD_MENTOR_APPROVED' : 'STUDENT_LEAVE_MENTOR_APPROVED';
+          await NotificationService.dispatchDomainEvent({
+            eventType: studentEvent,
+            actorUserId: userId,
+            entityType: 'STUDENT_LEAVE_REQUEST',
+            entityId: request.id,
+            title: `${request.type === 'ON_DUTY' ? 'OD' : 'Leave'} Request Endorsed by Mentor`,
+            body: `Your ${request.type === 'ON_DUTY' ? 'On-Duty' : 'Leave'} request (${request.requestNumber}) was endorsed by Mentor and forwarded to HOD for final approval.`,
+            priority: 'NORMAL',
+            category: 'APPROVALS',
+            deepLinkRoute: `/student/leave-od/${request.id}`,
+            targetUserIds: [request.student.userId],
           });
         } catch (err) {}
       }
 
       // Notify HOD
       try {
-        await prisma.notification.create({
-          data: {
-            recipientId: hodInfo.hodUserId,
-            eventType: 'STUDENT_LEAVE_HOD_PENDING',
-            title: `Action Required: HOD Approval for ${request.student.firstName} ${request.student.lastName}`,
-            message: `${request.type} request (${request.requestNumber}) endorsed by Mentor ${faculty.firstName} ${faculty.lastName}. Awaiting your final sign-off.`,
-            relatedEntityType: 'STUDENT_LEAVE_REQUEST',
-            relatedEntityId: request.id,
-            deepLinkRoute: `/hod/leave-approvals?requestId=${request.id}`,
-          },
+        const hodEvent = request.type === 'ON_DUTY' ? 'STUDENT_OD_FORWARDED' : 'STUDENT_LEAVE_FORWARDED';
+        await NotificationService.dispatchDomainEvent({
+          eventType: hodEvent,
+          actorUserId: userId,
+          entityType: 'STUDENT_LEAVE_REQUEST',
+          entityId: request.id,
+          title: `Action Required: HOD Approval for ${request.student.firstName} ${request.student.lastName}`,
+          body: `${request.type === 'ON_DUTY' ? 'On-Duty' : 'Leave'} request (${request.requestNumber}) endorsed by Mentor ${faculty.firstName} ${faculty.lastName}. Awaiting your sign-off.`,
+          priority: 'HIGH',
+          category: 'APPROVALS',
+          deepLinkRoute: `/hod/leave-approvals/${request.id}`,
+          targetUserIds: [hodInfo.hodUserId],
         });
       } catch (err) {
         logger.warn('Failed to send HOD notification:', err);
@@ -422,7 +471,7 @@ export class StudentLeaveService {
         await tx.requestWorkflowHistory.create({
           data: {
             requestId,
-            action: 'MENTOR_REJECTED',
+            action: 'MENTOR_REJECT',
             performedBy: userId,
             performedRole: 'MENTOR',
             fromStatus: 'PENDING_MENTOR',
@@ -436,15 +485,18 @@ export class StudentLeaveService {
 
       if (request.student.userId) {
         try {
-          await prisma.notification.create({
-            data: {
-              recipientId: request.student.userId,
-              eventType: 'LEAVE_MENTOR_REJECTED',
-              title: `${request.type} Request Rejected by Mentor`,
-              message: `Your ${request.type} request (${request.requestNumber}) was rejected by your Mentor. Reason: ${remarks || 'N/A'}`,
-              relatedEntityType: 'STUDENT_LEAVE_REQUEST',
-              relatedEntityId: request.id,
-            },
+          const eventType = request.type === 'ON_DUTY' ? 'OD_REJECTED' : 'LEAVE_REJECTED';
+          await NotificationService.dispatchDomainEvent({
+            eventType,
+            actorUserId: userId,
+            entityType: 'STUDENT_LEAVE_REQUEST',
+            entityId: request.id,
+            title: `${request.type} Request Rejected by Mentor`,
+            body: `Your ${request.type} request (${request.requestNumber}) was rejected by your Mentor. Reason: ${remarks || 'N/A'}`,
+            priority: 'NORMAL',
+            category: 'APPROVALS',
+            deepLinkRoute: `/student/leave-od/${request.id}`,
+            targetUserIds: [request.student.userId],
           });
         } catch (err) {}
       }
@@ -481,15 +533,17 @@ export class StudentLeaveService {
 
       if (request.student.userId) {
         try {
-          await prisma.notification.create({
-            data: {
-              recipientId: request.student.userId,
-              eventType: 'LEAVE_RETURNED',
-              title: `${request.type} Request Returned for Clarification`,
-              message: `Your Mentor returned request ${request.requestNumber}. Remarks: ${remarks || 'Please revise details'}`,
-              relatedEntityType: 'STUDENT_LEAVE_REQUEST',
-              relatedEntityId: request.id,
-            },
+          await NotificationService.dispatchDomainEvent({
+            eventType: 'LEAVE_RETURNED',
+            actorUserId: userId,
+            entityType: 'STUDENT_LEAVE_REQUEST',
+            entityId: request.id,
+            title: `${request.type} Request Returned for Clarification`,
+            body: `Your Mentor returned request ${request.requestNumber}. Remarks: ${remarks || 'Please revise details'}`,
+            priority: 'NORMAL',
+            category: 'APPROVALS',
+            deepLinkRoute: `/student/leave-od/${request.id}`,
+            targetUserIds: [request.student.userId],
           });
         } catch (err) {}
       }
@@ -804,16 +858,37 @@ export class StudentLeaveService {
 
     // Notify Student
     if (request.student.userId) {
+      const isApproved = (action as string) === 'APPROVE';
+      const isRejected = (action as string) === 'REJECT' || (action as string) === 'REJECTED';
+      const isReturned = (action as string).includes('RETURN');
+
+      let eventType: any;
+      if (request.type === 'ON_DUTY') {
+        eventType = isApproved ? 'STUDENT_OD_APPROVED' : isRejected ? 'STUDENT_OD_REJECTED' : 'STUDENT_OD_RETURNED';
+      } else {
+        eventType = isApproved ? 'STUDENT_LEAVE_APPROVED' : isRejected ? 'STUDENT_LEAVE_REJECTED' : isReturned ? 'STUDENT_LEAVE_RETURNED' : 'STUDENT_LEAVE_FORWARDED';
+      }
+
+      const typeLabel = request.type === 'ON_DUTY' ? 'OD' : 'Leave';
+      const title = `${typeLabel} Request ${isApproved ? 'Approved by HOD' : isRejected ? 'Rejected by HOD' : 'Updated by HOD'}`;
+      const startDateStr = new Date(request.startDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
+      const endDateStr = new Date(request.endDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
+      const body = isApproved
+        ? `Your ${typeLabel} request (${request.requestNumber}) from ${startDateStr} to ${endDateStr} has been approved.`
+        : `Your ${typeLabel} request (${request.requestNumber}) has been ${action.toLowerCase()}ed by the Department HOD. ${remarks ? `Remarks: ${remarks}` : ''}`;
+
       try {
-        await prisma.notification.create({
-          data: {
-            recipientId: request.student.userId,
-            eventType: `LEAVE_HOD_${action}`,
-            title: `${request.type} Request ${action === 'APPROVE' ? 'Approved by HOD' : action === 'REJECT' ? 'Rejected by HOD' : 'Updated by HOD'}`,
-            message: `Your ${request.type} request (${request.requestNumber}) has been ${action.toLowerCase()}ed by the Department HOD. ${remarks ? `Remarks: ${remarks}` : ''}`,
-            relatedEntityType: 'STUDENT_LEAVE_REQUEST',
-            relatedEntityId: request.id,
-          },
+        await NotificationService.dispatchDomainEvent({
+          eventType,
+          actorUserId: userId,
+          entityType: 'STUDENT_LEAVE_REQUEST',
+          entityId: request.id,
+          title,
+          body,
+          priority: isApproved ? 'HIGH' : 'NORMAL',
+          category: 'APPROVALS',
+          deepLinkRoute: `/student/leave-od/${request.id}`,
+          targetUserIds: [request.student.userId],
         });
       } catch (err) {}
     }
@@ -824,6 +899,11 @@ export class StudentLeaveService {
   }
 
   /**
+   * Bulk Approve requests for HOD
+   */
+  async bulkApproveHod(userId: string, requestIds: string[], remarks?: string) {
+    const results = [];
+    for (const id of requestIds) {
       try {
         const res = await this.hodReview(userId, id, 'APPROVE', remarks || 'Bulk Approved by HOD');
         results.push({ id, status: 'SUCCESS', res });
@@ -935,7 +1015,11 @@ export class StudentLeaveService {
 
     return prisma.studentLeaveRequest.findMany({
       where: {
-        mentorId: faculty.id,
+        OR: [
+          { mentorId: faculty.id },
+          { student: { mentorId: faculty.id } },
+          { student: { mentorAssignments: { some: { mentorId: faculty.id, status: 'ACTIVE' } } } },
+        ],
         workflowStatus: 'PENDING_MENTOR',
       },
       orderBy: { createdAt: 'asc' },
@@ -1147,9 +1231,65 @@ export class StudentLeaveService {
   }
 
   /**
+   * Authorization for viewing a single leave/OD request: Students may only
+   * view their own; Mentor/Faculty only if they're the assigned mentor;
+   * HOD/department staff only within their own department; Super Admin,
+   * Principal, Vice Principal, College Admin see everything. Closes an IDOR
+   * where any authenticated user could read any student's leave/OD request
+   * by ID (this endpoint is also the target of Leave/OD push-notification
+   * deep links, so a notification tap must not bypass this check either).
+   */
+  private async assertCanViewRequest(
+    userId: string,
+    studentId: string | null | undefined,
+    mentorId?: string | null,
+    departmentId?: string | null
+  ) {
+    const user = await prisma.user.findUnique({ where: { id: userId }, include: { role: true } });
+    if (!user) throw new ForbiddenException('You are not authorized to view this request');
+    const roleName = user.role?.name || '';
+
+    if (['Super Admin', 'Principal', 'Vice Principal', 'College Admin'].includes(roleName)) return;
+
+    if (roleName === 'Student') {
+      const student = await prisma.student.findFirst({ where: { userId }, select: { id: true } });
+      if (student && studentId && student.id === studentId) return;
+      throw new ForbiddenException('You are not authorized to view this request');
+    }
+
+    const faculty = await prisma.faculty.findFirst({ where: { userId } });
+    if (mentorId && faculty?.id === mentorId) return;
+    if (faculty && studentId) {
+      const isMentor = await prisma.student.count({
+        where: {
+          id: studentId,
+          OR: [
+            { mentorId: faculty.id },
+            { mentorAssignments: { some: { mentorId: faculty.id, status: 'ACTIVE' } } }
+          ],
+        },
+      });
+      if (isMentor > 0) return;
+    }
+
+    const hodMemberships = await prisma.departmentMembership.findMany({
+      where: { userId, role: 'HOD' },
+      select: { departmentId: true },
+    });
+    const actorDepartmentIds = new Set(
+      [faculty?.departmentId, user.departmentId, ...hodMemberships.map((m) => m.departmentId)].filter(
+        (id): id is string => Boolean(id)
+      )
+    );
+    if (departmentId && actorDepartmentIds.has(departmentId)) return;
+
+    throw new ForbiddenException('You are not authorized to view this request');
+  }
+
+  /**
    * Get Full Request Details by ID with Complete Workflow Timeline
    */
-  async getRequestDetails(requestId: string) {
+  async getRequestDetails(requestId: string, userId: string) {
     const cleanId = requestId.replace(/^WF-|^SLR-|^OD-/, '');
     const request = await prisma.studentLeaveRequest.findFirst({
       where: {
@@ -1180,6 +1320,7 @@ export class StudentLeaveService {
     });
 
     if (request) {
+      await this.assertCanViewRequest(userId, request.studentId, request.mentorId, request.departmentId);
       return request;
     }
 
@@ -1201,6 +1342,7 @@ export class StudentLeaveService {
     });
 
     if (wfReq) {
+      await this.assertCanViewRequest(userId, wfReq.studentId, null, wfReq.student?.departmentId);
       return {
         id: wfReq.id,
         requestNumber: `WF-${wfReq.id.slice(-6).toUpperCase()}`,

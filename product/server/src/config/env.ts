@@ -26,6 +26,9 @@ const envSchema = z.object({
   RAZORPAY_KEY_ID: z.string().optional(),
   RAZORPAY_KEY_SECRET: z.string().optional(),
   CAMPUS_TENANT_ID: z.string().min(1).default('campusos-default'),
+  // Firebase Admin SDK — required for real FCM push delivery (background/killed state).
+  FIREBASE_SERVICE_ACCOUNT_JSON: z.string().optional(),
+  FIREBASE_SERVICE_ACCOUNT_PATH: z.string().optional(),
   EMAIL_PROVIDER: z.enum(['SMTP', 'DISABLED']).default('DISABLED'),
   SMTP_HOST: z.string().optional(),
   SMTP_PORT: z.coerce.number().int().min(1).max(65535).default(587),

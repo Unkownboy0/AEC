@@ -80,6 +80,21 @@ export class CoeService {
       return record;
     });
     await AuditService.log({ actorId, action: version === 1 ? 'PUBLISH' : 'REVISE', entityType: 'EXAM_TIMETABLE', entityId: examId, description: `Published exam timetable version ${version}`, newValues: publication, req });
+
+    // Emit canonical EXAM_TIMETABLE_PUBLISHED domain event
+    const exam = await db.exam.findUnique({ where: { id: examId }, select: { name: true } });
+    NotificationService.dispatchDomainEvent({
+      eventType: 'EXAM_TIMETABLE_PUBLISHED',
+      actorUserId: actorId,
+      entityType: 'EXAM_TIMETABLE',
+      entityId: examId,
+      title: `Exam Timetable Published: ${exam?.name || 'Examination'} (v${version})`,
+      body: `Official examination timetable version ${version} has been published by the Controller of Examinations.`,
+      priority: 'HIGH',
+      category: 'EXAMS',
+      deepLinkRoute: '/student/examinations',
+    }).catch((err) => console.error('[CoeService] Timetable publication notification error:', err));
+
     return publication;
   }
 
@@ -130,7 +145,23 @@ export class CoeService {
     if (!result.count) throw new BadRequestException('No draft seat allocations are available to publish');
     const allocations = await db.examSeatAllocation.findMany({ where: { scheduleEntryId, status: 'PUBLISHED' }, select: { studentId: true } });
     const students = await db.student.findMany({ where: { id: { in: allocations.map((item: any) => item.studentId) } }, select: { userId: true } });
-    await Promise.all(students.filter((item: any) => item.userId).map((item: any) => NotificationService.sendNotification({ recipientId: item.userId, eventType: 'exam.hall_published', title: 'Exam hall allotted', message: 'Your exam hall and seat allocation is ready.', relatedEntityType: 'EXAM_SCHEDULE', relatedEntityId: scheduleEntryId, deepLinkRoute: '/student/examinations' })));
+    const targetUserIds = students.map((item: any) => item.userId).filter(Boolean);
+
+    if (targetUserIds.length > 0) {
+      NotificationService.dispatchDomainEvent({
+        eventType: 'HALL_ALLOCATION_PUBLISHED',
+        actorUserId: actorId,
+        entityType: 'EXAM_SCHEDULE',
+        entityId: scheduleEntryId,
+        title: 'Exam Hall Allotted',
+        body: 'Your examination hall and seat allocation is ready. Tap to view your hall ticket.',
+        priority: 'HIGH',
+        category: 'EXAMS',
+        deepLinkRoute: '/student/examinations',
+        targetUserIds,
+      }).catch((err) => console.error('[CoeService] Hall allocation notification error:', err));
+    }
+
     await AuditService.log({ actorId, action: 'PUBLISH', entityType: 'EXAM_SEATS', entityId: scheduleEntryId, description: `Published ${result.count} seat allocations`, req });
     return { published: result.count, publishedAt };
   }
@@ -144,6 +175,24 @@ export class CoeService {
     const existing = await db.invigilationAssignment.findFirst({ where: { facultyId, scheduleEntryId: { in: simultaneousEntries.map((item: any) => item.id) }, status: { not: 'CANCELLED' } } });
     if (existing) throw new BadRequestException('This faculty member already has an invigilation duty in the same exam session');
     const assignment = await db.invigilationAssignment.create({ data: { examId: entry.examId, scheduleEntryId, facultyId, roomId, reportingTime, instructions: clean(input.instructions) || null, assignedById: actorId } });
+
+    // Notify assigned faculty
+    const fac = await db.faculty.findUnique({ where: { id: facultyId }, select: { userId: true } });
+    if (fac?.userId) {
+      NotificationService.dispatchDomainEvent({
+        eventType: 'TASK_ASSIGNED',
+        actorUserId: actorId,
+        entityType: 'INVIGILATION',
+        entityId: assignment.id,
+        title: 'Exam Invigilation Duty Assigned',
+        body: `You have been assigned invigilation duty for session on reporting time ${reportingTime}.`,
+        priority: 'HIGH',
+        category: 'EXAMS',
+        deepLinkRoute: '/faculty/examinations',
+        targetUserIds: [fac.userId],
+      }).catch((err) => console.error('[CoeService] Invigilation notification error:', err));
+    }
+
     await AuditService.log({ actorId, action: 'ASSIGN', entityType: 'INVIGILATION', entityId: assignment.id, description: 'Assigned invigilation duty', newValues: assignment, req });
     return assignment;
   }

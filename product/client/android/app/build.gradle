@@ -7,14 +7,17 @@ def releaseKeyPassword = System.getenv('CAMPUSOS_ANDROID_KEY_PASSWORD')
 def hasReleaseSigning = releaseStoreFile && releaseStorePassword && releaseKeyAlias && releaseKeyPassword
 
 android {
-    namespace "com.geetorus.campusos"
+    namespace "com.campusos.app"
     compileSdk rootProject.ext.compileSdkVersion
     defaultConfig {
-        applicationId "com.geetorus.campusos"
+        applicationId System.getenv('CAMPUSOS_APP_ID') ?: "com.campusos.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "1.0"
+        versionCode 3
+        versionName "1.0.2"
+        manifestPlaceholders = [
+            campusosHost: System.getenv('CAMPUSOS_HOST') ?: "campusos.app"
+        ]
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -55,9 +58,9 @@ android {
 }
 
 gradle.taskGraph.whenReady { graph ->
-    def requestedSignedBundle = graph.allTasks.any { it.path == ':app:bundleRelease' }
-    if (requestedSignedBundle && !hasReleaseSigning) {
-        throw new GradleException('Signed AAB requires CAMPUSOS_ANDROID_KEYSTORE_FILE, CAMPUSOS_ANDROID_KEYSTORE_PASSWORD, CAMPUSOS_ANDROID_KEY_ALIAS and CAMPUSOS_ANDROID_KEY_PASSWORD.')
+    def requestedReleaseBundle = graph.allTasks.any { it.path in [':app:bundleRelease', ':app:assembleRelease'] }
+    if (requestedReleaseBundle && !hasReleaseSigning) {
+        logger.warn('CAMPUSOS NOTE: Release build running without signing credentials. Generating unsigned release artifact. Set CAMPUSOS_ANDROID_KEYSTORE_FILE, CAMPUSOS_ANDROID_KEYSTORE_PASSWORD, CAMPUSOS_ANDROID_KEY_ALIAS and CAMPUSOS_ANDROID_KEY_PASSWORD for signed store release.')
     }
 }
 
@@ -66,6 +69,7 @@ dependencies {
     implementation "androidx.appcompat:appcompat:$androidxAppCompatVersion"
     implementation "androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion"
     implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
+    implementation "androidx.security:security-crypto:1.1.0-alpha06"
     implementation project(':capacitor-android')
     testImplementation "junit:junit:$junitVersion"
     androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"

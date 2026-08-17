@@ -36,7 +36,13 @@ export class HodController {
     try {
       const deptId = req.hodContext?.departmentId!;
       const result = await this.service.getLeaveOdRequests(deptId, req.query as any);
-      return res.json({ success: true, ...result });
+      return res.json({
+        ...result,
+        success: true,
+        status: 'success',
+        data: result.items,
+        items: result.items,
+      });
     } catch (error: any) {
       console.error('[HOD Leave/OD List Error]:', error);
       return res.status(500).json({ success: false, error: error.message });

@@ -1,141 +1,155 @@
-import React, { useState, useEffect } from 'react';
-import { CheckSquare, CheckCircle, XCircle, Clock, Shield, AlertTriangle, ArrowRight, User } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
 import api from '../../lib/axios';
 import { toast } from '../../components/ui/Toast';
-
-export interface ApprovalRequest {
-  id: string;
-  requestType: string;
-  studentName?: string;
-  facultyName?: string;
-  department?: string;
-  reason: string;
-  status: string;
-  createdAt: string;
-  currentApproverRole: string;
-}
+import {
+  ApprovalInbox,
+  ApprovalSummaryMetric,
+  ApprovalViewModel,
+  ApprovalActionDef,
+} from '../../components/approval';
 
 export const ApprovalCenter: React.FC = () => {
-  const [requests, setRequests] = useState<ApprovalRequest[]>([]);
+  const [requests, setRequests] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filterType, setFilterType] = useState<string>('ALL');
+  const [activeTab, setActiveTab] = useState<string>('PENDING');
+  const [selectedType, setSelectedType] = useState<string>('ALL');
+  const [submittingAction, setSubmittingAction] = useState(false);
 
-  const fetchApprovals = async () => {
+  const fetchApprovals = useCallback(async () => {
     setLoading(true);
     try {
-      // Mock/Real fetch from backend approval endpoints
       const res = await api.get('/enterprise/executive/inbox?category=Pending Approvals');
       if (res.data?.status === 'success') {
-        const mapped = res.data.data.map((item: any) => ({
-          id: item.sourceId || item.id,
-          requestType: item.title,
-          studentName: item.subtitle,
-          reason: item.subtitle,
-          status: item.status,
-          createdAt: item.date,
-          currentApproverRole: 'Executive Approval'
-        }));
-        setRequests(mapped);
+        const rawList = res.data.data || [];
+        setRequests(Array.isArray(rawList) ? rawList : []);
       }
     } catch (err) {
       console.error(err);
+      toast.error('Failed to load executive approvals.');
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchApprovals();
-  }, []);
+  }, [fetchApprovals]);
 
-  const handleAction = async (id: string, action: 'APPROVE_WORKFLOW' | 'REJECT_WORKFLOW') => {
+  const handleAction = async (
+    actionDef: ApprovalActionDef,
+    request: ApprovalViewModel,
+    remarks: string
+  ) => {
+    setSubmittingAction(true);
     try {
+      const isApprove = actionDef.action === 'APPROVE' || actionDef.action === 'RECOMMEND';
       await api.post('/enterprise/executive/command-action', {
-        action,
-        targetId: id,
-        note: action === 'APPROVE_WORKFLOW' ? 'Approved in Executive Approval Center' : 'Rejected in Executive Approval Center'
+        action: isApprove ? 'APPROVE_WORKFLOW' : 'REJECT_WORKFLOW',
+        targetId: request.id,
+        note: remarks.trim() || `${actionDef.label} in Executive Approval Center`,
       });
-      toast.success(`Request ${action === 'APPROVE_WORKFLOW' ? 'Approved' : 'Rejected'} successfully.`);
+      toast.success(`Request ${isApprove ? 'Approved' : 'Rejected'} successfully.`);
       fetchApprovals();
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      toast.error('Action failed.');
+      toast.error(err?.response?.data?.message || 'Action failed.');
+    } finally {
+      setSubmittingAction(false);
     }
   };
 
+  const viewModels: ApprovalViewModel[] = requests.map((item: any) => {
+    const isLeave = (item.title || '').toUpperCase().includes('LEAVE');
+    const isOD = (item.title || '').toUpperCase().includes('OD') || (item.title || '').toUpperCase().includes('DUTY');
+    const typeLabel = isLeave ? 'LEAVE' : isOD ? 'ON_DUTY' : 'GOVERNANCE';
+    const typeVariant = isLeave ? 'purple' : isOD ? 'blue' : 'emerald';
+
+    return {
+      id: item.sourceId || item.id,
+      requestNumber: item.id?.slice(0, 8),
+      requestType: typeLabel,
+      typeBadgeLabel: typeLabel,
+      typeVariant,
+      title: item.title || 'Executive Approval Request',
+      reason: item.subtitle,
+      status: item.status || 'PENDING',
+      submittedAt: item.date || new Date().toISOString(),
+      requester: {
+        id: item.id,
+        name: item.subtitle || 'Applicant',
+        role: 'Faculty / Student',
+        departmentName: 'Academic Department',
+      },
+      metadata: [
+        { label: 'Category', value: item.title || 'General' },
+        { label: 'Status', value: item.status || 'PENDING' },
+        { label: 'Gate', value: 'Executive Approval' },
+        { label: 'Date', value: new Date(item.date || Date.now()).toLocaleDateString('en-IN') },
+      ],
+      availableActions: [
+        {
+          action: 'APPROVE',
+          label: 'Approve',
+          variant: 'primary',
+          confirmationTitle: 'Approve Request in Executive Center',
+        },
+        {
+          action: 'REJECT',
+          label: 'Reject',
+          variant: 'danger',
+          requiresRemarks: true,
+          isDestructive: true,
+          confirmationTitle: 'Reject Request in Executive Center',
+        },
+      ],
+    };
+  });
+
+  const metrics: ApprovalSummaryMetric[] = [
+    {
+      id: 'pending',
+      label: 'Pending Decisions',
+      count: viewModels.length,
+      variant: 'blue',
+      tabTarget: 'PENDING',
+    },
+    {
+      id: 'leave',
+      label: 'Leave / OD',
+      count: viewModels.filter((v) => v.requestType === 'LEAVE' || v.requestType === 'ON_DUTY').length,
+      variant: 'purple',
+    },
+    {
+      id: 'total',
+      label: 'Total Queue',
+      count: viewModels.length,
+      variant: 'default',
+      tabTarget: 'ALL',
+    },
+  ];
+
   return (
-    <div className="space-y-6">
-      {/* Header Banner */}
-      <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-lg flex items-center justify-between">
-        <div>
-          <h2 className="text-base font-bold text-slate-100 flex items-center gap-2">
-            <CheckSquare className="w-5 h-5 text-indigo-400" />
-            Executive Approval Center
-          </h2>
-          <p className="text-xs text-slate-400 mt-0.5">
-            Role-based decision gate for Leave, OD, Budget, & Governance requests
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2">
-          {['ALL', 'LEAVE', 'OD', 'FACULTY', 'DEAN'].map((type) => (
-            <button
-              key={type}
-              onClick={() => setFilterType(type)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
-                filterType === type ? 'bg-indigo-600 text-white' : 'bg-slate-800 text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              {type}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Approval Items Table / Grid */}
-      {loading ? (
-        <div className="py-12 text-center text-xs text-slate-500">Loading pending approval queue...</div>
-      ) : requests.length === 0 ? (
-        <div className="bg-slate-900 border border-slate-800 rounded-xl p-8 text-center text-xs text-slate-500">
-          No pending approvals requiring your decision.
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {requests.map((req) => (
-            <div key={req.id} className="bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-md space-y-3">
-              <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-                <span className="text-xs font-bold text-slate-200">{req.requestType}</span>
-                <span className="px-2 py-0.5 text-[10px] font-bold bg-amber-500/20 text-amber-300 rounded border border-amber-500/30">
-                  {req.status}
-                </span>
-              </div>
-
-              <div className="text-xs text-slate-300 space-y-1">
-                <p><strong>Applicant:</strong> {req.studentName}</p>
-                <p><strong>Reason:</strong> {req.reason}</p>
-                <p className="text-[11px] text-slate-400"><strong>Submitted:</strong> {new Date(req.createdAt).toLocaleString()}</p>
-              </div>
-
-              <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-800">
-                <button
-                  onClick={() => handleAction(req.id, 'REJECT_WORKFLOW')}
-                  className="px-3 py-1.5 bg-rose-600/20 hover:bg-rose-600/30 text-rose-300 border border-rose-500/30 rounded-lg text-xs font-semibold flex items-center gap-1 transition-colors"
-                >
-                  <XCircle className="w-3.5 h-3.5" />
-                  Reject
-                </button>
-                <button
-                  onClick={() => handleAction(req.id, 'APPROVE_WORKFLOW')}
-                  className="px-3 py-1.5 bg-emerald-600 text-white hover:bg-emerald-500 rounded-lg text-xs font-semibold flex items-center gap-1 transition-colors shadow-md shadow-emerald-600/20"
-                >
-                  <CheckCircle className="w-3.5 h-3.5" />
-                  Approve
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
+    <ApprovalInbox
+      title="Executive Approval Center"
+      description="Role-based decision gate for Leave, OD, Budget, Governance & Policy requests"
+      metrics={metrics}
+      requests={viewModels}
+      loading={loading}
+      onRefresh={fetchApprovals}
+      onRequestClick={(req) => {}}
+      onQuickAction={handleAction}
+      isSubmittingAction={submittingAction}
+      activeTab={activeTab}
+      onTabChange={(t) => setActiveTab(t)}
+      requestTypeOptions={[
+        { value: 'LEAVE', label: 'Leave' },
+        { value: 'ON_DUTY', label: 'On-Duty' },
+        { value: 'GOVERNANCE', label: 'Governance' },
+      ]}
+      selectedType={selectedType}
+      onTypeChange={(t) => setSelectedType(t)}
+    />
   );
 };
+
+export default ApprovalCenter;

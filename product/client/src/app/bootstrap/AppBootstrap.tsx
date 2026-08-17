@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { isNativePlatform, setAppStatusBar, getNetworkStatus, initAndroidBackButton, listenAppLifecycle } from '../../platform';
+import { isNativePlatform, getNetworkStatus, initAndroidBackButton, listenAppLifecycle } from '../../platform';
 import { useAuth } from '../../context/AuthContext';
 import { AecCinematicLoader } from '../../components/common/AecCinematicLoader';
 import { useNavigate } from 'react-router-dom';
@@ -14,14 +14,14 @@ export const AppBootstrap: React.FC<{ children: React.ReactNode }> = ({ children
     let removeLifecycleHandler = () => {};
     async function bootstrap() {
       try {
-        // 1. Configure status bar theme
-        const isDark = document.documentElement.classList.contains('dark');
-        await setAppStatusBar(isDark);
+        // Status bar / system bar theming is owned by ThemeContext (SystemBars API) —
+        // do not duplicate it here, it previously raced with ThemeContext's call and
+        // caused a status-bar flash on native launch. See lib/capacitor-native.ts.
 
-        // 2. Check network status
+        // 1. Check network status
         await getNetworkStatus();
 
-        // 3. Register Android back button handling
+        // 2. Register Android back button handling
         if (isNativePlatform()) {
           removeBackHandler = initAndroidBackButton(
             () => navigate(-1),

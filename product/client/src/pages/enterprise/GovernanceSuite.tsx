@@ -11,10 +11,15 @@ import {
   CheckCircle,
   Clock,
   Sparkles,
+  Camera,
+  PenTool,
 } from 'lucide-react';
 import api from '../../lib/axios';
 import { toast } from '../../components/ui/Toast';
 import { Loading } from '../../components/ui/Loading';
+import { QrScannerModal } from '../../components/ui/QrScannerModal';
+import { SignaturePadModal } from '../../components/ui/SignaturePadModal';
+import { HapticsService } from '../../platform/haptics';
 
 export const GovernanceSuite: React.FC = () => {
   const [sopItems, setSopItems] = useState<any[]>([]);
@@ -25,6 +30,9 @@ export const GovernanceSuite: React.FC = () => {
   const [verificationResult, setVerificationResult] = useState<any>(null);
   const [aiQuery, setAiQuery] = useState('');
   const [aiResponse, setAiResponse] = useState<string | null>(null);
+  const [isQrModalOpen, setIsQrModalOpen] = useState(false);
+  const [isSignModalOpen, setIsSignModalOpen] = useState(false);
+  const [attachedSignature, setAttachedSignature] = useState<any>(null);
 
   const fetchSops = async () => {
     try {
@@ -168,9 +176,20 @@ export const GovernanceSuite: React.FC = () => {
           {activeTab === 'esign' && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="border bg-card p-5 rounded-2xl space-y-4">
-                <h4 className="text-xs font-extrabold uppercase text-muted-foreground flex items-center gap-2">
-                  <QrCode className="h-4 w-4 text-primary" /> Verify Document QR Code Token
-                </h4>
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs font-extrabold uppercase text-muted-foreground flex items-center gap-2">
+                    <QrCode className="h-4 w-4 text-primary" /> Verify Document QR Code Token
+                  </h4>
+                  <button
+                    type="button"
+                    onClick={() => setIsQrModalOpen(true)}
+                    className="flex items-center gap-1 rounded-xl bg-primary/10 px-3 py-1.5 text-xs font-bold text-primary transition hover:bg-primary/20"
+                  >
+                    <Camera className="h-3.5 w-3.5" />
+                    <span>Scan with Camera</span>
+                  </button>
+                </div>
+
                 <form onSubmit={handleVerifyQr} className="space-y-3">
                   <input
                     type="text"
@@ -202,13 +221,43 @@ export const GovernanceSuite: React.FC = () => {
                 )}
               </div>
 
-              <div className="border bg-card p-5 rounded-2xl space-y-3">
-                <h4 className="text-xs font-extrabold uppercase text-muted-foreground">Digital Signature Integrity Rules</h4>
-                <div className="space-y-2 text-xs text-muted-foreground leading-relaxed">
-                  <p>• Once signed by HOD, Dean, or Principal, the document hash is locked using SHA-256 encryption.</p>
-                  <p>• Digital signatures append a unique QR token usable for external tamper verification.</p>
-                  <p>• Any post-signature modification forces the document lifecycle state back to `DRAFT`.</p>
+              <div className="border bg-card p-5 rounded-2xl space-y-4">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs font-extrabold uppercase text-muted-foreground flex items-center gap-2">
+                    <PenTool className="h-4 w-4 text-indigo-500" /> Digital Touch Signature Endorsement
+                  </h4>
+                  <button
+                    type="button"
+                    onClick={() => setIsSignModalOpen(true)}
+                    className="flex items-center gap-1 rounded-xl bg-indigo-600 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-indigo-500"
+                  >
+                    <PenTool className="h-3.5 w-3.5" />
+                    <span>Sign Document</span>
+                  </button>
                 </div>
+
+                {attachedSignature ? (
+                  <div className="space-y-2 rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-4 text-xs">
+                    <div className="flex items-center gap-2 text-emerald-500 font-bold">
+                      <ShieldCheck className="h-4 w-4" />
+                      <span>Signature Attached & Cryptographically Stamped</span>
+                    </div>
+                    <img
+                      src={attachedSignature.dataUrl}
+                      alt="Digital Signature"
+                      className="h-16 rounded border bg-white p-1"
+                    />
+                    <p className="font-mono text-[10px] text-muted-foreground">
+                      SHA-256: {attachedSignature.sha256Hash}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-2 text-xs text-muted-foreground leading-relaxed">
+                    <p>• Once signed by HOD, Dean, or Principal, the document hash is locked using SHA-256 encryption.</p>
+                    <p>• Digital signatures append a unique QR token usable for external tamper verification.</p>
+                    <p>• Any post-signature modification forces the document lifecycle state back to `DRAFT`.</p>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -268,6 +317,30 @@ export const GovernanceSuite: React.FC = () => {
           )}
         </>
       )}
+
+      {/* QR Optical Scanner Modal */}
+      <QrScannerModal
+        isOpen={isQrModalOpen}
+        onClose={() => setIsQrModalOpen(false)}
+        onScan={(result) => {
+          setVerifyToken(result.token);
+          toast.success(`QR Token Scanned: ${result.token}`);
+        }}
+        title="Scan Document QR Code"
+        subtitle="Point camera at the cryptographic verification QR code on the certificate or circular."
+      />
+
+      {/* Touch Digital Signature Modal */}
+      <SignaturePadModal
+        isOpen={isSignModalOpen}
+        onClose={() => setIsSignModalOpen(false)}
+        onConfirm={(result) => {
+          setAttachedSignature(result);
+          toast.success('Digital signature attached with SHA-256 verification hash.');
+        }}
+        title="Executive Document E-Sign"
+        subtitle="Sign below to cryptographically endorse this institutional governance document."
+      />
     </div>
   );
 };

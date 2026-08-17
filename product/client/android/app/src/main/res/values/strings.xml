@@ -1,7 +1,12 @@
 <?xml version='1.0' encoding='utf-8'?>
+<!--
+  CampusOS Android String Resources
+  White-label defaults. Operators set VITE_APP_DISPLAY_NAME and VITE_APP_ID
+  before running `npm run build && npx cap sync android` to override these.
+-->
 <resources>
-    <string name="app_name">GEETORUS CAMPUSOS</string>
-    <string name="title_activity_main">GEETORUS CAMPUSOS</string>
-    <string name="package_name">com.geetorus.campusos</string>
-    <string name="custom_url_scheme">com.geetorus.campusos</string>
+    <string name="app_name">CampusOS</string>
+    <string name="title_activity_main">CampusOS</string>
+    <string name="package_name">com.campusos.app</string>
+    <string name="custom_url_scheme">com.campusos.app</string>
 </resources>

@@ -217,6 +217,8 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed }) => {
             const adminGroups = [
               { label: 'Overview', items: [
                 { name: 'Control centre', path: '/admin/dashboard', icon: LucideIcons.LayoutDashboard },
+                { name: 'Campus Workspace', path: '/workspace', icon: LucideIcons.Sparkles },
+                { name: 'Campus Drive', path: '/workspace/drive', icon: LucideIcons.HardDrive },
                 { name: 'System health', path: '/admin/dashboard', icon: LucideIcons.Activity },
               ]},
               { label: 'People', items: [
@@ -299,6 +301,8 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed }) => {
                   <div className="px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">HOD Workspace</div>
                   {[
                     { name: 'Dashboard', path: '/hod/dashboard', icon: LucideIcons.LayoutDashboard },
+                    { name: 'Campus Workspace', path: '/workspace', icon: LucideIcons.Sparkles },
+                    { name: 'Campus Drive', path: '/workspace/drive', icon: LucideIcons.HardDrive },
                     { name: 'Approvals', path: '/hod/leave-approvals', icon: LucideIcons.FileCheck, badge: pendingWfCount },
                     { name: 'Faculty & Availability', path: '/hod/faculty', icon: LucideIcons.UserCheck },
                     { name: 'Campus Office', path: '/office', icon: LucideIcons.Layers },
@@ -388,6 +392,8 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed }) => {
                   </div>
                   {[
                     { name: 'Dashboard', path: '/faculty/dashboard', icon: LucideIcons.LayoutDashboard },
+                    { name: 'Campus Workspace', path: '/workspace', icon: LucideIcons.Sparkles },
+                    { name: 'Campus Drive', path: '/workspace/drive', icon: LucideIcons.HardDrive },
                     { name: 'Cross-Dept Hub', path: '/faculty/hub', icon: LucideIcons.Sparkles },
                     { name: 'Campus Office', path: '/faculty/office', icon: LucideIcons.Layers },
                     { name: 'My Timetable', path: '/faculty/timetable', icon: LucideIcons.Clock },

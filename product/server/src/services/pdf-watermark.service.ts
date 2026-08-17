@@ -23,11 +23,14 @@ export class PdfWatermarkService {
     }
 
     const candidates = [
+      path.resolve(process.cwd(), 'assets/branding/institution-logo.png'),
+      path.resolve(process.cwd(), '../client/public/branding/institution-logo.png'),
+      path.resolve(process.cwd(), 'public/branding/institution-logo.png'),
+      path.resolve(__dirname, '../../assets/branding/institution-logo.png'),
+      path.resolve(__dirname, '../../../../client/public/branding/institution-logo.png'),
+      // Legacy path support — will be removed in a future cleanup
       path.resolve(process.cwd(), 'assets/branding/al-ameen-logo.png'),
       path.resolve(process.cwd(), '../client/public/branding/al-ameen-logo.png'),
-      path.resolve(process.cwd(), 'public/branding/al-ameen-logo.png'),
-      path.resolve(__dirname, '../../assets/branding/al-ameen-logo.png'),
-      path.resolve(__dirname, '../../../../client/public/branding/al-ameen-logo.png'),
       path.resolve(process.cwd(), 'assets/branding/vv.png'),
       path.resolve(process.cwd(), '../client/public/branding/vv.png'),
     ];
@@ -70,19 +73,19 @@ export class PdfWatermarkService {
       const map = Object.fromEntries(settings.map((s) => [s.key, s.value]));
 
       return {
-        collegeName: map['COLLEGE_NAME'] || 'Al-Ameen Engineering College',
+        collegeName: map['COLLEGE_NAME'] || 'CampusOS Institution',
         watermarkEnabled: map['WATERMARK_ENABLED'] !== 'false',
         opacity: (parseFloat(map['WATERMARK_OPACITY'] || '4') || 4) / 100,
         position: (map['WATERMARK_POSITION'] as any) || 'CENTER',
-        logoUrl: map['WATERMARK_LOGO_URL'] || '/branding/al-ameen-logo.png',
+        logoUrl: map['WATERMARK_LOGO_URL'] || '/branding/institution-logo.png',
       };
     } catch {
       return {
-        collegeName: 'Al-Ameen Engineering College',
+        collegeName: 'CampusOS Institution',
         watermarkEnabled: true,
         opacity: 0.04,
         position: 'CENTER',
-        logoUrl: '/branding/al-ameen-logo.png',
+        logoUrl: '/branding/institution-logo.png',
       };
     }
   }

@@ -11,18 +11,18 @@ export const watermarkPresets: Record<WatermarkPreset, WatermarkPresetConfig> = 
     dark: 0.02,
   },
   standard: {
-    light: 0.045,
-    dark: 0.035,
+    light: 0.04,
+    dark: 0.025,
   },
   visible: {
-    light: 0.065,
-    dark: 0.05,
+    light: 0.055,
+    dark: 0.04,
   },
 };
 
 export const watermarkConfig = {
   enabled: true,
-  logo: '/branding/al-ameen-logo.png',
+  logo: '/branding/official-logo.png',
   defaultPreset: 'standard' as WatermarkPreset,
   hideRoutes: [
     '/login',
@@ -30,6 +30,9 @@ export const watermarkConfig = {
     '/verify-otp',
     '/reset-password',
     '/public',
+    '/scanner',
+    '/camera',
+    '/biometric',
   ],
   responsiveSizes: {
     mobile: {

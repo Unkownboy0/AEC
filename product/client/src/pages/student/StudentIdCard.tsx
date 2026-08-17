@@ -3,8 +3,13 @@ import { CreditCard, Download, Printer } from 'lucide-react';
 import { toast } from '../../components/ui/Toast';
 import { Loading } from '../../components/ui/Loading';
 import api from '../../lib/axios';
+import { saveBlobAndOpen } from '../../platform/download';
+import { resolveAssetUrl } from '../../utils/assets';
+
+import { useAuth } from '../../context/AuthContext';
 
 export const StudentIdCard: React.FC = () => {
+  const { user } = useAuth();
   const [studentInfo, setStudentInfo] = useState<any>(null);
   const [cardData, setCardData] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -13,14 +18,18 @@ export const StudentIdCard: React.FC = () => {
     const fetchInfo = async () => {
       try {
         setIsLoading(true);
-        const res = await api.get('/enterprise/students');
-        if (res.data?.status === 'success' && res.data.data?.length > 0) {
-          const student = res.data.data[0];
+        // Canonical user profile fetch
+        const res = await api.get('/auth/me');
+        const userData = res.data?.data?.user || res.data?.user || user;
+        const student = userData?.student || userData;
+        
+        if (student) {
           setStudentInfo(student);
-          
-          const cardRes = await api.get(`/enterprise/id-card/student/${student.id}`);
-          if (cardRes.data?.status === 'success') {
-            setCardData(cardRes.data.data);
+          if (student.id) {
+            const cardRes = await api.get(`/enterprise/id-card/student/${student.id}`).catch(() => null);
+            if (cardRes?.data?.status === 'success') {
+              setCardData(cardRes.data.data);
+            }
           }
         }
       } catch (err) {
@@ -31,28 +40,28 @@ export const StudentIdCard: React.FC = () => {
       }
     };
     fetchInfo();
-  }, []);
+  }, [user]);
 
   const handleDownload = async () => {
+    const targetId = studentInfo?.id || 'me';
+    let blob: Blob;
     try {
-      const targetId = studentInfo?.id || 'me';
-      let res;
+      const res = await api.get(`/enterprise/students/${targetId}/id-card/pdf`, { responseType: 'blob' });
+      blob = res.data;
+    } catch (_) {
       try {
-        res = await api.get(`/enterprise/students/${targetId}/id-card/pdf`, { responseType: 'blob' });
-      } catch (_) {
-        res = await api.get(`/enterprise/id-cards/student/${targetId}`, { responseType: 'blob' });
+        const res = await api.get(`/enterprise/id-cards/student/${targetId}`, { responseType: 'blob' });
+        blob = res.data;
+      } catch {
+        toast.error('Unable to download file.');
+        return;
       }
-      const blob = new Blob([res.data], { type: 'application/pdf' });
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', `${studentInfo?.firstName || 'Student'}_IDCard.pdf`);
-      document.body.appendChild(link);
-      link.click();
-      link.parentNode?.removeChild(link);
+    }
+    const result = await saveBlobAndOpen(blob, `${studentInfo?.firstName || 'Student'}_IDCard.pdf`);
+    if (result.success) {
       toast.success('ID Card PDF downloaded successfully.');
-    } catch {
-      toast.error('Download failed.');
+    } else {
+      toast.error(result.error || 'Unable to download file.');
     }
   };
 
@@ -64,7 +73,8 @@ export const StudentIdCard: React.FC = () => {
   const bloodGroup = cardData?.bloodGroup || studentInfo?.bloodGroup || 'O+';
   const validity = cardData?.year ? `Validity: ${cardData.year}` : `Validity: 2026 - 2030`;
   
-  const studentPhoto = cardData?.photo || studentInfo?.user?.profilePhoto || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=200";
+  const rawPhoto = cardData?.photo || studentInfo?.user?.profilePhoto || user?.profilePhoto;
+  const studentPhoto = rawPhoto ? resolveAssetUrl(rawPhoto) : '';
   const verificationUrl = `${window.location.origin}/verify/${cardData?.qrCodeToken || ''}`;
   const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(verificationUrl)}`;
   const barcodeUrl = `https://bwipjs-api.metafloor.com/?bcid=code128&text=${encodeURIComponent(regNo)}&scale=2&rotate=N&includetext=false`;
@@ -109,8 +119,17 @@ export const StudentIdCard: React.FC = () => {
             </div>
 
             <div className="flex justify-center z-10">
-              <div className="h-28 w-24 rounded-lg overflow-hidden border-2 border-indigo-100 shadow-md">
-                <img src={studentPhoto} className="h-full w-full object-cover" alt="Student Front" />
+              <div className="h-28 w-24 rounded-lg overflow-hidden border-2 border-indigo-100 shadow-md bg-indigo-600 flex items-center justify-center text-white font-black text-2xl">
+                {studentPhoto ? (
+                  <img
+                    src={studentPhoto}
+                    className="h-full w-full object-cover"
+                    alt="Student Front"
+                    onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                  />
+                ) : (
+                  <span>{fullName.slice(0, 2).toUpperCase()}</span>
+                )}
               </div>
             </div>
 

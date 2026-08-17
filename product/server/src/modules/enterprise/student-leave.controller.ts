@@ -36,7 +36,8 @@ export class StudentLeaveController {
   async getRequestDetails(req: Request, res: Response, next: NextFunction) {
     try {
       const { id } = req.params;
-      const details = await service.getRequestDetails(id);
+      const userId = (req as any).user.id;
+      const details = await service.getRequestDetails(id, userId);
       res.status(200).json({ status: 'success', data: details });
     } catch (err) {
       next(err);

@@ -10,6 +10,7 @@ import {
 import { toast } from '../ui/Toast';
 import api from '../../lib/axios';
 import { CredentialSuccessModal, CredentialPayload } from '../shared/CredentialSuccessModal';
+import { saveBlobAndOpen } from '../../platform/download';
 
 type IamModal =
   | 'VIEW_PROFILE' | 'EDIT_PROFILE' | 'RESET_PASSWORD' | 'CHANGE_PASSWORD'
@@ -163,15 +164,13 @@ export const EnterpriseUserDirectory: React.FC<EnterpriseUserDirectoryProps> = (
     } finally { setBulkBusy(false); }
   };
 
-  const downloadImportTemplate = () => {
+  const downloadImportTemplate = async () => {
     const headers = ['profileType','email','firstName','lastName','roleName','username','phone','status','departmentCode','programCode','courseCode','academicYear','semesterNumber','sectionName','registerNumber','employeeId','dob','dateOfAdmission','dateOfJoining','gender','parentName','parentPhone','currentAddress','permanentAddress','designation','qualification','experience','workspaceRoles'];
     const blob = new Blob([`${headers.join(',')}\n`], { type: 'text/csv;charset=utf-8' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob); link.download = 'campusos-user-import-template.csv'; link.click();
-    URL.revokeObjectURL(link.href);
+    await saveBlobAndOpen(blob, 'CampusOS_User_Import_Template.csv', 'text/csv');
   };
 
-  const downloadImportReport = () => {
+  const downloadImportReport = async () => {
     if (!bulkResult) return;
     const escape = (value: unknown) => `"${String(value ?? '').replace(/"/g, '""')}"`;
     const rows = [
@@ -180,9 +179,7 @@ export const EnterpriseUserDirectory: React.FC<EnterpriseUserDirectoryProps> = (
       ...(bulkResult.failures || []).map((item: any) => [item.rowNumber,'FAILED',item.email || '','','',(item.errors || []).join('; ')]),
     ];
     const blob = new Blob([rows.map((row: unknown[]) => row.map(escape).join(',')).join('\n')], { type: 'text/csv;charset=utf-8' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob); link.download = 'campusos-provisioning-report.csv'; link.click();
-    URL.revokeObjectURL(link.href);
+    await saveBlobAndOpen(blob, 'CampusOS_Provisioning_Report.csv', 'text/csv');
   };
 
   // Create User Form State
@@ -482,7 +479,7 @@ export const EnterpriseUserDirectory: React.FC<EnterpriseUserDirectoryProps> = (
   };
 
   // Export Bulk Credential CSV
-  const handleExportBulkCSV = () => {
+  const handleExportBulkCSV = async () => {
     const escapeCSV = (val: any) => `"${String(val || '').replace(/"/g, '""')}"`;
     const headers = ['User ID', 'Full Name', 'Username', 'Email', 'Role', 'Department', 'Register / Employee ID', 'Status', 'Created Date'];
     const rows = filteredUsers.map(u => [
@@ -499,12 +496,13 @@ export const EnterpriseUserDirectory: React.FC<EnterpriseUserDirectoryProps> = (
 
     const csvContent = '\uFEFF' + [headers.map(escapeCSV).join(','), ...rows].join('\r\n');
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `Enterprise_User_Directory_${Date.now()}.csv`;
-    link.click();
-    toast.success('Enterprise User Directory exported to CSV.');
+    const filename = `CampusOS_User_Directory_${Date.now()}.csv`;
+    const res = await saveBlobAndOpen(blob, filename, 'text/csv');
+    if (res.success) {
+      toast.success('Enterprise User Directory exported to CSV.');
+    } else {
+      toast.error(res.error || 'Export failed.');
+    }
   };
 
   const directoryStats = stats || {

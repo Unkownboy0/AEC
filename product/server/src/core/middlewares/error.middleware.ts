@@ -2,12 +2,14 @@ import { Request, Response, NextFunction } from 'express';
 import { HttpException } from '../../utils/exceptions';
 import { logger } from '../../utils/logger';
 import { ZodError } from 'zod';
+import crypto from 'crypto';
 
 export const errorHandler = (
   error: Error,
   req: Request,
   res: Response,
-  next: NextFunction
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _next: NextFunction
 ) => {
   let status = 500;
   let message = 'Internal Server Error';
@@ -25,7 +27,6 @@ export const errorHandler = (
       message: err.message,
     }));
   } else if (error.name === 'PrismaClientKnownRequestError') {
-    // Handling standard Prisma errors
     const prismaError = error as any;
     if (prismaError.code === 'P2002') {
       status = 409;
@@ -34,19 +35,53 @@ export const errorHandler = (
       status = 404;
       message = 'Resource not found';
     }
+  } else if (error.message?.startsWith('FORBIDDEN:')) {
+    // Catch service-layer authorization errors (e.g. workflow bypass guard)
+    status = 403;
+    message = error.message.replace('FORBIDDEN: ', '');
   }
 
-  // Log error
+  // Generate a traceable Error ID for every 5xx response.
+  // The errorId is logged server-side with full stack so support can investigate.
+  // Only the errorId (never the stack) is returned to the client.
+  const requestId = (req as any).requestId as string | undefined;
+
   if (status >= 500) {
-    logger.error(`${req.method} ${req.url} - Status: ${status} - Error:`, error);
-  } else {
-    logger.warn(`${req.method} ${req.url} - Status: ${status} - Message: ${message}`);
+    const errorId = crypto.randomUUID();
+    logger.error({
+      errorId,
+      requestId,
+      method: req.method,
+      url: req.url,
+      status,
+      message: error.message,
+      stack: error.stack,
+    });
+
+    res.status(status).json({
+      status: 'error',
+      statusCode: status,
+      message: 'An unexpected error occurred. Please contact support if this persists.',
+      errorId,
+      ...(requestId ? { requestId } : {}),
+    });
+    return;
   }
+
+  // 4xx: log a warning but no errorId needed (client-visible errors are not internal failures)
+  logger.warn({
+    requestId,
+    method: req.method,
+    url: req.url,
+    status,
+    message,
+  });
 
   res.status(status).json({
     status: 'error',
     statusCode: status,
     message,
     errors,
+    ...(requestId ? { requestId } : {}),
   });
 };

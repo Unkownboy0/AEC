@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Megaphone, Plus, CheckCircle2, ShieldAlert, FileText, Send, Eye, Users } from 'lucide-react';
 import { ActorAttributionLabel } from '../delegation/ActorAttributionLabel';
+import { apiGet, apiPost } from '../../shared/api/api-client';
 
 export const CircularCenter: React.FC = () => {
   const [circulars, setCirculars] = useState<any[]>([]);
@@ -19,12 +20,11 @@ export const CircularCenter: React.FC = () => {
 
   const fetchCirculars = async () => {
     try {
-      const res = await fetch('/api/circulars', {
-        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
-      });
-      if (res.ok) {
-        const json = await res.json();
-        if (json.success) setCirculars(json.data || []);
+      const json = await apiGet<any>('/circulars');
+      if (Array.isArray(json)) {
+        setCirculars(json);
+      } else if (json?.data) {
+        setCirculars(json.data || []);
       }
     } catch (err) {
       console.error('Failed to fetch circulars:', err);
@@ -41,28 +41,19 @@ export const CircularCenter: React.FC = () => {
     e.preventDefault();
     setSubmitting(true);
     try {
-      const res = await fetch('/api/circulars', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${localStorage.getItem('token')}`
-        },
-        body: JSON.stringify({
-          title,
-          category,
-          priority,
-          content,
-          broadcastLevel,
-          isEmergency,
-          acknowledgementRequired
-        })
+      await apiPost('/circulars', {
+        title,
+        category,
+        priority,
+        content,
+        broadcastLevel,
+        isEmergency,
+        acknowledgementRequired
       });
-      if (res.ok) {
-        setIsModalOpen(false);
-        setTitle('');
-        setContent('');
-        fetchCirculars();
-      }
+      setIsModalOpen(false);
+      setTitle('');
+      setContent('');
+      fetchCirculars();
     } catch (err) {
       console.error('Failed to publish circular:', err);
     } finally {
@@ -72,11 +63,8 @@ export const CircularCenter: React.FC = () => {
 
   const handleAcknowledge = async (id: string) => {
     try {
-      const res = await fetch(`/api/circulars/${id}/acknowledge`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
-      });
-      if (res.ok) fetchCirculars();
+      await apiPost(`/circulars/${id}/acknowledge`);
+      fetchCirculars();
     } catch (err) {
       console.error('Failed to acknowledge circular:', err);
     }

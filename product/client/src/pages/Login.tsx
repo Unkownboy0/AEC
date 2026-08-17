@@ -7,9 +7,13 @@ import { useAuth } from '../context/AuthContext';
 import { Input } from '../components/ui/Input';
 import { Button } from '../components/ui/Button';
 import { toast } from '../components/ui/Toast';
-import { GraduationCap, Eye, EyeOff } from 'lucide-react';
+import { GraduationCap, Eye, EyeOff, Wifi, Server, CheckCircle2, AlertCircle } from 'lucide-react';
 import api from '../lib/axios';
+import { API_BASE_URL } from '../config/api-config';
+import { Capacitor } from '@capacitor/core';
 import { getRoleHome } from '../navigation/role-home';
+import { useInstitution } from '../context/InstitutionContext';
+import { consumePendingDeepLink } from '../platform/pending-deep-link';
 
 const loginSchema = z.object({
   email: z.string().min(1, 'Email, Username, or ID is required'),
@@ -25,6 +29,39 @@ const Login: React.FC = () => {
   const location = useLocation();
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const { collegeName } = useInstitution();
+
+  const [loginError, setLoginError] = useState<string | null>(null);
+  const [serverStatus, setServerStatus] = useState<'checking' | 'connected' | 'error' | 'idle'>('idle');
+  const [serverPingLatency, setServerPingLatency] = useState<number | null>(null);
+  const [showServerConfig, setShowServerConfig] = useState(false);
+  const [customServerIp, setCustomServerIp] = useState(() => {
+    return typeof window !== 'undefined' ? (localStorage.getItem('campusos_api_lan_ip') || '') : '';
+  });
+
+  // Check server health on mount for mobile
+  useEffect(() => {
+    let isMounted = true;
+    const testHealth = async () => {
+      setServerStatus('checking');
+      const start = Date.now();
+      try {
+        const res = await api.get('/health', { timeout: 4000 });
+        if (isMounted) {
+          if (res.status === 200 || res.data?.status === 'success' || res.data?.status === 'healthy') {
+            setServerStatus('connected');
+            setServerPingLatency(Date.now() - start);
+          } else {
+            setServerStatus('error');
+          }
+        }
+      } catch (e) {
+        if (isMounted) setServerStatus('error');
+      }
+    };
+    testHealth();
+    return () => { isMounted = false; };
+  }, []);
 
   const {
     register,
@@ -56,21 +93,28 @@ const Login: React.FC = () => {
 
   const onSubmit = async (data: LoginFormValues) => {
     setIsLoading(true);
+    setLoginError(null);
     try {
       const response = await api.post('/auth/login', data);
 
       if (response.data?.status === 'success') {
         const { accessToken, refreshToken, user } = response.data.data;
-        authLogin(accessToken, refreshToken, user);
+        await authLogin(accessToken, refreshToken, user);
         toast.success(`Logged in as ${user.role}`, `Welcome, ${user.firstName}!`);
 
+        // Priority: (1) cold-launch notification deep link, (2) router guard redirect, (3) role home
+        const pendingDeepLink = consumePendingDeepLink();
         const requestedPath = (location.state as any)?.from?.pathname;
-        const from = requestedPath && requestedPath !== '/404' ? requestedPath : getRoleHome(user);
+        const from = pendingDeepLink
+          || (requestedPath && requestedPath !== '/404' ? requestedPath : null)
+          || getRoleHome(user);
         navigate(from, { replace: true });
       }
     } catch (err: any) {
-      console.warn('[Login] Authentication error:', err);
-      toast.error(err.response?.data?.message || err.message || 'Check email or password', 'Authentication Failed');
+      const msg = err.response?.data?.message || err.message || 'Check email or password';
+      console.error('[Login] Authentication error:', err);
+      setLoginError(msg);
+      toast.error(msg, 'Authentication Failed');
     } finally {
       setIsLoading(false);
     }
@@ -88,15 +132,21 @@ const Login: React.FC = () => {
               <GraduationCap className="h-6 w-6" />
             </div>
             <h2 className="text-xl font-bold tracking-tight text-neutral-900 dark:text-neutral-50">
-              GEETORUS CAMPUSOS
+              {collegeName}
             </h2>
             <p className="mt-1.5 text-xs text-neutral-500 dark:text-neutral-400">
               Enter your credentials to access the portal
             </p>
           </div>
 
+          {loginError && (
+            <div className="mt-4 p-3 rounded-lg bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 text-xs font-medium">
+              {loginError}
+            </div>
+          )}
+
           {/* Form */}
-          <form onSubmit={handleSubmit(onSubmit)} className="mt-8 space-y-5">
+          <form onSubmit={handleSubmit(onSubmit)} className="mt-6 space-y-5">
             <Input
               label="Email, Username, or ID"
               type="text"
@@ -146,6 +196,93 @@ const Login: React.FC = () => {
             </Button>
           </form>
 
+          {/* Legal links — required for App Store */}
+          <div className="mt-6 pt-4 border-t border-border/50 flex items-center justify-center gap-4">
+            <Link to="/privacy-policy" className="text-[10px] text-muted-foreground hover:text-foreground transition-colors">
+              Privacy Policy
+            </Link>
+            <span className="text-muted-foreground/30 text-[10px]">·</span>
+            <Link to="/terms" className="text-[10px] text-muted-foreground hover:text-foreground transition-colors">
+              Terms of Service
+            </Link>
+          </div>
+
+        </div>
+
+        {/* Mobile Server Connection Diagnostics */}
+        <div className="bg-white/60 dark:bg-[#0c0c0e]/60 backdrop-blur border border-neutral-200/60 dark:border-neutral-800/60 rounded-xl p-3 text-xs">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className={`h-2 w-2 rounded-full ${
+                serverStatus === 'connected' ? 'bg-emerald-500 animate-pulse' :
+                serverStatus === 'checking' ? 'bg-amber-500 animate-ping' :
+                serverStatus === 'error' ? 'bg-rose-500' : 'bg-neutral-400'
+              }`} />
+              <span className="text-[11px] font-medium text-neutral-600 dark:text-neutral-300">
+                Server: {serverStatus === 'connected' ? `Connected (${serverPingLatency}ms)` : serverStatus === 'checking' ? 'Checking connection...' : 'Offline / Unreachable'}
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowServerConfig(!showServerConfig)}
+              className="text-[10px] text-primary font-semibold hover:underline"
+            >
+              {showServerConfig ? 'Hide Settings' : 'Configure IP'}
+            </button>
+          </div>
+
+          <div className="mt-1 text-[10px] text-neutral-400 font-mono truncate">
+            {API_BASE_URL || 'http://192.168.2.160:5000/api'}
+          </div>
+
+          {showServerConfig && (
+            <div className="mt-3 pt-3 border-t border-neutral-200/50 dark:border-neutral-800/50 space-y-2">
+              <p className="text-[10px] text-neutral-500">
+                If connecting to PC over Wi-Fi, enter your PC's IP (e.g. <code>192.168.2.160</code> or <code>localhost</code> for USB reverse):
+              </p>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  placeholder="192.168.2.160 or localhost"
+                  value={customServerIp}
+                  onChange={(e) => setCustomServerIp(e.target.value)}
+                  className="flex-1 px-2.5 py-1 text-xs rounded border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-neutral-800 dark:text-neutral-200"
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    localStorage.setItem('campusos_api_lan_ip', customServerIp.trim());
+                    window.location.reload();
+                  }}
+                  className="px-3 py-1 bg-primary text-primary-foreground text-xs font-semibold rounded hover:opacity-90"
+                >
+                  Save & Reload
+                </button>
+              </div>
+              <div className="flex flex-wrap gap-1.5 pt-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    localStorage.setItem('campusos_api_lan_ip', '192.168.2.160');
+                    window.location.reload();
+                  }}
+                  className="px-2 py-0.5 bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 rounded text-[10px]"
+                >
+                  Wi-Fi (192.168.2.160)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    localStorage.setItem('campusos_api_lan_ip', 'localhost');
+                    window.location.reload();
+                  }}
+                  className="px-2 py-0.5 bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 rounded text-[10px]"
+                >
+                  USB Cable (localhost)
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

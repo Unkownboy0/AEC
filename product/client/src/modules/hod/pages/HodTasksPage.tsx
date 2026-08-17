@@ -9,6 +9,7 @@ import { Modal } from '../../../design-system/components/Modal';
 import { pageVariants } from '../../../design-system/tokens/motion';
 import api from '../../../lib/axios';
 import { toast } from '../../../components/ui/Toast';
+import { VoiceNoteRecorder } from '../../../components/ui/VoiceNoteRecorder';
 
 export const HodTasksPage: React.FC = () => {
   const [summary, setSummary] = useState<any>(null);
@@ -505,8 +506,8 @@ export const HodTasksPage: React.FC = () => {
             onChange={(e) => setInputNote(e.target.value)}
           />
 
-          {/* File Attachment Area */}
-          <div className="space-y-2">
+          {/* File & Voice Note Attachment Area */}
+          <div className="space-y-3">
             <input
               type="file"
               ref={fileInputRef}
@@ -514,31 +515,42 @@ export const HodTasksPage: React.FC = () => {
               className="hidden"
             />
 
-            {attachedFile ? (
-              <div className="flex items-center justify-between p-2.5 bg-primary/10 rounded-xl border border-primary/20 text-xs">
-                <span className="flex items-center gap-2 font-semibold text-primary">
-                  <FileText className="h-4 w-4" />
-                  {attachedFile.name}
-                </span>
+            <div className="flex flex-wrap items-center gap-2">
+              {attachedFile ? (
+                <div className="flex items-center justify-between p-2.5 bg-primary/10 rounded-xl border border-primary/20 text-xs flex-1">
+                  <span className="flex items-center gap-2 font-semibold text-primary">
+                    <FileText className="h-4 w-4" />
+                    {attachedFile.name}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setAttachedFile(null)}
+                    className="p-1 text-muted-foreground hover:text-foreground cursor-pointer"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              ) : (
                 <button
                   type="button"
-                  onClick={() => setAttachedFile(null)}
-                  className="p-1 text-muted-foreground hover:text-foreground cursor-pointer"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isUploading}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-border bg-muted/40 hover:bg-muted text-xs font-semibold text-foreground transition-colors cursor-pointer"
                 >
-                  <X className="h-3.5 w-3.5" />
+                  <Paperclip className="h-3.5 w-3.5 text-primary" />
+                  {isUploading ? 'Uploading Attachment...' : 'Add Attachment File'}
                 </button>
-              </div>
-            ) : (
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={isUploading}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-border bg-muted/40 hover:bg-muted text-xs font-semibold text-foreground transition-colors cursor-pointer"
-              >
-                <Paperclip className="h-3.5 w-3.5 text-primary" />
-                {isUploading ? 'Uploading Attachment...' : 'Add Attachment File'}
-              </button>
-            )}
+              )}
+            </div>
+
+            {/* Mobile / Web Native Voice Note Attachment */}
+            <VoiceNoteRecorder
+              onRecordingComplete={(rec) => {
+                toast.success(`Voice note (${Math.round(rec.durationMs / 1000)}s) attached to task note.`);
+                setInputNote((prev) => `${prev ? prev + '\n' : ''}[Voice Note attached: ${Math.round(rec.durationMs / 1000)}s]`);
+              }}
+              label="Attach Voice Note / Audio Explanation"
+            />
           </div>
 
           <div className="flex justify-end gap-2 pt-2 border-t border-border">

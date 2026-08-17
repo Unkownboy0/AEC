@@ -3,6 +3,7 @@ import { prisma } from '../../lib/prisma';
 import { BadRequestException } from '../../utils/exceptions';
 import { getOdMinAdvanceDays } from '../../utils/leavePolicy';
 import { SettingsService } from './settings.service';
+import { FeatureFlags } from '../../core/feature-flags';
 
 export class SettingsController {
   private service = new SettingsService();
@@ -61,14 +62,14 @@ export class SettingsController {
       res.status(200).json({
         status: 'success',
         data: {
-          collegeName: map['COLLEGE_NAME'] || 'Al-Ameen Engineering College',
-          collegeAddress: map['COLLEGE_ADDRESS'] || 'Karungalpalayam, Erode, Tamil Nadu 638104',
-          collegePhone: map['COLLEGE_PHONE'] || '+91 424 2500354',
-          collegeWebsite: map['COLLEGE_WEBSITE'] || 'https://alameen.ac.in',
+          collegeName: map['COLLEGE_NAME'] || 'CampusOS Institution',
+          collegeAddress: map['COLLEGE_ADDRESS'] || '',
+          collegePhone: map['COLLEGE_PHONE'] || '',
+          collegeWebsite: map['COLLEGE_WEBSITE'] || '',
           brandColor: map['BRAND_COLOR'] || '#4f46e5',
           watermark: {
             enabled: map['WATERMARK_ENABLED'] !== 'false',
-            logoUrl: map['WATERMARK_LOGO_URL'] || '/branding/al-ameen-logo.png',
+            logoUrl: map['WATERMARK_LOGO_URL'] || '/branding/institution-logo.png',
             opacity: parseInt(map['WATERMARK_OPACITY'] || '4', 10),
             position: map['WATERMARK_POSITION'] || 'CENTER',
             applyPdf: map['WATERMARK_APPLY_PDF'] !== 'false',
@@ -111,6 +112,8 @@ export class SettingsController {
   update = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const result = await this.service.update(req.body?.changes ?? req.body, req.user!, { ip: req.ip, userAgent: req.headers['user-agent'] });
+      // Invalidate feature flag cache so MODULE_ changes propagate immediately
+      FeatureFlags.invalidate();
       res.status(200).json({ status: 'success', data: result });
     } catch (error) {
       next(error);
@@ -164,6 +167,30 @@ export class SettingsController {
       res.status(200).json({
         status: 'success',
         data: { isOffline, status: isOffline ? 'OFFLINE' : 'ONLINE' },
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * Get effective mobile device capabilities for the current user and global settings
+   */
+  getDeviceCapabilities = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { DevicePolicyService } = await import('./device-policy.service');
+      const userRole = (req as any).user?.role?.roleCode || (req as any).user?.roleCode || (req as any).user?.role || null;
+      const [globalFlags, effectivePolicy] = await Promise.all([
+        DevicePolicyService.getGlobalSettings(),
+        DevicePolicyService.resolvePolicyForUser(userRole),
+      ]);
+      res.status(200).json({
+        status: 'success',
+        data: {
+          globalFlags,
+          effectivePolicy,
+          userRole,
+        },
       });
     } catch (error) {
       next(error);

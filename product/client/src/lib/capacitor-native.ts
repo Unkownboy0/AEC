@@ -1,6 +1,5 @@
 import { Capacitor } from '@capacitor/core';
 import { PushNotifications } from '@capacitor/push-notifications';
-import { StatusBar, Style } from '@capacitor/status-bar';
 import { SplashScreen } from '@capacitor/splash-screen';
 import { Network } from '@capacitor/network';
 import { Preferences } from '@capacitor/preferences';
@@ -16,14 +15,19 @@ export class CapacitorNativeService {
   }
 
   /**
-   * Initializes native app UI (Status bar, splash screen)
+   * Initializes native app UI (splash screen only).
+   *
+   * Status bar / system bar styling is intentionally NOT handled here — it is
+   * owned exclusively by ThemeContext's applyNativeStatusBar(), which reacts to
+   * the actual resolved theme via the modern SystemBars API. Having a second,
+   * hardcoded status-bar call here caused a boot-time flicker (this call used to
+   * force a dark bar regardless of theme, briefly overriding ThemeContext's
+   * correct value on every native launch).
    */
   public static async initNativeAppUI(): Promise<void> {
     if (!this.isNative()) return;
 
     try {
-      await StatusBar.setStyle({ style: Style.Dark });
-      await StatusBar.setBackgroundColor({ color: '#020617' });
       await SplashScreen.hide();
     } catch (err) {
       console.warn('Native UI initialization warning:', err);
@@ -50,7 +54,8 @@ export class CapacitorNativeService {
         await PushNotifications.register();
 
         await PushNotifications.addListener('registration', (token) => {
-          console.log('Push Registration Token:', token.value);
+          // SECURITY: never log full FCM token — masked prefix only
+          console.log('[Push] FCM registration OK (token masked for security)');
           if (onTokenReceived) onTokenReceived(token.value);
         });
 
@@ -95,11 +100,12 @@ export class CapacitorNativeService {
   }
 
   /**
-   * Secure Native Storage methods (using Preferences)
+   * Secure Native Storage methods (using Android Keystore / iOS Keychain via CampusOSSecureStorage)
    */
   public static async setSecureItem(key: string, value: string): Promise<void> {
     if (this.isNative()) {
-      await Preferences.set({ key, value });
+      const { CampusOSSecureStorage } = await import('../platform/native-secure-storage');
+      await CampusOSSecureStorage.set({ key, value });
     } else {
       localStorage.setItem(key, value);
     }
@@ -107,15 +113,23 @@ export class CapacitorNativeService {
 
   public static async getSecureItem(key: string): Promise<string | null> {
     if (this.isNative()) {
-      const { value } = await Preferences.get({ key });
-      return value;
+      try {
+        const { CampusOSSecureStorage } = await import('../platform/native-secure-storage');
+        const { value } = await CampusOSSecureStorage.get({ key });
+        return value;
+      } catch {
+        return null;
+      }
     }
     return localStorage.getItem(key);
   }
 
   public static async removeSecureItem(key: string): Promise<void> {
     if (this.isNative()) {
-      await Preferences.remove({ key });
+      try {
+        const { CampusOSSecureStorage } = await import('../platform/native-secure-storage');
+        await CampusOSSecureStorage.remove({ key });
+      } catch {}
     } else {
       localStorage.removeItem(key);
     }

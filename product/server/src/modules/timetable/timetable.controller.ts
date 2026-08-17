@@ -15,7 +15,16 @@ export class TimetableController {
 
   listSlots = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const data = await this.service.listSlots(req.query);
+      const data = await this.service.listSlots(req.query, (req as any).user);
+      res.status(200).json({ status: 'success', data });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  getAffectedSessions = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const data = await this.service.getAffectedSessions(req.query, (req as any).user);
       res.status(200).json({ status: 'success', data });
     } catch (error) {
       next(error);

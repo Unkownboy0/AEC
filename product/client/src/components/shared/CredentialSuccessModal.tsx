@@ -38,7 +38,7 @@ export const CredentialSuccessModal: React.FC<CredentialSuccessModalProps> = ({
   };
 
   const copyBoth = () => {
-    const combined = `GEETORUS CAMPUSOS CREDENTIALS\nName: ${credentials.fullName}\nRole: ${credentials.role}\nUsername: ${credentials.username}\nPassword: ${credentials.temporaryPassword}`;
+    const combined = `CAMPUSOS CREDENTIALS\nName: ${credentials.fullName}\nRole: ${credentials.role}\nUsername: ${credentials.username}\nPassword: ${credentials.temporaryPassword}`;
     navigator.clipboard.writeText(combined);
     setCopiedField('Both');
     toast.success('Username & Password copied to clipboard!');

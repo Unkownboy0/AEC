@@ -3,6 +3,7 @@ import { Clock, Calendar, MapPin, User, Download, ShieldCheck, CheckCircle2, Ale
 import { toast } from '../../components/ui/Toast';
 import { Loading } from '../../components/ui/Loading';
 import api from '../../lib/axios';
+import { saveBlobAndOpen } from '../../platform/download';
 
 interface Slot {
   dayOfWeek: string;
@@ -24,6 +25,7 @@ export const StudentTimetable: React.FC = () => {
   const [selectedSlot, setSelectedSlot] = useState<Slot | null>(null);
   const [viewMode, setViewMode] = useState<'weekly' | 'daily'>('daily');
   const [isLoading, setIsLoading] = useState(true);
+  const [isExporting, setIsExporting] = useState(false);
 
   const days = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'];
 
@@ -54,6 +56,68 @@ export const StudentTimetable: React.FC = () => {
 
   const currentDaySlots = getDaySlots(selectedDay);
 
+  const ISO_WEEKDAY: Record<string, number> = {
+    MONDAY: 1, TUESDAY: 2, WEDNESDAY: 3, THURSDAY: 4, FRIDAY: 5, SATURDAY: 6, SUNDAY: 7,
+  };
+  const ICS_BYDAY: Record<string, string> = {
+    MONDAY: 'MO', TUESDAY: 'TU', WEDNESDAY: 'WE', THURSDAY: 'TH', FRIDAY: 'FR', SATURDAY: 'SA', SUNDAY: 'SU',
+  };
+
+  const nextOccurrence = (weekday: number, hh: number, mm: number): Date => {
+    const now = new Date();
+    const result = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hh, mm, 0);
+    const currentIso = now.getDay() === 0 ? 7 : now.getDay();
+    let diff = weekday - currentIso;
+    if (diff < 0 || (diff === 0 && result <= now)) diff += 7;
+    result.setDate(result.getDate() + diff);
+    return result;
+  };
+
+  const icsDate = (d: Date) =>
+    `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}T${String(d.getHours()).padStart(2, '0')}${String(d.getMinutes()).padStart(2, '0')}00`;
+
+  const handleExportCalendar = async () => {
+    if (!masterData || !Array.isArray(masterData.slots) || masterData.slots.length === 0) {
+      toast.error('No published timetable to export yet.');
+      return;
+    }
+    setIsExporting(true);
+    try {
+      const lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//CampusOS//Student Timetable//EN', 'CALSCALE:GREGORIAN'];
+      masterData.slots.forEach((slot: Slot, i: number) => {
+        const weekday = ISO_WEEKDAY[slot.dayOfWeek?.toUpperCase()];
+        const byday = ICS_BYDAY[slot.dayOfWeek?.toUpperCase()];
+        if (!weekday || !slot.startTime || !slot.endTime) return;
+        const [sh, sm] = slot.startTime.split(':').map(Number);
+        const [eh, em] = slot.endTime.split(':').map(Number);
+        const start = nextOccurrence(weekday, sh || 0, sm || 0);
+        const end = nextOccurrence(weekday, eh || 0, em || 0);
+        lines.push(
+          'BEGIN:VEVENT',
+          `UID:campusos-timetable-${i}-${slot.subjectCode || 'slot'}@campusos.app`,
+          `DTSTAMP:${icsDate(new Date())}Z`,
+          `DTSTART:${icsDate(start)}`,
+          `DTEND:${icsDate(end)}`,
+          `RRULE:FREQ=WEEKLY;BYDAY=${byday}`,
+          `SUMMARY:${(slot.subjectName || slot.subjectCode || 'Class').replace(/,/g, '\\,')}`,
+          `LOCATION:${[slot.roomNo, slot.building].filter(Boolean).join(', ').replace(/,/g, '\\,')}`,
+          `DESCRIPTION:${(slot.facultyName || '').replace(/,/g, '\\,')}`,
+          'END:VEVENT'
+        );
+      });
+      lines.push('END:VCALENDAR');
+      const blob = new Blob([lines.join('\r\n')], { type: 'text/calendar' });
+      const result = await saveBlobAndOpen(blob, 'campusos-timetable.ics');
+      if (result.success) {
+        toast.success('Timetable exported as a calendar file.');
+      } else {
+        toast.error(result.error || 'Unable to export calendar.');
+      }
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   if (isLoading) return <Loading text="Loading Centralized Master Timetable..." />;
 
   return (
@@ -77,10 +141,11 @@ export const StudentTimetable: React.FC = () => {
 
         <div className="flex items-center gap-2">
           <button
-            onClick={() => toast.success('Calendar exported in Google (.ics) format!')}
-            className="px-4 py-2 bg-indigo-600 text-white text-xs font-extrabold rounded-xl shadow hover:bg-indigo-700 transition-all flex items-center gap-1.5 shrink-0"
+            onClick={handleExportCalendar}
+            disabled={isExporting}
+            className="px-4 py-2 bg-indigo-600 text-white text-xs font-extrabold rounded-xl shadow hover:bg-indigo-700 transition-all flex items-center gap-1.5 shrink-0 disabled:opacity-50"
           >
-            <Download className="h-4 w-4" /> Export Calendar (.ics)
+            <Download className="h-4 w-4" /> {isExporting ? 'Exporting…' : 'Export Calendar (.ics)'}
           </button>
         </div>
       </div>

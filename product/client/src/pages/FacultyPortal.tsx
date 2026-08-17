@@ -9,6 +9,7 @@ import api from '../lib/axios';
 import { MentorPortal } from './RolePortals';
 import { Shield } from 'lucide-react';
 import { DigitalIdCard } from './DigitalIdCard';
+import { saveBlobAndOpen } from '../platform/download';
 
 import { useDevice } from '../context/DeviceContext';
 import { useAuth } from '../context/AuthContext';
@@ -315,8 +316,9 @@ export const FacultyPortal: React.FC<FacultyPortalProps> = ({ user }) => {
       ]);
 
       // 1. Process Faculty Profile Details
-      if (facultyProfileRes?.data?.status === 'success' && facultyProfileRes.data.data.length > 0) {
-        const fac = facultyProfileRes.data.data[0];
+      const facList = Array.isArray(facultyProfileRes?.data?.data) ? facultyProfileRes.data.data : [];
+      const fac = authUser?.faculty || facList.find((f: any) => f.userId === currentUser?.id || f.email === currentUser?.email) || facList[0];
+      if (fac) {
         setProfileData(fac);
 
         let prefs = {
@@ -1308,7 +1310,7 @@ export const FacultyPortal: React.FC<FacultyPortalProps> = ({ user }) => {
   };
 
   // CSV Export utility
-  const handleExportCSV = () => {
+  const handleExportCSV = async () => {
     const headers = 'Day,Period,StartTime,EndTime,Subject,Department,Semester,Section,Room,Building,Mode\n';
     const rows = timetable.map(slot => {
       const roomStr = slot.roomNo || '';
@@ -1324,13 +1326,12 @@ export const FacultyPortal: React.FC<FacultyPortalProps> = ({ user }) => {
     }).join('\n');
 
     const blob = new Blob([headers + rows], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.setAttribute('download', 'timetable_export.csv');
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    toast.success('Timetable exported as CSV.');
+    const res = await saveBlobAndOpen(blob, 'CampusOS_Faculty_Timetable_Export.csv', 'text/csv');
+    if (res.success) {
+      toast.success('Timetable exported as CSV.');
+    } else {
+      toast.error(res.error || 'Failed to export timetable.');
+    }
   };
 
   const fetchInternshipDocs = async () => {
@@ -4609,7 +4610,7 @@ export const FacultyPortal: React.FC<FacultyPortalProps> = ({ user }) => {
             </div>
 
             {/* Chat Thread Panel */}
-            <div className="lg:col-span-2 border bg-card rounded-2xl shadow-sm flex flex-col overflow-hidden">
+            <div className="lg:col-span-2 border bg-card rounded-2xl shadow-sm flex flex-col min-h-[480px] lg:min-h-0 h-[calc(100dvh-12rem)] overflow-hidden">
               {activeConversation ? (
                 <>
                   {/* Chat Header */}
@@ -4639,7 +4640,7 @@ export const FacultyPortal: React.FC<FacultyPortalProps> = ({ user }) => {
                   </div>
 
                   {/* Message Bubbles Area */}
-                  <div className="flex-1 p-4 overflow-y-auto bg-slate-50/50 space-y-3.5 flex flex-col">
+                  <div className="flex-1 min-h-0 p-4 overflow-y-auto bg-slate-50/50 dark:bg-slate-900/20 space-y-3.5 flex flex-col">
                     {chatMessages.map((msg, index) => {
                       const isMe = msg.senderRole === 'Faculty';
                       const isRead = msg.status === 'READ';

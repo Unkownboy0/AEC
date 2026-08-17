@@ -1,0 +1,149 @@
+name: CampusOS Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'          # e.g., v1.2.0, v1.2.0-rc.1
+      - 'v*.*.*-rc.*'
+
+env:
+  NODE_VERSION: '22'
+
+jobs:
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Build and publish server Docker image
+  # ─────────────────────────────────────────────────────────────────────────────
+  release-server:
+    name: Build & Push Server Image
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Extract version from tag
+        id: version
+        run: echo "VERSION=${GITHUB_REF_NAME#v}" >> $GITHUB_OUTPUT
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push server image
+        uses: docker/build-push-action@v5
+        with:
+          context: product/server
+          file: product/server/Dockerfile
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/campusos-server:${{ steps.version.outputs.VERSION }}
+            ghcr.io/${{ github.repository_owner }}/campusos-server:latest
+          labels: |
+            org.opencontainers.image.title=CampusOS Server
+            org.opencontainers.image.version=${{ steps.version.outputs.VERSION }}
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Build and publish client (web) bundle
+  # ─────────────────────────────────────────────────────────────────────────────
+  release-client:
+    name: Build & Publish Client Bundle
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: product/client/package-lock.json
+
+      - name: Install dependencies
+        working-directory: product/client
+        run: npm ci
+
+      - name: Build production bundle
+        working-directory: product/client
+        run: npm run build
+        env:
+          VITE_APP_NAME: CampusOS
+          VITE_APP_VERSION: ${{ github.ref_name }}
+
+      - name: Upload client dist artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: campusos-client-${{ github.ref_name }}
+          path: product/client/dist/
+          retention-days: 30
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Create GitHub Release with changelog
+  # ─────────────────────────────────────────────────────────────────────────────
+  create-release:
+    name: Create GitHub Release
+    needs: [release-server, release-client]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Generate release notes
+        id: notes
+        run: |
+          # Get previous tag for commit range
+          PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+          if [ -n "$PREV_TAG" ]; then
+            COMMITS=$(git log --oneline --no-merges ${PREV_TAG}..HEAD)
+          else
+            COMMITS=$(git log --oneline --no-merges -20)
+          fi
+          echo "COMMITS<<EOF" >> $GITHUB_OUTPUT
+          echo "$COMMITS" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: CampusOS ${{ github.ref_name }}
+          draft: false
+          prerelease: ${{ contains(github.ref_name, '-rc') || contains(github.ref_name, '-beta') }}
+          body: |
+            ## CampusOS ${{ github.ref_name }}
+
+            ### Changes since last release
+            ${{ steps.notes.outputs.COMMITS }}
+
+            ### Deployment
+            **Server image:**
+            ```
+            docker pull ghcr.io/${{ github.repository_owner }}/campusos-server:${{ github.ref_name }}
+            ```
+
+            **Client bundle:** Download `campusos-client-${{ github.ref_name }}` artifact from this release.
+
+            ### Mobile builds
+            Trigger Android/iOS builds from `product/client` using:
+            ```bash
+            VITE_APP_VERSION=${{ github.ref_name }} npm run release:android:aab
+            ```
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

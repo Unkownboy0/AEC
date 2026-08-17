@@ -15,6 +15,7 @@ import { Modal } from '../../components/ui/Modal';
 import { ConfirmationDialog } from '../../components/ui/ConfirmationDialog';
 import { Pagination } from '../../components/ui/Pagination';
 import api from '../../lib/axios';
+import { saveBlobAndOpen } from '../../platform/download';
 
 type ModuleKey = 'departments' | 'programs' | 'courses' | 'years' | 'semesters' | 'sections' | 'subjects';
 
@@ -325,7 +326,7 @@ export const AcademicPortal: React.FC = () => {
   };
 
   // Export Flow
-  const handleExport = (format: 'csv' | 'print') => {
+  const handleExport = async (format: 'csv' | 'print') => {
     if (format === 'csv') {
       if (records.length === 0) {
         toast.error('No records available to export');
@@ -337,12 +338,13 @@ export const AcademicPortal: React.FC = () => {
         ...records.map(row => headers.map(h => `"${row[h] || ''}"`).join(','))
       ];
       const blob = new Blob([csvRows.join('\n')], { type: 'text/csv' });
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.setAttribute('href', url);
-      a.setAttribute('download', `${activeTab}_export.csv`);
-      a.click();
-      toast.success('CSV Download triggered!');
+      const filename = `CampusOS_${activeTab}_export_${Date.now()}.csv`;
+      const res = await saveBlobAndOpen(blob, filename, 'text/csv');
+      if (res.success) {
+        toast.success('CSV report exported successfully.');
+      } else {
+        toast.error(res.error || 'Failed to export CSV report.');
+      }
     } else if (format === 'print') {
       window.print();
     }

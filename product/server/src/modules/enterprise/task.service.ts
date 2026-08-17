@@ -132,18 +132,19 @@ export class TaskService {
       },
     });
 
-    // Send notifications to assignees
-    for (const assigneeId of dto.assigneeIds) {
-      await NotificationService.sendNotification({
-        recipientId: assigneeId,
-        eventType: 'TASK_ASSIGNED',
-        title: 'New Task Assigned',
-        message: `Task ${task.taskNumber}: ${task.title}`,
-        relatedEntityType: 'TASK',
-        relatedEntityId: task.id,
-        deepLinkRoute: `/tasks/${task.id}`,
-      });
-    }
+    // Central Event-Driven Dispatch to assignees
+    NotificationService.dispatchDomainEvent({
+      eventType: 'TASK_ASSIGNED',
+      actorUserId: createdById,
+      entityType: 'TASK',
+      entityId: task.id,
+      title: `New Task Assigned: ${dto.title.trim()}`,
+      body: `${task.createdBy.firstName} ${task.createdBy.lastName} assigned you a task: ${dto.title.trim()}`,
+      priority: dto.priority === 'URGENT' || dto.priority === 'HIGH' ? 'HIGH' : 'NORMAL',
+      category: 'TASKS',
+      deepLinkRoute: `/tasks/${task.id}`,
+      targetUserIds: dto.assigneeIds,
+    }).catch((err) => console.error('[TaskService] Notification dispatch error:', err));
 
     await AuditService.log({
       actorId: createdById,
@@ -427,16 +428,25 @@ export class TaskService {
       },
     });
 
-    // Notify task creator
+    // Notify task creator or assignees
     if (userId !== task.createdById) {
-      await NotificationService.sendNotification({
-        recipientId: task.createdById,
-        eventType: 'TASK_UPDATED',
-        title: `Task Status Updated: ${newStatus}`,
-        message: `Task ${task.taskNumber} updated to ${newStatus}`,
-        relatedEntityType: 'TASK',
-        relatedEntityId: task.id,
+      const eventType = newStatus === 'COMPLETED' ? 'TASK_COMPLETED' : 'TASK_UPDATED';
+      await NotificationService.dispatchDomainEvent({
+        eventType,
+        actorUserId: userId,
+        entityType: 'TASK',
+        entityId: task.id,
+        title: `Task ${newStatus === 'COMPLETED' ? 'Completed' : 'Updated'}: ${task.title}`,
+        body: `Task ${task.taskNumber} was marked as ${newStatus} by ${userId}.`,
+        priority: newStatus === 'COMPLETED' ? 'NORMAL' : 'NORMAL',
+        category: 'TASKS',
         deepLinkRoute: `/tasks/${task.id}`,
+        targetUserIds: [task.createdById],
+        metadata: {
+          taskId: task.id,
+          taskNumber: task.taskNumber,
+          newStatus,
+        },
       });
     }
 
@@ -531,14 +541,17 @@ export class TaskService {
           },
         });
 
-        await NotificationService.sendNotification({
-          recipientId: mentionedUser.id,
-          eventType: 'USER_MENTIONED',
+        await NotificationService.dispatchDomainEvent({
+          eventType: 'TASK_COMMENTED',
+          actorUserId: authorId,
+          entityType: 'TASK',
+          entityId: taskId,
           title: 'You were mentioned in a task discussion',
-          message: `${comment.author.firstName} mentioned you in Task ${task.taskNumber}`,
-          relatedEntityType: 'TASK',
-          relatedEntityId: taskId,
+          body: `${comment.author.firstName} mentioned you in Task ${task.taskNumber}: "${content.slice(0, 80)}"`,
+          priority: 'NORMAL',
+          category: 'TASKS',
           deepLinkRoute: `/tasks/${taskId}`,
+          targetUserIds: [mentionedUser.id],
         });
       }
     }

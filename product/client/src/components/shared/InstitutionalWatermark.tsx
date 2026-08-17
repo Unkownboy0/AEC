@@ -1,10 +1,8 @@
 import React from 'react';
 import { useLocation } from 'react-router-dom';
-import {
-  watermarkConfig,
-  watermarkPresets,
-  type WatermarkPreset,
-} from '../../config/watermark.config';
+import { useInstitution } from '../../context/InstitutionContext';
+import { WatermarkService, type WatermarkPolicy } from '../../services/watermarkService';
+import { watermarkPresets, type WatermarkPreset } from '../../config/watermark.config';
 
 export interface InstitutionalWatermarkProps {
   logoSrc?: string;
@@ -18,8 +16,8 @@ export interface InstitutionalWatermarkProps {
 }
 
 export const InstitutionalWatermark: React.FC<InstitutionalWatermarkProps> = ({
-  logoSrc = watermarkConfig.logo,
-  preset = watermarkConfig.defaultPreset,
+  logoSrc,
+  preset = 'standard',
   opacity: customOpacity,
   size = 'medium',
   position = 'center',
@@ -28,28 +26,29 @@ export const InstitutionalWatermark: React.FC<InstitutionalWatermarkProps> = ({
   className = '',
 }) => {
   const location = useLocation();
+  const institution = useInstitution();
 
-  // Hide watermark on unauthenticated / exempt routes
-  const shouldHide = watermarkConfig.hideRoutes.some((r) =>
-    location.pathname.startsWith(r)
-  );
+  // Hide watermark on exempt routes (login, biometric, scanner, etc.)
+  const isExempt = WatermarkService.shouldHideWatermarkOnRoute(location.pathname);
+  const isEnabled = institution.watermark?.enabled ?? true;
 
-  if (!watermarkConfig.enabled || shouldHide) {
+  if (!isEnabled || isExempt) {
     return null;
   }
 
+  const effectiveLogo = logoSrc || institution.watermarkLogo || institution.officialLogo || WatermarkService.getInstitutionLogo();
   const presetValues = watermarkPresets[preset] || watermarkPresets.standard;
-  const lightOpacity = customOpacity ?? presetValues.light;
-  const darkOpacity = customOpacity ? customOpacity * 0.7 : presetValues.dark;
+  const lightOpacity = customOpacity ?? (institution.watermark?.opacity ? institution.watermark.opacity / 100 : presetValues.light);
+  const darkOpacity = customOpacity ? customOpacity * 0.65 : presetValues.dark;
 
-  // Custom size modifiers if requested
+  // Responsive size constraints
   const sizeClassMap = {
     small:
-      'w-[55vw] min-w-[180px] max-w-[280px] md:w-[40vw] md:max-w-[400px] xl:w-[28vw] xl:max-w-[500px]',
+      'w-[50vw] min-w-[160px] max-w-[260px] md:w-[36vw] md:max-w-[380px] xl:w-[25vw] xl:max-w-[460px]',
     medium:
-      'w-[72vw] min-w-[220px] max-w-[360px] md:w-[52vw] md:max-w-[520px] xl:w-[36vw] xl:min-w-[420px] xl:max-w-[680px]',
+      'w-[68vw] min-w-[200px] max-w-[340px] md:w-[48vw] md:max-w-[480px] xl:w-[34vw] xl:min-w-[400px] xl:max-w-[620px]',
     large:
-      'w-[85vw] min-w-[260px] max-w-[420px] md:w-[62vw] md:max-w-[600px] xl:w-[44vw] xl:max-w-[780px]',
+      'w-[82vw] min-w-[240px] max-w-[400px] md:w-[58vw] md:max-w-[560px] xl:w-[42vw] xl:max-w-[720px]',
   };
 
   const positionClass =
@@ -83,7 +82,7 @@ export const InstitutionalWatermark: React.FC<InstitutionalWatermarkProps> = ({
       `}
     >
       <img
-        src={logoSrc}
+        src={effectiveLogo}
         alt=""
         draggable={false}
         loading="eager"

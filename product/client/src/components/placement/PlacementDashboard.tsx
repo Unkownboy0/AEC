@@ -7,6 +7,7 @@ import {
 import { toast } from '../ui/Toast';
 import api from '../../lib/axios';
 import { useDevice } from '../../context/DeviceContext';
+import { saveBlobAndOpen } from '../../platform/download';
 
 interface PlacementDashboardProps {
   readOnly?: boolean;
@@ -142,14 +143,13 @@ export const PlacementDashboard: React.FC<PlacementDashboardProps> = () => {
       });
 
       const blob = new Blob([csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.setAttribute('href', url);
-      link.setAttribute('download', `Campus_Placement_Report_${selectedYear}_${Date.now()}.csv`);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      toast.success('Excel placement report downloaded.');
+      const filename = `CampusOS_Placement_Report_${selectedYear}_${Date.now()}.csv`;
+      const res = await saveBlobAndOpen(blob, filename, 'text/csv');
+      if (res.success) {
+        toast.success('Placement report downloaded.');
+      } else {
+        toast.error(res.error || 'Export failed.');
+      }
     } catch {
       toast.error('Export failed.');
     }

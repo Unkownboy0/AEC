@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  CampusOS Development Network Security Configuration (Debug Builds Only)
+  Allows HTTP cleartext traffic for local development backends (LAN IPs, localhost, ADB reverse).
+  Production/Release builds use src/main/res/xml/network_security_config.xml which enforces HTTPS only.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <certificates src="system" />
+            <certificates src="user" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>

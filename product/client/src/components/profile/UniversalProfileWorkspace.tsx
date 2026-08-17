@@ -9,6 +9,7 @@ import {
 import api from '../../lib/axios';
 import { toast } from '../ui/Toast';
 import { Loading } from '../ui/Loading';
+import { Avatar } from '../ui/Avatar';
 
 interface UniversalProfileWorkspaceProps {
   userId: string;
@@ -37,89 +38,13 @@ export const UniversalProfileWorkspace: React.FC<UniversalProfileWorkspaceProps>
         setProfileData(res.data.data);
         return;
       }
+      setProfileData(null);
     } catch (err) {
-      console.warn('Backend profile fetch fallback used for:', targetId);
+      console.warn('Backend profile fetch error for:', targetId);
+      setProfileData(null);
     } finally {
       setLoading(false);
     }
-
-    // Comprehensive Fallback object so Universal Profile Workspace is always populated cleanly
-    const targetIdLower = targetId.toLowerCase();
-    const isFacultyOrAdmin =
-      targetIdLower.includes('fac') ||
-      targetIdLower.includes('head') ||
-      targetIdLower.includes('dean') ||
-      targetIdLower.includes('vp') ||
-      targetIdLower.includes('admin') ||
-      targetIdLower.includes('emp');
-
-    const isStudent = !isFacultyOrAdmin || targetIdLower.includes('st') || targetIdLower.includes('stud');
-
-    setProfileData({
-      user: {
-        id: targetId,
-        email: targetIdLower.includes('@') ? targetId : `${targetIdLower}@geetorus.com`,
-        firstName: isStudent ? 'Enrolled Student' : 'Faculty Member',
-        lastName: isStudent ? `(${targetId.toUpperCase()})` : 'Staff',
-        profilePhoto: null,
-        role: isStudent ? 'STUDENT' : 'FACULTY',
-        status: 'ACTIVE',
-        onlineStatus: 'Online',
-        phone: '+91 98765 43210',
-        bloodGroup: 'O+',
-        dob: '2004-05-14',
-        joiningDate: '2023-08-01',
-        designation: isStudent ? 'Enrolled Student' : 'Assistant Professor',
-        qualification: isStudent ? 'B.Tech / Higher Education' : 'Ph.D. / M.Tech',
-        experience: isStudent ? 'Semester IV' : '7 Years',
-        officeRoom: isStudent ? 'Hostel Block B / Classroom 201' : 'Block A - 302',
-        reportingOfficer: isStudent ? 'Faculty Mentor & HOD' : 'Department HOD',
-      },
-      permissionsMatrix: [
-        { name: 'dashboard:view', description: 'View Student Dashboard' },
-        { name: 'profile:view', description: 'View 360° Profile Workspace' },
-        { name: 'academics:read', description: 'Read Academics Records' },
-      ],
-      studentRecord: isStudent
-        ? { admissionNo: targetId, status: 'ENROLLED', program: { code: 'B.TECH' }, gpa: '8.92', attendancePercentage: 96.5 }
-        : null,
-      facultyRecord: !isStudent
-        ? { employeeId: targetId, designation: 'Assistant Professor', department: { name: 'Computer Science & Engg', code: 'CSE' } }
-        : null,
-      assignedTasks: [
-        {
-          id: 'tsk-001',
-          taskNumber: 'TSK-2026-091',
-          title: 'NAAC Criteria 2 Curriculum Outcome Assessment',
-          description: 'Submit course outcome mapping and student performance metrics for Odd Semester.',
-          status: 'IN_PROGRESS',
-          priority: 'HIGH',
-          dueDate: '2026-08-05',
-          comments: [{ id: 'c1', authorName: 'Academic Dean', content: 'Please review Unit 3 mapping file.' }],
-        },
-        {
-          id: 'tsk-002',
-          taskNumber: 'TSK-2026-094',
-          title: 'Student Mid-Term Practical Evaluation Log',
-          description: 'Upload practical viva voce mark sheets for CSE Sem 6 students.',
-          status: 'PENDING',
-          priority: 'MEDIUM',
-          dueDate: '2026-08-10',
-          comments: [],
-        },
-      ],
-      auditLogs: [
-        { id: 'al-1', actionCode: 'USER_LOGIN', description: 'Logged into GEETORUS ERP via OAuth2', timestamp: new Date().toISOString(), ipAddress: '192.168.1.45' },
-        { id: 'al-2', actionCode: 'LEAVE_APPROVE', description: 'Approved Student OD Request #OD-2026-88', timestamp: new Date(Date.now() - 3600000).toISOString(), ipAddress: '192.168.1.45' },
-      ],
-      departmentTree: [
-        { role: 'Principal', name: 'Dr. Institutional Principal', path: '/profile/principal' },
-        { role: 'Vice Principal', name: 'Vice Principal (Operations)', path: '/profile/vp' },
-        { role: 'Academic Dean', name: 'Dean of Academic Affairs', path: '/profile/dean' },
-        { role: 'HOD', name: 'Department HOD', path: '/profile/hod' },
-        { role: 'Faculty / Mentor', name: 'IT Academic Mentor', path: '/profile/faculty' },
-      ],
-    });
   };
 
   useEffect(() => {
@@ -194,10 +119,11 @@ export const UniversalProfileWorkspace: React.FC<UniversalProfileWorkspaceProps>
         <div className="flex flex-col md:flex-row gap-6 items-start md:items-center">
           {/* Avatar */}
           <div className="relative">
-            <img
-              src={u.profilePhoto || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150'}
-              alt={u.firstName}
-              className="w-24 h-24 rounded-2xl object-cover border-2 border-primary/40 shadow-md"
+            <Avatar
+              src={u.profilePhoto}
+              name={`${u.firstName} ${u.lastName}`}
+              size="2xl"
+              className="w-24 h-24 rounded-2xl border-2 border-primary/40 shadow-md"
             />
             <span
               className={`absolute -bottom-1 -right-1 px-2 py-0.5 font-bold text-[10px] rounded-full uppercase tracking-wider flex items-center gap-1 shadow-xs border ${

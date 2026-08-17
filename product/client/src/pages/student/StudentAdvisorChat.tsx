@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { MessageSquare, Send, User, Clock, CheckCircle, Phone, Video, Paperclip } from 'lucide-react';
+import { MessageSquare, Send, Clock, CheckCircle, Phone, Video, Paperclip, ChevronDown, ChevronUp } from 'lucide-react';
 import { toast } from '../../components/ui/Toast';
 import { Loading } from '../../components/ui/Loading';
-import api from '../../lib/axios';
 
 interface Message {
   id: string;
@@ -34,6 +33,7 @@ export const StudentAdvisorChat: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>(DEMO_MESSAGES);
   const [replyInput, setReplyInput] = useState('');
   const [isLoading, setIsLoading] = useState(true);
+  const [isAdvisorInfoExpanded, setIsAdvisorInfoExpanded] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -87,15 +87,26 @@ export const StudentAdvisorChat: React.FC = () => {
   if (isLoading) return <Loading text="Connecting to Advisor Chat..." />;
 
   return (
-    <div className="h-[calc(100vh-12rem)] flex flex-col gap-0 animate-in fade-in duration-200">
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-5 h-full">
+    <div className="h-[calc(100dvh-5.5rem)] lg:h-[calc(100dvh-7.5rem)] flex flex-col gap-0 animate-in fade-in duration-200">
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 h-full min-h-0">
 
         {/* Advisor Info Panel */}
-        <div className="lg:col-span-1 space-y-4">
-          <div className="border bg-card p-5 rounded-2xl shadow-sm space-y-4">
-            <h3 className="text-xs font-black uppercase tracking-wider text-slate-400">Your Advisor</h3>
+        <div className="lg:col-span-1 space-y-3">
+          <div className="border bg-card p-4 sm:p-5 rounded-2xl shadow-sm space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="text-xs font-black uppercase tracking-wider text-slate-400">Your Advisor</h3>
+              <button
+                type="button"
+                onClick={() => setIsAdvisorInfoExpanded(!isAdvisorInfoExpanded)}
+                className="lg:hidden p-1 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-muted"
+                aria-label="Toggle advisor info"
+              >
+                {isAdvisorInfoExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+              </button>
+            </div>
+
             <div className="text-center space-y-2">
-              <div className="h-16 w-16 rounded-full bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-black text-xl mx-auto">
+              <div className="h-12 w-12 sm:h-16 sm:w-16 rounded-full bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-black text-lg sm:text-xl mx-auto">
                 {ADVISOR_INFO.initials}
               </div>
               <div>
@@ -107,25 +118,28 @@ export const StudentAdvisorChat: React.FC = () => {
                 <span className="text-[10px] text-emerald-600 font-bold">Available Now</span>
               </div>
             </div>
-            <div className="space-y-2 text-[10px] font-semibold text-slate-500 border-t pt-3">
+
+            {/* Expandable Details on Mobile / Always visible on Desktop */}
+            <div className={`${isAdvisorInfoExpanded ? 'block' : 'hidden lg:block'} space-y-2 text-[10px] font-semibold text-slate-500 border-t pt-3`}>
               <p><span className="font-extrabold text-slate-600 dark:text-slate-300">Dept:</span> {ADVISOR_INFO.department}</p>
               <p><span className="font-extrabold text-slate-600 dark:text-slate-300">Hours:</span> {ADVISOR_INFO.availability}</p>
               <p><span className="font-extrabold text-slate-600 dark:text-slate-300">Email:</span> <span className="text-indigo-600 break-all">{ADVISOR_INFO.email}</span></p>
-            </div>
-            <div className="flex gap-2">
-              <button onClick={() => toast.info('Email opened in your default mail client.')}
-                className="flex-1 py-2 border text-[10px] font-black rounded-xl hover:bg-muted flex items-center justify-center gap-1">
-                <Phone className="h-3 w-3" /> Contact
-              </button>
-              <button onClick={() => toast.info('Video meeting scheduled — check your email for the link.')}
-                className="flex-1 py-2 border text-[10px] font-black rounded-xl hover:bg-muted flex items-center justify-center gap-1">
-                <Video className="h-3 w-3" /> Meet
-              </button>
+
+              <div className="flex gap-2 pt-2">
+                <button onClick={() => toast.info('Email opened in your default mail client.')}
+                  className="flex-1 py-2 border text-[10px] font-black rounded-xl hover:bg-muted flex items-center justify-center gap-1 touch-target">
+                  <Phone className="h-3 w-3" /> Contact
+                </button>
+                <button onClick={() => toast.info('Video meeting scheduled — check your email for the link.')}
+                  className="flex-1 py-2 border text-[10px] font-black rounded-xl hover:bg-muted flex items-center justify-center gap-1 touch-target">
+                  <Video className="h-3 w-3" /> Meet
+                </button>
+              </div>
             </div>
           </div>
 
           {unreadCount > 0 && (
-            <div className="border border-indigo-200 dark:border-indigo-800 bg-indigo-50 dark:bg-indigo-900/20 p-3 rounded-xl text-xs font-semibold text-indigo-700 dark:text-indigo-300 flex items-center gap-2">
+            <div className="border border-indigo-200 dark:border-indigo-800 bg-indigo-50 dark:bg-indigo-900/20 p-2.5 rounded-xl text-xs font-semibold text-indigo-700 dark:text-indigo-300 flex items-center gap-2">
               <MessageSquare className="h-4 w-4 shrink-0" />
               {unreadCount} unread message{unreadCount > 1 ? 's' : ''} from advisor
             </div>
@@ -133,9 +147,9 @@ export const StudentAdvisorChat: React.FC = () => {
         </div>
 
         {/* Chat Panel */}
-        <div className="lg:col-span-3 border bg-card rounded-2xl shadow-sm flex flex-col overflow-hidden">
+        <div className="lg:col-span-3 border bg-card rounded-2xl shadow-sm flex flex-col flex-1 min-h-0 overflow-hidden">
           {/* Chat Header */}
-          <div className="p-4 border-b flex items-center gap-3 shrink-0">
+          <div className="p-3.5 sm:p-4 border-b flex items-center gap-3 shrink-0 bg-surface">
             <div className="h-9 w-9 rounded-full bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-black">
               {ADVISOR_INFO.initials}
             </div>
@@ -149,20 +163,20 @@ export const StudentAdvisorChat: React.FC = () => {
             </div>
           </div>
 
-          {/* Messages */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-4">
+          {/* Messages List Area */}
+          <div className="flex-1 min-h-0 overflow-y-auto p-3.5 sm:p-4 space-y-3.5 bg-slate-50/40 dark:bg-slate-900/20">
             {messages.map(m => (
               <div key={m.id} className={`flex ${m.senderRole === 'Student' ? 'justify-end' : 'justify-start'}`}>
                 {m.senderRole === 'Advisor' && (
-                  <div className="h-8 w-8 rounded-full bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-black text-xs shrink-0 mr-2 mt-1">
+                  <div className="h-7 w-7 rounded-full bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-black text-xs shrink-0 mr-2 mt-1">
                     {ADVISOR_INFO.initials}
                   </div>
                 )}
-                <div className={`max-w-[75%] space-y-1`}>
-                  <div className={`p-3 rounded-2xl text-xs font-semibold leading-relaxed ${
+                <div className="max-w-[82%] sm:max-w-[75%] space-y-1">
+                  <div className={`p-3 rounded-2xl text-xs font-semibold leading-relaxed shadow-xs ${
                     m.senderRole === 'Student'
                       ? 'bg-indigo-600 text-white rounded-br-sm'
-                      : 'bg-muted text-slate-700 dark:text-slate-200 rounded-bl-sm'
+                      : 'bg-surface text-slate-700 dark:text-slate-200 border rounded-bl-sm'
                   }`}>
                     {m.message}
                   </div>
@@ -176,10 +190,11 @@ export const StudentAdvisorChat: React.FC = () => {
             <div ref={messagesEndRef} />
           </div>
 
-          {/* Input */}
-          <form onSubmit={handleSend} className="p-4 border-t flex gap-2 shrink-0">
+          {/* Composer Input - Sticky at bottom */}
+          <form onSubmit={handleSend} className="p-3 sm:p-4 border-t bg-surface flex gap-2 shrink-0 items-center">
             <button type="button" onClick={() => toast.info('File attachment coming soon.')}
-              className="p-2 hover:bg-muted rounded-xl border transition-colors shrink-0">
+              className="p-2.5 hover:bg-muted rounded-xl border transition-colors shrink-0 touch-target"
+              title="Attach File">
               <Paperclip className="h-4 w-4 text-slate-400" />
             </button>
             <input
@@ -187,10 +202,10 @@ export const StudentAdvisorChat: React.FC = () => {
               value={replyInput}
               onChange={e => setReplyInput(e.target.value)}
               placeholder="Type your message to advisor..."
-              className="flex-1 text-xs px-3.5 py-2 border rounded-xl bg-background outline-none font-semibold focus:border-indigo-400 transition-colors"
+              className="flex-1 text-xs px-3.5 py-2.5 min-h-[40px] border rounded-xl bg-background outline-none font-semibold focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/15 transition-all"
             />
             <button type="submit"
-              className="px-4 py-2 bg-indigo-600 text-white text-xs font-black rounded-xl shadow hover:bg-indigo-700 transition-colors flex items-center gap-1.5 shrink-0">
+              className="px-4 py-2.5 min-h-[40px] bg-indigo-600 text-white text-xs font-black rounded-xl shadow hover:bg-indigo-700 active:scale-95 transition-all flex items-center gap-1.5 shrink-0 touch-target">
               <Send className="h-4 w-4" />
             </button>
           </form>

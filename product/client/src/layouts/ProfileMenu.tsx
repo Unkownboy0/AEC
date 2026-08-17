@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { User, LogOut, Settings, ShieldCheck, ChevronDown } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { ThemeSelector } from '../theme/ThemeSelector';
+import { Avatar } from '../components/ui/Avatar';
 
 export const ProfileMenu: React.FC = () => {
   const { user, logout } = useAuth();
@@ -22,8 +22,9 @@ export const ProfileMenu: React.FC = () => {
 
   if (!user) return null;
 
-  const fullName = `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'User Profile';
-  const roleLabel = user.role ? user.role.replace(/_/g, ' ') : 'User';
+  const fullName = `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email || 'User';
+  const rawRole = (typeof user.role === 'object' && user.role !== null) ? (user.role as any).name : user.role;
+  const roleLabel = (rawRole || 'User').toString().toLowerCase().replace('_', ' ');
 
   const handleLogout = async () => {
     setIsOpen(false);
@@ -32,13 +33,12 @@ export const ProfileMenu: React.FC = () => {
   };
 
   const getProfileRoute = () => {
-    const norm = user.role.toUpperCase();
-    if (norm.includes('STUDENT')) return '/student/profile';
-    if (norm.includes('HOD')) return '/hod/profile';
-    if (norm.includes('FACULTY')) return '/faculty/profile';
-    if (norm.includes('PRINCIPAL')) return '/principal/profile';
-    if (norm.includes('VP')) return '/vp/profile';
-    if (norm.includes('DEAN')) return '/academic-dean/profile';
+    const r = (rawRole || '').toString().toUpperCase();
+    if (r.includes('ADMIN') || r.includes('SUPER')) return '/admin/profile';
+    if (r.includes('FACULTY') || r.includes('PROFESSOR')) return '/faculty/profile';
+    if (r.includes('STUDENT')) return '/student/profile';
+    if (r.includes('HOD')) return '/hod/profile';
+    if (r.includes('PARENT')) return '/parent/profile';
     return '/profile';
   };
 
@@ -48,13 +48,7 @@ export const ProfileMenu: React.FC = () => {
         onClick={() => setIsOpen(!isOpen)}
         className="flex items-center gap-2 p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors"
       >
-        <div className="w-8 h-8 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-bold text-xs shadow-xs overflow-hidden shrink-0">
-          {user.profilePhoto ? (
-            <img src={user.profilePhoto} alt={fullName} className="w-full h-full object-cover" />
-          ) : (
-            fullName.charAt(0).toUpperCase()
-          )}
-        </div>
+        <Avatar src={user.profilePhoto} name={fullName} size="sm" alt={fullName} />
         <div className="hidden md:block text-left">
           <p className="text-xs font-semibold text-slate-900 dark:text-slate-100 leading-none truncate max-w-[120px]">
             {fullName}

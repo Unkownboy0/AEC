@@ -4,6 +4,7 @@ import { AlertTriangle, BedDouble, BriefcaseBusiness, Building2, CheckCircle2, C
 import { useRealtimeSync } from '../../hooks/useRealtimeSync';
 import api from '../../lib/axios';
 import { toast } from '../../components/ui/Toast';
+import { downloadAndOpen } from '../../platform/download';
 
 const cn = (...parts: Array<string | false | undefined>) => parts.filter(Boolean).join(' ');
 const statusTone = (value: string) => value === 'BREACHED' ? 'text-rose-300 bg-rose-500/10 border-rose-500/20' : value === 'AT_RISK' ? 'text-amber-300 bg-amber-500/10 border-amber-500/20' : 'text-emerald-300 bg-emerald-500/10 border-emerald-500/20';
@@ -14,12 +15,19 @@ export const AdministrationDeanCommandCentrePage: React.FC = () => {
 
   const exportReport = async (format: 'PDF' | 'EXCEL') => {
     try {
-      const response = await api.get(`/administration-dean/export?format=${format}`, { responseType: 'blob' });
       const extension = format === 'PDF' ? 'pdf' : 'xlsx';
-      const url = URL.createObjectURL(new Blob([response.data]));
-      const anchor = document.createElement('a'); anchor.href = url; anchor.download = `Administration_Dean_Report.${extension}`; anchor.click(); URL.revokeObjectURL(url);
-      toast.success(`${format === 'PDF' ? 'PDF' : 'Excel'} report downloaded`);
-    } catch (exportError: any) { toast.error(exportError?.response?.data?.message || 'You are not authorized to export this report'); }
+      const res = await downloadAndOpen(
+        `/administration-dean/export?format=${format}`,
+        `CampusOS_Administration_Dean_Report.${extension}`
+      );
+      if (res.success) {
+        toast.success(`${format === 'PDF' ? 'PDF' : 'Excel'} report downloaded`);
+      } else {
+        toast.error(res.error || 'Report export failed');
+      }
+    } catch (exportError: any) {
+      toast.error(exportError?.response?.data?.message || 'You are not authorized to export this report');
+    }
   };
 
   if (isLoading) return <div className="mx-auto max-w-7xl p-6 text-slate-400">Loading live administration data…</div>;

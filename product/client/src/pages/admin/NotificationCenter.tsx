@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Bell, Send, ImagePlus, X, FileImage, RefreshCw, Trash2, Eye } from 'lucide-react';
+import { Bell, Send, ImagePlus, X, FileImage, RefreshCw, Trash2, Eye, Activity, Inbox } from 'lucide-react';
 import { toast } from '../../components/ui/Toast';
 import { Button } from '../../components/ui/Button';
 import api from '../../lib/axios';
 import { env } from '../../shared/config/environment';
+import { UnifiedNotificationInbox } from '../../components/notifications/UnifiedNotificationInbox';
+import { NotificationControlCenter } from './NotificationControlCenter';
 
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/jpg'];
 const MAX_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB
@@ -15,6 +17,7 @@ function formatBytes(bytes: number): string {
 }
 
 export const NotificationCenter: React.FC = () => {
+  const [mainTab, setMainTab] = useState<'INBOX' | 'CIRCULARS' | 'DIAGNOSTICS'>('INBOX');
   const [announcements, setAnnouncements] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -156,21 +159,63 @@ export const NotificationCenter: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl font-extrabold tracking-tight">Circular Management</h1>
-        <p className="text-xs text-muted-foreground mt-1">
-          Compose, publish, and manage institution-wide circulars with image attachments.
-        </p>
+      {/* Top Tab Switcher */}
+      <div className="flex flex-wrap items-center gap-2 border-b pb-4">
+        <button
+          type="button"
+          onClick={() => setMainTab('INBOX')}
+          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+            mainTab === 'INBOX'
+              ? 'bg-primary text-primary-foreground shadow-sm'
+              : 'bg-card border text-muted-foreground hover:text-foreground hover:bg-muted'
+          }`}
+        >
+          <Inbox className="h-4 w-4" /> Notification Inbox & Feed
+        </button>
+        <button
+          type="button"
+          onClick={() => setMainTab('CIRCULARS')}
+          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+            mainTab === 'CIRCULARS'
+              ? 'bg-primary text-primary-foreground shadow-sm'
+              : 'bg-card border text-muted-foreground hover:text-foreground hover:bg-muted'
+          }`}
+        >
+          <Send className="h-4 w-4" /> Compose & Manage Circulars
+        </button>
+        <button
+          type="button"
+          onClick={() => setMainTab('DIAGNOSTICS')}
+          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+            mainTab === 'DIAGNOSTICS'
+              ? 'bg-primary text-primary-foreground shadow-sm'
+              : 'bg-card border text-muted-foreground hover:text-foreground hover:bg-muted'
+          }`}
+        >
+          <Activity className="h-4 w-4 text-amber-500" /> Super Admin Diagnostics & Health
+        </button>
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-5 gap-6 items-start">
+      {mainTab === 'INBOX' && <UnifiedNotificationInbox />}
 
-        {/* ── Compose Panel ─────────────────────────────────────────────── */}
-        <div className="xl:col-span-2 border bg-card p-5 rounded-2xl shadow-sm space-y-4">
-          <h3 className="text-xs uppercase font-extrabold tracking-wider text-muted-foreground flex flex-wrap items-center gap-2">
-            <Send className="h-3.5 w-3.5" /> Compose Circular
-          </h3>
+      {mainTab === 'DIAGNOSTICS' && <NotificationControlCenter />}
+
+      {mainTab === 'CIRCULARS' && (
+        <>
+          <div>
+            <h1 className="text-2xl font-extrabold tracking-tight">Circular Management</h1>
+            <p className="text-xs text-muted-foreground mt-1">
+              Compose, publish, and manage institution-wide circulars with image attachments.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 xl:grid-cols-5 gap-6 items-start">
+
+            {/* ── Compose Panel ─────────────────────────────────────────────── */}
+            <div className="xl:col-span-2 border bg-card p-5 rounded-2xl shadow-sm space-y-4">
+              <h3 className="text-xs uppercase font-extrabold tracking-wider text-muted-foreground flex flex-wrap items-center gap-2">
+                <Send className="h-3.5 w-3.5" /> Compose Circular
+              </h3>
 
           <form onSubmit={handleSubmit} className="space-y-3 text-xs font-semibold">
 
@@ -477,6 +522,8 @@ export const NotificationCenter: React.FC = () => {
             </div>
           </div>
         </div>
+      )}
+      </>
       )}
     </div>
   );

@@ -5,6 +5,8 @@ import { Skeleton } from '../../design-system/components/Skeleton';
 import { EmptyState } from '../../design-system/components/EmptyState';
 import api from '../../lib/axios';
 import { useNavigate } from 'react-router-dom';
+import { resolveNotificationRoute } from '../../notifications/notification-router';
+import { useAuth } from '../../context/AuthContext';
 
 export interface NotificationItem {
   id: string;
@@ -14,9 +16,12 @@ export interface NotificationItem {
   read: boolean;
   createdAt: string;
   deepLink?: string;
+  relatedEntityId?: string;
+  entityId?: string;
 }
 
 export const NotificationCenterPanel: React.FC = () => {
+  const { user } = useAuth();
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
@@ -61,7 +66,13 @@ export const NotificationCenterPanel: React.FC = () => {
 
   const handleClick = (notif: NotificationItem) => {
     if (!notif.read) handleMarkRead(notif.id);
-    if (notif.deepLink) navigate(notif.deepLink);
+    const targetRoute = resolveNotificationRoute(
+      notif.type,
+      notif.relatedEntityId || notif.entityId,
+      notif.deepLink,
+      user?.role
+    );
+    if (targetRoute) navigate(targetRoute);
   };
 
   return (

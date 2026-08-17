@@ -136,7 +136,7 @@ export class CertificateController {
       }
 
       const branding = await PdfWatermarkService.getBrandingSettings();
-      const collegeName = branding.collegeName || 'Al-Ameen Engineering College';
+      const collegeName = branding.collegeName || 'CampusOS Institution';
 
       const certTitle = certificate.type.replace(/_/g, ' ');
       const filename = `${student.firstName}_${student.admissionNo}_${certificate.type}_Certificate.pdf`;

@@ -5,7 +5,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
 	<key>CFBundleDisplayName</key>
-        <string>GEETORUS CAMPUSOS</string>
+	<string>CampusOS</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -18,7 +18,7 @@
 	<array>
 		<dict>
 			<key>CFBundleURLName</key>
-			<string>com.geetorus.campusos</string>
+			<string>com.campusos.app</string>
 			<key>CFBundleURLSchemes</key>
 			<array><string>campusos</string></array>
 		</dict>
@@ -27,10 +27,10 @@
 	<string>CampusOS uses the camera only when you capture an authorized profile photo, document, evidence, or QR code.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>CampusOS accesses selected photos when you attach authorized images or documents.</string>
-	<key>NSMicrophoneUsageDescription</key>
-	<string>CampusOS uses the microphone only when you choose to record a voice note.</string>
 	<key>NSFaceIDUsageDescription</key>
 	<string>CampusOS can use Face ID for optional re-authentication before sensitive actions.</string>
+	<key>NSUserTrackingUsageDescription</key>
+	<string>CampusOS does not track you across apps. Analytics data is used only for app performance improvements within this institution. No personal data is shared with third parties.</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
@@ -45,7 +45,7 @@
 	<string>Main</string>
 	<key>UIRequiredDeviceCapabilities</key>
 	<array>
-		<string>armv7</string>
+		<string>arm64</string>
 	</array>
 	<key>UISupportedInterfaceOrientations</key>
 	<array>

@@ -3,6 +3,7 @@ import { FileText, Search, Download, CheckCircle, Clock, AlertTriangle, GitBranc
 import { toast } from '../../components/ui/Toast';
 import { Loading } from '../../components/ui/Loading';
 import api from '../../lib/axios';
+import { saveBlobAndOpen } from '../../platform/download';
 
 interface Assignment {
   id: string;
@@ -75,6 +76,29 @@ export const StudentAssignments: React.FC = () => {
     }
   };
 
+  const handleDownloadSchedule = async () => {
+    if (assignments.length === 0) {
+      toast.error('No assignments to export yet.');
+      return;
+    }
+    const escape = (v: string) => `"${(v || '').replace(/"/g, '""')}"`;
+    const rows = [
+      ['Title', 'Subject', 'Faculty', 'Due Date', 'Max Marks', 'Status'],
+      ...assignments.map((a) => [
+        a.title,
+        `${a.subject?.name || ''} (${a.subject?.code || ''})`,
+        `${a.faculty?.firstName || ''} ${a.faculty?.lastName || ''}`.trim(),
+        a.dueDate ? new Date(a.dueDate).toLocaleDateString('en-IN') : '',
+        String(a.maxMarks ?? ''),
+        a.mySubmission ? (a.mySubmission.marksObtained !== null ? 'Graded' : 'Submitted') : 'Pending',
+      ]),
+    ];
+    const csv = rows.map((r) => r.map(escape).join(',')).join('\r\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const result = await saveBlobAndOpen(blob, 'campusos-assignment-schedule.csv');
+    if (!result.success) toast.error(result.error || 'Unable to export schedule.');
+  };
+
   if (isLoading) return <Loading text="Loading Assignments..." />;
 
   const pendingCount = assignments.filter(a => !a.mySubmission).length;
@@ -92,7 +116,7 @@ export const StudentAssignments: React.FC = () => {
           <p className="text-xs text-muted-foreground mt-0.5">Submit codebases, verify assignment weightages, and review scoring breakdowns</p>
         </div>
         <button
-          onClick={() => toast.info('Assignment schedule download is simulated.')}
+          onClick={handleDownloadSchedule}
           className="px-3.5 py-2 border text-xs font-extrabold rounded-xl hover:bg-muted transition-all flex items-center gap-1.5 bg-card"
         >
           <Download className="h-4 w-4" /> Download Schedule

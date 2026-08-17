@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { requireAuth, requireRole } from '../../core/middlewares/auth.middleware';
+import { requireAuth } from '../../core/middlewares/auth.middleware';
 import { prisma } from '../../lib/prisma';
 import { Request, Response, NextFunction } from 'express';
 
@@ -7,128 +7,303 @@ const router = Router();
 router.use(requireAuth);
 
 /**
- * Staff/Faculty 360° Profile — aggregates all authorized data.
- * RBAC: Self, HOD (department), Dean, Principal, HR Admin.
+ * Canonical Staff / Faculty 360° Profile API
+ * Aggregates all employee domains into a single holistic view.
+ * Single Source of Truth — Zero Duplicate Staff Records.
  */
 router.get('/:facultyId', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { facultyId } = req.params;
     const user = (req as any).user;
+    const requestedSections = (req.query.sections as string)?.split(',') || [
+      'profile',
+      'employment',
+      'teaching_scope',
+      'timetable',
+      'availability',
+      'leave',
+      'roles_workspaces',
+      'mentor_responsibilities',
+      'tasks',
+      'research',
+      'appraisal',
+      'documents',
+      'assets',
+      'finance',
+      'service_history',
+      'exit_clearance',
+      'account',
+      'audit',
+    ];
 
-    const faculty = await prisma.faculty.findUnique({
+    // 1. Find Faculty Master record
+    const faculty = await (prisma as any).faculty.findUnique({
       where: { id: facultyId },
-      include: { department: true },
+      include: {
+        department: true,
+        user: {
+          select: {
+            id: true,
+            email: true,
+            username: true,
+            status: true,
+            accountStatus: true,
+            profilePhoto: true,
+            workspaces: true,
+            activeWorkspace: true,
+            createdAt: true,
+            assignedRoles: { include: { role: true } },
+            userWorkspaces: true,
+          },
+        },
+      },
     });
-    if (!faculty) return res.status(404).json({ status: 'error', message: 'Faculty not found' });
 
-    const isOwnProfile = faculty.userId === user?.id;
-    const isAdmin = ['Super Admin', 'College Admin', 'Principal', 'Vice Principal', 'HR Admin'].includes(user?.roleName);
-
-    if (!isOwnProfile && !isAdmin) {
-      return res.status(403).json({ status: 'error', message: 'Not authorized' });
+    if (!faculty) {
+      return res.status(404).json({ status: 'error', message: 'Faculty / Staff record not found' });
     }
 
-    const sections = (req.query.sections as string)?.split(',') || ['profile', 'leave', 'appraisal', 'research', 'evidence', 'activities', 'meetings'];
+    // 2. Authorization
+    const isOwnProfile = faculty.userId === user?.id;
+    const userRole = user?.roleName || user?.role || '';
+    const isAdmin = ['Super Admin', 'SUPER_ADMIN', 'College Admin', 'COLLEGE_ADMIN', 'Principal', 'Vice Principal', 'HR Admin'].includes(userRole);
+    const isDean = ['Academic Dean', 'Administration Dean', 'IQAC Dean', 'Dean'].includes(userRole);
+    const isHOD = ['HOD', 'Head of Department'].includes(userRole);
+
+    let isAuthorizedHOD = false;
+    if (isHOD) {
+      const currentFaculty = await (prisma as any).faculty.findFirst({ where: { userId: user?.id } });
+      if (currentFaculty?.departmentId === faculty.departmentId) {
+        isAuthorizedHOD = true;
+      }
+    }
+
+    if (!isOwnProfile && !isAdmin && !isDean && !isAuthorizedHOD) {
+      return res.status(403).json({ status: 'error', message: 'Access denied: You are not authorized to view this staff profile.' });
+    }
+
     const result: any = {};
 
-    if (sections.includes('profile')) {
+    // 3. Section: Basic Identity & Contact
+    if (requestedSections.includes('profile')) {
       result.profile = {
         id: faculty.id,
         employeeId: faculty.employeeId,
         firstName: faculty.firstName,
         lastName: faculty.lastName,
+        fullName: `${faculty.firstName} ${faculty.lastName}`,
         email: faculty.email,
+        personalEmail: faculty.personalEmail,
         phone: faculty.phone,
+        personalPhone: faculty.personalPhone,
+        alternatePhone: faculty.alternatePhone,
+        dob: faculty.dob,
+        gender: faculty.gender,
+        bloodGroup: faculty.bloodGroup,
+        maritalStatus: faculty.maritalStatus,
+        nationality: faculty.nationality,
         designation: faculty.designation,
         department: faculty.department?.name,
+        departmentCode: faculty.department?.code,
         status: faculty.status,
         dateOfJoining: faculty.dateOfJoining,
+        profilePhoto: faculty.user?.profilePhoto || null,
+        emergencyName: faculty.emergencyName,
+        emergencyPhone: faculty.emergencyPhone,
+        addressLine1: faculty.addressLine1,
+        city: faculty.city,
+        state: faculty.state,
+        pincode: faculty.pincode,
       };
     }
 
-    if (sections.includes('leave') && faculty.userId) {
-      result.leave = await prisma.workflowRequest.findMany({
-        where: { facultyRequesterId: faculty.id, type: { in: ['FACULTY_LEAVE', 'FACULTY_OD'] } },
-        orderBy: { createdAt: 'desc' },
+    // 4. Section: Employment & Qualifications
+    if (requestedSections.includes('employment')) {
+      result.employment = {
+        employeeId: faculty.employeeId,
+        employmentType: faculty.employmentType || 'FULL_TIME',
+        facultyType: faculty.facultyType || 'REGULAR',
+        designation: faculty.designation,
+        dateOfJoining: faculty.dateOfJoining,
+        qualification: faculty.qualification,
+        highestDegree: faculty.highestDegree,
+        university: faculty.university,
+        experienceYears: faculty.experience,
+        specialization: faculty.specialization,
+        officeRoom: faculty.officeRoom,
+      };
+    }
+
+    // 5. Section: Teaching & Academic Scope
+    if (requestedSections.includes('teaching_scope')) {
+      const [subjectAssignments, teachingAssignments] = await Promise.all([
+        (prisma as any).subjectAssignment.findMany({
+          where: { facultyId: faculty.id },
+          include: { subject: true, section: { include: { program: true } } },
+        }),
+        (prisma as any).facultyTeachingAssignment?.findMany?.({
+          where: { facultyId: faculty.id, status: 'ACTIVE' },
+          include: { teachingDept: true, subject: true },
+        }) || [],
+      ]);
+      result.teachingScope = { subjectAssignments, crossDepartmentAssignments: teachingAssignments };
+    }
+
+    // 6. Section: Timetable & Central Availability Engine
+    if (requestedSections.includes('timetable') || requestedSections.includes('availability')) {
+      const [timetableSlots, availabilityLog] = await Promise.all([
+        (prisma as any).timetableSlot.findMany({
+          where: { facultyId: faculty.id },
+          include: { subject: true, section: true },
+        }),
+        (prisma as any).userPresence?.findUnique?.({
+          where: { userId: faculty.userId || '' },
+        }) || null,
+      ]);
+      result.timetable = timetableSlots;
+      result.availability = {
+        status: availabilityLog?.status || 'AVAILABLE',
+        currentActivity: availabilityLog?.currentActivity || 'In Office',
+        lastUpdated: availabilityLog?.updatedAt || new Date(),
+      };
+    }
+
+    // 7. Section: Leave & OD
+    if (requestedSections.includes('leave')) {
+      const [leaves, leaveBalances] = await Promise.all([
+        (prisma as any).facultyLeaveRequest.findMany({
+          where: { facultyId: faculty.id },
+          orderBy: { createdAt: 'desc' },
+          take: 20,
+        }),
+        (prisma as any).facultyLeaveLedger?.findMany?.({
+          where: { facultyId: faculty.id },
+        }) || [],
+      ]);
+      result.leave = { requests: leaves, balances: leaveBalances };
+    }
+
+    // 8. Section: Roles & Workspaces (Single Identity with Dynamic Workspaces)
+    if (requestedSections.includes('roles_workspaces')) {
+      const [userWorkspaces, leaderships] = await Promise.all([
+        (prisma as any).userWorkspace.findMany({
+          where: { userId: faculty.userId || '' },
+        }),
+        (prisma as any).leadershipAssignment?.findMany?.({
+          where: { userId: faculty.userId || '', status: 'ACTIVE' },
+        }) || [],
+      ]);
+      result.rolesWorkspaces = {
+        primaryRole: faculty.user?.assignedRoles?.[0]?.role?.name || faculty.designation,
+        assignedRoles: faculty.user?.assignedRoles?.map((r: any) => r.role?.name) || [],
+        activeWorkspaces: userWorkspaces,
+        leadershipPositions: leaderships,
+      };
+    }
+
+    // 9. Section: Mentor & Adviser Responsibilities
+    if (requestedSections.includes('mentor_responsibilities')) {
+      const [activeMentees, adviserSections] = await Promise.all([
+        (prisma as any).student.findMany({
+          where: { deleted: false, OR: [{ mentorId: faculty.id }, { mentorAssignments: { some: { mentorId: faculty.id, status: 'ACTIVE' } } }] },
+          select: { id: true, admissionNo: true, firstName: true, lastName: true, department: { select: { name: true } }, section: { select: { name: true } } },
+        }),
+        (prisma as any).classAdviserAssignment?.findMany?.({
+          where: { facultyId: faculty.id, status: 'ACTIVE' },
+          include: { section: { include: { program: true, semester: true } } },
+        }) || [],
+      ]);
+      result.mentorResponsibilities = {
+        menteeCount: activeMentees.length,
+        mentees: activeMentees,
+        classAdviserSections: adviserSections,
+      };
+    }
+
+    // 10. Section: Tasks & Committees
+    if (requestedSections.includes('tasks')) {
+      const assignedTasks = await (prisma as any).task.findMany({
+        where: { assignees: { some: { userId: faculty.userId || '' } } },
+        orderBy: { dueDate: 'asc' },
         take: 20,
       });
+      result.tasks = assignedTasks;
     }
 
-    if (sections.includes('appraisal')) {
-      result.appraisal = await prisma.appraisalSubmission.findMany({
-        where: { facultyId },
-        include: { config: { select: { title: true, academicYear: true } } },
-        orderBy: { createdAt: 'desc' },
-        take: 5,
-      });
-    }
-
-    if (sections.includes('research')) {
+    // 11. Section: Research, Publications & Patents
+    if (requestedSections.includes('research')) {
       const [projects, publications, patents] = await Promise.all([
-        prisma.researchProject.findMany({ where: { piId: facultyId }, orderBy: { createdAt: 'desc' }, take: 10 }),
-        prisma.researchPublication.findMany({ where: { departmentId: faculty.departmentId }, take: 20 }),
-        prisma.patent.findMany({ where: { departmentId: faculty.departmentId }, take: 10 }),
+        (prisma as any).researchProject.findMany({ where: { piId: faculty.id }, orderBy: { createdAt: 'desc' } }),
+        (prisma as any).researchPublication.findMany({ where: { departmentId: faculty.departmentId }, take: 20 }),
+        (prisma as any).patent.findMany({ where: { departmentId: faculty.departmentId }, take: 10 }),
       ]);
       result.research = { projects, publications, patents };
     }
 
-    if (sections.includes('evidence')) {
-      result.evidence = await prisma.evidenceItem.findMany({ where: { ownerId: facultyId, status: 'ACTIVE' }, orderBy: { createdAt: 'desc' }, take: 20 });
-    }
-
-    if (sections.includes('activities') && faculty.userId) {
-      result.activities = await prisma.campusActivity.findMany({
-        where: { OR: [{ organizerId: faculty.userId }, { responsibleStaffId: facultyId }] },
-        orderBy: { startDate: 'desc' },
-        take: 20,
+    // 12. Section: Appraisal (Self-Appraisal, HOD Review, IQAC Verification)
+    if (requestedSections.includes('appraisal')) {
+      const appraisalSubmissions = await (prisma as any).appraisalSubmission.findMany({
+        where: { facultyId: faculty.id },
+        include: { config: { select: { title: true, academicYear: true } } },
+        orderBy: { createdAt: 'desc' },
       });
+      result.appraisal = appraisalSubmissions;
     }
 
-    if (sections.includes('meetings') && faculty.userId) {
-      const invites = await prisma.meetingInvitee.findMany({
-        where: { userId: faculty.userId },
-        include: { meeting: { select: { title: true, scheduledDate: true, status: true } } },
+    // 13. Section: Assets & Inventory Assigned
+    if (requestedSections.includes('assets')) {
+      const assets = await (prisma as any).asset.findMany({
+        where: { assignedToId: faculty.userId || faculty.id, status: 'IN_USE' },
+        orderBy: { createdAt: 'desc' },
+      });
+      result.assets = assets;
+    }
+
+    // 14. Section: Finance Context (Advances, Reimbursements, Dues)
+    if (requestedSections.includes('finance')) {
+      const vouchers = await (prisma as any).financeRequest?.findMany?.({
+        where: { requestedById: faculty.userId || '' },
         orderBy: { createdAt: 'desc' },
         take: 10,
+      }) || [];
+      result.finance = { vouchers };
+    }
+
+    // 15. Section: Service History & Transfers
+    if (requestedSections.includes('service_history')) {
+      const transfers = await (prisma as any).facultyDepartmentTransfer?.findMany?.({
+        where: { facultyId: faculty.id },
+        include: { fromDept: true, toDept: true },
+        orderBy: { effectiveDate: 'desc' },
+      }) || [];
+      result.serviceHistory = { transfers };
+    }
+
+    // 16. Section: Exit Clearance Workflow (A&A -> Super Admin -> HOD -> IQAC -> Accounts -> Library -> College Admin -> VP -> Principal -> Super Admin Final)
+    if (requestedSections.includes('exit_clearance')) {
+      const exitRequest = await (prisma as any).workflowRequest.findFirst({
+        where: { facultyRequesterId: faculty.id, type: 'STAFF_EXIT_CLEARANCE' },
+        orderBy: { createdAt: 'desc' },
       });
-      result.meetings = invites;
+      result.exitClearance = exitRequest;
+    }
+
+    // 17. Section: Account & Security Access
+    if (requestedSections.includes('account') && (isAdmin || isOwnProfile)) {
+      result.account = {
+        userId: faculty.userId,
+        email: faculty.user?.email,
+        username: faculty.user?.username,
+        status: faculty.user?.status,
+        accountStatus: faculty.user?.accountStatus,
+        createdAt: faculty.user?.createdAt,
+      };
     }
 
     res.json({ status: 'success', data: result });
-  } catch (e) { next(e); }
-});
-
-/**
- * Staff workspace — quick dashboard
- */
-router.get('/my/workspace', async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const userId = (req as any).user?.id;
-    const faculty = await prisma.faculty.findFirst({ where: { userId }, include: { department: true } });
-    if (!faculty) return res.status(404).json({ status: 'error', message: 'Faculty profile not found' });
-
-    const today = new Date(); today.setHours(0, 0, 0, 0);
-
-    const [pendingApprovals, pendingLeaves, upcomingMeetings, pendingTasks, activeAppraisal] = await Promise.all([
-      prisma.workflowRequest.count({ where: { mentorId: faculty.id, status: { startsWith: 'PENDING' } } }),
-      prisma.workflowRequest.count({ where: { facultyRequesterId: faculty.id, type: 'FACULTY_LEAVE', status: { startsWith: 'PENDING' } } }),
-      prisma.meetingInvitee.findMany({ where: { userId, meeting: { scheduledDate: { gte: today }, status: 'SCHEDULED' } }, include: { meeting: { select: { title: true, scheduledDate: true, startTime: true, venue: true } } }, take: 5 }),
-      prisma.meetingActionItem.count({ where: { assigneeId: userId, status: { in: ['OPEN', 'IN_PROGRESS'] } } }),
-      prisma.appraisalSubmission.findFirst({ where: { facultyId: faculty.id, status: { in: ['DRAFT', 'RETURNED'] } }, include: { config: { select: { title: true, endDate: true } } } }),
-    ]);
-
-    res.json({
-      status: 'success',
-      data: {
-        faculty: { id: faculty.id, name: `${faculty.firstName} ${faculty.lastName}`, employeeId: faculty.employeeId, department: faculty.department?.name, designation: faculty.designation },
-        pendingApprovals,
-        pendingLeaves,
-        upcomingMeetings,
-        pendingTasks,
-        activeAppraisal,
-      },
-    });
-  } catch (e) { next(e); }
+  } catch (e) {
+    next(e);
+  }
 });
 
 export default router;

@@ -41,18 +41,51 @@ export class HostelService {
 
   // Allocation
   async allocateRoom(data: { studentId: string; roomId: string; bedId?: string; academicYear: string; allocatedById: string; remarks?: string }) {
-    const room = await prisma.hostelRoom.findUnique({ where: { id: data.roomId } });
+    const room = await prisma.hostelRoom.findUnique({
+      where: { id: data.roomId },
+      include: { floor: { include: { block: true } } },
+    });
     if (!room) throw new NotFoundException('Room not found');
     if (room.occupied >= room.capacity) throw new BadRequestException('Room is full');
 
     const existing = await prisma.hostelAllocation.findFirst({ where: { studentId: data.studentId, status: 'ACTIVE' } });
     if (existing) throw new BadRequestException('Student already has an active hostel allocation');
 
+    const hostelBuilding = await prisma.hostelBuilding.findFirst({
+      where: { id: room.floor.block.hostelId },
+    });
+
     const [allocation] = await prisma.$transaction([
       prisma.hostelAllocation.create({ data: { studentId: data.studentId, roomId: data.roomId, bedId: data.bedId, academicYear: data.academicYear, allocatedById: data.allocatedById, remarks: data.remarks } }),
       prisma.hostelRoom.update({ where: { id: data.roomId }, data: { occupied: { increment: 1 }, status: room.occupied + 1 >= room.capacity ? 'FULL' : 'AVAILABLE' } }),
       ...(data.bedId ? [prisma.hostelBed.update({ where: { id: data.bedId }, data: { status: 'OCCUPIED' } })] : []),
+      prisma.student.update({
+        where: { id: data.studentId },
+        data: {
+          residentialType: 'HOSTELLER',
+          hostelId: hostelBuilding?.id || null,
+          roomNo: room.roomNumber,
+        },
+      }),
     ]);
+
+    // Close any pending HOSTEL_ALLOCATION_REQUIRED workflow task
+    try {
+      await (prisma as any).workflowRequest.updateMany({
+        where: {
+          studentId: data.studentId,
+          type: 'HOSTEL_ALLOCATION_REQUIRED',
+          status: { startsWith: 'PENDING' },
+        },
+        data: {
+          status: 'COMPLETED',
+          currentStage: 'ALLOCATION_COMPLETED',
+        },
+      });
+    } catch (e) {
+      // Non-blocking
+    }
+
     return allocation;
   }
 

@@ -1,0 +1,174 @@
+export type DomainEventType =
+  // Student & Faculty Leave & OD
+  | 'LEAVE_SUBMITTED'
+  | 'LEAVE_REQUESTED'
+  | 'LEAVE_FORWARDED'
+  | 'LEAVE_RETURNED'
+  | 'LEAVE_APPROVED'
+  | 'LEAVE_REJECTED'
+  | 'OD_SUBMITTED'
+  | 'OD_REQUESTED'
+  | 'OD_APPROVED'
+  | 'OD_REJECTED'
+  | 'OD_RETURNED'
+  | 'OD_FORWARDED'
+  | 'STUDENT_OD_SUBMITTED'
+  | 'STUDENT_OD_MENTOR_APPROVED'
+  | 'STUDENT_OD_FORWARDED'
+  | 'STUDENT_OD_APPROVED'
+  | 'STUDENT_OD_REJECTED'
+  | 'STUDENT_OD_RETURNED'
+  | 'STUDENT_LEAVE_SUBMITTED'
+  | 'STUDENT_LEAVE_MENTOR_APPROVED'
+  | 'STUDENT_LEAVE_FORWARDED'
+  | 'STUDENT_LEAVE_APPROVED'
+  | 'STUDENT_LEAVE_REJECTED'
+  | 'STUDENT_LEAVE_RETURNED'
+  | 'FACULTY_LEAVE_SUBMITTED'
+  | 'FACULTY_LEAVE_RECOMMENDED'
+  | 'FACULTY_LEAVE_FORWARDED'
+  | 'FACULTY_LEAVE_APPROVED'
+  | 'FACULTY_LEAVE_REJECTED'
+  | 'FACULTY_LEAVE_RETURNED'
+  | 'FACULTY_OD_SUBMITTED'
+  | 'FACULTY_OD_RECOMMENDED'
+  | 'FACULTY_OD_FORWARDED'
+  | 'FACULTY_OD_APPROVED'
+  | 'FACULTY_OD_REJECTED'
+  | 'FACULTY_OD_RETURNED'
+
+  // Generic Workflow Engine Transitions
+  | 'REQUEST_SUBMITTED'
+  | 'STAGE_APPROVED'
+  | 'REQUEST_FORWARDED'
+  | 'REQUEST_RETURNED'
+  | 'REQUEST_REJECTED'
+  | 'REQUEST_APPROVED'
+  | 'REQUEST_CANCELLED'
+  | 'REQUEST_ESCALATED'
+  | 'WORKFLOW_STAGE_CHANGED'
+
+  // Tasks & Governance
+  | 'TASK_ASSIGNED'
+  | 'TASK_UPDATED'
+  | 'TASK_COMMENTED'
+  | 'TASK_SUBMITTED'
+  | 'TASK_RETURNED'
+  | 'TASK_COMPLETED'
+  | 'TASK_OVERDUE'
+
+  // Academic & Curriculum
+  | 'ASSIGNMENT_PUBLISHED'
+  | 'ASSIGNMENT_UPDATED'
+  | 'ASSIGNMENT_DUE_SOON'
+  | 'ASSIGNMENT_SUBMITTED'
+  | 'ASSIGNMENT_GRADED'
+  | 'ATTENDANCE_MARKED'
+  | 'ATTENDANCE_CORRECTED'
+  | 'ATTENDANCE_SHORTAGE'
+  | 'ATTENDANCE_SHORTAGE_DETECTED'
+  | 'TIMETABLE_PUBLISHED'
+  | 'TIMETABLE_CHANGED'
+  | 'CLASS_SUBSTITUTION_ASSIGNED'
+  | 'SUBSTITUTION_ASSIGNED'
+
+  // Examinations & Results
+  | 'EXAM_TIMETABLE_PUBLISHED'
+  | 'HALL_ALLOCATION_PUBLISHED'
+  | 'RESULT_PUBLISHED'
+
+  // Fees & Finance
+  | 'FEE_DUE'
+  | 'PAYMENT_SUCCESS'
+  | 'PAYMENT_FAILED'
+  | 'RECEIPT_GENERATED'
+
+  // Institutional Circulars & Documents
+  | 'CIRCULAR_PUBLISHED'
+  | 'EMERGENCY_CIRCULAR'
+  | 'CIRCULAR_REMINDER'
+  | 'CERTIFICATE_READY'
+  | 'DOCUMENT_SHARED'
+  | 'DOCUMENT_COMMENTED'
+  | 'DOCUMENT_APPROVAL_REQUESTED'
+  | 'FORM_PUBLISHED'
+  | 'FORM_RESPONSE_RECEIVED'
+  | 'QUIZ_PUBLISHED'
+  | 'QUIZ_RESULT_PUBLISHED'
+
+  // Grievance & Maintenance
+  | 'GRIEVANCE_CREATED'
+  | 'GRIEVANCE_ASSIGNED'
+  | 'GRIEVANCE_RESOLVED'
+  | 'MAINTENANCE_TICKET_CREATED'
+  | 'MAINTENANCE_ASSIGNED'
+  | 'MAINTENANCE_RESOLVED'
+  | 'TICKET_CREATED'
+  | 'TICKET_ASSIGNED'
+  | 'TICKET_RESOLVED'
+
+  // Procurement & Finance
+  | 'PURCHASE_REQUEST_CREATED'
+  | 'PURCHASE_REQUESTED'
+  | 'PURCHASE_APPROVED'
+  | 'PURCHASE_REJECTED'
+  | 'PO_CREATED'
+
+  // HR & Employee Relieving
+  | 'EMPLOYEE_TRANSFER_REQUESTED'
+  | 'EMPLOYEE_TRANSFER_APPROVED'
+  | 'EMPLOYEE_RELIEVING_STARTED'
+  | 'CLEARANCE_PENDING'
+  | 'CLEARANCE_COMPLETED'
+  | 'EMPLOYEE_RELIEVED'
+
+  // Mentorship
+  | 'MENTOR_ASSIGNED'
+  | 'MENTEE_RISK_DETECTED'
+  | 'MENTEE_ATTENDANCE_RISK'
+  | 'MENTEE_ACADEMIC_RISK'
+  | 'PARENT_MEETING_REQUESTED'
+
+  // Emergency & Security
+  | 'EMERGENCY_ALERT'
+  | 'CAMPUS_ANNOUNCEMENT'
+  | 'SECURITY_ALERT';
+
+export type NotificationPriority = 'LOW' | 'NORMAL' | 'HIGH' | 'CRITICAL';
+
+export type NotificationCategory =
+  | 'ACADEMIC'
+  | 'APPROVALS'
+  | 'TASKS'
+  | 'FEES'
+  | 'EXAMS'
+  | 'ADMINISTRATIVE'
+  | 'CIRCULARS'
+  | 'CRITICAL';
+
+export interface DomainEvent {
+  eventId?: string;
+  eventType: DomainEventType;
+  tenantId?: string;
+  institutionId?: string;
+  actorUserId?: string;
+  actorRole?: string;
+  actorWorkspace?: string;
+  entityType: string;
+  entityId: string;
+  action?: string;
+  title: string;
+  body: string;
+  priority?: NotificationPriority;
+  category?: NotificationCategory;
+  deepLinkRoute?: string;
+  timestamp?: Date | string;
+  metadata?: Record<string, any>;
+  correlationId?: string;
+
+  // Optional direct recipient overrides (if already resolved)
+  targetUserIds?: string[];
+  departmentId?: string;
+  sectionId?: string;
+  courseId?: string;
+}

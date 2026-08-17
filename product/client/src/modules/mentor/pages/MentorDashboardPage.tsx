@@ -272,11 +272,19 @@ export const MentorDashboardPage: React.FC = () => {
               {pendingApprovals.slice(0, 4).map((req: any) => (
                 <div
                   key={req.id}
-                  className="p-3.5 bg-surface-soft border border-border/70 rounded-xl flex items-center justify-between gap-3 hover:border-primary/40 transition-all"
+                  onClick={() => navigate(`/faculty/mentor/leave-od/${req.id}`)}
+                  className="p-3.5 bg-surface-soft border border-border/70 rounded-xl flex items-center justify-between gap-3 hover:border-primary/40 transition-all cursor-pointer group"
                 >
                   <div>
                     <div className="flex items-center gap-2">
-                      <span className="font-bold text-xs text-text-primary">{req.studentName || req.student?.name}</span>
+                      <span className="font-bold text-xs text-text-primary group-hover:text-primary transition-colors">
+                        {req.studentName || req.student?.name}
+                      </span>
+                      {req.admissionNo && (
+                        <span className="text-[10px] font-mono text-text-muted bg-surface px-1.5 py-0.5 rounded border border-border/60">
+                          {req.admissionNo}
+                        </span>
+                      )}
                       <StatusBadge status={req.type || 'LEAVE'} size="sm" />
                     </div>
                     <p className="text-[11px] text-text-muted mt-0.5">
@@ -285,8 +293,11 @@ export const MentorDashboardPage: React.FC = () => {
                   </div>
                   <button
                     type="button"
-                    onClick={() => navigate('/faculty/mentor/leave-od')}
-                    className="px-3 py-1.5 bg-primary text-primary-foreground text-xs font-bold rounded-xl hover:bg-primary-hover transition-colors"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      navigate(`/faculty/mentor/leave-od/${req.id}`);
+                    }}
+                    className="px-3 py-1.5 bg-primary text-primary-foreground text-xs font-bold rounded-xl hover:bg-primary-hover transition-colors shrink-0"
                   >
                     Review
                   </button>

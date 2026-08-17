@@ -2,6 +2,7 @@ import { prisma } from '../../lib/prisma';
 import { NotFoundException, ForbiddenException, BadRequestException } from '../../utils/exceptions';
 import { NotificationService } from '../notifications/notification.service';
 import { AuditService } from '../security/audit.service';
+import { StudentLeaveService } from '../enterprise/student-leave.service';
 
 export class MentorService {
   private async requireFaculty(userId: string) {
@@ -67,11 +68,35 @@ export class MentorService {
     const tomorrow = new Date(today.getTime() + 24 * 60 * 60 * 1000);
 
     // Pending Leave & OD Requests
-    const pendingLeaveRequests = await prisma.studentLeaveRequest.count({
-      where: {
-        studentId: { in: studentIds },
-        status: 'PENDING_MENTOR',
+    const pendingWhere = {
+      OR: [
+        { mentorId: faculty.id },
+        { studentId: { in: studentIds } },
+        { student: { mentorId: faculty.id } },
+        { student: { mentorAssignments: { some: { mentorId: faculty.id, status: 'ACTIVE' } } } },
+      ],
+      status: 'PENDING_MENTOR',
+    };
+
+    const pendingLeaveRequests = await prisma.studentLeaveRequest.findMany({
+      where: pendingWhere,
+      include: {
+        student: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            admissionNo: true,
+            department: { select: { name: true } },
+            section: { select: { name: true } },
+          },
+        },
       },
+      orderBy: { createdAt: 'desc' },
+      take: 10,
+    });
+    const pendingLeaveCount = await prisma.studentLeaveRequest.count({
+      where: pendingWhere,
     });
 
     // Students on Leave / OD Today
@@ -194,13 +219,30 @@ export class MentorService {
         absentToday,
         studentsOnLeaveToday,
         studentsOnOdToday,
-        pendingLeaveOdApprovals: pendingLeaveRequests,
+        pendingLeaveOdApprovals: pendingLeaveCount,
         openCounselingCases,
         attendanceRiskCount,
         academicRiskCount,
         attendanceRiskThreshold,
         arrearRiskThreshold,
       },
+      pendingApprovals: pendingLeaveRequests.map((r) => ({
+        id: r.id,
+        requestNumber: r.requestNumber,
+        studentId: r.studentId,
+        studentName: `${r.student.firstName} ${r.student.lastName}`,
+        admissionNo: r.student.admissionNo,
+        departmentName: r.student.department?.name,
+        sectionName: r.student.section?.name,
+        type: r.type,
+        category: r.requestCategory,
+        startDate: r.startDate.toISOString().split('T')[0],
+        endDate: r.endDate.toISOString().split('T')[0],
+        totalDays: r.totalDays,
+        reason: r.reason,
+        status: r.status,
+        createdAt: r.createdAt.toISOString(),
+      })),
       riskStudents: assignedStudents
         .filter((s) => riskStudentIds.includes(s.id))
         .map((s) => {
@@ -280,6 +322,74 @@ export class MentorService {
   }
 
   /**
+   * 2b. Get Assigned Student Academic Standing (CGPA + Active Arrears)
+   *
+   * Reuses the same real computation as getDashboardStats (published Mark
+   * rows, grade === 'F' for arrears) plus the average published-mark GPA
+   * pattern already used in enterprise.controller.ts's student dashboard.
+   * Returns null for cgpa when the student has no published marks at all —
+   * never a fabricated number.
+   */
+  async getAcademicStanding(userId: string) {
+    const faculty = await prisma.faculty.findFirst({ where: { userId } });
+    if (!faculty) throw new NotFoundException('Mentor faculty profile not found');
+
+    const students = await prisma.student.findMany({
+      where: { deleted: false, OR: [{ mentorId: faculty.id }, { mentorAssignments: { some: { mentorId: faculty.id, status: 'ACTIVE' } } }] },
+      include: {
+        department: true,
+        program: true,
+        semester: true,
+        section: true,
+      },
+      orderBy: { admissionNo: 'asc' },
+    });
+
+    const studentIds = students.map((s) => s.id);
+
+    const [publishedMarks, arrearGroups] = studentIds.length > 0
+      ? await Promise.all([
+          prisma.mark.findMany({
+            where: { studentId: { in: studentIds }, status: 'PUBLISHED' },
+            select: { studentId: true, gpa: true },
+          }),
+          prisma.mark.groupBy({
+            by: ['studentId'],
+            where: { studentId: { in: studentIds }, status: 'PUBLISHED', grade: 'F' },
+            _count: { _all: true },
+          }),
+        ])
+      : [[], []];
+
+    const gpaByStudent = new Map<string, number[]>();
+    for (const m of publishedMarks as { studentId: string; gpa: number }[]) {
+      const arr = gpaByStudent.get(m.studentId) || [];
+      arr.push(m.gpa);
+      gpaByStudent.set(m.studentId, arr);
+    }
+    const arrearsByStudent = new Map((arrearGroups as { studentId: string; _count: { _all: number } }[]).map((g) => [g.studentId, g._count._all]));
+
+    return students.map((s) => {
+      const gpas = gpaByStudent.get(s.id);
+      const cgpa = gpas && gpas.length > 0
+        ? Math.round((gpas.reduce((sum, g) => sum + g, 0) / gpas.length) * 100) / 100
+        : null;
+
+      return {
+        id: s.id,
+        admissionNo: s.admissionNo,
+        name: `${s.firstName} ${s.lastName}`,
+        departmentName: s.department?.name,
+        programCode: s.program?.code,
+        semesterNumber: s.semester?.number,
+        sectionName: s.section?.name,
+        cgpa,
+        arrearsCount: arrearsByStudent.get(s.id) || 0,
+      };
+    });
+  }
+
+  /**
    * 3. Get Student Detail
    */
   async getStudentDetail(userId: string, studentId: string) {
@@ -338,7 +448,11 @@ export class MentorService {
 
     const requests = await prisma.studentLeaveRequest.findMany({
       where: {
-        student: { OR: [{ mentorId: faculty.id }, { mentorAssignments: { some: { mentorId: faculty.id, status: 'ACTIVE' } } }] },
+        OR: [
+          { mentorId: faculty.id },
+          { student: { mentorId: faculty.id } },
+          { student: { mentorAssignments: { some: { mentorId: faculty.id, status: 'ACTIVE' } } } },
+        ],
         status: 'PENDING_MENTOR',
       },
       include: {
@@ -370,83 +484,30 @@ export class MentorService {
   }
 
   /**
+   * 4b. Get Single Leave/OD Request Detail for Mentor Review
+   * Validates that the authenticated user is the assigned mentor for this student.
+   */
+  async getLeaveRequestDetail(userId: string, requestId: string) {
+    const studentLeaveService = new StudentLeaveService();
+    return studentLeaveService.getRequestDetails(requestId, userId);
+  }
+
+  /**
    * 5. Review Student Leave / OD Request (Mentor Approval -> Forward to Active HOD)
+   * Delegates to StudentLeaveService.mentorReview to ensure unified workflow processing,
+   * audit history, HOD resolution, and domain event notifications.
    */
   async reviewStudentLeaveOd(userId: string, requestId: string, payload: {
     action: 'APPROVE' | 'REJECT' | 'RETURN';
     remarks?: string;
   }) {
-    const faculty = await prisma.faculty.findFirst({ where: { userId } });
-    if (!faculty) throw new NotFoundException('Mentor faculty profile not found');
-
-    const request = await prisma.studentLeaveRequest.findUnique({
-      where: { id: requestId },
-      include: { student: true },
-    });
-
-    if (!request) throw new NotFoundException('Leave/OD request not found');
-    await this.requireMentee(faculty.id, request.studentId);
-    if (request.status !== 'PENDING_MENTOR') throw new BadRequestException('This request is not pending Mentor review');
-
-    if (payload.action === 'APPROVE') {
-      const hodUser = await prisma.user.findFirst({
-        where: { departmentId: request.student.departmentId, role: { name: 'HOD' } },
-      });
-
-      const updated = await prisma.studentLeaveRequest.update({
-        where: { id: requestId },
-        data: {
-          status: 'PENDING_HOD',
-          workflowStatus: 'PENDING_HOD',
-          mentorRemarks: payload.remarks || 'Approved by Mentor',
-          mentorApprovedAt: new Date(),
-        },
-      });
-
-      if (hodUser) {
-        await NotificationService.sendNotification({
-          recipientId: hodUser.id,
-          eventType: 'STUDENT_LEAVE_FORWARDED_TO_HOD',
-          title: `Student Leave Request Forwarded: ${request.student.firstName} ${request.student.lastName}`,
-          message: `Mentor approved and forwarded request ${request.requestNumber}`,
-          relatedEntityType: 'STUDENT_LEAVE',
-          relatedEntityId: requestId,
-          deepLinkRoute: `/hod/leave-approvals`,
-        });
-      }
-
-      return updated;
-    } else if (payload.action === 'REJECT') {
-      const updated = await prisma.studentLeaveRequest.update({
-        where: { id: requestId },
-        data: {
-          status: 'REJECTED_BY_MENTOR',
-          mentorRemarks: payload.remarks || 'Rejected by Mentor',
-        },
-      });
-
-      if (request.student.userId) {
-        await NotificationService.sendNotification({
-          recipientId: request.student.userId,
-          eventType: 'LEAVE_REJECTED',
-          title: `Leave Application Rejected by Mentor`,
-          message: payload.remarks || 'Your leave application was not approved by your mentor.',
-          relatedEntityType: 'STUDENT_LEAVE',
-          relatedEntityId: requestId,
-          deepLinkRoute: `/student/leave-od`,
-        });
-      }
-
-      return updated;
-    } else {
-      return prisma.studentLeaveRequest.update({
-        where: { id: requestId },
-        data: {
-          status: 'RETURNED_BY_MENTOR',
-          mentorRemarks: payload.remarks || 'Returned for correction',
-        },
-      });
-    }
+    const studentLeaveService = new StudentLeaveService();
+    return studentLeaveService.mentorReview(
+      userId,
+      requestId,
+      payload.action,
+      payload.remarks
+    );
   }
 
   /**

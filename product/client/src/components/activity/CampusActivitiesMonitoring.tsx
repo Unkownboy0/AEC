@@ -9,6 +9,7 @@ import {
 import { toast } from '../ui/Toast';
 import api from '../../lib/axios';
 import { useDevice } from '../../context/DeviceContext';
+import { saveBlobAndOpen, downloadAndOpen } from '../../platform/download';
 
 interface CampusActivitiesMonitoringProps {
   readOnly?: boolean;
@@ -191,14 +192,13 @@ export const CampusActivitiesMonitoring: React.FC<CampusActivitiesMonitoringProp
       const csvContent = '\uFEFF' + [...metadataRows, headers.map(escapeCSV).join(','), ...dataRows].join('\r\n');
 
       const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.setAttribute('href', url);
-      link.setAttribute('download', `NAAC_NBA_Accreditation_Activities_${selectedYear}_${Date.now()}.csv`);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      toast.success('NAAC/NBA Accreditation Activity CSV Report downloaded.');
+      const filename = `CampusOS_Accreditation_Activities_${selectedYear}_${Date.now()}.csv`;
+      const res = await saveBlobAndOpen(blob, filename, 'text/csv');
+      if (res.success) {
+        toast.success('Accreditation Activity CSV Report downloaded.');
+      } else {
+        toast.error(res.error || 'Accreditation Export failed.');
+      }
     } catch {
       toast.error('Accreditation Export failed.');
     }
@@ -225,8 +225,10 @@ export const CampusActivitiesMonitoring: React.FC<CampusActivitiesMonitoringProp
         description: `Principal viewed brochure '${brochure.name}' for activity #${selectedActivity?.id}`
       });
       if (brochure.url && brochure.url !== '#') {
-        window.open(brochure.url, '_blank');
-        toast.success(`Opening brochure preview: ${brochure.name}`);
+        const res = await downloadAndOpen(brochure.url, `${brochure.name || 'Activity_Brochure'}.pdf`);
+        if (!res.success) {
+          toast.error(res.error || 'Unable to view brochure.');
+        }
       } else {
         toast.error('Unable to view brochure.');
       }

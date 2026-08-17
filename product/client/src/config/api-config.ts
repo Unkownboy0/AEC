@@ -2,7 +2,7 @@ import { Capacitor } from '@capacitor/core';
 import { env } from '../shared/config/environment';
 
 export const API_BASE_URL = (() => {
-  const envUrl = import.meta.env.VITE_API_URL || import.meta.env.VITE_SERVER_BASE_URL;
+  const envUrl = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_SERVER_BASE_URL || import.meta.env.VITE_API_URL;
   if (envUrl && envUrl.trim() !== '') {
     return envUrl.endsWith('/api') ? envUrl : `${envUrl}/api`;
   }

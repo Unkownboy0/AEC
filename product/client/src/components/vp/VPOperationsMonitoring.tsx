@@ -10,6 +10,7 @@ import { toast } from '../ui/Toast';
 import api from '../../lib/axios';
 import { ExecutiveLeaveOdModal } from '../shared/ExecutiveLeaveOdModal';
 import { ActingPrincipalBanner } from '../../modules/vp/ActingPrincipalBanner';
+import { saveBlobAndOpen } from '../../platform/download';
 
 interface VPOperationsMonitoringProps {
   readOnly?: boolean;
@@ -147,16 +148,15 @@ export const VPOperationsMonitoring: React.FC<VPOperationsMonitoringProps> = () 
       const csvContent = '\uFEFF' + [...metadataRows, headers.map(escapeCSV).join(','), ...dataRows].join('\r\n');
 
       const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.setAttribute('href', url);
-      link.setAttribute('download', `VP_Operations_Audit_Report_${Date.now()}.csv`);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      toast.success('Vice Principal Operations Report downloaded.');
+      const filename = `CampusOS_VP_Operations_Audit_Report_${Date.now()}.csv`;
+      const res = await saveBlobAndOpen(blob, filename, 'text/csv');
+      if (res.success) {
+        toast.success('Vice Principal Operations Report downloaded.');
+      } else {
+        toast.error(res.error || 'Export report failed.');
+      }
     } catch {
-      toast.error('Export Excel failed.');
+      toast.error('Export report failed.');
     }
   };
 

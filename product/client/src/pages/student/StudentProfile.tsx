@@ -4,6 +4,7 @@ import { toast } from '../../components/ui/Toast';
 import { Loading } from '../../components/ui/Loading';
 import api from '../../lib/axios';
 import { useAuth } from '../../context/AuthContext';
+import { resolveAssetUrl } from '../../utils/assets';
 
 export const StudentProfile: React.FC = () => {
   const { user, refreshUser } = useAuth();
@@ -33,38 +34,41 @@ export const StudentProfile: React.FC = () => {
     const fetchProfile = async () => {
       try {
         setIsLoading(true);
-        const res = await api.get('/enterprise/students');
-        if (res.data?.status === 'success' && res.data.data?.length > 0) {
-          const info = res.data.data[0];
-          setStudentInfo(info);
+        // Canonical user profile fetch
+        const res = await api.get('/auth/me');
+        const userData = res.data?.data?.user || res.data?.user || user;
+        const student = userData?.student;
+        
+        if (student || userData) {
+          setStudentInfo(student || userData);
           setFormData({
-            firstName: info.firstName || '',
-            lastName: info.lastName || '',
-            preferredName: info.preferredName || '',
-            phone: info.phone || '',
-            altPhone: info.altPhone || '',
-            email: info.email || '',
-            currentAddress: info.currentAddress || '',
-            permanentAddress: info.permanentAddress || '',
-            city: info.city || '',
-            district: info.district || '',
-            state: info.state || '',
-            country: info.country || '',
-            pinCode: info.pinCode || '',
-            emergencyContactName: info.emergencyContactName || '',
-            emergencyContactPhone: info.emergencyContactPhone || '',
-            emergencyContactRelation: info.emergencyContactRelation || '',
-            parentPhone: info.parentPhone || '',
-            parentEmail: info.parentEmail || '',
-            linkedin: info.linkedin || '',
-            github: info.github || '',
-            portfolio: info.portfolio || '',
-            technicalSkills: info.technicalSkills || '',
-            softSkills: info.softSkills || '',
-            languagesKnown: info.languagesKnown || '',
-            certifications: info.certifications || '',
-            careerObjective: info.careerObjective || '',
-            areasOfInterest: info.areasOfInterest || ''
+            firstName: student?.firstName || userData?.firstName || '',
+            lastName: student?.lastName || userData?.lastName || '',
+            preferredName: student?.preferredName || '',
+            phone: student?.phone || userData?.phone || '',
+            altPhone: student?.altPhone || '',
+            email: student?.email || userData?.email || '',
+            currentAddress: student?.currentAddress || '',
+            permanentAddress: student?.permanentAddress || '',
+            city: student?.city || '',
+            district: student?.district || '',
+            state: student?.state || '',
+            country: student?.country || '',
+            pinCode: student?.pinCode || '',
+            emergencyContactName: student?.emergencyContactName || '',
+            emergencyContactPhone: student?.emergencyContactPhone || '',
+            emergencyContactRelation: student?.emergencyContactRelation || '',
+            parentPhone: student?.parentPhone || '',
+            parentEmail: student?.parentEmail || '',
+            linkedin: student?.linkedin || '',
+            github: student?.github || '',
+            portfolio: student?.portfolio || '',
+            technicalSkills: student?.technicalSkills || '',
+            softSkills: student?.softSkills || '',
+            languagesKnown: student?.languagesKnown || '',
+            certifications: student?.certifications || '',
+            careerObjective: student?.careerObjective || '',
+            areasOfInterest: student?.areasOfInterest || ''
           });
         }
       } catch (err) {
@@ -74,7 +78,7 @@ export const StudentProfile: React.FC = () => {
       }
     };
     fetchProfile();
-  }, []);
+  }, [user]);
 
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -173,7 +177,11 @@ export const StudentProfile: React.FC = () => {
           <div className="flex flex-col md:flex-row items-center gap-6 pb-6 border-b">
             <div className="h-24 w-24 rounded-full bg-primary/10 border relative overflow-hidden flex items-center justify-center shrink-0">
               {photoBase64 || user?.profilePhoto ? (
-                <img src={photoBase64 || user?.profilePhoto} className="h-full w-full object-cover" alt="Student Profile" />
+                <img
+                  src={photoBase64 ? photoBase64 : resolveAssetUrl(user?.profilePhoto)}
+                  className="h-full w-full object-cover"
+                  alt="Student Profile"
+                />
               ) : (
                 <User className="h-10 w-10 text-muted-foreground" />
               )}

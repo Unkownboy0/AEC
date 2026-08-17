@@ -449,11 +449,15 @@ export class HodRepository {
 
     const where: any = { deleted: false };
     if (departmentId && departmentId !== 'ALL') {
-      where.departmentId = departmentId;
+      where.OR = [
+        { departmentId },
+        { operatingDepartmentId: departmentId },
+        { programDepartmentId: departmentId },
+      ];
     }
 
     if (filters.year) {
-      where.year = Number(filters.year);
+      where.semester = { number: { in: [Number(filters.year) * 2 - 1, Number(filters.year) * 2] } };
     }
     if (filters.sectionId) {
       where.sectionId = filters.sectionId;
@@ -462,12 +466,18 @@ export class HodRepository {
       where.mentorId = filters.mentorId;
     }
     if (filters.search) {
-      where.OR = [
+      const searchOR = [
         { admissionNo: { contains: filters.search } },
         { firstName: { contains: filters.search } },
         { lastName: { contains: filters.search } },
         { user: { email: { contains: filters.search } } },
       ];
+      if (where.OR) {
+        where.AND = [{ OR: where.OR }, { OR: searchOR }];
+        delete where.OR;
+      } else {
+        where.OR = searchOR;
+      }
     }
 
     const [total, students] = await Promise.all([
@@ -481,12 +491,57 @@ export class HodRepository {
           user: true,
           section: true,
           program: true,
+          department: true,
+          semester: true,
           mentor: { include: { user: true } },
         },
       }),
     ]);
 
-    return { total, students, page, limit, totalPages: Math.ceil(total / limit) };
+    const studentIds = students.map((s) => s.id);
+    const [attendanceRows, arrearGroups] = studentIds.length > 0
+      ? await Promise.all([
+          prisma.attendance.groupBy({
+            by: ['studentId', 'status'],
+            where: { studentId: { in: studentIds } },
+            _count: { _all: true },
+          }),
+          prisma.mark.groupBy({
+            by: ['studentId'],
+            where: { studentId: { in: studentIds }, status: 'PUBLISHED', grade: 'F' },
+            _count: { _all: true },
+          }),
+        ])
+      : [[], []];
+
+    const perStudentAttendance = new Map<string, { present: number; total: number }>();
+    for (const row of attendanceRows) {
+      if (!row.studentId) continue;
+      const entry = perStudentAttendance.get(row.studentId) || { present: 0, total: 0 };
+      entry.total += row._count._all;
+      if (row.status === 'PRESENT' || row.status === 'ON_DUTY') entry.present += row._count._all;
+      perStudentAttendance.set(row.studentId, entry);
+    }
+    const arrearsByStudent = new Map(arrearGroups.map((g) => [g.studentId, g._count._all]));
+
+    const enrichedStudents = students.map((s) => {
+      const att = perStudentAttendance.get(s.id);
+      const percentage = att && att.total > 0 ? Math.round((att.present / att.total) * 100) : 100;
+      const arrears = arrearsByStudent.get(s.id) || 0;
+      const isAttendanceRisk = percentage < 75;
+      const isAcademicRisk = arrears >= 1;
+
+      return {
+        ...s,
+        attendancePercentage: percentage,
+        arrearsCount: arrears,
+        riskLevel: percentage < 65 ? 'CRITICAL' : isAttendanceRisk ? 'WARNING' : 'NORMAL',
+        isAttendanceRisk,
+        isAcademicRisk,
+      };
+    });
+
+    return { total, students: enrichedStudents, page, limit, totalPages: Math.ceil(total / limit) };
   }
 
   /**

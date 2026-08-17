@@ -1,32 +1,7 @@
 import { prisma } from '../../lib/prisma';
 import { logger } from '../../utils/logger';
-import { PushDispatchService } from '../notifications/push-dispatch.service';
+import { NotificationService } from '../notifications/notification.service';
 import { CircularRepository } from './circular.repository';
-
-/**
- * Maps publisher role to a deep-link prefix.
- */
-const ROLE_DEEP_LINK_PREFIX: Record<string, string> = {
-  HOD: '/hod/circulars',
-  'Head of Department': '/hod/circulars',
-  Principal: '/principal/circulars',
-  'Vice Principal': '/vp/circulars',
-  VP: '/vp/circulars',
-  'Academic Dean': '/academic-dean/circulars',
-  'Admission Dean': '/admission-dean/circulars',
-  'IQAC Dean': '/iqac/circulars',
-  Faculty: '/faculty/circulars',
-  Student: '/student/circulars',
-  default: '/circulars',
-};
-
-/**
- * Maps recipient role to their circular viewing route.
- */
-function getDeepLinkForRecipient(recipientRole: string, circularId: string): string {
-  const prefix = ROLE_DEEP_LINK_PREFIX[recipientRole] ?? ROLE_DEEP_LINK_PREFIX.default;
-  return `${prefix}/${circularId}`;
-}
 
 /**
  * Build native notification title.
@@ -53,10 +28,7 @@ export class CircularNotificationService {
   private repo = new CircularRepository();
 
   /**
-   * Dispatch all notifications after a circular is published.
-   * 1. Creates in-app Notification records in bulk.
-   * 2. Sends native push via Expo Push API.
-   * 3. Updates CircularRecipient status to DELIVERED.
+   * Dispatch all notifications after a circular is published via central NotificationEngine.
    */
   async dispatchCircularNotifications(
     circular: any,
@@ -75,56 +47,31 @@ export class CircularNotificationService {
 
     const notifTitle = buildNotificationTitle(circular);
     const notifBody = buildNotificationBody(circular, publisherName);
-    const webDeepLink = `/circulars/${circular.id}`;
+    const deepLinkRoute = `/circulars/${circular.id}`;
+    const eventType = circular.isEmergency ? 'EMERGENCY_CIRCULAR' : 'CIRCULAR_PUBLISHED';
 
-    // 1. Bulk create in-app notifications (skip if already exists)
-    const notifData = recipientUserIds.map(uid => ({
-      recipientId: uid,
-      eventType: circular.isEmergency ? 'EMERGENCY_CIRCULAR' : 'CIRCULAR_PUBLISHED',
-      title: notifTitle,
-      message: notifBody,
-      relatedEntityType: 'Circular',
-      relatedEntityId: circular.id,
-      deepLinkRoute: webDeepLink,
-      deliveryChannel: 'IN_APP',
-      deliveryState: 'DELIVERED',
-    }));
+    logger.info(`[CircularNotification] Dispatching domain event ${eventType} to ${recipientUserIds.length} users for circular ${circular.id}`);
 
-    // Chunk in-app notifications to avoid DB timeout
-    const CHUNK_SIZE = 200;
-    for (let i = 0; i < notifData.length; i += CHUNK_SIZE) {
-      const chunk = notifData.slice(i, i + CHUNK_SIZE);
-      await prisma.notification.createMany({
-        data: chunk as any[],
-        skipDuplicates: true,
-      }).catch(err => logger.warn('[CircularNotification] In-app notif chunk failed:', err));
-    }
-
-    logger.info(`[CircularNotification] Created ${recipientUserIds.length} in-app notifications for circular ${circular.id}`);
-
-    // 2. Send native push notifications
-    await PushDispatchService.sendToUsers(recipientUserIds, {
+    await NotificationService.dispatchDomainEvent({
+      eventType,
+      actorUserId: circular.authorId,
+      entityType: 'CIRCULAR',
+      entityId: circular.id,
       title: notifTitle,
       body: notifBody,
-      sound: 'default',
-      priority: circular.isEmergency ? 'high' : 'default',
-      channelId: circular.isEmergency ? 'emergency' : 'circulars',
-      data: {
-        type: 'CIRCULAR',
+      priority: circular.isEmergency ? 'CRITICAL' : circular.priority === 'HIGH' || circular.priority === 'URGENT' ? 'HIGH' : 'NORMAL',
+      category: 'CIRCULARS',
+      deepLinkRoute,
+      targetUserIds: recipientUserIds,
+      departmentId: circular.departmentId,
+      metadata: {
         circularId: circular.id,
         circularTitle: circular.title,
-        category: circular.category ?? 'GENERAL',
-        priority: circular.priority ?? 'NORMAL',
         publisherName,
         publisherRole: circular.publishedAs ?? circular.authorRole ?? '',
         publishedAt: (circular.publishedAt ?? new Date()).toISOString(),
-        deepLink: webDeepLink,
-        // Native deep-link scheme (campusos://...)
-        nativeDeepLink: `campusos:/${webDeepLink}`,
       },
     });
-
-    logger.info(`[CircularNotification] Push dispatch completed for ${recipientUserIds.length} users`);
   }
 
   /**
@@ -140,22 +87,26 @@ export class CircularNotificationService {
       select: { userId: true },
     });
 
-    const userIds = unreadRecipients.map((r: any) => r.userId);
+    const userIds = unreadRecipients.map((r: any) => r.userId).filter(Boolean);
     if (userIds.length === 0) return 0;
 
     const circular = await this.repo.findById(circularId);
     if (!circular) return 0;
 
-    await PushDispatchService.sendToUsers(userIds, {
+    await NotificationService.dispatchDomainEvent({
+      eventType: 'CIRCULAR_REMINDER',
+      actorUserId: circular.authorId,
+      entityType: 'CIRCULAR',
+      entityId: circularId,
       title: '📋 Circular Reminder',
       body: customMessage ?? `Please read and acknowledge: "${circular.title}"`,
-      priority: 'normal',
-      channelId: 'circulars',
-      data: {
-        type: 'CIRCULAR_REMINDER',
+      priority: 'NORMAL',
+      category: 'CIRCULARS',
+      deepLinkRoute: `/circulars/${circularId}`,
+      targetUserIds: userIds,
+      metadata: {
         circularId,
-        deepLink: `/circulars/${circularId}`,
-        nativeDeepLink: `campusos://circulars/${circularId}`,
+        circularTitle: circular.title,
       },
     });
 

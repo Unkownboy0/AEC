@@ -7,10 +7,11 @@ import {
   Clock, Briefcase
 } from 'lucide-react';
 import { toast } from '../components/ui/Toast';
+import { Avatar } from '../components/ui/Avatar';
 import api from '../lib/axios';
 
 export const Profile: React.FC = () => {
-  const { user, logout, updateUser } = useAuth();
+  const { user, logout, updateUser, refreshUser } = useAuth();
   const navigate = useNavigate();
 
   const [isEditing, setIsEditing] = useState(false);
@@ -34,19 +35,23 @@ export const Profile: React.FC = () => {
   const [extendedData, setExtendedData] = useState<any>(null);
 
   useEffect(() => {
-    // Fetch extended role details if available
+    // Fetch extended role details if available from canonical profile
     const fetchExtendedDetails = async () => {
       if (!user) return;
       try {
-        if (user.role === 'Student') {
-          const res = await api.get('/enterprise/students').catch(() => null);
-          if (res?.data?.data?.[0]) setExtendedData(res.data.data[0]);
-        } else if (['Faculty', 'HOD', 'Mentor', 'Academic Dean'].includes(user.role)) {
-          const res = await api.get('/enterprise/faculties').catch(() => null);
-          if (res?.data?.data?.[0]) setExtendedData(res.data.data[0]);
+        const res = await api.get('/auth/me');
+        const userData = res.data?.data?.user || res.data?.user;
+        if (userData?.student) {
+          setExtendedData(userData.student);
+        } else if (userData?.faculty) {
+          setExtendedData(userData.faculty);
+        } else if (userData?.employee) {
+          setExtendedData(userData.employee);
         }
       } catch (err) {
-        // Fallback gracefully to base profile
+        // Fallback gracefully to user in auth state
+        if (user.student) setExtendedData(user.student);
+        else if (user.faculty) setExtendedData(user.faculty);
       }
     };
     fetchExtendedDetails();
@@ -56,14 +61,16 @@ export const Profile: React.FC = () => {
     e.preventDefault();
     setIsSaving(true);
     try {
-      const res = await api.put('/users/profile', editForm);
+      const res = await api.put('/auth/profile', editForm);
       if (res.data?.status === 'success') {
         updateUser({
           firstName: editForm.firstName,
           lastName: editForm.lastName,
+          phone: editForm.phone,
         });
         toast.success('Profile updated successfully!');
         setIsEditing(false);
+        await refreshUser();
       }
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Failed to update profile.');
@@ -118,13 +125,12 @@ export const Profile: React.FC = () => {
           
           {/* Avatar */}
           <div className="relative">
-            <div className="h-24 w-24 sm:h-28 sm:w-28 rounded-full bg-primary/10 text-primary border-4 border-background shadow-md flex items-center justify-center font-extrabold text-2xl overflow-hidden">
-              {user.profilePhoto ? (
-                <img src={user.profilePhoto} alt="Profile" className="h-full w-full object-cover" />
-              ) : (
-                `${user.firstName[0]}${user.lastName[0]}`
-              )}
-            </div>
+            <Avatar
+              src={user.profilePhoto}
+              name={`${user.firstName} ${user.lastName}`}
+              size="2xl"
+              className="border-4 border-background"
+            />
             <span className="absolute bottom-1 right-1 h-5 w-5 bg-emerald-500 border-2 border-background rounded-full" title="Active Account" />
           </div>
 

@@ -85,6 +85,12 @@ export type NotificationEventType =
   | 'DELEGATION_ENDING'
   | 'DELEGATION_COMPLETED'
   | 'HANDOVER_AVAILABLE'
+  // Faculty Leave & Substitution
+  | 'FACULTY_LEAVE_SUBMITTED'
+  | 'FACULTY_LEAVE_APPROVED'
+  | 'FACULTY_LEAVE_REJECTED'
+  | 'SUBSTITUTE_ASSIGNED'
+  | 'TIMETABLE_UPDATED'
   // Fallback
   | string;
 
@@ -120,6 +126,6 @@ export interface NotificationListResponse {
 /** Payload sent to backend when registering a device push token */
 export interface DeviceTokenRegistration {
   token: string;
-  platform: 'android' | 'ios';
+  platform: 'android' | 'ios' | 'web';
   deviceId: string;
 }

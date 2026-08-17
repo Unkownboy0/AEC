@@ -250,9 +250,11 @@ export class SecurityHelper {
       case 'marks':
         if (user.role === 'Student') {
           where.studentId = student?.id ?? 'non-existent';
+          where.status = 'PUBLISHED'; // MANDATORY: Unpublished results must never be exposed to students
         } else if (user.role === 'Parent') {
           const children = await prisma.student.findMany({ where: { parentEmail: user.email }, select: { id: true } });
           where.studentId = { in: children.map(c => c.id) };
+          where.status = 'PUBLISHED'; // MANDATORY: Unpublished results must never be exposed to parents
         } else if (user.role === 'HOD') {
           where.student = { departmentId: faculty?.departmentId ?? 'non-existent' };
         } else if (user.role === 'Faculty') {

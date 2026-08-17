@@ -13,8 +13,10 @@ router.post('/refresh', controller.refresh);
 router.post('/forgot-password', controller.forgotPassword);
 router.post('/reset-password', controller.resetPassword);
 
-// Protected routes
+// Protected routes & canonical profile endpoints
+router.get('/', requireAuth, controller.getMe);
 router.get('/me', requireAuth, controller.getMe);
+router.get('/profile', requireAuth, controller.getMe);
 router.post('/switch-workspace', requireAuth, controller.switchWorkspace);
 router.post('/change-password', requireAuth, controller.changePassword);
 router.post('/logout-all', requireAuth, controller.logoutAll);

@@ -4,6 +4,7 @@ import { toast } from '../../components/ui/Toast';
 import { Loading } from '../../components/ui/Loading';
 import api from '../../lib/axios';
 import { markCircularRead } from '../../modules/circulars/api/circularApi';
+import { downloadAndOpen } from '../../platform/download';
 
 // Map backend priority values to display config
 const PRIORITY_CONFIG: Record<string, { label: string; className: string }> = {
@@ -236,9 +237,21 @@ const CircularCard: React.FC<{
             {circular.content || 'No additional content.'}
           </p>
           {circular.attachmentUrl && (
-            <a href={circular.attachmentUrl} target="_blank" rel="noopener noreferrer" className="mt-3 inline-flex items-center gap-1 rounded-lg border px-3 py-1.5 text-[10px] font-black hover:bg-muted">
+            <button
+              type="button"
+              onClick={async () => {
+                const res = await downloadAndOpen(
+                  circular.attachmentUrl,
+                  `${circular.title?.slice(0, 30) || 'Circular_Attachment'}.pdf`
+                );
+                if (!res.success) {
+                  toast.error(res.error || 'Unable to open attachment.');
+                }
+              }}
+              className="mt-3 inline-flex items-center gap-1 rounded-lg border px-3 py-1.5 text-[10px] font-black hover:bg-muted"
+            >
               <Download className="h-3.5 w-3.5 text-indigo-500" /> Open attachment
-            </a>
+            </button>
           )}
         </div>
       )}

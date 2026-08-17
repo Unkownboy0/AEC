@@ -4,7 +4,7 @@ import { logger } from './utils/logger';
 import { prisma } from './lib/prisma';
 
 const server = app.listen(env.PORT, '0.0.0.0', () => {
-  logger.info(`🚀 GEETORUS CAMPUSOS Engine running in ${env.NODE_ENV} mode on port ${env.PORT}`);
+  logger.info(`🚀 CampusOS API Server running in ${env.NODE_ENV} mode on port ${env.PORT}`);
 });
 
 server.on('error', (err: any) => {

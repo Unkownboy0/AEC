@@ -13,8 +13,8 @@ export async function refreshAuthSession(): Promise<string | null> {
       await setStoredTokens(accessToken, newRefreshToken || refreshToken);
       return accessToken;
     }
-  } catch (err) {
-    console.error('[SessionRefresh] Failed refreshing session token:', err);
+  } catch (err: any) {
+    console.error('[SessionRefresh] Failed refreshing session token:', err?.message || 'Network/Server Error');
     await clearStoredTokens();
   }
 

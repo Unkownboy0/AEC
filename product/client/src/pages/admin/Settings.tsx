@@ -2,8 +2,11 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { AlertTriangle, Check, ChevronRight, Loader2, RefreshCw, Save, Settings2 } from 'lucide-react';
 import api from '../../lib/axios';
 import { toast } from '../../components/ui/Toast';
+import { ModuleControlPanel } from '../../components/platform/ModuleControlPanel';
+import { MobileCapabilitiesSettings } from './MobileCapabilitiesSettings';
+import { BrandingWatermarkControlCenter } from '../../components/platform/BrandingWatermarkControlCenter';
 
-type Category = 'institution' | 'policy' | 'security' | 'files' | 'modules';
+type Category = 'institution' | 'policy' | 'security' | 'files' | 'modules' | 'mobile';
 type CatalogSetting = {
   key: string;
   label: string;
@@ -22,6 +25,7 @@ const categories: Array<{ id: Category; label: string; description: string }> = 
   { id: 'policy', label: 'Academic policy', description: 'Rules applied by operational modules' },
   { id: 'files', label: 'Files', description: 'Upload and document controls' },
   { id: 'modules', label: 'Modules', description: 'Feature availability gates' },
+  { id: 'mobile', label: 'Mobile & Devices', description: 'Hardware sensors, push, & capabilities' },
   { id: 'security', label: 'Security', description: 'Privileged access policies' },
 ];
 
@@ -104,9 +108,45 @@ export const Settings: React.FC = () => {
 
         <section className="rounded-2xl border border-border/70 bg-card p-5 md:p-7">
           {loading ? <div className="grid min-h-72 place-items-center"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div> : (
+            activeCategory === 'institution' ? (
+              // Institution tab: Show rich Branding & Watermark Live Preview Control Center + underlying settings
+              <div className="space-y-8">
+                <BrandingWatermarkControlCenter />
+                <div className="pt-6 border-t border-border space-y-5">
+                  <h3 className="text-sm font-bold text-foreground">Underlying Catalog Key-Value Settings</h3>
+                  {visibleSettings.map((setting) => (
+                    <div key={setting.key} className="grid gap-3 border-b border-border/60 pb-5 last:border-0 md:grid-cols-[minmax(0,1fr)_minmax(220px,320px)] md:items-center">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <label htmlFor={setting.key} className="font-semibold text-sm">{setting.label}</label>
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{setting.source.toLowerCase()}</span>
+                        </div>
+                        <p className="mt-1 text-xs leading-5 text-muted-foreground">{setting.description}</p>
+                        <p className="mt-1.5 text-[11px] text-muted-foreground">Affects: {setting.impact.join(' · ')}</p>
+                      </div>
+                      {isBooleanSetting(setting) ? (
+                        <select id={setting.key} value={draft[setting.key] ?? setting.value} onChange={(event) => { setDraft((current) => ({ ...current, [setting.key]: event.target.value })); setImpact(null); }} className="min-h-10 rounded-xl border border-border bg-background px-3 text-xs font-semibold outline-none focus:ring-2 focus:ring-primary/25">
+                          <option value="false">Disabled</option>
+                          <option value="true">Enabled</option>
+                        </select>
+                      ) : (
+                        <input id={setting.key} value={draft[setting.key] ?? setting.value} onChange={(event) => { setDraft((current) => ({ ...current, [setting.key]: event.target.value })); setImpact(null); }} className="min-h-10 rounded-xl border border-border bg-background px-3 text-xs outline-none focus:ring-2 focus:ring-primary/25" />
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : activeCategory === 'modules' ? (
+              // Modules tab: show rich visual toggle UI instead of plain dropdowns
+              <ModuleControlPanel />
+            ) : activeCategory === 'mobile' ? (
+              // Mobile & Device Capabilities tab
+              <MobileCapabilitiesSettings />
+            ) : (
             <div className="space-y-5">
               {visibleSettings.map((setting) => <div key={setting.key} className="grid gap-3 border-b border-border/60 pb-5 last:border-0 md:grid-cols-[minmax(0,1fr)_minmax(220px,320px)] md:items-center"><div><div className="flex items-center gap-2"><label htmlFor={setting.key} className="font-semibold">{setting.label}</label><span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{setting.source.toLowerCase()}</span></div><p className="mt-1 text-sm leading-6 text-muted-foreground">{setting.description}</p><p className="mt-2 text-xs text-muted-foreground">Affects: {setting.impact.join(' · ')}</p></div>{isBooleanSetting(setting) ? <select id={setting.key} value={draft[setting.key] ?? setting.value} onChange={(event) => { setDraft((current) => ({ ...current, [setting.key]: event.target.value })); setImpact(null); }} className="min-h-11 rounded-xl border border-border bg-background px-3 text-sm font-semibold outline-none focus:ring-2 focus:ring-primary/25"><option value="false">Disabled</option><option value="true">Enabled</option></select> : <input id={setting.key} value={draft[setting.key] ?? setting.value} onChange={(event) => { setDraft((current) => ({ ...current, [setting.key]: event.target.value })); setImpact(null); }} className="min-h-11 rounded-xl border border-border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-primary/25" />}</div>)}
             </div>
+            )
           )}
         </section>
       </div>

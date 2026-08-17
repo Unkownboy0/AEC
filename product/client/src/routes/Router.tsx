@@ -61,6 +61,18 @@ import { WorkManagementWorkspace } from '../pages/enterprise/WorkManagementWorks
 import FacultyWorkspaceHub from '../modules/faculty/FacultyWorkspaceHub';
 import CampusOfficeWorkspace from '../modules/enterprise/office/CampusOfficeWorkspace';
 import HodTimetableControlCenter from '../modules/hod/timetable/HodTimetableControlCenter';
+
+// ─── Campus Workspace Modules ────────────────────────────────────
+import CampusWorkspaceHome from '../pages/workspace/CampusWorkspaceHome';
+import CampusDocsEditor from '../pages/workspace/CampusDocsEditor';
+import CampusSheetsEditor from '../pages/workspace/CampusSheetsEditor';
+import CampusSlidesEditor from '../pages/workspace/CampusSlidesEditor';
+import CampusFormsBuilder from '../pages/workspace/CampusFormsBuilder';
+import CampusQuizBuilder from '../pages/workspace/CampusQuizBuilder';
+import CampusNotesEditor from '../pages/workspace/CampusNotesEditor';
+import CampusDrivePage from '../pages/workspace/CampusDrivePage';
+import CampusPDFViewer from '../pages/workspace/CampusPDFViewer';
+import CampusReportBuilder from '../pages/workspace/CampusReportBuilder';
 import { GovernanceSuite } from '../pages/enterprise/GovernanceSuite';
 import { InstitutionAvailabilityDashboard } from '../pages/shared/InstitutionAvailabilityDashboard';
 import { ComplaintsPage } from '../pages/shared/ComplaintsPage';
@@ -114,7 +126,6 @@ const StudentTransport = React.lazy(() => import('../pages/student/StudentTransp
 const StudentPortfolio = React.lazy(() => import('../pages/student/StudentPortfolio'));
 const StudentSkills = React.lazy(() => import('../pages/student/StudentSkills'));
 const StudentClubs = React.lazy(() => import('../pages/student/StudentClubs'));
-const StudentDocuments = React.lazy(() => import('../pages/student/StudentDocuments'));
 const StudentCirculars = React.lazy(() => import('../pages/student/StudentCirculars'));
 const StudentAdvisorChat = React.lazy(() => import('../pages/student/StudentAdvisorChat'));
 const StudentNotifications = React.lazy(() => import('../pages/student/StudentNotifications'));
@@ -148,12 +159,32 @@ import { IQACExecutivePortal } from '../pages/admin/IQACExecutivePortal';
 import { IQACDocumentationPortal } from '../pages/admin/IQACDocumentationPortal';
 import ParentWorkspacePortal from '../pages/parent/ParentWorkspacePortal';
 import FacultyWorkspacePortal from '../pages/faculty/FacultyWorkspacePortal';
+import FacultyMarksEntry from '../pages/faculty/FacultyMarksEntry';
 import MentorWorkspacePortal from '../pages/mentor/MentorWorkspacePortal';
-import { FacultyDashboard } from '../modules/faculty/FacultyDashboard';
 import { CircularCenter } from '../modules/circulars/CircularCenter';
 import { DepartmentAvailabilityBoard } from '../components/department/DepartmentAvailabilityBoard';
 import { DepartmentAvailabilityPage } from '../modules/department-availability/DepartmentAvailabilityPage';
 import { getRoleHome } from '../navigation/role-home';
+
+// ─── Stub Role Workspaces (previously 404) ────────────────────
+const LibrarianWorkspace = React.lazy(() => import('../modules/library/LibrarianWorkspace'));
+const HostelWardenWorkspace = React.lazy(() => import('../modules/hostel/HostelWardenWorkspace'));
+const TransportManagerWorkspace = React.lazy(() => import('../modules/transport/TransportManagerWorkspace'));
+const PlacementOfficerWorkspace = React.lazy(() => import('../modules/placement/PlacementOfficerWorkspace'));
+
+const SuspenseWrap = ({ children }: { children: React.ReactNode }) => (
+  <React.Suspense fallback={
+    <div className="p-8 space-y-4 animate-pulse">
+      <div className="h-10 bg-muted rounded-xl w-64" />
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {[0,1,2,3].map(i => <div key={i} className="h-24 bg-muted rounded-xl" />)}
+      </div>
+      <div className="h-64 bg-muted rounded-xl" />
+    </div>
+  }>
+    {children}
+  </React.Suspense>
+);
 
 const superAdminOnly = (element: React.ReactNode) => (
   <ProtectedRoute allowedRoles={['SUPER_ADMIN', 'Super Admin']}>{element}</ProtectedRoute>
@@ -167,10 +198,13 @@ const managementOnly = (element: React.ReactNode) => (
   <ProtectedRoute allowedRoles={['MANAGEMENT', 'Management', 'GOVERNING_BODY', 'Governing Body', 'SUPER_ADMIN', 'Super Admin', 'COLLEGE_ADMIN', 'College Admin']}>{element}</ProtectedRoute>
 );
 
-// Modular Mentor Pages
+// Legal pages (public, no auth required — needed for App Store compliance)
+const PrivacyPolicyPage = React.lazy(() => import('../pages/legal/PrivacyPolicy'));
+const TermsOfServicePage = React.lazy(() => import('../pages/legal/TermsOfService'));
 import { MentorDashboardPage } from '../modules/mentor/pages/MentorDashboardPage';
 import { MentorStudentsPage } from '../modules/mentor/pages/MentorStudentsPage';
 import { MentorApprovalsPage } from '../modules/mentor/pages/MentorApprovalsPage';
+import { MentorLeaveRequestDetailPage } from '../modules/mentor/pages/MentorLeaveRequestDetailPage';
 import { MentorAttendanceOverviewPage } from '../modules/mentor/pages/MentorAttendanceOverviewPage';
 import { MentorAcademicsPage } from '../modules/mentor/pages/MentorAcademicsPage';
 import { MentorCounsellingPage } from '../modules/mentor/pages/MentorCounsellingPage';
@@ -280,7 +314,6 @@ const COMPONENT_MAP: Record<string, React.ComponentType<any>> = {
   student_portfolio: StudentPortfolio,
   student_skills: StudentSkills,
   student_clubs: StudentClubs,
-  student_documents: StudentDocuments,
   student_circulars: StudentCirculars,
   student_advisor_chat: StudentAdvisorChat,
   student_notifications: StudentNotifications,
@@ -299,6 +332,10 @@ export const AppRouter: React.FC = () => {
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/verify/:token" element={<IdCardVerify />} />
+        {/* Legal pages — required for App Store, accessible without authentication */}
+        <Route path="/privacy-policy" element={<SuspenseWrap><PrivacyPolicyPage /></SuspenseWrap>} />
+        <Route path="/terms" element={<SuspenseWrap><TermsOfServicePage /></SuspenseWrap>} />
+        <Route path="/terms-of-service" element={<SuspenseWrap><TermsOfServicePage /></SuspenseWrap>} />
 
         {/* Protected App Routes */}
         <Route
@@ -364,6 +401,8 @@ export const AppRouter: React.FC = () => {
 
           {/* ─── Global Notifications & Circulars ────────── */}
           <Route path="notifications" element={<NotificationsPage />} />
+          <Route path="admin/notifications" element={<NotificationCenter />} />
+          <Route path="admin/notifications/control-center" element={superAdminOnly(<NotificationCenter />)} />
           <Route path="circulars" element={<CircularCenter />} />
           <Route path="circulars/:id" element={<CircularDetailPage />} />
 
@@ -374,12 +413,25 @@ export const AppRouter: React.FC = () => {
           <Route path="faculty/workspace" element={<FacultyWorkspaceHub />} />
           <Route path="faculty/office" element={<CampusOfficeWorkspace />} />
           <Route path="office" element={<CampusOfficeWorkspace />} />
+
+          {/* ─── Campus Workspace Routes ─────────────────────── */}
+          <Route path="workspace" element={<CampusWorkspaceHome />} />
+          <Route path="workspace/docs/:id" element={<CampusDocsEditor />} />
+          <Route path="workspace/sheets/:id" element={<CampusSheetsEditor />} />
+          <Route path="workspace/slides/:id" element={<CampusSlidesEditor />} />
+          <Route path="workspace/forms/:id" element={<CampusFormsBuilder />} />
+          <Route path="workspace/quiz/:id" element={<CampusQuizBuilder />} />
+          <Route path="workspace/notes/:id" element={<CampusNotesEditor />} />
+          <Route path="workspace/pdf/:id" element={<CampusPDFViewer />} />
+          <Route path="workspace/reports/:id" element={<CampusReportBuilder />} />
+          <Route path="workspace/report/:id" element={<CampusReportBuilder />} />
+          <Route path="workspace/drive" element={<CampusDrivePage />} />
           <Route path="faculty/timetable" element={<FacultyWorkspacePortal />} />
           <Route path="faculty/subjects" element={<FacultyWorkspacePortal />} />
           <Route path="faculty/attendance" element={<FacultyWorkspacePortal />} />
           <Route path="faculty/assignments" element={<FacultyWorkspacePortal />} />
-          <Route path="faculty/internal-marks" element={<AcademicPerformance />} />
-          <Route path="faculty/marks" element={<AcademicPerformance />} />
+          <Route path="faculty/internal-marks" element={<FacultyMarksEntry />} />
+          <Route path="faculty/marks" element={<FacultyMarksEntry />} />
           <Route path="faculty/students" element={<StudentDirectoryPage />} />
           <Route path="faculty/leave" element={<FacultyLeaveOdPage />} />
           <Route path="faculty/leave-request" element={<FacultyLeaveOdPage />} />
@@ -395,9 +447,16 @@ export const AppRouter: React.FC = () => {
           {/* ─── Faculty Mentor Workspace Sub-Routes ─────── */}
           <Route path="faculty/mentor" element={<Navigate to="/faculty/mentor/dashboard" replace />} />
           <Route path="faculty/mentor/dashboard" element={<MentorDashboardPage />} />
-          <Route path="faculty/mentor/students" element={<MentorStudentsPage />} />
-          <Route path="faculty/mentor/students/:studentId" element={<MentorStudentDetailPage />} />
           <Route path="faculty/mentor/leave-od" element={<MentorApprovalsPage />} />
+          {/* Detail route — previously missing, caused 404 on notification click */}
+          <Route path="faculty/mentor/leave-od/:requestId" element={<MentorLeaveRequestDetailPage />} />
+          <Route path="faculty/mentor/approvals" element={<MentorApprovalsPage />} />
+          <Route path="faculty/mentor/approvals/:requestId" element={<MentorLeaveRequestDetailPage />} />
+          {/* Backward compatibility aliases for mentor approval links */}
+          <Route path="faculty/mentor-approvals" element={<Navigate to="/faculty/mentor/leave-od" replace />} />
+          <Route path="faculty/mentor-approvals/:requestId" element={<MentorLeaveRequestDetailPage />} />
+          <Route path="mentor/approvals" element={<Navigate to="/faculty/mentor/leave-od" replace />} />
+          <Route path="mentor/approvals/:requestId" element={<MentorLeaveRequestDetailPage />} />
           <Route path="faculty/mentor/attendance" element={<MentorAttendanceOverviewPage />} />
           <Route path="faculty/mentor/academics" element={<MentorAcademicsPage />} />
           <Route path="faculty/mentor/counselling" element={<MentorCounsellingPage />} />
@@ -415,6 +474,11 @@ export const AppRouter: React.FC = () => {
 
           {/* ─── Mentor Route Alias ───────────────────────── */}
           <Route path="mentor" element={<Navigate to="/faculty/mentor/dashboard" replace />} />
+          <Route path="mentor/dashboard" element={<MentorDashboardPage />} />
+          <Route path="mentor/students" element={<MentorStudentsPage />} />
+          <Route path="mentor/students/:studentId" element={<MentorStudentDetailPage />} />
+          <Route path="mentor/leave-od" element={<MentorApprovalsPage />} />
+          <Route path="mentor/leave-od/:requestId" element={<MentorLeaveRequestDetailPage />} />
 
           {/* ─── Principal Workspace Routes ───────────────── */}
           <Route path="principal" element={<Navigate to="/principal/dashboard" replace />} />
@@ -537,8 +601,11 @@ export const AppRouter: React.FC = () => {
           <Route path="hod" element={<Navigate to="/hod/dashboard" replace />} />
           <Route path="hod/dashboard" element={<HodDashboardWorkspace />} />
           <Route path="hod/approvals" element={<HodLeaveOdApprovalDesk />} />
+          <Route path="hod/approvals/:requestId" element={<HodLeaveOdApprovalDesk />} />
           <Route path="hod/leave-approvals" element={<HodLeaveOdApprovalDesk />} />
+          <Route path="hod/leave-approvals/:requestId" element={<HodLeaveOdApprovalDesk />} />
           <Route path="hod/leave-od" element={<HodLeaveOdApprovalDesk />} />
+          <Route path="hod/leave-od/:requestId" element={<HodLeaveOdApprovalDesk />} />
           <Route path="hod/faculty-requests" element={<HodFacultyRequestsPage />} />
           <Route path="hod/faculty-requests/:id" element={<FacultyLeaveDetailPage />} />
           <Route path="hod/students" element={<HodStudentWorkspace />} />
@@ -583,6 +650,7 @@ export const AppRouter: React.FC = () => {
           <Route path="student/results" element={<React.Suspense fallback={<div className="p-6">Loading...</div>}><StudentResults /></React.Suspense>} />
           <Route path="student/examinations" element={<React.Suspense fallback={<div className="p-6">Loading...</div>}><StudentExaminations /></React.Suspense>} />
           <Route path="student/leave-od" element={<React.Suspense fallback={<div className="p-6">Loading...</div>}><StudentLeaveOd /></React.Suspense>} />
+          <Route path="student/leave-od/:id" element={<React.Suspense fallback={<div className="p-6">Loading...</div>}><StudentLeaveOd /></React.Suspense>} />
           <Route path="student/fees" element={<FeeLedgerPage />} />
           <Route path="accountant/*" element={<FinanceWorkspace />} />
           <Route path="ao/*" element={<FinanceWorkspace />} />
@@ -591,12 +659,23 @@ export const AppRouter: React.FC = () => {
           <Route path="student/circulars/:id" element={<CircularDetailPage />} />
           <Route path="student/messages" element={<React.Suspense fallback={<div className="p-6">Loading...</div>}><StudentAdvisorChat /></React.Suspense>} />
           <Route path="student/placements" element={<React.Suspense fallback={<div className="p-6">Loading...</div>}><StudentPlacements /></React.Suspense>} />
-          <Route path="student/documents" element={<React.Suspense fallback={<div className="p-6">Loading...</div>}><StudentDocuments /></React.Suspense>} />
+          <Route path="student/certificates" element={<React.Suspense fallback={<div className="p-6">Loading...</div>}><StudentCertificates /></React.Suspense>} />
+          <Route path="student/documents" element={<Navigate to="/student/certificates" replace />} />
           <Route path="student/achievements" element={<React.Suspense fallback={<div className="p-6">Loading...</div>}><StudentAchievements /></React.Suspense>} />
           <Route path="student/hostel" element={<React.Suspense fallback={<div className="p-6">Loading...</div>}><StudentHostel /></React.Suspense>} />
           <Route path="student/transport" element={<React.Suspense fallback={<div className="p-6">Loading...</div>}><StudentTransport /></React.Suspense>} />
           <Route path="student/complaints" element={<ComplaintsPage />} />
           <Route path="student/notifications" element={<NotificationsPage />} />
+
+          {/* ─── Stub Role Workspaces (Library / Hostel / Transport / Placement) ─── */}
+          <Route path="library" element={<SuspenseWrap><LibrarianWorkspace /></SuspenseWrap>} />
+          <Route path="library/*" element={<SuspenseWrap><LibrarianWorkspace /></SuspenseWrap>} />
+          <Route path="hostel" element={<SuspenseWrap><HostelWardenWorkspace /></SuspenseWrap>} />
+          <Route path="hostel/*" element={<SuspenseWrap><HostelWardenWorkspace /></SuspenseWrap>} />
+          <Route path="transport" element={<SuspenseWrap><TransportManagerWorkspace /></SuspenseWrap>} />
+          <Route path="transport/*" element={<SuspenseWrap><TransportManagerWorkspace /></SuspenseWrap>} />
+          <Route path="placement" element={<SuspenseWrap><PlacementOfficerWorkspace /></SuspenseWrap>} />
+          <Route path="placement/*" element={<SuspenseWrap><PlacementOfficerWorkspace /></SuspenseWrap>} />
 
           {/* ─── Parent Direct Routes (Prevent 404 on Direct Links) ─── */}
           <Route path="parent" element={<Navigate to="/parent/dashboard" replace />} />

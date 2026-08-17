@@ -1,4 +1,4 @@
-import axios, { AxiosInstance, AxiosRequestConfig } from 'axios';
+import axios, { AxiosInstance, AxiosRequestConfig, InternalAxiosRequestConfig } from 'axios';
 import { API_BASE_URL } from '../../config/api-config';
 import { setupAuthInterceptors } from './auth-interceptor';
 import { normalizeApiError } from './api-errors';
@@ -11,6 +11,17 @@ export const apiClient: AxiosInstance = axios.create({
     'Content-Type': 'application/json',
   },
   timeout: 30000,
+});
+
+// Attach idempotency keys to mutation requests to ensure duplicate-free network retries
+apiClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
+  const method = (config.method || 'GET').toUpperCase();
+  if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)) {
+    if (!config.headers['X-Idempotency-Key']) {
+      config.headers['X-Idempotency-Key'] = `idem-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+    }
+  }
+  return config;
 });
 
 setupAuthInterceptors(apiClient);

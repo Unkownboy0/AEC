@@ -9,6 +9,7 @@ import {
 import { toast } from '../../components/ui/Toast';
 import { Loading } from '../../components/ui/Loading';
 import api from '../../lib/axios';
+import { downloadAndOpen } from '../../platform/download';
 
 // â”€â”€ KPI Card helper â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const KPICard: React.FC<{ title: string; value: string | number; icon: React.ComponentType<any>; colorClass: string }> = ({ title, value, icon: Icon, colorClass }) => (
@@ -392,14 +393,16 @@ export const AdmissionDeanPortal: React.FC<AdmissionDeanPortalProps> = ({ user: 
   const handleExport = async (filename: string, format: 'CSV' | 'EXCEL' | 'PDF') => {
     try {
       const serverFormat = format === 'PDF' ? 'PDF' : 'EXCEL';
-      const response = await api.get(`/administration-dean/export?format=${serverFormat}`, { responseType: 'blob' });
-      const url = URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `${filename.toLowerCase().replace(/ /g, '_')}.${serverFormat === 'PDF' ? 'pdf' : 'xlsx'}`;
-      link.click();
-      URL.revokeObjectURL(url);
-      toast.success(`Authorized ${serverFormat === 'PDF' ? 'PDF' : 'Excel'} report downloaded.`);
+      const extension = serverFormat === 'PDF' ? 'pdf' : 'xlsx';
+      const res = await downloadAndOpen(
+        `/administration-dean/export?format=${serverFormat}`,
+        `CampusOS_${filename.trim().replace(/\s+/g, '_')}.${extension}`
+      );
+      if (res.success) {
+        toast.success(`Authorized ${serverFormat === 'PDF' ? 'PDF' : 'Excel'} report downloaded.`);
+      } else {
+        toast.error(res.error || 'You are not authorized to export this report.');
+      }
     } catch (error: any) {
       toast.error(error?.response?.data?.message || 'You are not authorized to export this report.');
     }

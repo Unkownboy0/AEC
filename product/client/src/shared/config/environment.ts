@@ -12,33 +12,28 @@ export interface EnvironmentConfig {
 
 function resolveApiBaseUrl(): string {
   const appEnv = (import.meta.env.VITE_APP_ENV || 'production').toLowerCase();
-  // 1. Check explicit environment override
-  const envUrl = import.meta.env.VITE_SERVER_BASE_URL || import.meta.env.VITE_API_URL;
+  // 1. Canonical environment variable override
+  const envUrl = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_SERVER_BASE_URL || import.meta.env.VITE_API_URL;
   if (envUrl && envUrl !== 'undefined' && envUrl !== '') {
     return envUrl.endsWith('/api') ? envUrl : `${envUrl}/api`;
   }
 
   // 2. Native Capacitor resolution
   if (Capacitor.isNativePlatform()) {
-    const platform = Capacitor.getPlatform();
-    
-    // Check custom LAN IP stored by developer/user for device testing
+    // Check custom LAN IP/host stored on device
     if (typeof window !== 'undefined') {
       const customLanIp = localStorage.getItem('campusos_api_lan_ip');
       if (customLanIp && customLanIp.trim() !== '') {
-        return `http://${customLanIp.trim()}:5000/api`;
+        const cleaned = customLanIp.trim();
+        if (cleaned.startsWith('http://') || cleaned.startsWith('https://')) {
+          return cleaned.endsWith('/api') ? cleaned : `${cleaned}/api`;
+        }
+        return `http://${cleaned}:5000/api`;
       }
     }
 
-    if (appEnv !== 'production' && platform === 'android') {
-      // 10.0.2.2 is Android emulator host loopback, or fallback
-      return 'http://10.0.2.2:5000/api';
-    }
-
-    if (appEnv !== 'production') return 'http://localhost:5000/api';
-
-    // A production mobile bundle must be built with an explicit HTTPS API URL.
-    return '';
+    // Default to PC LAN host IP for physical device over Wi-Fi
+    return 'http://10.226.116.201:5000/api';
   }
 
   // 3. Browser development/production fallback
@@ -85,7 +80,7 @@ function resolveSocketUrl(apiUrl: string): string {
 export function getEnvironmentConfig(): EnvironmentConfig {
   const apiUrl = resolveApiBaseUrl();
   const socketUrl = resolveSocketUrl(apiUrl);
-  const appName = import.meta.env.VITE_APP_NAME || 'GEETORUS CAMPUSOS';
+  const appName = import.meta.env.VITE_APP_NAME || 'CampusOS';
   const appEnv = (import.meta.env.VITE_APP_ENV || 'production') as EnvironmentConfig['appEnv'];
   const vapidKey = import.meta.env.VITE_FIREBASE_VAPID_KEY || '';
   

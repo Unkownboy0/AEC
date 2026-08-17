@@ -2,6 +2,7 @@ import { prisma } from '../../lib/prisma';
 import { HodRepository } from './hod.repository';
 import { WorkflowService } from '../workflow/workflow.service';
 import { FacultyLeaveService } from '../faculty-leave/faculty-leave.service';
+import { NotificationService } from '../notifications/notification.service';
 import {
   HodReviewActionPayload,
   SubjectAllocationPayload,
@@ -121,13 +122,15 @@ export class HodService {
 
     const studentUserId = request.student?.userId || request.student?.user?.id;
     if (studentUserId) {
-      await prisma.notification.create({
-        data: {
-          recipientId: studentUserId,
-          title: `HOD Decision: ${request.requestNumber}`,
-          message: `Your ${request.type} request has been ${status.toLowerCase()} by HOD.`,
-          eventType: 'STUDENT_LEAVE_SUBMITTED',
-        },
+      await NotificationService.sendNotification({
+        recipientId: studentUserId,
+        title: `HOD Decision: ${request.requestNumber}`,
+        message: `Your ${request.type} request has been ${status.toLowerCase()} by HOD.`,
+        eventType: 'STUDENT_LEAVE_APPROVED',
+        relatedEntityType: 'STUDENT_LEAVE_REQUEST',
+        relatedEntityId: request.id,
+        deepLinkRoute: '/student/leave-od',
+        priority: 'HIGH',
       }).catch(() => {});
     }
 

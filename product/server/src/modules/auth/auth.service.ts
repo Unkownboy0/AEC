@@ -3,6 +3,7 @@ import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import { AuthRepository } from './auth.repository';
 import { prisma } from '../../lib/prisma';
+import { logger } from '../../utils/logger';
 import { env } from '../../config/env';
 import { parseUserAgent } from '../../utils/uaParser';
 import { SecurityHelper, auditLog } from '../../utils/security';
@@ -39,7 +40,8 @@ export class AuthService {
     ipAddress?: string,
     userAgent?: string
   ): Promise<LoginResult> {
-    const { email, password, rememberMe } = input;
+    const email = (input.email || input.identifier || '').trim();
+    const { password, rememberMe } = input;
     const ua = parseUserAgent(userAgent);
 
     const user = await this.repo.findByEmail(email);
@@ -268,6 +270,7 @@ export class AuthService {
     if (session) {
       await this.repo.deleteSession(refreshToken);
       await this.repo.updateLastLogoutTime(session.userId);
+      await this.deactivateDeviceTokens(session.userId);
     }
   }
 
@@ -277,6 +280,24 @@ export class AuthService {
   async logoutAll(userId: string): Promise<void> {
     await this.repo.deleteAllSessions(userId);
     await this.repo.updateLastLogoutTime(userId);
+    await this.deactivateDeviceTokens(userId);
+  }
+
+  /**
+   * Deactivate this user's push device tokens on logout. There's no reliable
+   * per-device correlation between a UserSession and a DeviceToken (sessions
+   * only store a free-text user-agent string, not the deviceId push tokens
+   * are keyed on), so this deactivates all of the user's tokens rather than
+   * leaving a stale token addressed to a now-logged-out user — closing the
+   * "next user on a shared/reused device gets pushed the previous user's
+   * notifications" gap. A fresh login re-registers the token automatically.
+   */
+  private async deactivateDeviceTokens(userId: string): Promise<void> {
+    try {
+      await prisma.deviceToken.updateMany({ where: { userId, active: true }, data: { active: false } });
+    } catch (err) {
+      logger.warn('[Auth] Failed to deactivate device tokens on logout:', err);
+    }
   }
 
   /**
@@ -339,7 +360,7 @@ export class AuthService {
   }
 
   /**
-   * Get currently logged-in user profile (full — includes faculty/department for HOD/Faculty roles)
+   * Get currently logged-in user profile (full canonical profile data for Web + Android + iOS)
    */
   async getMe(userId: string, activeRole?: string) {
     const user = await this.repo.findById(userId);
@@ -356,31 +377,100 @@ export class AuthService {
 
     const menus = await SecurityHelper.getPermittedMenus(permissions, roleName);
 
-    // Fetch faculty record with department
+    // 1. Fetch linked Student record if user is student or has student relation
+    let student: any = null;
+    try {
+      student = await prisma.student.findFirst({
+        where: {
+          OR: [{ userId }, { email: user.email }],
+          deleted: false,
+        },
+        include: {
+          department: true,
+          program: true,
+          semester: true,
+          section: true,
+          mentor: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+              employeeId: true,
+              phone: true,
+            },
+          },
+        },
+      });
+    } catch (_) {
+      // Ignore
+    }
+
+    // 2. Fetch linked Faculty record if user is faculty/staff/leadership
     let faculty: any = null;
     try {
       faculty = await prisma.faculty.findFirst({
-        where: { userId },
+        where: {
+          OR: [{ userId }, { email: user.email }],
+          deleted: false,
+        },
         include: { department: true },
       });
     } catch (_) {
-      // Silently ignore
+      // Ignore
     }
+
+    // Canonical profile image metadata builder
+    let profileImageUrl = user.profilePhoto || null;
+    let fileId: string | null = null;
+    if (user.profilePhoto) {
+      if (!user.profilePhoto.startsWith('http://') && !user.profilePhoto.startsWith('https://') && !user.profilePhoto.startsWith('data:')) {
+        if (user.profilePhoto.startsWith('/api/files/') || user.profilePhoto.startsWith('api/files/')) {
+          profileImageUrl = user.profilePhoto.startsWith('/') ? user.profilePhoto : `/${user.profilePhoto}`;
+        } else if (user.profilePhoto.startsWith('/uploads/') || user.profilePhoto.startsWith('uploads/')) {
+          profileImageUrl = `/api/files/content?path=${encodeURIComponent(user.profilePhoto)}`;
+        } else {
+          // UUID file ID
+          fileId = user.profilePhoto;
+          profileImageUrl = `/api/files/${user.profilePhoto}/content`;
+        }
+      }
+    }
+
+    const canonicalProfileImage = {
+      fileId,
+      url: profileImageUrl,
+      thumbnailUrl: profileImageUrl,
+    };
 
     return {
       id: user.id,
       email: user.email,
       firstName: user.firstName,
       lastName: user.lastName,
-      phone: (user as any).phone,
-      profilePhoto: user.profilePhoto,
-      status: (user as any).status,
+      fullName: `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email,
+      username: (user as any).username || user.email.split('@')[0],
+      phone: (user as any).phone || student?.phone || faculty?.phone || null,
+      profilePhoto: profileImageUrl,
+      profileImage: canonicalProfileImage,
+      status: (user as any).status || 'ACTIVE',
       role: roleName,
+      roles: workspaces,
       permissions,
       menus,
       forcePasswordChange: user.forcePasswordChange,
+      student,
       faculty,
+      employee: faculty ? {
+        id: faculty.id,
+        employeeId: faculty.employeeId,
+        designation: faculty.designation || (user as any).designation,
+        department: faculty.department,
+        departmentId: faculty.departmentId,
+        qualification: faculty.highestQualification || (user as any).qualification,
+      } : null,
       workspaces,
+      primaryWorkspace: workspaces[0] || roleName,
       activeWorkspace: roleName,
     };
   }

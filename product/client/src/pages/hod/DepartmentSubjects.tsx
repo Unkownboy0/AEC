@@ -3,6 +3,7 @@ import {
   BookOpen, Search, Download, Printer, Users, CheckCircle,
   FlaskConical, LayoutGrid, BarChart2, ChevronDown, X
 } from 'lucide-react';
+import { saveBlobAndOpen } from '../../platform/download';
 
 // ─── Realistic Dummy Data ──────────────────────────────────────────────────────
 const DUMMY_SUBJECTS = [
@@ -41,16 +42,13 @@ const typeBadge = (t: string) => {
 };
 
 // ─── Export CSV helper ─────────────────────────────────────────────────────────
-const exportCSV = (data: typeof DUMMY_SUBJECTS) => {
+const exportCSV = async (data: typeof DUMMY_SUBJECTS) => {
   const header = 'Code,Name,Semester,Credits,Type,Faculty,Status,Regulation\n';
   const rows   = data.map(s =>
     `${s.code},"${s.name}",${s.semester},${s.credits},${s.type},"${s.faculty}",${s.status},${s.regulation}`
   ).join('\n');
   const blob = new Blob([header + rows], { type: 'text/csv' });
-  const url  = URL.createObjectURL(blob);
-  const a    = Object.assign(document.createElement('a'), { href: url, download: 'department_subjects.csv' });
-  a.click();
-  URL.revokeObjectURL(url);
+  await saveBlobAndOpen(blob, 'CampusOS_Department_Subjects.csv', 'text/csv');
 };
 
 // ──────────────────────────────────────────────────────────────────────────────

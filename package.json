@@ -1,0 +1,22 @@
+{
+  "name": "campusos-monorepo",
+  "version": "1.0.0",
+  "description": "CampusOS — Enterprise College Management System (Root Workspace)",
+  "private": true,
+  "scripts": {
+    "dev": "npm --prefix product/server run dev",
+    "dev:client": "npm --prefix product/client run dev",
+    "dev:server": "npm --prefix product/server run dev",
+    "build": "npm --prefix product/client run build && npm --prefix product/server run build",
+    "build:client": "npm --prefix product/client run build",
+    "build:server": "npm --prefix product/server run build",
+    "android": "node scripts/run-android.mjs",
+    "android:open": "npm --prefix product/client run android",
+    "android:build": "npm --prefix product/client run release:android:apk && npm --prefix product/client run release:android:aab",
+    "android:install": "node scripts/run-android.mjs",
+    "ios": "npm --prefix product/client run ios",
+    "ios:prepare": "npm --prefix product/client run prepare:ios",
+    "test": "npm --prefix product/server test",
+    "test:mobile": "npm --prefix product/server run test:smoke"
+  }
+}

@@ -10,6 +10,7 @@ import {
 import { toast } from '../components/ui/Toast';
 import api from '../lib/axios';
 import { useDevice } from '../context/DeviceContext';
+import { downloadAndOpen } from '../platform/download';
 import { PlacementDashboard } from '../components/placement/PlacementDashboard';
 import { ComplaintMonitoringCenter } from '../components/complaint/ComplaintMonitoringCenter';
 import { CampusActivitiesMonitoring } from '../components/activity/CampusActivitiesMonitoring';
@@ -29,35 +30,15 @@ export { IQACDocumentationPortalComponent as IQACDocumentationPortal };
 // Helper for actual report exports (PDF & EXCEL)
 const handleExport = async (reportType: string, format: 'PDF' | 'EXCEL' | 'CSV') => {
   try {
-    toast.success(`Generating ${format} report... please wait.`, 'Export Started');
-    const response = await api.get(`/reports/export?type=${encodeURIComponent(reportType)}&format=${format}`, {
-      responseType: 'blob'
-    });
-    
-    // Create blob link to download
-    const url = window.URL.createObjectURL(new Blob([response.data]));
-    const link = document.createElement('a');
-    link.href = url;
-    
-    // Extract filename from Content-Disposition header if available
-    let filename = `Institution_Report_${new Date().toISOString().split('T')[0]}.${format === 'EXCEL' ? 'xlsx' : 'pdf'}`;
-    const disposition = response.headers['content-disposition'];
-    if (disposition && disposition.indexOf('filename=') !== -1) {
-      const filenameRegex = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/;
-      const matches = filenameRegex.exec(disposition);
-      if (matches != null && matches[1]) { 
-        filename = matches[1].replace(/['"]/g, '');
-      }
+    const res = await downloadAndOpen(
+      `/reports/export?type=${encodeURIComponent(reportType)}&format=${format}`,
+      `CampusOS_Report_${new Date().toISOString().split('T')[0]}.${format === 'EXCEL' ? 'xlsx' : 'pdf'}`
+    );
+    if (res.success) {
+      toast.success(`${format} Report downloaded successfully.`);
+    } else {
+      toast.error(res.error || 'Unable to generate report.');
     }
-    
-    link.setAttribute('download', filename);
-    document.body.appendChild(link);
-    link.click();
-    
-    // Cleanup
-    if (link.parentNode) link.parentNode.removeChild(link);
-    window.URL.revokeObjectURL(url);
-    toast.success(`${format} Report downloaded successfully.`);
   } catch (error) {
     console.error('Export error:', error);
     toast.error('Unable to generate report. Please try again.');

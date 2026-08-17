@@ -1,0 +1,228 @@
+name: CampusOS CI
+
+on:
+  push:
+    branches: [main, develop, 'release/**', 'hotfix/**']
+  pull_request:
+    branches: [main, develop]
+
+# Cancel any in-progress CI run for the same branch when a new commit is pushed
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '22'
+  # Neutral test environment — never use real institution credentials in CI
+  NODE_ENV: test
+  DATABASE_URL: postgresql://campusos:campusos@localhost:5432/campusos_test
+  JWT_SECRET: ci-test-secret-not-for-production
+  JWT_EXPIRES_IN: 7d
+  PORT: 4000
+  CAMPUS_TENANT_ID: ci-tenant
+  VITE_APP_NAME: CampusOS
+  VITE_API_URL: http://localhost:4000/api
+
+jobs:
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Job 1: Server — TypeScript + Tests
+  # ─────────────────────────────────────────────────────────────────────────────
+  server:
+    name: Server — TypeScript + Unit Tests
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: campusos
+          POSTGRES_PASSWORD: campusos
+          POSTGRES_DB: campusos_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+        ports:
+          - 5432:5432
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: product/server/package-lock.json
+
+      - name: Install server dependencies
+        working-directory: product/server
+        run: npm ci
+
+      - name: Generate Prisma client
+        working-directory: product/server
+        run: npx prisma generate
+
+      - name: Run Prisma migrations (test DB)
+        working-directory: product/server
+        run: npx prisma migrate deploy
+
+      - name: TypeScript — type check (server)
+        working-directory: product/server
+        run: npx tsc --noEmit
+
+      - name: Run unit tests
+        working-directory: product/server
+        run: npm run test:unit
+        env:
+          DATABASE_URL: ${{ env.DATABASE_URL }}
+
+      - name: Run security policy tests
+        working-directory: product/server
+        run: npm run test:security
+        env:
+          DATABASE_URL: ${{ env.DATABASE_URL }}
+
+      - name: Build server (production bundle)
+        working-directory: product/server
+        run: npm run build
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Job 2: Client — TypeScript + Build
+  # ─────────────────────────────────────────────────────────────────────────────
+  client:
+    name: Client — TypeScript + Vite Build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: product/client/package-lock.json
+
+      - name: Install client dependencies
+        working-directory: product/client
+        run: npm ci
+
+      - name: TypeScript — type check (client)
+        working-directory: product/client
+        run: npx tsc --noEmit
+
+      - name: Build client (production bundle)
+        working-directory: product/client
+        run: npm run build
+        env:
+          VITE_APP_NAME: CampusOS
+          VITE_API_URL: ${{ env.VITE_API_URL }}
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        if: github.ref == 'refs/heads/main'
+        with:
+          name: client-dist
+          path: product/client/dist/
+          retention-days: 7
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Job 3: De-hardcoding Regression Guard
+  # Runs as a fast standalone check — doesn't need a DB.
+  # ─────────────────────────────────────────────────────────────────────────────
+  dehardcoding:
+    name: De-hardcoding Regression Guard
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: product/server/package-lock.json
+
+      - name: Install server dependencies
+        working-directory: product/server
+        run: npm ci
+
+      - name: Run de-hardcoding regression test
+        working-directory: product/server
+        run: ts-node src/__tests__/de_hardcoding_regression.test.ts
+
+      - name: Run feature flags policy test
+        working-directory: product/server
+        run: ts-node src/__tests__/feature_flags_policy.test.ts
+
+      - name: Grep for banned institution strings (source scan)
+        working-directory: product
+        run: |
+          echo "Scanning for banned hardcoded strings..."
+          # Search TypeScript source — exclude node_modules, dist, prisma migrations
+          if grep -rn --include="*.ts" --include="*.tsx" \
+            --exclude-dir=node_modules \
+            --exclude-dir=dist \
+            --exclude-dir=".prisma" \
+            -E "(al-ameen|alameen|geetorus\.com|GEETORUS CAMPUSOS)" \
+            server/src/ client/src/ 2>/dev/null; then
+            echo "❌ FAIL: Found banned institution-specific strings in source code"
+            exit 1
+          else
+            echo "✅ PASS: No banned institution strings found"
+          fi
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Job 4: Docker Compose Validation
+  # ─────────────────────────────────────────────────────────────────────────────
+  docker:
+    name: Docker Compose Validation
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate docker-compose.yml
+        working-directory: product
+        run: |
+          docker compose config --quiet
+          echo "✅ docker-compose.yml is valid"
+        env:
+          POSTGRES_USER: campusos
+          POSTGRES_PASSWORD: campusos
+          POSTGRES_DB: campusos_test
+          REDIS_PASSWORD: testredis
+          MINIO_ROOT_USER: minio
+          MINIO_ROOT_PASSWORD: miniopassword
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Job 5: CI Gate — all jobs must pass
+  # ─────────────────────────────────────────────────────────────────────────────
+  ci-gate:
+    name: CI Gate (All Checks Pass)
+    needs: [server, client, dehardcoding, docker]
+    runs-on: ubuntu-latest
+    if: always()
+
+    steps:
+      - name: Check all jobs passed
+        run: |
+          if [[ "${{ needs.server.result }}" != "success" || \
+                "${{ needs.client.result }}" != "success" || \
+                "${{ needs.dehardcoding.result }}" != "success" || \
+                "${{ needs.docker.result }}" != "success" ]]; then
+            echo "❌ One or more CI jobs failed"
+            echo "  server:       ${{ needs.server.result }}"
+            echo "  client:       ${{ needs.client.result }}"
+            echo "  dehardcoding: ${{ needs.dehardcoding.result }}"
+            echo "  docker:       ${{ needs.docker.result }}"
+            exit 1
+          fi
+          echo "✅ All CI checks passed"

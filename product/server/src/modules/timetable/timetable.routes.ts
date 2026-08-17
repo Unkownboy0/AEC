@@ -8,6 +8,7 @@ const controller = new TimetableController();
 router.use(requireAuth);
 
 router.get('/slots', controller.listSlots);
+router.get('/affected-sessions', controller.getAffectedSessions);
 router.post('/slots', requireRole(['HOD', 'Academic Dean', 'Examination Cell', 'COE']), controller.createSlot);
 router.delete('/slots/:id', requireRole(['HOD', 'Academic Dean', 'Examination Cell', 'COE']), controller.deleteSlot);
 router.post('/ai-generate', requireRole(['HOD', 'Academic Dean', 'Examination Cell', 'COE']), controller.generateAIDraft);

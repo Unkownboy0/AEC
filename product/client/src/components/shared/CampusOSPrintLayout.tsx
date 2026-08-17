@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { Printer, Download, X, Building2, ShieldCheck, CheckCircle2 } from 'lucide-react';
-import api from '../../lib/axios';
+import { useInstitution } from '../../context/InstitutionContext';
 
 export interface CampusOSPrintLayoutProps {
   title: string;
@@ -26,45 +26,19 @@ export const CampusOSPrintLayout: React.FC<CampusOSPrintLayoutProps> = ({
   orientation = 'portrait',
   showWatermark = true,
   watermarkOpacity = 0.045,
-  watermarkLogoUrl = '/branding/al-ameen-logo.png',
+  watermarkLogoUrl = '/branding/institution-logo.png',
   onClose,
   onDownloadPdf,
   children,
 }) => {
-  const [branding, setBranding] = useState<{
-    collegeName: string;
-    collegeAddress: string;
-    collegePhone: string;
-    collegeWebsite: string;
-    logoUrl: string;
-  }>({
-    collegeName: 'Al-Ameen Engineering College',
-    collegeAddress: 'Karungalpalayam, Erode, Tamil Nadu 638104',
-    collegePhone: '+91 424 2500354',
-    collegeWebsite: 'https://alameen.ac.in',
-    logoUrl: watermarkLogoUrl,
-  });
-
-  useEffect(() => {
-    const fetchBranding = async () => {
-      try {
-        const res = await api.get('/settings/branding');
-        if (res.data?.data) {
-          setBranding((prev) => ({
-            ...prev,
-            collegeName: res.data.data.collegeName || prev.collegeName,
-            collegeAddress: res.data.data.collegeAddress || prev.collegeAddress,
-            collegePhone: res.data.data.collegePhone || prev.collegePhone,
-            collegeWebsite: res.data.data.collegeWebsite || prev.collegeWebsite,
-            logoUrl: res.data.data.watermark?.logoUrl || prev.logoUrl,
-          }));
-        }
-      } catch {
-        // use default state
-      }
-    };
-    void fetchBranding();
-  }, []);
+  const institution = useInstitution();
+  const branding = {
+    collegeName: institution.collegeName,
+    collegeAddress: institution.collegeAddress,
+    collegePhone: institution.collegePhone,
+    collegeWebsite: institution.collegeWebsite,
+    logoUrl: institution.watermark.logoUrl || watermarkLogoUrl,
+  };
 
   const handlePrint = () => {
     window.print();
@@ -225,6 +199,7 @@ export const CampusOSPrintLayout: React.FC<CampusOSPrintLayoutProps> = ({
           .print-watermark-overlay img {
             opacity: ${watermarkOpacity} !important;
             -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
           }
         }
       `}</style>

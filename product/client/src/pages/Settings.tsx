@@ -1,8 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { User, Lock, Shield, Bell, Palette, Globe, Smartphone, Key, Settings as SettingsIcon, CheckCircle2, Eye, EyeOff } from 'lucide-react';
+import { User, Lock, Shield, Bell, Palette, Globe, Smartphone, Key, Settings as SettingsIcon, CheckCircle2, Eye, EyeOff, Fingerprint } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { toast } from '../components/ui/Toast';
 import api from '../lib/axios';
+import { isNativePlatform } from '../platform';
+import {
+  authenticateWithBiometrics,
+  checkBiometricAvailability,
+  getBiometricLockEnabled,
+  setBiometricLockEnabled,
+} from '../platform/biometric-auth';
 
 export const Settings: React.FC = () => {
   const { user, refreshUser } = useAuth();
@@ -27,6 +34,46 @@ export const Settings: React.FC = () => {
   const [language, setLanguage] = useState('English (US)');
   const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+
+  // Biometric App Lock — native-only, opt-in, off by default
+  const [biometricAvailable, setBiometricAvailable] = useState(false);
+  const [biometricUnavailableReason, setBiometricUnavailableReason] = useState<string | null>(null);
+  const [biometricLockEnabled, setBiometricLockEnabledState] = useState(false);
+  const [biometricBusy, setBiometricBusy] = useState(false);
+
+  useEffect(() => {
+    if (!isNativePlatform()) return;
+    checkBiometricAvailability().then((result) => {
+      setBiometricAvailable(result.isAvailable);
+      setBiometricUnavailableReason(result.reason || null);
+    });
+    getBiometricLockEnabled().then(setBiometricLockEnabledState);
+  }, []);
+
+  const handleToggleBiometricLock = async () => {
+    if (biometricBusy) return;
+    setBiometricBusy(true);
+    try {
+      if (biometricLockEnabled) {
+        await setBiometricLockEnabled(false);
+        setBiometricLockEnabledState(false);
+        toast.success('Biometric App Lock disabled');
+      } else {
+        // Require a successful prompt before persisting the toggle, so the
+        // user never gets locked out by unenrolled/misconfigured biometry.
+        const result = await authenticateWithBiometrics('Enable CampusOS App Lock');
+        if (result.success) {
+          await setBiometricLockEnabled(true);
+          setBiometricLockEnabledState(true);
+          toast.success('Biometric App Lock enabled');
+        } else {
+          toast.error(result.error || 'Could not verify biometrics — App Lock was not enabled');
+        }
+      }
+    } finally {
+      setBiometricBusy(false);
+    }
+  };
 
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -372,6 +419,30 @@ export const Settings: React.FC = () => {
                 <p>✓ Last Password Verification: 2026-07-24 09:12 AM</p>
                 <p>✓ Current Token Scope: Student Full Access</p>
               </div>
+
+              {isNativePlatform() && (
+                <div className="p-4 border rounded-xl bg-muted/20 flex items-center justify-between gap-3">
+                  <div>
+                    <p className="font-extrabold text-slate-800 dark:text-white flex items-center gap-1.5">
+                      <Fingerprint className="h-4 w-4 text-indigo-500" /> Biometric App Lock
+                    </p>
+                    <p className="text-[10px] text-muted-foreground mt-0.5">
+                      {biometricAvailable
+                        ? 'Require fingerprint / Face ID to open CampusOS after it has been backgrounded.'
+                        : biometricUnavailableReason || 'No biometric authentication is enrolled on this device.'}
+                    </p>
+                  </div>
+                  <button
+                    onClick={handleToggleBiometricLock}
+                    disabled={biometricBusy || (!biometricAvailable && !biometricLockEnabled)}
+                    className={`shrink-0 px-3 py-1.5 rounded-xl font-bold text-xs disabled:opacity-40 ${
+                      biometricLockEnabled ? 'bg-indigo-600 text-white' : 'bg-muted text-slate-500'
+                    }`}
+                  >
+                    {biometricBusy ? 'Verifying…' : biometricLockEnabled ? 'Enabled' : 'Enable'}
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </div>

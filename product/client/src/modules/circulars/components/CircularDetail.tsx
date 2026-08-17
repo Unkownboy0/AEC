@@ -1,7 +1,9 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Circular } from '../types/circular.types';
 import { PriorityBadge, CategoryBadge, StatusBadge, EmergencyBadge } from './CircularBadge';
-import { X, Paperclip, ExternalLink, User, Clock, Users, Building2, Eye } from 'lucide-react';
+import { X, Paperclip, ExternalLink, User, Clock, Users, Building2, Eye, Loader2 } from 'lucide-react';
+import { downloadAndOpen } from '../../../platform/download';
+import { toast } from '../../../components/ui/Toast';
 
 interface CircularDetailProps {
   circular: Circular;
@@ -30,6 +32,16 @@ function formatBroadcastLevel(level?: string): string {
 }
 
 export const CircularDetail: React.FC<CircularDetailProps> = ({ circular, onClose }) => {
+  const [downloadingAttachment, setDownloadingAttachment] = useState(false);
+
+  const handleDownloadAttachment = async () => {
+    if (!circular.attachmentUrl || downloadingAttachment) return;
+    setDownloadingAttachment(true);
+    const result = await downloadAndOpen(circular.attachmentUrl, circular.attachmentName || 'circular-attachment');
+    setDownloadingAttachment(false);
+    if (!result.success) toast.error(result.error || 'Unable to download file.');
+  };
+
   const authorName = circular.author
     ? `${circular.author.firstName || ''} ${circular.author.lastName || ''}`.trim()
     : (circular.publishedAs || circular.authorRole || 'Principal Office');
@@ -120,11 +132,17 @@ export const CircularDetail: React.FC<CircularDetailProps> = ({ circular, onClos
           </div>
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-semibold text-slate-900 dark:text-white">{circular.attachmentName ?? 'Circular attachment'}</p>
-            <p className="text-xs text-slate-500">Open document in a new tab</p>
+            <p className="text-xs text-slate-500">Download or open document</p>
           </div>
-          <a href={circular.attachmentUrl} target="_blank" rel="noopener noreferrer" aria-label="Open circular attachment" className="rounded-xl p-2 text-indigo-600 transition hover:bg-indigo-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:hover:bg-indigo-500/15">
-            <ExternalLink className="h-4 w-4" />
-          </a>
+          <button
+            type="button"
+            onClick={handleDownloadAttachment}
+            disabled={downloadingAttachment}
+            aria-label="Download circular attachment"
+            className="rounded-xl p-2 text-indigo-600 transition hover:bg-indigo-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-50 dark:hover:bg-indigo-500/15"
+          >
+            {downloadingAttachment ? <Loader2 className="h-4 w-4 animate-spin" /> : <ExternalLink className="h-4 w-4" />}
+          </button>
         </div>
       )}
 

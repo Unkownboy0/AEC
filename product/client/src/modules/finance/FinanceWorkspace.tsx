@@ -8,6 +8,7 @@ import {
 import api from '../../lib/axios';
 import { toast } from '../../components/ui/Toast';
 import { useAuth } from '../../context/AuthContext';
+import { downloadAndOpen } from '../../platform/download';
 
 const money = (v: any) => `₹${Number(v || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
 const day = (v: any) => v ? new Date(v).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
@@ -237,13 +238,15 @@ export default function FinanceWorkspace() {
 
   const exportReport = async (format: 'xlsx' | 'pdf') => {
     try {
-      const r = await api.get(`/finance/reports/transactions.${format}`, { responseType: 'blob' });
-      const u = URL.createObjectURL(r.data);
-      const a = document.createElement('a');
-      a.href = u;
-      a.download = `campusos-finance-report.${format}`;
-      a.click();
-      setTimeout(() => URL.revokeObjectURL(u), 1000);
+      const res = await downloadAndOpen(
+        `/finance/reports/transactions.${format}`,
+        `CampusOS_Finance_Report.${format}`
+      );
+      if (res.success) {
+        toast.success(`Finance report (${format.toUpperCase()}) downloaded successfully.`);
+      } else {
+        toast.error(res.error || 'Report export failed.');
+      }
     } catch {
       toast.error('Report export failed');
     }

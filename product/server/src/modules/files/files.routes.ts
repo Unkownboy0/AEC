@@ -5,6 +5,10 @@ import { requireAuth, requirePermission } from '../../core/middlewares/auth.midd
 const router = Router();
 const controller = new FilesController();
 
+// Content delivery endpoints for inline media (avatars, images, viewable attachments)
+router.get('/content', controller.getContent);
+router.get('/:id/content', controller.getContent);
+
 router.get('/', requireAuth, requirePermission('files:read'), controller.list);
 router.get('/:id/download', requireAuth, requirePermission('files:read'), controller.download);
 router.post('/upload', requireAuth, (req, res, next) => {

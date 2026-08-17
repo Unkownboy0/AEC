@@ -153,13 +153,33 @@ export class StudentFeeService {
     const valid = expected.length === String(signature).length && crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(String(signature)));
     if (!valid) throw new ForbiddenException('Payment signature verification failed');
     const student = await this.studentForUser(userId);
-    return prisma.$transaction(async (tx) => {
-      const payment: any = await (tx as any).feePayment.findFirst({ where: { providerOrderId: orderId, studentId: student.id }, include: { bill: true } });
+    const result: any = await prisma.$transaction(async (tx) => {
+      // ── Re-fetch inside Serializable transaction (SELECT…FOR UPDATE equivalent) ────
+      // Without this re-check, two concurrent /verify requests for the same orderId
+      // would both pass the outer signature check and both enter the transaction,
+      // resulting in double-credit on the bill and two ledger entries.
+      const payment: any = await (tx as any).feePayment.findFirst({
+        where: { providerOrderId: orderId, studentId: student.id },
+        include: { bill: true }
+      });
       if (!payment) throw new NotFoundException('Payment order not found');
-      
-      // Duplicate-click / Duplicate verification protection
+
+      // ── Idempotency guard: already SUCCEEDED → return early, do NOT re-post ────────
       if (payment.status === 'SUCCEEDED') return payment;
       if (payment.status !== 'CREATED') throw new BadRequestException('Payment order is no longer valid');
+
+      // ── providerPaymentId uniqueness guard ────────────────────────────────────────
+      // Razorpay sends the same providerPaymentId on retried webhooks. If we already
+      // have this ID stored (on a DIFFERENT order), it means a replay attack or cross-
+      // order confusion — reject immediately.
+      if (paymentId) {
+        const providerIdConflict = await (tx as any).feePayment.findFirst({
+          where: { providerPaymentId: paymentId, id: { not: payment.id } }
+        });
+        if (providerIdConflict) {
+          throw new BadRequestException('Payment ID already associated with another transaction');
+        }
+      }
 
       const balance = payable(payment.bill) - Number(payment.bill.paidAmount || 0);
       if (payment.amount > balance || balance <= 0) throw new BadRequestException('Invoice balance changed; payment requires Accounts review');
@@ -170,20 +190,33 @@ export class StudentFeeService {
       await (tx as any).feeBill.update({ where: { id: payment.billId }, data: { paidAmount: newPaid, status: newPaid >= payable(payment.bill) ? 'PAID' : 'PARTIAL', paymentHistory: JSON.stringify(history) } });
       await (tx as any).financeLedgerEntry.create({ data: { entryNumber: token('LED'), entryType: 'PAYMENT', direction: 'CREDIT', amount: payment.amount, description: 'Verified Razorpay fee payment', paymentId: payment.id, billId: payment.billId, studentId: student.id, createdById: userId, sourceType: 'FEE_PAYMENT', sourceId: payment.id, metadataJson: JSON.stringify({ provider: 'RAZORPAY', providerPaymentId: paymentId }) } });
       const updated = await (tx as any).feePayment.update({ where: { id: payment.id }, data: { status: 'SUCCEEDED', providerPaymentId: paymentId, receiptNumber, paymentDate: new Date(), verifiedAt: new Date() } });
-      
-      // Success Event Cascade: Payment -> Ledger -> Accounts -> Student -> Parent -> Receipt -> Notification -> Reports
-      if (student.userId) {
-        await NotificationService.sendNotification({
-          recipientId: student.userId,
-          eventType: 'FEE_PAYMENT_SUCCESS',
-          title: 'Fee Payment Received',
-          message: `Your payment of INR ${payment.amount.toLocaleString('en-IN')} was verified. Receipt #${receiptNumber}`,
-          relatedEntityType: 'FEE_PAYMENT',
-          relatedEntityId: payment.id
-        });
-      }
+
       return updated;
     }, { isolationLevel: 'Serializable' });
+
+    // Post-Commit Success Event Dispatch
+    if (student.userId && result?.status === 'SUCCEEDED') {
+      NotificationService.dispatchDomainEvent({
+        eventType: 'PAYMENT_SUCCESS',
+        actorUserId: userId,
+        entityType: 'FEE_PAYMENT',
+        entityId: result.id,
+        title: 'Fee Payment Received',
+        body: `Your payment of INR ${Number(result.amount || 0).toLocaleString('en-IN')} was verified. Receipt #${result.receiptNumber}`,
+        priority: 'HIGH',
+        category: 'FEES',
+        deepLinkRoute: '/student/fees',
+        targetUserIds: [student.userId as string],
+        metadata: {
+          studentUserId: student.userId || undefined,
+          amount: result.amount,
+          receiptNumber: result.receiptNumber,
+          billId: result.billId,
+        },
+      }).catch((err) => console.error('[StudentFeeService] Payment notification error:', err));
+    }
+
+    return result;
   }
 
   /**
@@ -214,8 +247,12 @@ export class StudentFeeService {
     if (!bill.allowPartialPayment && amount !== balance) throw new BadRequestException('Partial payment is not allowed for this invoice');
     const reference = String(input?.reference || '').trim();
     if (!reference) throw new BadRequestException('Transaction or reference number is required');
-    const duplicate = await prisma.feePayment.findFirst({ where: { studentId: student.id, externalReference: reference, status: { not: 'REJECTED' } } });
-    if (duplicate) throw new BadRequestException('This payment reference has already been submitted');
+    // Broad dedup: block resubmission of same reference regardless of prior status
+    // (prevents: submit → reject → resubmit with same reference to force-credit)
+    const duplicate = await prisma.feePayment.findFirst({
+      where: { studentId: student.id, externalReference: reference }
+    });
+    if (duplicate) throw new BadRequestException('This reference number has already been used for a payment on this account');
     const proofUrl = input?.proofUrl ? String(input.proofUrl) : null;
     if (proofUrl && !proofUrl.startsWith('/uploads/')) throw new BadRequestException('Payment proof URL is invalid');
     const paymentDate = input?.paymentDate ? new Date(input.paymentDate) : new Date();
@@ -228,10 +265,22 @@ export class StudentFeeService {
   }
 
   static async reviewExternal(paymentId: string, reviewerUserId: string, decision: 'VERIFY' | 'REJECT', reason?: string) {
-    return prisma.$transaction(async (tx) => {
-      const payment: any = await (tx as any).feePayment.findFirst({ where: { id: paymentId, source: 'EXTERNAL', status: 'PENDING_VERIFICATION' }, include: { bill: true } });
-      if (!payment) throw new NotFoundException('Pending external payment not found');
-      if (decision === 'REJECT') return (tx as any).feePayment.update({ where: { id: payment.id }, data: { status: 'REJECTED', rejectionReason: reason || 'Payment proof could not be verified', verifiedByUserId: reviewerUserId, verifiedAt: new Date() } });
+    const result = await prisma.$transaction(async (tx) => {
+      // Re-fetch inside Serializable transaction to prevent concurrent double-approval
+      // Two admins approving simultaneously: first commit wins, second finds status != PENDING_VERIFICATION
+      const payment: any = await (tx as any).feePayment.findFirst({
+        where: { id: paymentId, source: 'EXTERNAL', status: 'PENDING_VERIFICATION' },
+        include: { bill: true, student: true }
+      });
+      if (!payment) throw new NotFoundException('Pending external payment not found (already approved, rejected, or does not exist)');
+      if (decision === 'REJECT') {
+        const rej = await (tx as any).feePayment.update({
+          where: { id: payment.id },
+          data: { status: 'REJECTED', rejectionReason: reason || 'Payment proof could not be verified', verifiedByUserId: reviewerUserId, verifiedAt: new Date() },
+          include: { student: true }
+        });
+        return rej;
+      }
       const balance = payable(payment.bill) - Number(payment.bill.paidAmount || 0);
       if (payment.amount > balance || balance <= 0) throw new BadRequestException('Payment exceeds the current invoice balance');
       const newPaid = Number(payment.bill.paidAmount || 0) + payment.amount;
@@ -240,8 +289,45 @@ export class StudentFeeService {
       history.push({ paymentId: payment.id, receiptNumber, date: new Date(), amount: payment.amount, mode: payment.method, transactionId: payment.externalReference });
       await (tx as any).feeBill.update({ where: { id: payment.billId }, data: { paidAmount: newPaid, status: newPaid >= payable(payment.bill) ? 'PAID' : 'PARTIAL', paymentHistory: JSON.stringify(history) } });
       await (tx as any).financeLedgerEntry.create({ data: { entryNumber: token('LED'), entryType: 'PAYMENT', direction: 'CREDIT', amount: payment.amount, description: `Verified ${payment.method} fee payment`, paymentId: payment.id, billId: payment.billId, studentId: payment.studentId, createdById: reviewerUserId, sourceType: 'FEE_PAYMENT', sourceId: payment.id, metadataJson: JSON.stringify({ externalReference: payment.externalReference }) } });
-      return (tx as any).feePayment.update({ where: { id: payment.id }, data: { status: 'SUCCEEDED', receiptNumber, verifiedByUserId: reviewerUserId, verifiedAt: new Date() } });
+      return (tx as any).feePayment.update({
+        where: { id: payment.id },
+        data: { status: 'SUCCEEDED', receiptNumber, verifiedByUserId: reviewerUserId, verifiedAt: new Date() },
+        include: { student: true }
+      });
     }, { isolationLevel: 'Serializable' });
+
+    // Post-Commit Notification
+    if (result.student?.userId) {
+      if (decision === 'VERIFY') {
+        NotificationService.dispatchDomainEvent({
+          eventType: 'PAYMENT_SUCCESS',
+          actorUserId: reviewerUserId,
+          entityType: 'FEE_PAYMENT',
+          entityId: result.id,
+          title: 'External Fee Payment Verified',
+          body: `Your payment of INR ${result.amount.toLocaleString('en-IN')} has been verified. Receipt #${result.receiptNumber}`,
+          priority: 'HIGH',
+          category: 'FEES',
+          deepLinkRoute: '/student/fees',
+          targetUserIds: [result.student.userId],
+        }).catch((err) => console.error('[StudentFeeService] External verify notification error:', err));
+      } else {
+        NotificationService.dispatchDomainEvent({
+          eventType: 'PAYMENT_FAILED',
+          actorUserId: reviewerUserId,
+          entityType: 'FEE_PAYMENT',
+          entityId: result.id,
+          title: 'Fee Payment Proof Rejected',
+          body: `Your submitted fee payment proof was rejected. Reason: ${reason || 'Invalid proof'}`,
+          priority: 'HIGH',
+          category: 'FEES',
+          deepLinkRoute: '/student/fees',
+          targetUserIds: [result.student.userId],
+        }).catch((err) => console.error('[StudentFeeService] External reject notification error:', err));
+      }
+    }
+
+    return result;
   }
 
   static async listExternalPayments(status?: string) {
@@ -257,9 +343,17 @@ export class StudentFeeService {
   static async receiptForUser(userId: string, paymentId: string) {
     const payment = await prisma.feePayment.findFirst({
       where: { id: paymentId, status: 'SUCCEEDED' },
-      include: { student: true, bill: { include: { category: true } } },
+      include: { student: { include: { user: { select: { id: true } } } }, bill: { include: { category: true } } },
     });
     if (!payment) throw new NotFoundException('Verified receipt not found');
+    // Authorization: students can only download their own receipts
+    const requestor = await prisma.user.findUnique({ where: { id: userId }, select: { id: true, role: true } });
+    const roleName: string = (requestor?.role as any)?.name ?? requestor?.role ?? '';
+    const isAdmin = ['Super Admin', 'College Admin', 'Finance Officer', 'Accounts Officer'].includes(roleName);
+
+    if (!isAdmin && (payment as any).student?.user?.id !== userId) {
+      throw new ForbiddenException('You are not authorized to download this receipt');
+    }
     return payment;
   }
 }

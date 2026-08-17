@@ -1,6 +1,6 @@
 import { prisma } from '../../lib/prisma';
 import { logger } from '../../utils/logger';
-import { PushDispatchService } from '../notifications/push-dispatch.service';
+import { NotificationService } from '../notifications/notification.service';
 import { EventEmitter } from 'events';
 
 class FacultyLeaveEventBus extends EventEmitter {}
@@ -12,42 +12,26 @@ export class FacultyLeaveNotificationService {
    * Send notification to HOD when Faculty submits a request.
    */
   static async notifyHodOnSubmission(request: any, facultyName: string, hodUserId: string) {
-    const title = `New Faculty ${request.type === 'LEAVE' ? 'Leave' : 'OD'} Request`;
+    const isOd = request.type === 'ON_DUTY' || request.type === 'OD';
+    const title = `New Faculty ${isOd ? 'OD' : 'Leave'} Request`;
     const startDateStr = new Date(request.startDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
     const endDateStr = new Date(request.endDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
-    const body = `${facultyName} submitted a ${request.title || request.reason} from ${startDateStr} to ${endDateStr}.`;
-    const deepLink = `/hod/faculty-requests/${request.id}`;
+    const body = `${facultyName} submitted a ${request.title || request.reason || 'leave request'} from ${startDateStr} to ${endDateStr}.`;
+    const deepLinkRoute = `/hod/faculty-requests/${request.id}`;
 
-    // 1. In-app notification
-    await prisma.notification.create({
-      data: {
-        recipientId: hodUserId,
-        eventType: 'FACULTY_LEAVE_SUBMITTED',
-        title,
-        message: body,
-        relatedEntityType: 'WorkflowRequest',
-        relatedEntityId: request.id,
-        deepLinkRoute: deepLink,
-        deliveryChannel: 'IN_APP',
-        deliveryState: 'DELIVERED',
-      },
-    }).catch(err => logger.warn('[FacultyLeaveNotif] Failed in-app notification:', err));
-
-    // 2. Native push notification
-    await PushDispatchService.sendToUsers([hodUserId], {
+    await NotificationService.dispatchDomainEvent({
+      eventType: isOd ? 'OD_SUBMITTED' : 'LEAVE_SUBMITTED',
+      actorUserId: request.facultyRequesterId,
+      entityType: 'FACULTY_LEAVE_REQUEST',
+      entityId: request.id,
       title,
       body,
-      sound: 'default',
-      priority: request.isEmergency ? 'high' : 'default',
-      data: {
-        type: 'FACULTY_LEAVE_SUBMITTED',
-        requestId: request.id,
-        deepLink,
-        nativeDeepLink: `campusos://hod/faculty-requests/${request.id}`,
-      },
+      priority: request.isEmergency ? 'CRITICAL' : 'HIGH',
+      category: 'APPROVALS',
+      deepLinkRoute,
+      targetUserIds: [hodUserId],
     });
 
-    // 3. Emit realtime event
     facultyLeaveEvents.emit('hod.faculty-request.received', { requestId: request.id, hodUserId });
   }
 
@@ -62,43 +46,34 @@ export class FacultyLeaveNotificationService {
   ) {
     let title = '';
     let body = '';
+    let eventType: any = 'LEAVE_FORWARDED';
 
     if (action === 'RECOMMENDED') {
       title = 'Leave/OD Recommended';
       body = 'Your request was recommended by the HOD and forwarded for final approval.';
+      eventType = 'LEAVE_FORWARDED';
     } else if (action === 'REJECTED') {
       title = 'Leave/OD Request Rejected';
       body = `Your request was rejected by the HOD.${remarks ? ` Reason: ${remarks}` : ''}`;
+      eventType = 'LEAVE_REJECTED';
     } else if (action === 'RETURNED') {
       title = 'Leave/OD Returned for Clarification';
       body = `Your request was returned by the HOD for update.${remarks ? ` Remarks: ${remarks}` : ''}`;
+      eventType = 'LEAVE_RETURNED';
     }
 
-    const deepLink = `/faculty/leave-od/${request.id}`;
+    const deepLinkRoute = `/faculty/leave-od/${request.id}`;
 
-    await prisma.notification.create({
-      data: {
-        recipientId: facultyUserId,
-        eventType: `FACULTY_LEAVE_${action}`,
-        title,
-        message: body,
-        relatedEntityType: 'WorkflowRequest',
-        relatedEntityId: request.id,
-        deepLinkRoute: deepLink,
-        deliveryChannel: 'IN_APP',
-        deliveryState: 'DELIVERED',
-      },
-    }).catch(() => {});
-
-    await PushDispatchService.sendToUsers([facultyUserId], {
+    await NotificationService.dispatchDomainEvent({
+      eventType,
+      entityType: 'FACULTY_LEAVE_REQUEST',
+      entityId: request.id,
       title,
       body,
-      data: {
-        type: `FACULTY_LEAVE_${action}`,
-        requestId: request.id,
-        deepLink,
-        nativeDeepLink: `campusos://faculty/leave-od/${request.id}`,
-      },
+      priority: action === 'REJECTED' ? 'HIGH' : 'NORMAL',
+      category: 'APPROVALS',
+      deepLinkRoute,
+      targetUserIds: [facultyUserId],
     });
 
     facultyLeaveEvents.emit(`faculty.request.${action.toLowerCase()}`, { requestId: request.id, facultyUserId });
@@ -134,31 +109,22 @@ export class FacultyLeaveNotificationService {
         const sessionCount = sessions.length;
         const firstSession = sessions[0];
         const title = 'Substitution Duty Assigned';
-        const body = `You have been assigned as substitute for ${sessionCount} class session(s) (${firstSession.subjectName} - ${firstSession.periodDisplay}) for ${applicantFaculty.firstName} ${applicantFaculty.lastName} on ${firstSession.date}.`;
-        const deepLink = `/faculty/timetable`;
+        const body = `You have been assigned as substitute for ${sessionCount} class session(s) (${firstSession.subjectName || 'Class'} - ${firstSession.periodDisplay || 'Period'}) for ${applicantFaculty.firstName} ${applicantFaculty.lastName} on ${firstSession.date || 'scheduled date'}.`;
+        const deepLinkRoute = `/faculty/timetable`;
 
-        await prisma.notification.create({
-          data: {
-            recipientId: subFaculty.userId,
-            eventType: 'SUBSTITUTE_DUTY_ASSIGNED',
-            title,
-            message: body,
-            relatedEntityType: 'TimetableSlotOverride',
-            relatedEntityId: request.id,
-            deepLinkRoute: deepLink,
-            deliveryChannel: 'IN_APP',
-            deliveryState: 'DELIVERED',
-          },
-        }).catch(() => {});
-
-        await PushDispatchService.sendToUsers([subFaculty.userId], {
+        await NotificationService.dispatchDomainEvent({
+          eventType: 'CLASS_SUBSTITUTION_ASSIGNED',
+          entityType: 'TIMETABLE_SUBSTITUTION',
+          entityId: request.id,
           title,
           body,
-          data: {
-            type: 'SUBSTITUTE_DUTY_ASSIGNED',
-            requestId: request.id,
-            deepLink,
-            nativeDeepLink: `campusos://faculty/timetable`,
+          priority: 'HIGH',
+          category: 'ACADEMIC',
+          deepLinkRoute,
+          targetUserIds: [subFaculty.userId],
+          metadata: {
+            substituteFacultyUserId: subFaculty.userId,
+            applicantFacultyName: `${applicantFaculty.firstName} ${applicantFaculty.lastName}`,
           },
         });
       }
@@ -177,41 +143,36 @@ export class FacultyLeaveNotificationService {
         where: { departmentId: deptId, role: { name: 'HOD' } },
       });
       if (deptHod) {
-        const title = 'Cross-Department Substitution Active';
-        const body = `Approved leave substitution for ${applicantFaculty.firstName} ${applicantFaculty.lastName} in your department classes has been activated.`;
-        await prisma.notification.create({
-          data: {
-            recipientId: deptHod.id,
-            eventType: 'CROSS_DEPT_SUBSTITUTION_ACTIVE',
-            title,
-            message: body,
-            relatedEntityType: 'WorkflowRequest',
-            relatedEntityId: request.id,
-            deepLinkRoute: `/hod/faculty-requests`,
-            deliveryChannel: 'IN_APP',
-            deliveryState: 'DELIVERED',
-          },
-        }).catch(() => {});
+        await NotificationService.dispatchDomainEvent({
+          eventType: 'CLASS_SUBSTITUTION_ASSIGNED',
+          entityType: 'TIMETABLE_SUBSTITUTION',
+          entityId: request.id,
+          title: 'Cross-Department Substitution Active',
+          body: `Approved leave substitution for ${applicantFaculty.firstName} ${applicantFaculty.lastName} in your department classes has been activated.`,
+          priority: 'NORMAL',
+          category: 'ACADEMIC',
+          deepLinkRoute: `/hod/faculty-requests`,
+          targetUserIds: [deptHod.id],
+        });
       }
     }
 
     // 3. Notify applicant faculty
     if (applicantFaculty.userId) {
       const title = 'Leave / OD Approved & Substitutions Activated';
-      const body = `Your ${request.leaveType || 'Leave'} application (${request.requestNumber}) has been approved by the Principal. All ${substitutions.length} class substitution(s) are active.`;
-      await prisma.notification.create({
-        data: {
-          recipientId: applicantFaculty.userId,
-          eventType: 'FACULTY_LEAVE_APPROVED_PRINCIPAL',
-          title,
-          message: body,
-          relatedEntityType: 'WorkflowRequest',
-          relatedEntityId: request.id,
-          deepLinkRoute: `/faculty/leave-od/${request.id}`,
-          deliveryChannel: 'IN_APP',
-          deliveryState: 'DELIVERED',
-        },
-      }).catch(() => {});
+      const body = `Your ${request.leaveType || 'Leave'} application (${request.requestNumber || ''}) has been approved by the Principal. All ${substitutions.length} class substitution(s) are active.`;
+
+      await NotificationService.dispatchDomainEvent({
+        eventType: 'LEAVE_APPROVED',
+        entityType: 'FACULTY_LEAVE_REQUEST',
+        entityId: request.id,
+        title,
+        body,
+        priority: 'HIGH',
+        category: 'APPROVALS',
+        deepLinkRoute: `/faculty/leave-od/${request.id}`,
+        targetUserIds: [applicantFaculty.userId],
+      });
     }
   }
 }

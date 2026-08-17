@@ -468,6 +468,7 @@ model Department {
   subjects        Subject[]
   students        Student[]
   programStudents Student[]       @relation("ProgramDepartment")
+  operatingStudents Student[]     @relation("StudentOperatingDepartment")
   faculties       Faculty[]
   timetableSlots  TimetableSlot[]
   assignments     Assignment[]
@@ -1050,6 +1051,10 @@ model Student {
   transportRouteId String?
   transportRoute   TransportRoute? @relation(fields: [transportRouteId], references: [id])
   transportStopId  String?
+  residentialType  String?         @default("DAY_SCHOLAR") // HOSTELLER, DAY_SCHOLAR
+  transportMode    String?         @default("OTHER") // COLLEGE_BUS, OUT_BUS, OWN_VEHICLE, PUBLIC_TRANSPORT, PARENT_DROP_PICKUP, OTHER
+  operatingDepartmentId String?
+  operatingDepartment   Department? @relation("StudentOperatingDepartment", fields: [operatingDepartmentId], references: [id])
 
   userId String? @unique
   user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
@@ -1079,6 +1084,8 @@ model Student {
   studentLeaveRequests     StudentLeaveRequest[]
   teachingGroupMemberships TeachingGroupStudent[]
   achievements             StudentAchievement[]
+  residentialHistory       StudentResidentialHistory[]
+  mentorFeeAudits          MentorFeeAudit[]
 
   archived   Boolean   @default(false)
   archivedAt DateTime?
@@ -6706,3 +6713,105 @@ model DepartmentFacultyAllocation {
   @@index([facultyId])
   @@map("department_faculty_allocations")
 }
+
+model StudentResidentialHistory {
+  id                 String   @id @default(uuid())
+  studentId          String
+  student            Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  oldResidentialType String?
+  newResidentialType String
+  oldTransportMode   String?
+  newTransportMode   String?
+  reason             String?
+  remarks            String?
+  changedById        String
+  changedByRole      String?
+  workflowTaskId     String?
+  createdAt          DateTime @default(now())
+
+  @@index([studentId])
+  @@map("student_residential_history")
+}
+
+model MentorFeeAudit {
+  id             String    @id @default(uuid())
+  studentId      String
+  student        Student   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  mentorId       String
+  feeHead        String
+  oldAmount      Float?
+  newAmount      Float
+  oldDueDate     DateTime?
+  newDueDate     DateTime?
+  reason         String?
+  remarks        String?
+  permissionUsed String?
+  createdAt      DateTime  @default(now())
+
+  @@index([studentId])
+  @@index([mentorId])
+  @@map("mentor_fee_audits")
+}
+
+model LeadershipAssignment {
+  id            String    @id @default(uuid())
+  position      String    // CEO, DIRECTOR, PRINCIPAL, VP, ACADEMIC_DEAN, AA_DEAN, IQAC_DEAN, HOD, COE, COORDINATOR
+  facultyId     String?
+  userId        String
+  departmentId  String?
+  scopeType     String?   // INSTITUTION, DEPARTMENT, DOMAIN
+  scopeId       String?
+  isActing      Boolean   @default(false)
+  actingReason  String?
+  delegationId  String?
+  startDate     DateTime  @default(now())
+  endDate       DateTime?
+  status        String    @default("ACTIVE") // ACTIVE, EXPIRED, HANDED_OVER, TERMINATED
+  handoverNotes String?
+  assignedById  String
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([userId, status])
+  @@index([position, status])
+  @@map("leadership_assignments")
+}
+
+model WorkspaceAssignment {
+  id             String    @id @default(uuid())
+  userId         String
+  workspaceType  String    // FACULTY, MENTOR, CLASS_ADVISER, HOD, ACADEMIC_DEAN, AA_DEAN, IQAC_DEAN, VP, PRINCIPAL, COLLEGE_ADMIN, ACCOUNTANT, AO, HOSTEL, TRANSPORT, LIBRARY, PLACEMENT, SUPER_ADMIN
+  scopeType      String?   // INSTITUTION, DEPARTMENT, SECTION, HOSTEL, ROUTE
+  scopeId        String?
+  academicYearId String?
+  validFrom      DateTime  @default(now())
+  validUntil     DateTime?
+  status         String    @default("ACTIVE") // ACTIVE, EXPIRED, REVOKED
+  assignedBy     String
+  approvedBy     String?
+  reason         String?
+  createdAt      DateTime  @default(now())
+  endedAt        DateTime?
+
+  @@index([userId, status])
+  @@index([workspaceType, status])
+  @@map("workspace_assignments")
+}
+
+model ClassAdviserAssignment {
+  id             String    @id @default(uuid())
+  facultyId      String
+  sectionId      String
+  academicYearId String?
+  validFrom      DateTime  @default(now())
+  validUntil     DateTime?
+  status         String    @default("ACTIVE") // ACTIVE, HISTORIC
+  assignedBy     String
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([facultyId, status])
+  @@index([sectionId, status])
+  @@map("class_adviser_assignments")
+}
+

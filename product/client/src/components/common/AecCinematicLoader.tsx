@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useInstitution } from '../../context/InstitutionContext';
 
 interface AecCinematicLoaderProps {
   onComplete?: () => void;
@@ -53,6 +54,7 @@ export const AecCinematicLoader: React.FC<AecCinematicLoaderProps> = ({
   const reqRef = useRef<number | null>(null);
   const theme = useResolvedTheme();
   const isDark = theme === 'dark';
+  const { collegeName } = useInstitution();
 
   // The visual reveal animation always plays once (brand moment), but the loader
   // must not hand off to the app until the caller's `isReady` actually says so —
@@ -305,7 +307,7 @@ export const AecCinematicLoader: React.FC<AecCinematicLoaderProps> = ({
               isDark ? 'text-slate-200' : 'text-slate-800'
             }`}
           >
-            Al-Ameen Engineering College
+            {collegeName}
           </motion.h1>
 
           {/* Scene 5: 50% Secondary Motto Line */}

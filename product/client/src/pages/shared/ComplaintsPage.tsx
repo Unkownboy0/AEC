@@ -1,13 +1,17 @@
 import React, { useState } from 'react';
 import { ComplaintMonitoringCenter } from '../../components/complaint/ComplaintMonitoringCenter';
+import { MyComplaintsList } from '../../components/complaint/MyComplaintsList';
 import { PageHeader } from '../../design-system/components/PageHeader';
 import { Plus, CheckCircle2 } from 'lucide-react';
 import { Modal } from '../../components/ui/Modal';
 import { Input } from '../../components/ui/Input';
 import { toast } from '../../components/ui/Toast';
 import api from '../../lib/axios';
+import { useAuth } from '../../context/AuthContext';
 
 export const ComplaintsPage: React.FC = () => {
+  const { user } = useAuth();
+  const isStudent = (user?.role || '').toUpperCase() === 'STUDENT';
   const [isLogModalOpen, setIsLogModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -54,8 +58,10 @@ export const ComplaintsPage: React.FC = () => {
     <div className="space-y-6 animate-in fade-in duration-200 pb-16">
       {/* Dedicated Workspace Page Header */}
       <PageHeader
-        title="Grievance & Complaint Management Center"
-        subtitle="Institutional complaint tracking, resolution timelines, escalations, and grievance control"
+        title={isStudent ? 'My Complaints & Grievances' : 'Grievance & Complaint Management Center'}
+        subtitle={isStudent
+          ? 'File a grievance and track its status through resolution'
+          : 'Institutional complaint tracking, resolution timelines, escalations, and grievance control'}
         primaryAction={{
           label: 'File New Complaint',
           onClick: () => setIsLogModalOpen(true),
@@ -65,7 +71,7 @@ export const ComplaintsPage: React.FC = () => {
 
       {/* Main Dedicated Complaint Workspace Body */}
       <div key={refreshKey}>
-        <ComplaintMonitoringCenter />
+        {isStudent ? <MyComplaintsList refreshKey={refreshKey} /> : <ComplaintMonitoringCenter />}
       </div>
 
       {/* Log New Complaint Modal */}

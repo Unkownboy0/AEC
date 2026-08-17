@@ -40,14 +40,14 @@ export const TopHeader: React.FC = () => {
   });
 
   return (
-    <header className="sticky top-0 z-30 bg-surface/95 backdrop-blur-md border-b border-border transition-all">
+    <header className="pt-safe sticky top-0 z-30 bg-surface/95 backdrop-blur-md border-b border-border transition-all">
       <OfflineBanner />
       <PrincipalDelegationBanner />
       <VpActingPrincipalBanner />
 
       <div className="flex items-center justify-between px-4 sm:px-6 h-16 gap-3">
         {/* Left: Mobile Menu Trigger & Branding & Greeting & Breadcrumbs */}
-        <div className="flex items-center gap-3 min-w-0">
+        <div className="flex items-center gap-3 min-w-0 flex-1">
           {!isWorkspaceHome && (
             <button
               type="button"
@@ -68,13 +68,14 @@ export const TopHeader: React.FC = () => {
             </span>
           </div>
 
-          <h1 className="sm:hidden text-sm font-bold text-text-primary truncate max-w-[12rem]">
+          <h1 className="sm:hidden text-sm font-bold text-text-primary truncate min-w-0">
             {currentRoute?.label || 'CampusOS'}
           </h1>
 
-          <div className="hidden sm:flex items-center">
-            <WorkspaceSwitcher />
-          </div>
+          {/* Visible on all breakpoints — WorkspaceSwitcher renders a compact icon-only
+              trigger + bottom sheet on mobile so multi-workspace users (Faculty/Mentor/
+              Class Adviser, HOD/Faculty, etc.) can switch workspace from a phone. */}
+          <WorkspaceSwitcher />
 
           {/* Breadcrumbs Navigation */}
           <div className="hidden lg:block pl-2 border-l border-border/60">

@@ -79,8 +79,61 @@ router.patch('/applications/:id', scholarshipGuard, async (req: Request, res: Re
 // Disburse
 router.post('/applications/:id/disburse', scholarshipGuard, async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const disbursement = await prisma.scholarshipDisbursement.create({ data: { applicationId: req.params.id, amount: req.body.amount, disbursementDate: new Date(req.body.disbursementDate || new Date()), method: req.body.method || 'BANK_TRANSFER', reference: req.body.reference, processedById: (req as any).user?.id } });
-    await prisma.scholarshipApplication2.update({ where: { id: req.params.id }, data: { status: 'DISBURSED' } });
+    const actorId = (req as any).user?.id;
+    const amount = Number(req.body.amount);
+
+    const app = await prisma.scholarshipApplication2.findUnique({
+      where: { id: req.params.id },
+      include: { scheme: true },
+    });
+    if (!app) return res.status(404).json({ status: 'error', message: 'Application not found' });
+
+    const disbursement = await prisma.scholarshipDisbursement.create({
+      data: {
+        applicationId: req.params.id,
+        amount,
+        disbursementDate: new Date(req.body.disbursementDate || new Date()),
+        method: req.body.method || 'FEE_CREDIT',
+        reference: req.body.reference || `SCH-${Date.now().toString(36).toUpperCase()}`,
+        processedById: actorId,
+      },
+    });
+
+    await prisma.scholarshipApplication2.update({
+      where: { id: req.params.id },
+      data: { status: 'DISBURSED' },
+    });
+
+    // Credit student fee bill and post to finance ledger
+    const activeBill = await (prisma as any).feeBill.findFirst({
+      where: { studentId: app.studentId, status: { in: ['PENDING', 'PARTIAL'] } },
+      orderBy: { dueDate: 'asc' },
+    });
+
+    if (activeBill) {
+      await (prisma as any).feeBill.update({
+        where: { id: activeBill.id },
+        data: {
+          scholarshipDiscount: { increment: amount },
+        },
+      });
+
+      await (prisma as any).financeLedgerEntry.create({
+        data: {
+          entryNumber: `SCH-LED-${Date.now().toString(36).toUpperCase()}`,
+          entryType: 'SCHOLARSHIP',
+          direction: 'CREDIT',
+          amount,
+          description: `Scholarship credit from ${app.scheme?.name || 'Scheme'} applied to fee bill ${activeBill.invoiceNumber || activeBill.id}`,
+          billId: activeBill.id,
+          studentId: app.studentId,
+          createdById: actorId,
+          sourceType: 'SCHOLARSHIP_DISBURSEMENT',
+          sourceId: disbursement.id,
+        },
+      });
+    }
+
     res.status(201).json({ status: 'success', data: disbursement });
   } catch (e) { next(e); }
 });

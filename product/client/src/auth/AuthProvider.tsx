@@ -23,6 +23,8 @@ export interface AuthContextProps {
 
 const AuthContext = createContext<AuthContextProps | undefined>(undefined);
 
+import { resolveAssetUrl } from '../utils/assets';
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [status, setStatus] = useState<AuthBootstrapStatus>('BOOTING');
@@ -30,7 +32,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const formatUserWithCacheBust = (userData: User): User => {
     if (userData && userData.profilePhoto && !userData.profilePhoto.startsWith('data:')) {
-      const cleanPhoto = userData.profilePhoto.split('?')[0];
+      const resolved = resolveAssetUrl(userData.profilePhoto);
+      const cleanPhoto = resolved.split('?')[0];
       return {
         ...userData,
         profilePhoto: `${cleanPhoto}?v=${Date.now()}`,

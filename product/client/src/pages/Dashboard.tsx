@@ -10,6 +10,7 @@ import { toast } from '../components/ui/Toast';
 import { Loading } from '../components/ui/Loading';
 import { useAuth } from '../context/AuthContext';
 import api from '../lib/axios';
+import { downloadAndOpen } from '../platform/download';
 
 const StudentDashboard = React.lazy(() => import('./student/StudentDashboard'));
 
@@ -603,16 +604,14 @@ export const Dashboard: React.FC = () => {
                         <div className="flex gap-1.5">
                           <button 
                             onClick={async () => {
-                              try {
-                                toast.success(`Exporting ${rep.title} PDF...`);
-                                const res = await api.get(`/reports/export?type=${encodeURIComponent(rep.type)}&format=PDF`, { responseType: 'blob' });
-                                const url = window.URL.createObjectURL(new Blob([res.data]));
-                                const a = document.createElement('a');
-                                a.href = url;
-                                a.download = `${rep.type}_Report.pdf`;
-                                a.click();
-                              } catch {
-                                toast.error('Download failed');
+                              const res = await downloadAndOpen(
+                                `/reports/export?type=${encodeURIComponent(rep.type)}&format=PDF`,
+                                `CampusOS_${rep.type}_Report.pdf`
+                              );
+                              if (res.success) {
+                                toast.success(`${rep.title} PDF downloaded.`);
+                              } else {
+                                toast.error(res.error || 'Download failed');
                               }
                             }} 
                             className="p-1.5 border rounded hover:bg-muted text-rose-500" 
@@ -622,16 +621,14 @@ export const Dashboard: React.FC = () => {
                           </button>
                           <button 
                             onClick={async () => {
-                              try {
-                                toast.success(`Exporting ${rep.title} Excel...`);
-                                const res = await api.get(`/reports/export?type=${encodeURIComponent(rep.type)}&format=EXCEL`, { responseType: 'blob' });
-                                const url = window.URL.createObjectURL(new Blob([res.data]));
-                                const a = document.createElement('a');
-                                a.href = url;
-                                a.download = `${rep.type}_Report.xlsx`;
-                                a.click();
-                              } catch {
-                                toast.error('Download failed');
+                              const res = await downloadAndOpen(
+                                `/reports/export?type=${encodeURIComponent(rep.type)}&format=EXCEL`,
+                                `CampusOS_${rep.type}_Report.xlsx`
+                              );
+                              if (res.success) {
+                                toast.success(`${rep.title} Excel downloaded.`);
+                              } else {
+                                toast.error(res.error || 'Download failed');
                               }
                             }} 
                             className="p-1.5 border rounded hover:bg-muted text-emerald-600" 

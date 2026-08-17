@@ -47,7 +47,13 @@ export const Modal: React.FC<ModalProps> = ({
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{
+            paddingTop: 'max(1rem, var(--safe-area-top))',
+            paddingBottom: 'max(1rem, var(--safe-area-bottom))',
+          }}
+        >
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -123,19 +129,19 @@ export const Drawer: React.FC<DrawerProps> = ({ isOpen, onClose, title, subtitle
             exit="exit"
             className="relative z-10 w-full max-w-md bg-card border-l border-border h-full shadow-2xl flex flex-col sm:max-w-md max-w-full"
           >
-            <div className="flex items-center justify-between p-4 border-b border-border">
+            <div className="pt-safe flex items-center justify-between p-4 border-b border-border">
               <div>
                 <h3 className="text-base font-bold text-foreground">{title}</h3>
                 {subtitle && <p className="text-xs text-muted-foreground">{subtitle}</p>}
               </div>
               <button
                 onClick={onClose}
-                className="p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                className="p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors touch-target flex items-center justify-center"
               >
                 <X className="h-4 w-4" />
               </button>
             </div>
-            <div className="p-4 overflow-y-auto flex-1">{children}</div>
+            <div className="p-4 pb-safe overflow-y-auto flex-1">{children}</div>
           </motion.div>
         </div>
       )}

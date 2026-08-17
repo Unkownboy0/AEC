@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { useParams, useSearchParams } from 'react-router-dom';
 import {
   FileText, CheckCircle2, XCircle, RotateCcw, AlertTriangle, ArrowUpRight,
   Filter, Search, Download, RefreshCw, Eye, Check, X, ShieldAlert,
@@ -77,6 +78,10 @@ interface LeaveRequest {
 
 export const HodLeaveOdApprovalDesk: React.FC = () => {
   const { showToast } = useToast();
+  const routeParams = useParams<{ requestId?: string }>();
+  const [searchParams] = useSearchParams();
+  const targetRequestId = routeParams.requestId || searchParams.get('requestId');
+
   const [isLeaveModalOpen, setIsLeaveModalOpen] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<'PENDING_HOD' | 'ALL' | 'APPROVED' | 'REJECTED' | 'RETURNED' | 'EMERGENCY' | 'ESCALATED'>('PENDING_HOD');
   const [requests, setRequests] = useState<LeaveRequest[]>([]);
@@ -98,7 +103,10 @@ export const HodLeaveOdApprovalDesk: React.FC = () => {
     try {
       setLoading(true);
       const res: any = await api.get(`/hod/leave-od?status=${activeTab}`);
-      const dataList = res?.data?.data || res?.data || (Array.isArray(res) ? res : []);
+      const dataList =
+        res?.data?.items ||
+        res?.data?.data ||
+        (Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : []);
       if (Array.isArray(dataList)) {
         setRequests(dataList);
       } else {
@@ -117,6 +125,29 @@ export const HodLeaveOdApprovalDesk: React.FC = () => {
   useEffect(() => {
     fetchRequests();
   }, [activeTab]);
+
+  // Deep-link auto-open handler for HOD
+  useEffect(() => {
+    if (!targetRequestId) return;
+    const found = requests.find((r) => r.id === targetRequestId || r.requestNumber === targetRequestId);
+    if (found) {
+      setSelectedRequest(found);
+      setShowDetailModal(true);
+      setActionRemarks('');
+    } else {
+      // Direct load if not currently in filtered list
+      api.get(`/student/leave-od/details/${targetRequestId}`)
+        .then((res: any) => {
+          const detail = res?.data?.data || res?.data;
+          if (detail) {
+            setSelectedRequest(detail);
+            setShowDetailModal(true);
+            setActionRemarks('');
+          }
+        })
+        .catch(() => {});
+    }
+  }, [targetRequestId, requests]);
 
   const [applicantFilter, setApplicantFilter] = useState<'ALL' | 'FACULTY' | 'STUDENT'>('ALL');
 

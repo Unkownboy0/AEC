@@ -7,6 +7,7 @@ import {
 import api from '../../lib/axios';
 import { useAuth } from '../../context/AuthContext';
 import { toast } from '../../components/ui/Toast';
+import { downloadAndOpen } from '../../platform/download';
 
 interface LinkedChild {
   id: string;
@@ -503,9 +504,16 @@ export const ParentWorkspacePortal: React.FC = () => {
                       <div className="flex items-center gap-3">
                         <span className="text-sm font-black font-mono text-emerald-600">₹{rec.amountPaid.toLocaleString('en-IN')}</span>
                         <button
-                          onClick={() => {
-                            window.open(`/api/enterprise/fees/student/payments/${rec.id}/receipt`, '_blank');
-                            toast.success(`Opening verified PDF receipt #${rec.receiptNumber}...`);
+                          onClick={async () => {
+                            const res = await downloadAndOpen(
+                              `/enterprise/fees/student/payments/${rec.id}/receipt`,
+                              `CampusOS_Receipt_${rec.receiptNumber || rec.id}.pdf`
+                            );
+                            if (res.success) {
+                              toast.success(`Receipt #${rec.receiptNumber} downloaded successfully.`);
+                            } else {
+                              toast.error(res.error || 'Unable to download receipt PDF.');
+                            }
                           }}
                           className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-xl flex items-center gap-1 transition-all"
                         >

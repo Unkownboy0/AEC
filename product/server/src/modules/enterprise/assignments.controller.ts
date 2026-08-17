@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { prisma } from '../../lib/prisma';
+import { NotificationService } from '../notifications/notification.service';
 
 export class AssignmentController {
   // ─── Faculty: Create Assignment ───────────────────────────────────────────
@@ -96,6 +97,26 @@ export class AssignmentController {
           faculty: { select: { firstName: true, lastName: true } },
         },
       });
+
+      // Emit canonical ASSIGNMENT_PUBLISHED domain event to target section students
+      NotificationService.dispatchDomainEvent({
+        eventType: 'ASSIGNMENT_PUBLISHED',
+        actorUserId: user.id,
+        entityType: 'ASSIGNMENT',
+        entityId: assignment.id,
+        title: `New Assignment: ${assignment.title}`,
+        body: `${assignment.faculty ? `${assignment.faculty.firstName} ${assignment.faculty.lastName}` : 'Faculty'} published assignment "${assignment.title}". Due: ${new Date(assignment.dueDate).toLocaleDateString('en-IN')}`,
+        priority: 'NORMAL',
+        category: 'ACADEMIC',
+        deepLinkRoute: '/student/assignments',
+        sectionId: assignment.sectionId || undefined,
+        metadata: {
+          assignmentId: assignment.id,
+          title: assignment.title,
+          dueDate: assignment.dueDate,
+          sectionId: assignment.sectionId,
+        },
+      }).catch((err) => console.error('[AssignmentController] Notification dispatch error:', err));
 
       res.status(201).json({ status: 'success', data: assignment });
     } catch (error) {
@@ -328,6 +349,7 @@ export class AssignmentController {
   // ─── Faculty: Grade Submission ───────────────────────────────────────────
   grade = async (req: Request, res: Response, next: NextFunction) => {
     try {
+      const user = (req as any).user;
       const { submissionId } = req.params;
       const { marksObtained, feedback } = req.body;
 
@@ -338,7 +360,32 @@ export class AssignmentController {
           feedback,
           status: 'GRADED',
         },
+        include: {
+          student: { select: { id: true, userId: true, firstName: true, lastName: true } },
+          assignment: { select: { id: true, title: true, maxMarks: true } },
+        },
       });
+
+      if (submission.student?.userId) {
+        NotificationService.dispatchDomainEvent({
+          eventType: 'ASSIGNMENT_GRADED',
+          actorUserId: user?.id,
+          entityType: 'ASSIGNMENT',
+          entityId: submission.assignmentId,
+          title: `Assignment Graded: ${submission.assignment?.title || 'Assignment'}`,
+          body: `Your submission for "${submission.assignment?.title || 'Assignment'}" has been graded: ${marksObtained}/${submission.assignment?.maxMarks || 100} marks.${feedback ? ` Feedback: ${feedback}` : ''}`,
+          priority: 'NORMAL',
+          category: 'ACADEMIC',
+          deepLinkRoute: '/student/assignments',
+          targetUserIds: [submission.student.userId],
+          metadata: {
+            submissionId: submission.id,
+            assignmentId: submission.assignmentId,
+            marksObtained: parseInt(marksObtained, 10),
+            maxMarks: submission.assignment?.maxMarks,
+          },
+        }).catch((err) => console.error('[AssignmentController] Grading notification error:', err));
+      }
 
       res.status(200).json({ status: 'success', data: submission });
     } catch (error) {

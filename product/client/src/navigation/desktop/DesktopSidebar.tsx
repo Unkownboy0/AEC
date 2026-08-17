@@ -1,6 +1,7 @@
 import React from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { clsx } from 'clsx';
+import { resolveAssetUrl } from '../../utils/assets';
 import {
   ChevronLeft,
   ChevronRight,
@@ -271,7 +272,7 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
           )}
         >
           <Avatar
-            src={user?.profilePhoto}
+            src={resolveAssetUrl(user?.profilePhoto)}
             name={user ? `${user.firstName} ${user.lastName}` : 'User'}
             size="sm"
             className="ring-1 ring-purple-500/40 shrink-0"

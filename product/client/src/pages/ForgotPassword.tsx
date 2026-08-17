@@ -71,7 +71,7 @@ const ForgotPassword: React.FC = () => {
             <Input
               label="Email Address"
               type="email"
-              placeholder="admin@geetorus.com"
+              placeholder="your.email@institution.ac.in"
               error={errors.email?.message}
               {...register('email')}
             />
