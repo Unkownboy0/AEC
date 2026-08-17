@@ -28,7 +28,7 @@ export class AssignmentController {
         select: { id: true },
       });
 
-      if (!faculty && !['SuperAdmin', 'HOD', 'Academic Dean', 'Principal', 'Vice Principal'].includes(user.role)) {
+      if (!faculty && !['Super Admin', 'College Admin', 'HOD', 'Academic Dean', 'Principal', 'Vice Principal'].includes(user.role)) {
         return res.status(403).json({ status: 'error', message: 'Only faculty can create assignments.' });
       }
 
@@ -338,7 +338,26 @@ export class AssignmentController {
           feedback,
           status: 'GRADED',
         },
+        include: {
+          student: { select: { userId: true } },
+          assignment: { select: { title: true, maxMarks: true } },
+        },
       });
+
+      if (submission.student?.userId) {
+        try {
+          await prisma.notification.create({
+            data: {
+              recipientId: submission.student.userId,
+              eventType: 'ASSIGNMENT_GRADED',
+              title: 'Assignment graded',
+              message: `"${submission.assignment.title}" was graded: ${submission.marksObtained}/${submission.assignment.maxMarks}.`,
+              relatedEntityType: 'ASSIGNMENT_SUBMISSION',
+              relatedEntityId: submission.id,
+            },
+          });
+        } catch { /* Notification failure must not block a successful grade save. */ }
+      }
 
       res.status(200).json({ status: 'success', data: submission });
     } catch (error) {
