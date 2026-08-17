@@ -5,7 +5,7 @@ import { Request, Response, NextFunction } from 'express';
 
 const router = Router();
 router.use(requireAuth);
-const scholarshipGuard = requireRole(['Scholarship Officer', 'Finance Officer', 'Super Admin', 'College Admin', 'Principal', 'Student Welfare Dean']);
+const scholarshipGuard = requireRole(['Scholarship Officer', 'Finance Officer', 'Accounts Officer', 'Super Admin', 'College Admin', 'Principal', 'Student Welfare Dean']);
 
 // Schemes
 router.get('/schemes', async (req: Request, res: Response, next: NextFunction) => {

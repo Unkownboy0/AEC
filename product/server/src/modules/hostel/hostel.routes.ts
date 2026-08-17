@@ -5,7 +5,7 @@ import { requireAuth, requireRole } from '../../core/middlewares/auth.middleware
 const router = Router();
 router.use(requireAuth);
 
-const wardenGuard = requireRole(['Warden', 'Chief Warden', 'Hostel Admin', 'Super Admin', 'College Admin', 'Administration Dean']);
+const wardenGuard = requireRole(['Hostel Warden', 'Warden', 'Chief Warden', 'Hostel Admin', 'Super Admin', 'College Admin', 'Administration Dean']);
 
 // Dashboard & listings
 router.get('/dashboard', wardenGuard, HostelController.getDashboard);
