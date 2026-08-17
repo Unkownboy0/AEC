@@ -21,7 +21,12 @@ router.get('/schemes', async (req: Request, res: Response, next: NextFunction) =
 
 router.post('/schemes', scholarshipGuard, async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const scheme = await prisma.scholarshipScheme.create({ data: { ...req.body, eligibility: JSON.stringify(req.body.eligibility || {}), documents: JSON.stringify(req.body.documents || []), startDate: req.body.startDate ? new Date(req.body.startDate) : undefined, endDate: req.body.endDate ? new Date(req.body.endDate) : undefined } });
+    let code = req.body.code ? String(req.body.code).trim().toUpperCase() : '';
+    if (!code) {
+      const slug = String(req.body.name || 'SCHEME').trim().toUpperCase().replace(/[^A-Z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 24) || 'SCHEME';
+      code = `${slug}-${Date.now().toString(36).toUpperCase()}`;
+    }
+    const scheme = await prisma.scholarshipScheme.create({ data: { ...req.body, code, eligibility: JSON.stringify(req.body.eligibility || {}), documents: JSON.stringify(req.body.documents || []), startDate: req.body.startDate ? new Date(req.body.startDate) : undefined, endDate: req.body.endDate ? new Date(req.body.endDate) : undefined } });
     res.status(201).json({ status: 'success', data: scheme });
   } catch (e) { next(e); }
 });
