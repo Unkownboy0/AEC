@@ -654,6 +654,61 @@ export class SecurityHelper {
       ];
     }
 
+    // ── Accountant / Accounts Staff ────────────────────────────────────────────
+    if (role === 'Accountant' || role === 'Accounts Staff' || role === 'ACCOUNTS_STAFF') {
+      return [
+        { name: 'Dashboard', path: '/accountant/dashboard', icon: 'LayoutDashboard', componentKey: 'dashboard', order: 1 },
+        { name: 'Fee Collection', path: '/accountant/fee-collection', icon: 'IndianRupee', componentKey: 'dashboard', order: 2 },
+        { name: 'Student Fee Search', path: '/accountant/student-search', icon: 'Search', componentKey: 'dashboard', order: 3 },
+        { name: 'Online Payments', path: '/accountant/online-payments', icon: 'CreditCard', componentKey: 'dashboard', order: 4 },
+        { name: 'Offline Payments', path: '/accountant/offline-payments', icon: 'Landmark', componentKey: 'dashboard', order: 5 },
+        { name: 'Pending Fees', path: '/accountant/pending-fees', icon: 'Clock3', componentKey: 'dashboard', order: 6 },
+        { name: 'Receipts', path: '/accountant/receipts', icon: 'Receipt', componentKey: 'dashboard', order: 7 },
+        { name: 'Transactions', path: '/accountant/transactions', icon: 'ArrowLeftRight', componentKey: 'dashboard', order: 8 },
+        { name: 'Refund Requests', path: '/accountant/refund-requests', icon: 'Undo2', componentKey: 'dashboard', order: 9 },
+        { name: 'Scholarships / Concessions', path: '/accountant/scholarships', icon: 'BadgePercent', componentKey: 'dashboard', order: 10 },
+        { name: 'Daily Collection', path: '/accountant/daily-collection', icon: 'CalendarCheck', componentKey: 'dashboard', order: 11 },
+        { name: 'Reports', path: '/accountant/reports', icon: 'FileBarChart', componentKey: 'dashboard', order: 12 },
+        { name: 'Notifications', path: '/accountant/notifications', icon: 'Bell', componentKey: 'dashboard', order: 13 },
+        { name: 'Profile', path: '/accountant/profile', icon: 'UserRound', componentKey: 'dashboard', order: 14 },
+      ];
+    }
+
+    // ── Accounts Officer ────────────────────────────────────────────────────────
+    if (role === 'Accounts Officer' || role === 'ACCOUNTS_OFFICER' || role === 'AO') {
+      return [
+        { name: 'Dashboard', path: '/ao/dashboard', icon: 'LayoutDashboard', componentKey: 'dashboard', order: 1 },
+        { name: 'Collection Overview', path: '/ao/collection-overview', icon: 'BarChart3', componentKey: 'dashboard', order: 2 },
+        { name: 'Accountant Monitoring', path: '/ao/accountant-monitoring', icon: 'UsersRound', componentKey: 'dashboard', order: 3 },
+        { name: 'Daily Closing Approvals', path: '/ao/closing-approvals', icon: 'CalendarCheck', componentKey: 'dashboard', order: 4 },
+        { name: 'Fee Structure', path: '/ao/fee-structure', icon: 'ListChecks', componentKey: 'dashboard', order: 5 },
+        { name: 'Pending Fees', path: '/ao/pending-fees', icon: 'Clock3', componentKey: 'dashboard', order: 6 },
+        { name: 'Scholarships / Concessions', path: '/ao/scholarships-concessions', icon: 'BadgePercent', componentKey: 'dashboard', order: 7 },
+        { name: 'Refund Approvals', path: '/ao/refund-approvals', icon: 'Undo2', componentKey: 'dashboard', order: 8 },
+        { name: 'Adjustments', path: '/ao/adjustments', icon: 'SlidersHorizontal', componentKey: 'dashboard', order: 9 },
+        { name: 'Reconciliation', path: '/ao/reconciliation', icon: 'Scale', componentKey: 'dashboard', order: 10 },
+        { name: 'Reports', path: '/ao/reports', icon: 'FileBarChart', componentKey: 'dashboard', order: 11 },
+        { name: 'Audit Logs', path: '/ao/audit-logs', icon: 'ScrollText', componentKey: 'dashboard', order: 12 },
+        { name: 'Notifications', path: '/ao/notifications', icon: 'Bell', componentKey: 'dashboard', order: 13 },
+        { name: 'Profile', path: '/ao/profile', icon: 'UserRound', componentKey: 'dashboard', order: 14 },
+      ];
+    }
+
+    // ── Examination Cell / Controller of Examinations ──────────────────────────
+    if (role === 'Examination Cell' || role === 'COE' || role === 'Controller of Examinations') {
+      return [
+        { name: 'Dashboard', path: '/coe/dashboard', icon: 'LayoutDashboard', componentKey: 'dashboard', order: 1 },
+        { name: 'Exam Management', path: '/coe/exams', icon: 'NotebookTabs', componentKey: 'dashboard', order: 2 },
+        { name: 'Schedules', path: '/coe/schedules', icon: 'CalendarRange', componentKey: 'dashboard', order: 3 },
+        { name: 'Hall & Seat Allocation', path: '/coe/halls', icon: 'Armchair', componentKey: 'dashboard', order: 4 },
+        { name: 'Invigilation', path: '/coe/invigilation', icon: 'UsersRound', componentKey: 'dashboard', order: 5 },
+        { name: 'Marks & Results', path: '/coe/marks-results', icon: 'ChartNoAxesColumnIncreasing', componentKey: 'dashboard', order: 6 },
+        { name: 'Master Timetable', path: '/coe/master-timetable', icon: 'CalendarDays', componentKey: 'dashboard', order: 7 },
+        { name: 'Notifications', path: '/notifications', icon: 'Bell', componentKey: 'dashboard', order: 8 },
+        { name: 'My Profile', path: '/profile', icon: 'UserRound', componentKey: 'dashboard', order: 9 },
+      ];
+    }
+
     // Super Admin sees everything
     if (role === 'Super Admin' || permissions.includes('*:*') || permissions.includes('*')) {
       return prisma.menuItem.findMany({ where: { isActive: true }, orderBy: { order: 'asc' } });
