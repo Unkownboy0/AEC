@@ -32,3 +32,9 @@ product/server/logs/
 .idea/
 .DS_Store
 Thumbs.db
+
+# User-uploaded runtime content (profile photos, resumes, ID cards, circular
+# attachments, etc). These are generated at runtime per deployment and must
+# never be committed — some contain real personal data.
+product/server/uploads/*
+!product/server/uploads/.gitkeep

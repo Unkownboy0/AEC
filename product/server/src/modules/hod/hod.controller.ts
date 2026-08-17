@@ -72,7 +72,15 @@ export class HodController {
         escalatedToRole,
       });
 
-      return res.json({ success: true, message: `Request ${action.toLowerCase()}ed successfully`, data: updated });
+      const actionPastTense: Record<string, string> = {
+        APPROVE: 'approved',
+        REJECT: 'rejected',
+        RETURN_TO_MENTOR: 'returned to mentor',
+        RETURN_TO_STUDENT: 'returned to student',
+        ESCALATE: 'escalated',
+      };
+      const actionLabel = actionPastTense[(action || '').toUpperCase()] || `${(action || '').toLowerCase()}d`;
+      return res.json({ success: true, message: `Request ${actionLabel} successfully`, data: updated });
     } catch (error: any) {
       return res.status(400).json({ success: false, error: error.message });
     }

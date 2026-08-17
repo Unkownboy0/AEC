@@ -158,6 +158,11 @@ import { getRoleHome } from '../navigation/role-home';
 const superAdminOnly = (element: React.ReactNode) => (
   <ProtectedRoute allowedRoles={['SUPER_ADMIN', 'Super Admin']}>{element}</ProtectedRoute>
 );
+// College Admin is seeded with every permission except settings:*/backups:* (see prisma/seed.ts),
+// so it needs access to the same admin console pages as Super Admin, minus those two.
+const institutionAdminOnly = (element: React.ReactNode) => (
+  <ProtectedRoute allowedRoles={['SUPER_ADMIN', 'Super Admin', 'COLLEGE_ADMIN', 'College Admin']}>{element}</ProtectedRoute>
+);
 const managementOnly = (element: React.ReactNode) => (
   <ProtectedRoute allowedRoles={['MANAGEMENT', 'Management', 'GOVERNING_BODY', 'Governing Body', 'SUPER_ADMIN', 'Super Admin', 'COLLEGE_ADMIN', 'College Admin']}>{element}</ProtectedRoute>
 );
@@ -306,15 +311,15 @@ export const AppRouter: React.FC = () => {
         >
           {/* Always enter the active role's current workspace; never mount a legacy global dashboard. */}
           <Route index element={<Navigate to={getRoleHome(user)} replace />} />
-          <Route path="admin/dashboard" element={superAdminOnly(<SuperAdminControlCenter />)} />
+          <Route path="admin/dashboard" element={institutionAdminOnly(<SuperAdminControlCenter />)} />
           <Route path="management/dashboard" element={managementOnly(<ManagementWorkspace />)} />
           <Route path="governing-body/dashboard" element={managementOnly(<ManagementWorkspace />)} />
-          <Route path="admin/control-center" element={superAdminOnly(<SuperAdminControlCenter />)} />
-          <Route path="admin/people" element={superAdminOnly(<Users />)} />
-          <Route path="master-lists" element={superAdminOnly(<MasterLists />)} />
-          <Route path="academics" element={superAdminOnly(<AcademicPortal />)} />
+          <Route path="admin/control-center" element={institutionAdminOnly(<SuperAdminControlCenter />)} />
+          <Route path="admin/people" element={institutionAdminOnly(<Users />)} />
+          <Route path="master-lists" element={institutionAdminOnly(<MasterLists />)} />
+          <Route path="academics" element={institutionAdminOnly(<AcademicPortal />)} />
           <Route path="backups" element={superAdminOnly(<BackupCenter />)} />
-          <Route path="security-logs" element={superAdminOnly(<SecurityLogs />)} />
+          <Route path="security-logs" element={institutionAdminOnly(<SecurityLogs />)} />
           <Route path="settings" element={superAdminOnly(<Settings />)} />
           <Route path="coe" element={<Navigate to="/coe/dashboard" replace />} />
           <Route path="coe/dashboard" element={<CoeWorkspacePage />} />
@@ -339,11 +344,11 @@ export const AppRouter: React.FC = () => {
           <Route path="principal/faculty/:userId" element={<UniversalProfilePage />} />
           <Route path="vp/students/:userId" element={<UniversalProfilePage />} />
           <Route path="vp/faculty/:userId" element={<UniversalProfilePage />} />
-          <Route path="rbac" element={superAdminOnly(<IAMMasterControlConsole />)} />
-          <Route path="admin/rbac" element={superAdminOnly(<IAMMasterControlConsole />)} />
-          <Route path="iam" element={superAdminOnly(<IAMMasterControlConsole />)} />
-          <Route path="admin/iam" element={superAdminOnly(<IAMMasterControlConsole />)} />
-          <Route path="roles" element={superAdminOnly(<IAMMasterControlConsole />)} />
+          <Route path="rbac" element={institutionAdminOnly(<IAMMasterControlConsole />)} />
+          <Route path="admin/rbac" element={institutionAdminOnly(<IAMMasterControlConsole />)} />
+          <Route path="iam" element={institutionAdminOnly(<IAMMasterControlConsole />)} />
+          <Route path="admin/iam" element={institutionAdminOnly(<IAMMasterControlConsole />)} />
+          <Route path="roles" element={institutionAdminOnly(<IAMMasterControlConsole />)} />
 
           <Route path="institution" element={<InstitutionDetailsPage />} />
           <Route path="institution/details" element={<InstitutionDetailsPage />} />
@@ -516,7 +521,7 @@ export const AppRouter: React.FC = () => {
           {/* ─── IQAC Dean Routes ─────────────────────────── */}
           <Route path="iqac-dean" element={<IQACDeanPortal user={user} />} />
           <Route path="iqac-executive" element={<IQACExecutivePortal user={user} />} />
-          <Route path="iqac-documentation" element={<IQACDeanPortal user={user} />} />
+          <Route path="iqac-documentation" element={<IQACDocumentationPortal user={user} />} />
           <Route path="iqac" element={<Navigate to="/iqac/dashboard" replace />} />
           <Route path="iqac/dashboard" element={<IQACDeanPortal user={user} />} />
           <Route path="iqac/accreditation" element={<IQACDeanPortal user={user} />} />
@@ -540,6 +545,11 @@ export const AppRouter: React.FC = () => {
           <Route path="hod/faculty" element={<HodFacultyWorkspace />} />
           <Route path="hod/mentors" element={<HodMentorsWorkspace />} />
           <Route path="hod/academics" element={<AcademicPerformance />} />
+          <Route path="hod/academic-performance" element={<AcademicPerformance />} />
+          <Route path="hod/department-overview" element={<DepartmentOverview />} />
+          <Route path="hod/department-results" element={<DepartmentResults />} />
+          <Route path="hod/faculty-performance" element={<FacultyPerformance />} />
+          <Route path="hod/subjects" element={<DepartmentSubjects />} />
           <Route path="hod/attendance" element={<HodAttendanceWorkspace />} />
           <Route path="hod/timetable" element={<HodTimetableControlCenter />} />
           <Route path="hod/timetable-control" element={<HodTimetableControlCenter />} />

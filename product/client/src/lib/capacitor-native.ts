@@ -84,7 +84,6 @@ export class CapacitorNativeService {
             body,
             id,
             schedule: { at: new Date(Date.now() + 500) },
-            sound: 'beep.wav',
             actionTypeId: '',
             extra: null,
           },

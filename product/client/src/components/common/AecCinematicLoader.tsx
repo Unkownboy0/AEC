@@ -54,6 +54,26 @@ export const AecCinematicLoader: React.FC<AecCinematicLoaderProps> = ({
   const theme = useResolvedTheme();
   const isDark = theme === 'dark';
 
+  // The visual reveal animation always plays once (brand moment), but the loader
+  // must not hand off to the app until the caller's `isReady` actually says so —
+  // otherwise a slow bootstrap/auth check gets masked by a screen that has
+  // already disappeared. animationDoneRef/isReadyRef let the two async signals
+  // (rAF-driven animation, isReady prop) meet without restarting the animation.
+  const animationDoneRef = useRef(false);
+  const isReadyRef = useRef(isReady);
+  isReadyRef.current = isReady;
+
+  const proceedToLock = () => {
+    setPhase((current) => (current === 'BUILDING' ? 'LOCKED' : current));
+    setTimeout(() => {
+      setPhase('TRANSITIONING');
+      setTimeout(() => {
+        setPhase('COMPLETE');
+        if (onComplete) onComplete();
+      }, 600);
+    }, 500);
+  };
+
   // 165Hz+ High Refresh Rate VSync Sync Loop via requestAnimationFrame
   useEffect(() => {
     let startTime: number | null = null;
@@ -79,15 +99,10 @@ export const AecCinematicLoader: React.FC<AecCinematicLoaderProps> = ({
       if (t < 1) {
         reqRef.current = requestAnimationFrame(animateFrame);
       } else {
-        setPhase('LOCKED');
-
-        setTimeout(() => {
-          setPhase('TRANSITIONING');
-          setTimeout(() => {
-            setPhase('COMPLETE');
-            if (onComplete) onComplete();
-          }, 600);
-        }, 500);
+        animationDoneRef.current = true;
+        // Only lock in once the caller's data is actually ready; if not, the
+        // isReady effect below fires proceedToLock() the moment it flips true.
+        if (isReadyRef.current) proceedToLock();
       }
     };
 
@@ -96,7 +111,15 @@ export const AecCinematicLoader: React.FC<AecCinematicLoaderProps> = ({
     return () => {
       if (reqRef.current) cancelAnimationFrame(reqRef.current);
     };
-  }, [onComplete]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    if (isReady && animationDoneRef.current) {
+      proceedToLock();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isReady]);
 
   if (phase === 'COMPLETE') return null;
 

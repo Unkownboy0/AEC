@@ -32,9 +32,8 @@ const config: CapacitorConfig = {
       resizeOnFullScreen: true,
     },
     LocalNotifications: {
-      smallIcon: 'ic_stat_icon_config_sample',
+      smallIcon: 'ic_launcher',
       iconColor: '#F59E0B',
-      sound: 'beep.wav',
     },
     PushNotifications: {
       presentationOptions: ['badge', 'sound', 'alert'],

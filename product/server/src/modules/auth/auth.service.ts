@@ -13,6 +13,7 @@ import {
 } from '../../utils/exceptions';
 import { JwtAccessPayload, LoginResult } from './auth.types';
 import { resolveUserWorkspaceAccess } from './workspace-access';
+import { sendMail } from '../../lib/mailer';
 
 const MAX_FAILED_ATTEMPTS = 5;
 const LOCKOUT_DURATION_MINUTES = 15;
@@ -421,8 +422,18 @@ export class AuthService {
 
     await this.repo.createPasswordResetToken(user.id, hashResetToken(resetToken), expiresAt);
 
-    // Delivery is intentionally delegated to the production mail integration.
-    // Never log or return the one-time credential.
+    const appUrl = (env.PUBLIC_APP_URL || 'http://localhost:5173').replace(/\/+$/, '');
+    const resetLink = `${appUrl}/reset-password?token=${resetToken}`;
+    const expiresInMinutes = env.PASSWORD_RESET_TOKEN_MINUTES;
+
+    // Never log or return the one-time credential itself — only send it via email.
+    await sendMail({
+      to: user.email,
+      subject: 'Reset your GEETORUS CAMPUSOS password',
+      text: `A password reset was requested for your account. This link expires in ${expiresInMinutes} minutes and can only be used once.\n\n${resetLink}\n\nIf you did not request this, you can ignore this email.`,
+      html: `<p>A password reset was requested for your account.</p><p><a href="${resetLink}">Reset your password</a></p><p>This link expires in ${expiresInMinutes} minutes and can only be used once.</p><p>If you did not request this, you can ignore this email.</p>`,
+    });
+
     await auditLog({
       userId: user.id,
       userEmail: user.email,
