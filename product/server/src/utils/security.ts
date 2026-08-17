@@ -440,36 +440,36 @@ export class SecurityHelper {
         const menuList = [];
 
         // 1. Dashboard
-        menuList.push({ name: 'Dashboard', path: '/?tab=overview', icon: 'LayoutDashboard', componentKey: 'dashboard', order: 1 });
+        menuList.push({ name: 'Dashboard', path: '/faculty/mentor/dashboard', icon: 'LayoutDashboard', componentKey: 'dashboard', order: 1 });
 
         // 2. My Profile
-        menuList.push({ name: 'My Profile', path: '/?tab=profile', icon: 'User', componentKey: 'dashboard', order: 2 });
+        menuList.push({ name: 'My Profile', path: '/profile', icon: 'User', componentKey: 'dashboard', order: 2 });
 
         // 3. Assigned Students
-        menuList.push({ name: 'Assigned Students', path: '/?tab=mentor_workspace', icon: 'Shield', componentKey: 'dashboard', order: 3 });
+        menuList.push({ name: 'Assigned Students', path: '/faculty/mentor/students', icon: 'Shield', componentKey: 'dashboard', order: 3 });
 
         // 4. Student Leave / OD Requests
-        menuList.push({ name: 'Student Leave / OD Requests', path: '/?tab=leave_requests', icon: 'FileText', componentKey: 'dashboard', order: 4 });
+        menuList.push({ name: 'Student Leave / OD Requests', path: '/faculty/mentor/leave-od', icon: 'FileText', componentKey: 'dashboard', order: 4 });
 
         // 5. Advisor Messaging
-        menuList.push({ name: 'Advisor Messaging', path: '/?tab=messages', icon: 'MessageSquare', componentKey: 'dashboard', order: 5 });
+        menuList.push({ name: 'Advisor Messaging', path: '/faculty/mentor/messages', icon: 'MessageSquare', componentKey: 'dashboard', order: 5 });
 
         // 6. Reports (Mentor Reports)
         if (permissions.some(p => p.startsWith('reports:'))) {
-          menuList.push({ name: 'Reports', path: '/?tab=reports', icon: 'FileBarChart', componentKey: 'dashboard', order: 6 });
+          menuList.push({ name: 'Reports', path: '/faculty/mentor/reports', icon: 'FileBarChart', componentKey: 'dashboard', order: 6 });
         }
 
         // 7. AI Teaching Assistant
-        menuList.push({ name: 'AI Teaching Assistant', path: '/?tab=ai_assistant', icon: 'Cpu', componentKey: 'dashboard', order: 7 });
+        menuList.push({ name: 'AI Teaching Assistant', path: '/faculty/mentor/dashboard', icon: 'Cpu', componentKey: 'dashboard', order: 7 });
 
         return menuList;
       } catch (e) {
         return [
-          { name: 'Dashboard', path: '/?tab=overview', icon: 'LayoutDashboard', componentKey: 'dashboard', order: 1 },
-          { name: 'My Profile', path: '/?tab=profile', icon: 'User', componentKey: 'dashboard', order: 2 },
-          { name: 'Assigned Students', path: '/?tab=mentor_workspace', icon: 'Shield', componentKey: 'dashboard', order: 3 },
-          { name: 'Student Leave / OD Requests', path: '/?tab=leave_requests', icon: 'FileText', componentKey: 'dashboard', order: 4 },
-          { name: 'Advisor Messaging', path: '/?tab=messages', icon: 'MessageSquare', componentKey: 'dashboard', order: 5 },
+          { name: 'Dashboard', path: '/faculty/mentor/dashboard', icon: 'LayoutDashboard', componentKey: 'dashboard', order: 1 },
+          { name: 'My Profile', path: '/profile', icon: 'User', componentKey: 'dashboard', order: 2 },
+          { name: 'Assigned Students', path: '/faculty/mentor/students', icon: 'Shield', componentKey: 'dashboard', order: 3 },
+          { name: 'Student Leave / OD Requests', path: '/faculty/mentor/leave-od', icon: 'FileText', componentKey: 'dashboard', order: 4 },
+          { name: 'Advisor Messaging', path: '/faculty/mentor/messages', icon: 'MessageSquare', componentKey: 'dashboard', order: 5 },
         ];
       }
     }
