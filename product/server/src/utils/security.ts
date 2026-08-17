@@ -455,9 +455,7 @@ export class SecurityHelper {
         menuList.push({ name: 'Advisor Messaging', path: '/faculty/mentor/messages', icon: 'MessageSquare', componentKey: 'dashboard', order: 5 });
 
         // 6. Reports (Mentor Reports)
-        if (permissions.some(p => p.startsWith('reports:'))) {
-          menuList.push({ name: 'Reports', path: '/faculty/mentor/reports', icon: 'FileBarChart', componentKey: 'dashboard', order: 6 });
-        }
+        menuList.push({ name: 'Reports', path: '/faculty/mentor/reports', icon: 'FileBarChart', componentKey: 'dashboard', order: 6 });
 
         // 7. AI Teaching Assistant
         menuList.push({ name: 'AI Teaching Assistant', path: '/faculty/mentor/dashboard', icon: 'Cpu', componentKey: 'dashboard', order: 7 });
@@ -706,6 +704,33 @@ export class SecurityHelper {
         { name: 'Master Timetable', path: '/coe/master-timetable', icon: 'CalendarDays', componentKey: 'dashboard', order: 7 },
         { name: 'Notifications', path: '/notifications', icon: 'Bell', componentKey: 'dashboard', order: 8 },
         { name: 'My Profile', path: '/profile', icon: 'UserRound', componentKey: 'dashboard', order: 9 },
+      ];
+    }
+
+    // ── Librarian ────────────────────────────────────────────────────────────────
+    if (role === 'Librarian') {
+      return [
+        { name: 'Library', path: '/library', icon: 'BookOpen', componentKey: 'library', order: 1 },
+        { name: 'Notifications', path: '/notifications', icon: 'Bell', componentKey: 'dashboard', order: 2 },
+        { name: 'My Profile', path: '/profile', icon: 'UserRound', componentKey: 'dashboard', order: 3 },
+      ];
+    }
+
+    // ── Hostel Warden ───────────────────────────────────────────────────────────
+    if (role === 'Hostel Warden') {
+      return [
+        { name: 'Hostel', path: '/hostel', icon: 'Home', componentKey: 'hostel', order: 1 },
+        { name: 'Notifications', path: '/notifications', icon: 'Bell', componentKey: 'dashboard', order: 2 },
+        { name: 'My Profile', path: '/profile', icon: 'UserRound', componentKey: 'dashboard', order: 3 },
+      ];
+    }
+
+    // ── Transport Manager ───────────────────────────────────────────────────────
+    if (role === 'Transport Manager') {
+      return [
+        { name: 'Transport', path: '/transport', icon: 'Truck', componentKey: 'transport', order: 1 },
+        { name: 'Notifications', path: '/notifications', icon: 'Bell', componentKey: 'dashboard', order: 2 },
+        { name: 'My Profile', path: '/profile', icon: 'UserRound', componentKey: 'dashboard', order: 3 },
       ];
     }
 
