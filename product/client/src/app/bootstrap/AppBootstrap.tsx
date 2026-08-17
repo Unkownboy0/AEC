@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { isNativePlatform, setAppStatusBar, getNetworkStatus, initAndroidBackButton, listenAppLifecycle } from '../../platform';
 import { useAuth } from '../../context/AuthContext';
 import { AecCinematicLoader } from '../../components/common/AecCinematicLoader';
+import { ForcePasswordChangeGate } from '../../components/auth/ForcePasswordChangeGate';
 import { useNavigate } from 'react-router-dom';
 
 export const AppBootstrap: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -56,6 +57,15 @@ export const AppBootstrap: React.FC<{ children: React.ReactNode }> = ({ children
 
   if (authLoading || !isBootstrapped || !loaderFinished) {
     return <AecCinematicLoader onComplete={() => setLoaderFinished(true)} isReady={!authLoading && isBootstrapped} />;
+  }
+
+  // Freshly provisioned accounts (e.g. admission auto-provisioning) start
+  // with a known initial password (their phone number) and are flagged
+  // forcePasswordChange until the owner sets their own. Block the rest of
+  // the app until that happens rather than leaving a guessable password
+  // in place indefinitely.
+  if (user?.forcePasswordChange) {
+    return <ForcePasswordChangeGate />;
   }
 
   return <>{children}</>;
