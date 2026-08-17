@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { App as CapacitorApp } from '@capacitor/app';
 import { isNativePlatform } from '../platform/platform';
 import { MobileBottomNav } from './mobile/MobileBottomNav';
 import { MobileMorePage } from './mobile/MobileMorePage';
 import { AppIcon } from '../design-system/icons/AppIcon';
 import { getNavEntryByPath } from '../navigation/role-navigation';
 import { useAuth } from '../context/AuthContext';
+import { registerBackButtonHandler } from '../platform/back-button';
 
 export const CapacitorMobileShell: React.FC<{ children?: React.ReactNode }> = ({ children }) => {
   const [isMoreOpen, setIsMoreOpen] = useState(false);
@@ -17,26 +17,23 @@ export const CapacitorMobileShell: React.FC<{ children?: React.ReactNode }> = ({
   const currentEntry = getNavEntryByPath(location.pathname);
   const isDashboard = location.pathname.includes('/dashboard');
 
-  // Rule 33: Android Back Button priority stack
+  // Register the "close More drawer" handler at high priority in the centralized back button
+  // priority queue. This runs BEFORE the global navigation handler in AppBootstrap, ensuring
+  // the drawer closes on back press instead of navigating. We do NOT register a second
+  // App.addListener('backButton') here — that would create a triple-listener race condition.
   useEffect(() => {
     if (!isNativePlatform()) return;
 
-    const backListener = CapacitorApp.addListener('backButton', () => {
+    const unregister = registerBackButtonHandler(() => {
       if (isMoreOpen) {
         setIsMoreOpen(false);
-        return;
+        return true; // handled — stop propagation
       }
-      if (!isDashboard) {
-        navigate(-1);
-        return;
-      }
-      CapacitorApp.minimizeApp();
+      return false; // not handled — let global handler navigate/minimize
     });
 
-    return () => {
-      backListener.then((h) => h.remove());
-    };
-  }, [isMoreOpen, isDashboard, navigate]);
+    return unregister;
+  }, [isMoreOpen]);
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 flex flex-col pt-safe pb-safe">

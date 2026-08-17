@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { isNativePlatform, getNetworkStatus, initAndroidBackButton, listenAppLifecycle } from '../../platform';
 import { useAuth } from '../../context/AuthContext';
 import { AecCinematicLoader } from '../../components/common/AecCinematicLoader';
@@ -8,6 +8,7 @@ export const AppBootstrap: React.FC<{ children: React.ReactNode }> = ({ children
   const [isBootstrapped, setIsBootstrapped] = useState(false);
   const { user, isLoading: authLoading } = useAuth();
   const navigate = useNavigate();
+  const capabilitiesLoadedRef = useRef(false);
 
   useEffect(() => {
     let removeBackHandler = () => {};
@@ -51,6 +52,19 @@ export const AppBootstrap: React.FC<{ children: React.ReactNode }> = ({ children
     bootstrap();
     return () => { removeBackHandler(); removeLifecycleHandler(); };
   }, [navigate]);
+
+  // Post-auth: load device capability policy once after user is confirmed authenticated.
+  // This is intentionally deferred from AppInit to avoid pre-auth network calls that caused:
+  //   - Mixed Content warnings (/api/settings/device-capabilities over HTTP before scheme settled)
+  //   - 401 errors (unauthenticated call)
+  //   - Startup frame skipping (contributed to the 497-frame burst)
+  useEffect(() => {
+    if (!user || capabilitiesLoadedRef.current) return;
+    capabilitiesLoadedRef.current = true;
+    import('../../platform/device-capabilities.manager').then(({ deviceCapabilities }) => {
+      deviceCapabilities.loadEffectivePolicy().catch(() => {});
+    });
+  }, [user]);
 
   const [loaderFinished, setLoaderFinished] = useState(false);
 

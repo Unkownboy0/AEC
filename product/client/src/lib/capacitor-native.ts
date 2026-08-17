@@ -101,6 +101,11 @@ export class CapacitorNativeService {
 
   /**
    * Secure Native Storage methods (using Android Keystore / iOS Keychain via CampusOSSecureStorage)
+   *
+   * @deprecated These wrapper methods duplicate auth/token-storage.ts which is the canonical
+   * source for auth token storage (with proper migration + error handling). New code should
+   * use token-storage.ts directly. These wrappers remain only for backward compatibility with
+   * any non-auth secure storage use cases.
    */
   public static async setSecureItem(key: string, value: string): Promise<void> {
     if (this.isNative()) {
@@ -137,6 +142,9 @@ export class CapacitorNativeService {
 
   /**
    * Monitor Network Connectivity
+   *
+   * @note This method does not return a cleanup handle. Use platform/network.ts
+   * listenNetworkStatus() directly for subscriptions that need proper cleanup.
    */
   public static listenNetworkStatus(onStatusChange: (isOnline: boolean) => void): void {
     Network.addListener('networkStatusChange', (status) => {

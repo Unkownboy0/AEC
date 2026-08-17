@@ -19,19 +19,7 @@ export async function showKeyboard(): Promise<void> {
   }
 }
 
-export function initKeyboardHandling(onShow?: (info: { keyboardHeight: number }) => void, onHide?: () => void) {
-  if (!Capacitor.isNativePlatform()) return () => {};
-
-  const showListener = Keyboard.addListener('keyboardWillShow', (info) => {
-    if (onShow) onShow(info);
-  });
-
-  const hideListener = Keyboard.addListener('keyboardWillHide', () => {
-    if (onHide) onHide();
-  });
-
-  return () => {
-    showListener.then((l) => l.remove()).catch(() => {});
-    hideListener.then((l) => l.remove()).catch(() => {});
-  };
-}
+// NOTE: Keyboard event listeners (keyboardWillShow/Hide/DidShow/DidHide) are managed
+// exclusively by KeyboardContext (src/context/KeyboardContext.tsx) which is the single
+// authoritative keyboard state manager. Do not register additional Keyboard.addListener
+// calls elsewhere — duplicate listeners cause stale state and excessive re-renders.

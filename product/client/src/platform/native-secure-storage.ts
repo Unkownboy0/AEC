@@ -75,10 +75,37 @@ export class WebSecureStorageFallback implements SecureStoragePluginInterface {
  * - Android: Android Keystore (MasterKey AES-256-GCM + EncryptedSharedPreferences)
  * - iOS: Apple Keychain (kSecClassGenericPassword + kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly)
  * - Web: WebSecureStorageFallback
+ *
+ * IMPORTANT — Lazy Singleton Pattern:
+ * `registerPlugin` is intentionally deferred to first access via getCampusOSSecureStorage().
+ * Calling registerPlugin() at module evaluation time causes a Capacitor bridge timing error
+ * ("Cannot read properties of undefined (reading 'triggerEvent')") because the bridge may not
+ * yet be fully mounted when the module is first imported during React tree initialization.
  */
-export const CampusOSSecureStorage = registerPlugin<SecureStoragePluginInterface>(
-  'CampusOSSecureStorage',
+let _campusOSSecureStorage: SecureStoragePluginInterface | null = null;
+
+export function getCampusOSSecureStorage(): SecureStoragePluginInterface {
+  if (!_campusOSSecureStorage) {
+    _campusOSSecureStorage = registerPlugin<SecureStoragePluginInterface>(
+      'CampusOSSecureStorage',
+      {
+        web: () => Promise.resolve(new WebSecureStorageFallback()),
+      }
+    );
+  }
+  return _campusOSSecureStorage;
+}
+
+/**
+ * @deprecated Use getCampusOSSecureStorage() instead. Direct export was causing
+ * Capacitor bridge initialization timing errors (triggerEvent TypeError) because
+ * registerPlugin() was called at module evaluation time before the bridge mounted.
+ */
+export const CampusOSSecureStorage: SecureStoragePluginInterface = new Proxy(
+  {} as SecureStoragePluginInterface,
   {
-    web: () => Promise.resolve(new WebSecureStorageFallback()),
+    get(_target, prop: keyof SecureStoragePluginInterface) {
+      return getCampusOSSecureStorage()[prop];
+    },
   }
 );

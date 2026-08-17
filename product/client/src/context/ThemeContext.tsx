@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import React, { createContext, useContext, useEffect, useRef, useState, useCallback } from 'react';
 import { Capacitor, SystemBars, SystemBarsStyle, SystemBarType } from '@capacitor/core';
 import { StatusBar, Style } from '@capacitor/status-bar';
 
@@ -36,15 +36,23 @@ function resolveTheme(preference: ThemePreference): ResolvedTheme {
   }
 }
 
-async function applyNativeStatusBar(resolved: ResolvedTheme): Promise<void> {
+// Track whether StatusBar.show() has been called this session to avoid Logcat spam
+let _statusBarShownOnce = false;
+
+async function applyNativeStatusBar(resolved: ResolvedTheme, lastApplied: string | null): Promise<void> {
   if (!Capacitor.isNativePlatform()) return;
+  // Skip if already applied the same resolved theme — avoids repeated Logcat calls
+  if (resolved === lastApplied) return;
   try {
     const isDark = resolved === 'dark';
 
-    // 1. Ensure status bar is always visible
-    try {
-      await StatusBar.show();
-    } catch (_) {}
+    // 1. Ensure status bar is visible — only once per session, not on every theme change
+    if (!_statusBarShownOnce) {
+      try {
+        await StatusBar.show();
+        _statusBarShownOnce = true;
+      } catch (_) {}
+    }
 
     // 2. Modern SystemBars plugin API
     try {
@@ -95,12 +103,14 @@ const ThemeContext = createContext<ThemeContextProps | undefined>(undefined);
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [preference, setPreference] = useState<ThemePreference>(getStoredPreference);
   const [resolved, setResolved] = useState<ResolvedTheme>(() => resolveTheme(getStoredPreference()));
+  const lastAppliedNativeRef = useRef<string | null>(null);
 
   const applyTheme = useCallback(async (pref: ThemePreference) => {
     const res = resolveTheme(pref);
     setResolved(res);
     applyDomTheme(res);
-    await applyNativeStatusBar(res);
+    await applyNativeStatusBar(res, lastAppliedNativeRef.current);
+    lastAppliedNativeRef.current = res;
   }, []);
 
   // Initial apply

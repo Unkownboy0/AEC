@@ -37,6 +37,8 @@ Thumbs.db
 
 # Secrets & Service Accounts
 *service-account*.json
+*adminsdk*.json
+*firebase*.json
 firebase-*.json
 
 # User-uploaded runtime content (profile photos, resumes, ID cards, circular

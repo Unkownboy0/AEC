@@ -1,5 +1,40 @@
 /// <reference types="node" />
 import { CapacitorConfig } from '@capacitor/cli';
+import { readFileSync } from 'fs';
+import { resolve } from 'path';
+
+/**
+ * Load .env files manually so CAPACITOR_* and VITE_* vars are available
+ * when `cap sync` runs. Unlike `vite build`, `cap sync` executes this file
+ * in a plain Node context and does NOT process Vite .env files automatically.
+ * We load .env.development first (highest priority) then fall back to .env.
+ */
+function loadEnvFile(filename: string): void {
+  try {
+    const content = readFileSync(resolve(__dirname, filename), 'utf8');
+    content.split('\n').forEach((line) => {
+      // Strip inline comments and whitespace, skip blank/comment lines
+      const trimmed = line.split('#')[0].trim();
+      const eqIdx = trimmed.indexOf('=');
+      if (eqIdx < 1) return;
+      const key = trimmed.slice(0, eqIdx).trim();
+      const rawVal = trimmed.slice(eqIdx + 1).trim();
+      // Strip surrounding quotes
+      const value = rawVal.replace(/^(['"])(.*)\1$/, '$2');
+      // Only set if not already in environment (shell env takes precedence)
+      if (key && !(key in process.env)) {
+        process.env[key] = value;
+      }
+    });
+  } catch {
+    // File not found or unreadable — silently continue
+  }
+}
+
+// Load order: .env (base), then .env.development (overrides)
+loadEnvFile('.env');
+loadEnvFile('.env.development');
+
 
 /**
  * CampusOS Capacitor Configuration

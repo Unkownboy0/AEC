@@ -48,18 +48,24 @@ const queryClient = new QueryClient({
 
 function AppInit() {
   useEffect(() => {
-    // Native UI init (splash screen)
+    // Native UI init (hide splash screen after bridge is ready)
     CapacitorNativeService.initNativeAppUI();
 
-    // Mobile & web sensitive screen protection
-    import('./platform/screen-security').then(({ ScreenSecurityService }) => {
-      ScreenSecurityService.init();
-    });
+    // Mobile & web sensitive screen protection — deferred slightly to not block first paint
+    const t = window.setTimeout(() => {
+      import('./platform/screen-security').then(({ ScreenSecurityService }) => {
+        ScreenSecurityService.init();
+      });
+    }, 500);
 
-    // Mobile device capability policy sync
-    import('./platform/device-capabilities.manager').then(({ deviceCapabilities }) => {
-      deviceCapabilities.loadEffectivePolicy().catch(() => {});
-    });
+    // Device capability policy sync is intentionally NOT done here.
+    // It requires authentication and a network call — doing it pre-auth causes:
+    //   (a) Mixed Content warnings before scheme is negotiated
+    //   (b) Unauthenticated 401 errors on /api/settings/device-capabilities
+    //   (c) Main-thread blocking contributing to startup frame skip (497 frames)
+    // It is deferred to post-auth in AppBootstrap.
+
+    return () => window.clearTimeout(t);
   }, []);
   return null;
 }
