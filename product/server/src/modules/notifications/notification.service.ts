@@ -3,6 +3,7 @@ import { NotFoundException } from '../../utils/exceptions';
 import { PushDispatchService } from './push-dispatch.service';
 import { RecipientResolverService } from './recipient-resolver.service';
 import { NotificationPolicyService } from './notification-policy.service';
+import { NotificationDeepLinkResolver } from './notification-deeplink.resolver';
 import type { DomainEvent } from './domain-events.types';
 
 export interface SendNotificationDto {
@@ -57,7 +58,17 @@ export class NotificationService {
       const pushRecipients: string[] = [];
       const createdNotifications: any[] = [];
 
-      // 2. Process for each recipient with anti-spam and preferences
+      // 2. Query recipient user roles for personalized deep link routing
+      const recipientUsers = await prisma.user.findMany({
+        where: { id: { in: recipientIds }, status: 'ACTIVE' },
+        select: { id: true, role: { select: { name: true, roleCode: true } } },
+      });
+      const userRoleMap = new Map<string, string>();
+      recipientUsers.forEach((u) => {
+        userRoleMap.set(u.id, u.role?.name || u.role?.roleCode || '');
+      });
+
+      // 3. Process for each recipient with anti-spam, personalized deep links, and preferences
       for (const recipientId of recipientIds) {
         if (NotificationPolicyService.isDuplicateOrSpam(event, recipientId)) {
           logger.info(`[NotificationEngine] [SPAM_THROTTLED] recipientId=${recipientId} eventType=${event.eventType}`);
@@ -65,6 +76,8 @@ export class NotificationService {
         }
 
         const channels = await NotificationPolicyService.resolveChannelsForUser(recipientId, event);
+        const userRole = userRoleMap.get(recipientId);
+        const resolvedDeepLink = NotificationDeepLinkResolver.resolve(event, userRole);
 
         if (channels.inApp) {
           try {
@@ -76,7 +89,7 @@ export class NotificationService {
                 message: event.body,
                 relatedEntityType: event.entityType || null,
                 relatedEntityId: event.entityId || null,
-                deepLinkRoute: event.deepLinkRoute || null,
+                deepLinkRoute: resolvedDeepLink || event.deepLinkRoute || null,
                 deliveryChannel: channels.push ? 'PUSH' : 'IN_APP',
                 deliveryState: 'DELIVERED',
               },
@@ -246,17 +259,152 @@ export class NotificationService {
     if (options.category && options.category !== 'ALL') {
       const cat = options.category.toUpperCase();
       if (cat === 'APPROVALS') {
-        where.eventType = { in: ['LEAVE_REQUESTED', 'LEAVE_FORWARDED', 'OD_REQUESTED', 'PURCHASE_REQUEST_CREATED'] };
+        where.eventType = {
+          in: [
+            'LEAVE_REQUESTED',
+            'LEAVE_SUBMITTED',
+            'LEAVE_FORWARDED',
+            'OD_REQUESTED',
+            'OD_SUBMITTED',
+            'OD_FORWARDED',
+            'FACULTY_LEAVE_SUBMITTED',
+            'FACULTY_LEAVE_RECOMMENDED',
+            'FACULTY_LEAVE_FORWARDED',
+            'FACULTY_OD_SUBMITTED',
+            'FACULTY_OD_RECOMMENDED',
+            'PURCHASE_REQUEST_CREATED',
+            'REFUND_APPROVAL_REQUIRED',
+            'ESCALATED_APPROVAL',
+            'GOVERNANCE_APPROVAL_REQUIRED',
+          ],
+        };
       } else if (cat === 'TASKS') {
-        where.eventType = { in: ['TASK_ASSIGNED', 'TASK_UPDATED', 'TASK_SUBMITTED', 'TASK_COMPLETED'] };
+        where.eventType = {
+          in: [
+            'TASK_ASSIGNED',
+            'TASK_UPDATED',
+            'TASK_SUBMITTED',
+            'TASK_COMPLETED',
+            'TASK_RETURNED',
+            'TASK_OVERDUE',
+            'DEPARTMENT_TASK_ASSIGNED',
+            'PRINCIPAL_TASK_UPDATED',
+          ],
+        };
       } else if (cat === 'ACADEMIC') {
-        where.eventType = { in: ['ASSIGNMENT_PUBLISHED', 'ATTENDANCE_MARKED', 'ATTENDANCE_SHORTAGE', 'TIMETABLE_CHANGED'] };
-      } else if (cat === 'FEES') {
-        where.eventType = { in: ['FEE_DUE', 'PAYMENT_SUCCESS', 'PAYMENT_FAILED', 'RECEIPT_GENERATED'] };
+        where.eventType = {
+          in: [
+            'ASSIGNMENT_PUBLISHED',
+            'ASSIGNMENT_GRADED',
+            'ATTENDANCE_MARKED',
+            'ATTENDANCE_SHORTAGE',
+            'TIMETABLE_CHANGED',
+            'CLASS_TIMETABLE_CHANGED',
+            'SUBSTITUTION_ASSIGNED',
+            'CLASS_SUBSTITUTION_ASSIGNED',
+          ],
+        };
+      } else if (cat === 'FEES' || cat === 'FINANCE') {
+        where.eventType = {
+          in: [
+            'FEE_DUE',
+            'PAYMENT_SUCCESS',
+            'PAYMENT_FAILED',
+            'RECEIPT_GENERATED',
+            'SCHOLARSHIP_UPDATE',
+            'PAYMENT_ACTION_REQUIRED',
+            'FEE_REFUND_REQUESTED',
+          ],
+        };
       } else if (cat === 'EXAMS') {
-        where.eventType = { in: ['EXAM_TIMETABLE_PUBLISHED', 'HALL_ALLOCATION_PUBLISHED', 'RESULT_PUBLISHED'] };
+        where.eventType = {
+          in: [
+            'EXAM_TIMETABLE_PUBLISHED',
+            'HALL_ALLOCATION_PUBLISHED',
+            'RESULT_PUBLISHED',
+            'EXAM_RESULT_PUBLISHED',
+            'MARKS_PUBLISHED',
+            'REVALUATION_REQUESTED',
+            'REVALUATION_UPDATE',
+          ],
+        };
+      } else if (cat === 'CIRCULARS') {
+        where.eventType = {
+          in: [
+            'CIRCULAR_PUBLISHED',
+            'EMERGENCY_CIRCULAR',
+            'CIRCULAR_REMINDER',
+            'SECTION_CIRCULAR',
+            'EMERGENCY_NOTICE',
+          ],
+        };
+      } else if (cat === 'COMPLAINTS') {
+        where.eventType = {
+          in: [
+            'COMPLAINT_SUBMITTED',
+            'ACADEMIC_COMPLAINT_SUBMITTED',
+            'ADMINISTRATIVE_COMPLAINT',
+            'COMPLAINT_RESOLVED',
+            'GRIEVANCE_CREATED',
+          ],
+        };
+      } else if (cat === 'HOSTEL') {
+        where.eventType = {
+          in: [
+            'HOSTEL_ROOM_ALLOCATED',
+            'HOSTEL_OUTING_REQUEST',
+            'HOSTEL_OUTING_APPROVED',
+            'HOSTEL_OUTING_REJECTED',
+            'HOSTEL_MESS_NOTICE',
+            'HOSTEL_COMPLAINT_SUBMITTED',
+          ],
+        };
+      } else if (cat === 'TRANSPORT') {
+        where.eventType = {
+          in: [
+            'TRANSPORT_ROUTE_ALLOCATED',
+            'TRANSPORT_BUS_DELAY',
+            'BUS_BREAKDOWN_ALERT',
+            'ROUTE_STOP_CHANGE_REQUEST',
+            'TRANSPORT_COMPLAINT_SUBMITTED',
+          ],
+        };
+      } else if (cat === 'LIBRARY') {
+        where.eventType = {
+          in: [
+            'LIBRARY_BOOK_ISSUED',
+            'LIBRARY_BOOK_RETURNED',
+            'LIBRARY_BOOK_OVERDUE',
+            'LIBRARY_FINE_GENERATED',
+            'BOOK_RESERVATION_REQUEST',
+          ],
+        };
+      } else if (cat === 'PLACEMENT') {
+        where.eventType = {
+          in: [
+            'PLACEMENT_JOB_POSTED',
+            'COMPANY_JOB_POSTED',
+            'PLACEMENT_DRIVE_SCHEDULED',
+            'STUDENT_JOB_APPLIED',
+            'INTERVIEW_ROUND_SCHEDULED',
+            'PLACEMENT_OFFER_RECEIVED',
+          ],
+        };
+      } else if (cat === 'IQAC') {
+        where.eventType = {
+          in: [
+            'EVIDENCE_SUBMITTED',
+            'EVIDENCE_RETURNED',
+            'EVIDENCE_MISSING',
+            'ACCREDITATION_TASK',
+            'APPRAISAL_SUBMITTED',
+            'NAAC_NBA_DEADLINE',
+          ],
+        };
       } else if (cat === 'CRITICAL' || cat === 'EMERGENCY') {
-        where.eventType = { in: ['EMERGENCY_ALERT', 'SECURITY_ALERT', 'CAMPUS_ANNOUNCEMENT'] };
+        where.eventType = {
+          in: ['EMERGENCY_ALERT', 'SECURITY_ALERT', 'CAMPUS_ANNOUNCEMENT', 'MAJOR_INCIDENT_ALERT'],
+        };
       }
     }
 

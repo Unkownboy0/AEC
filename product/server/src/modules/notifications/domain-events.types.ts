@@ -1,5 +1,5 @@
 export type DomainEventType =
-  // Student & Faculty Leave & OD
+  // ─── Student & Faculty Leave & OD ──────────────────────────────────────────
   | 'LEAVE_SUBMITTED'
   | 'LEAVE_REQUESTED'
   | 'LEAVE_FORWARDED'
@@ -36,8 +36,11 @@ export type DomainEventType =
   | 'FACULTY_OD_APPROVED'
   | 'FACULTY_OD_REJECTED'
   | 'FACULTY_OD_RETURNED'
+  | 'HOD_LEAVE_SUBMITTED'
+  | 'DEAN_LEAVE_SUBMITTED'
+  | 'VP_LEAVE_SUBMITTED'
 
-  // Generic Workflow Engine Transitions
+  // ─── Generic Workflow Engine ──────────────────────────────────────────────
   | 'REQUEST_SUBMITTED'
   | 'STAGE_APPROVED'
   | 'REQUEST_FORWARDED'
@@ -47,8 +50,11 @@ export type DomainEventType =
   | 'REQUEST_CANCELLED'
   | 'REQUEST_ESCALATED'
   | 'WORKFLOW_STAGE_CHANGED'
+  | 'ESCALATED_APPROVAL'
+  | 'HIGH_LEVEL_ESCALATION'
+  | 'GOVERNANCE_APPROVAL_REQUIRED'
 
-  // Tasks & Governance
+  // ─── Tasks & Governance ───────────────────────────────────────────────────
   | 'TASK_ASSIGNED'
   | 'TASK_UPDATED'
   | 'TASK_COMMENTED'
@@ -56,39 +62,105 @@ export type DomainEventType =
   | 'TASK_RETURNED'
   | 'TASK_COMPLETED'
   | 'TASK_OVERDUE'
+  | 'TASK_DEADLINE_APPROACHING'
+  | 'DEPARTMENT_TASK_ASSIGNED'
+  | 'DEPARTMENT_TASK_COMPLETED'
+  | 'PRINCIPAL_TASK_UPDATED'
+  | 'OVERDUE_HIGH_PRIORITY_TASK'
 
-  // Academic & Curriculum
+  // ─── Academic & Curriculum ────────────────────────────────────────────────
   | 'ASSIGNMENT_PUBLISHED'
   | 'ASSIGNMENT_UPDATED'
   | 'ASSIGNMENT_DUE_SOON'
+  | 'ASSIGNMENT_DUE_REMINDER'
   | 'ASSIGNMENT_SUBMITTED'
   | 'ASSIGNMENT_SUBMISSION_RECEIVED'
   | 'ASSIGNMENT_GRADED'
   | 'ATTENDANCE_MARKED'
   | 'ATTENDANCE_CORRECTED'
+  | 'ATTENDANCE_CORRECTION_RESULT'
   | 'ATTENDANCE_SHORTAGE'
   | 'ATTENDANCE_SHORTAGE_DETECTED'
+  | 'ATTENDANCE_PENDING'
+  | 'ATTENDANCE_PENDING_HOD_ALERT'
+  | 'ATTENDANCE_RISK_SUMMARY'
+  | 'SECTION_ATTENDANCE_EXCEPTION'
+  | 'CLASS_ACADEMIC_ALERT'
   | 'TIMETABLE_PUBLISHED'
   | 'TIMETABLE_CHANGED'
+  | 'CLASS_TIMETABLE_CHANGED'
+  | 'TIMETABLE_CONFLICT_DETECTED'
+  | 'TIMETABLE_DISRUPTION'
+  | 'CLASSES_WITHOUT_FACULTY'
+  | 'FACULTY_MAPPING_ISSUE'
+  | 'FACULTY_WORKLOAD_ALERT'
+  | 'ACADEMIC_WORKLOAD_ISSUE'
+  | 'SUBSTITUTE_REQUIRED'
+  | 'SUBSTITUTE_CRISIS'
   | 'CLASS_SUBSTITUTION_ASSIGNED'
   | 'SUBSTITUTION_ASSIGNED'
+  | 'COURSE_PROGRESS_DELAY'
+  | 'INTERNAL_MARKS_PENDING'
+  | 'DEPARTMENT_ACADEMIC_EXCEPTION'
+  | 'ACADEMIC_CALENDAR_MILESTONE'
 
-  // Examinations & Results
+  // ─── Examinations & Results (COE) ─────────────────────────────────────────
   | 'EXAM_TIMETABLE_PUBLISHED'
   | 'HALL_ALLOCATION_PUBLISHED'
+  | 'HALL_TICKET_AVAILABLE'
+  | 'EXAM_DUTY_ASSIGNED'
+  | 'EXAM_REGISTRATION_ISSUE'
+  | 'EXAM_ELIGIBILITY_ISSUE'
+  | 'QP_WORKFLOW_PENDING'
+  | 'INVIGILATION_ISSUE'
+  | 'EXAM_ATTENDANCE_COMPLETED'
+  | 'MARKS_ENTRY_PENDING'
+  | 'VALUATION_PENDING'
+  | 'MODERATION_TASK'
+  | 'REVALUATION_REQUESTED'
+  | 'REVALUATION_UPDATE'
+  | 'RESULT_PROCESSING_MILESTONE'
+  | 'RESULT_FINAL_REVIEW'
   | 'RESULT_PUBLISHED'
+  | 'EXAM_RESULT_PUBLISHED'
+  | 'MARKS_PUBLISHED'
 
-  // Fees & Finance
+  // ─── Fees & Finance (Accounts / AO) ───────────────────────────────────────
+  | 'FEE_BILL_CREATED'
   | 'FEE_DUE'
+  | 'FEE_PAYMENT_DUE'
   | 'PAYMENT_SUCCESS'
   | 'PAYMENT_FAILED'
+  | 'FEE_PAYMENT_SUCCESS'
   | 'RECEIPT_GENERATED'
+  | 'FEE_RECEIPT_AVAILABLE'
+  | 'SCHOLARSHIP_UPDATE'
+  | 'SCHOLARSHIP_STATUS_CHANGED'
+  | 'SCHOLARSHIP_FINANCIAL_POSTING'
+  | 'PAYMENT_ACTION_REQUIRED'
+  | 'OFFLINE_PAYMENT_VERIFICATION'
+  | 'RECEIPT_GENERATION_ISSUE'
+  | 'FEE_REFUND_REQUESTED'
+  | 'REFUND_APPROVAL_REQUIRED'
+  | 'FEE_ADJUSTMENT_APPROVAL'
+  | 'FEE_CONCESSION_APPROVAL'
+  | 'FINANCE_WRITE_OFF_APPROVAL'
+  | 'EXPENSE_VOUCHER_TASK'
+  | 'BANK_RECONCILIATION_ISSUE'
+  | 'BUDGET_ALERT'
+  | 'FINANCE_ESCALATION'
 
-  // Institutional Circulars & Documents
+  // ─── Institutional Circulars & Documents ──────────────────────────────────
   | 'CIRCULAR_PUBLISHED'
   | 'EMERGENCY_CIRCULAR'
   | 'CIRCULAR_REMINDER'
+  | 'EMERGENCY_NOTICE'
+  | 'CIRCULAR_ACKNOWLEDGEMENT_REQUIRED'
+  | 'CIRCULAR_DELIVERY_SUMMARY'
+  | 'SECTION_CIRCULAR'
   | 'CERTIFICATE_READY'
+  | 'BONAFIDE_CERTIFICATE_ESCALATED'
+  | 'STUDENT_SERVICE_REQUEST'
   | 'DOCUMENT_SHARED'
   | 'DOCUMENT_COMMENTED'
   | 'DOCUMENT_APPROVAL_REQUESTED'
@@ -97,43 +169,140 @@ export type DomainEventType =
   | 'QUIZ_PUBLISHED'
   | 'QUIZ_RESULT_PUBLISHED'
 
-  // Grievance & Maintenance
+  // ─── Grievance & Complaints ───────────────────────────────────────────────
+  | 'COMPLAINT_SUBMITTED'
+  | 'COMPLAINT_ASSIGNED'
+  | 'COMPLAINT_STATUS_UPDATED'
+  | 'COMPLAINT_ESCALATED'
+  | 'COMPLAINT_RESOLVED'
+  | 'ACADEMIC_COMPLAINT_SUBMITTED'
+  | 'ADMINISTRATIVE_COMPLAINT'
+  | 'ADMINISTRATIVE_GRIEVANCE'
   | 'GRIEVANCE_CREATED'
   | 'GRIEVANCE_ASSIGNED'
   | 'GRIEVANCE_RESOLVED'
+  | 'GRIEVANCE_ESCALATION'
+
+  // ─── Maintenance & IT Facilities ──────────────────────────────────────────
   | 'MAINTENANCE_TICKET_CREATED'
   | 'MAINTENANCE_ASSIGNED'
   | 'MAINTENANCE_RESOLVED'
+  | 'MAINTENANCE_SLA_BREACH'
   | 'TICKET_CREATED'
   | 'TICKET_ASSIGNED'
   | 'TICKET_RESOLVED'
+  | 'IT_TICKET_CREATED'
+  | 'NETWORK_OUTAGE_ALERT'
+  | 'DEVICE_MALFUNCTION_TICKET'
+  | 'CLASSROOM_LAB_ISSUE'
+  | 'FACILITY_MAINTENANCE_TICKET'
+  | 'ASSET_REQUEST'
+  | 'SLA_BREACH'
+  | 'SLA_BREACH_FACILITY'
+  | 'VENDOR_SERVICE_TICKET'
 
-  // Procurement & Finance
+  // ─── Procurement & Purchase ───────────────────────────────────────────────
   | 'PURCHASE_REQUEST_CREATED'
   | 'PURCHASE_REQUESTED'
   | 'PURCHASE_APPROVED'
   | 'PURCHASE_REJECTED'
   | 'PO_CREATED'
 
-  // HR & Employee Relieving
+  // ─── HR, Relieving & Clearances ───────────────────────────────────────────
+  | 'STAFF_JOINING_PROPOSAL'
+  | 'STAFF_EXIT_PROPOSAL'
   | 'EMPLOYEE_TRANSFER_REQUESTED'
   | 'EMPLOYEE_TRANSFER_APPROVED'
   | 'EMPLOYEE_RELIEVING_STARTED'
   | 'CLEARANCE_PENDING'
   | 'CLEARANCE_COMPLETED'
   | 'EMPLOYEE_RELIEVED'
+  | 'STAFF_EXIT_HOD_CLEARANCE'
+  | 'STAFF_EXIT_IT_CLEARANCE'
+  | 'STAFF_EXIT_IQAC_CLEARANCE'
+  | 'STAFF_EXIT_VP_STAGE'
+  | 'STAFF_EXIT_PRINCIPAL_STAGE'
+  | 'APPRAISAL_REMINDER'
+  | 'APPRAISAL_SUBMITTED'
+  | 'APPRAISAL_SUBMITTED_FOR_HOD'
+  | 'APPRAISAL_VERIFICATION_PENDING'
 
-  // Mentorship
+  // ─── Mentorship ───────────────────────────────────────────────────────────
   | 'MENTOR_ASSIGNED'
   | 'MENTEE_RISK_DETECTED'
   | 'MENTEE_ATTENDANCE_RISK'
   | 'MENTEE_ACADEMIC_RISK'
+  | 'ACADEMIC_RISK_ESCALATION'
   | 'PARENT_MEETING_REQUESTED'
+  | 'SERVICE_CLASSIFICATION_UPDATED'
 
-  // Emergency & Security
+  // ─── Hostel Management ────────────────────────────────────────────────────
+  | 'HOSTEL_ALLOCATION_REQUIRED'
+  | 'HOSTEL_ROOM_ALLOCATED'
+  | 'ROOM_BED_CHANGE_REQUEST'
+  | 'HOSTEL_OUTING_REQUEST'
+  | 'HOSTEL_OUTING_APPROVED'
+  | 'HOSTEL_OUTING_REJECTED'
+  | 'HOSTEL_RETURN_OVERDUE'
+  | 'HOSTEL_COMPLAINT_SUBMITTED'
+  | 'HOSTEL_COMPLAINT_OVERSIGHT'
+  | 'VISITOR_REQUEST'
+  | 'HOSTEL_MESS_NOTICE'
+  | 'HOSTEL_MESS_ISSUE'
+  | 'HOSTEL_MAINTENANCE_TICKET'
+  | 'HOSTEL_DISCIPLINE_ALERT'
+
+  // ─── Transport Management ─────────────────────────────────────────────────
+  | 'TRANSPORT_ALLOCATION_REQUIRED'
+  | 'TRANSPORT_ROUTE_ALLOCATED'
+  | 'ROUTE_STOP_CHANGE_REQUEST'
+  | 'TRANSPORT_BUS_DELAY'
+  | 'BUS_BREAKDOWN_ALERT'
+  | 'VEHICLE_MAINTENANCE_ALERT'
+  | 'TRANSPORT_COMPLAINT_SUBMITTED'
+  | 'ROUTE_ALLOCATION_CONFLICT'
+
+  // ─── Library Management ───────────────────────────────────────────────────
+  | 'LIBRARY_BOOK_ISSUED'
+  | 'LIBRARY_BOOK_RETURNED'
+  | 'LIBRARY_BOOK_OVERDUE'
+  | 'LIBRARY_FINE_GENERATED'
+  | 'BOOK_RESERVATION_REQUEST'
+  | 'BOOK_LOST_DAMAGED'
+  | 'LIBRARY_CLEARANCE_REQUEST'
+
+  // ─── Placements & Careers ─────────────────────────────────────────────────
+  | 'PLACEMENT_JOB_POSTED'
+  | 'COMPANY_JOB_POSTED'
+  | 'PLACEMENT_DRIVE_SCHEDULED'
+  | 'STUDENT_JOB_APPLIED'
+  | 'INTERVIEW_ROUND_SCHEDULED'
+  | 'PLACEMENT_OFFER_RECEIVED'
+  | 'JOB_OFFER_ISSUED'
+
+  // ─── IQAC Quality & Compliance ────────────────────────────────────────────
+  | 'EVIDENCE_SUBMITTED'
+  | 'EVIDENCE_RETURNED'
+  | 'EVIDENCE_MISSING'
+  | 'ACCREDITATION_TASK'
+  | 'NAAC_NBA_DEADLINE'
+  | 'RESEARCH_PUBLICATION_VERIFIED'
+  | 'DEPARTMENT_QUALITY_ISSUE'
+
+  // ─── Admissions (A&A Dean) ────────────────────────────────────────────────
+  | 'ADMISSION_VERIFICATION_REQUIRED'
+  | 'APPLICATION_STATUS_ESCALATED'
+
+  // ─── Delegation & Availability ────────────────────────────────────────────
+  | 'PRINCIPAL_DELEGATION_ACTIVATED'
+  | 'PRINCIPAL_DELEGATION_EXPIRED'
+  | 'PRINCIPAL_STATUS_CHANGED'
+
+  // ─── Emergency & Security ─────────────────────────────────────────────────
   | 'EMERGENCY_ALERT'
   | 'CAMPUS_ANNOUNCEMENT'
-  | 'SECURITY_ALERT';
+  | 'SECURITY_ALERT'
+  | 'MAJOR_INCIDENT_ALERT';
 
 export type NotificationPriority = 'LOW' | 'NORMAL' | 'HIGH' | 'CRITICAL';
 
@@ -145,8 +314,46 @@ export type NotificationCategory =
   | 'EXAMS'
   | 'ADMINISTRATIVE'
   | 'CIRCULARS'
+  | 'COMPLAINTS'
+  | 'HOSTEL'
+  | 'TRANSPORT'
+  | 'LIBRARY'
+  | 'PLACEMENT'
+  | 'IQAC'
   | 'CRITICAL'
   | 'EMERGENCY';
+
+export type WorkspaceType =
+  | 'STUDENT'
+  | 'PARENT'
+  | 'FACULTY'
+  | 'MENTOR'
+  | 'CLASS_ADVISER'
+  | 'HOD'
+  | 'ACADEMIC_DEAN'
+  | 'ADMISSION_DEAN'
+  | 'IQAC'
+  | 'COE'
+  | 'ACCOUNTS'
+  | 'AO'
+  | 'HOSTEL'
+  | 'TRANSPORT'
+  | 'COLLEGE_ADMIN'
+  | 'LIBRARY'
+  | 'PLACEMENT'
+  | 'VP'
+  | 'PRINCIPAL'
+  | 'SUPER_ADMIN';
+
+export interface CircularAudienceTarget {
+  scope: 'INSTITUTION' | 'ROLE' | 'DEPARTMENT' | 'PROGRAMME' | 'YEAR' | 'SEMESTER' | 'SECTION' | 'HOSTELLERS' | 'DAY_SCHOLARS' | 'TRANSPORT' | 'SELECTED_USERS';
+  roleCodes?: string[];
+  departmentIds?: string[];
+  sectionIds?: string[];
+  userIds?: string[];
+  hostelBlockIds?: string[];
+  transportRouteIds?: string[];
+}
 
 export interface DomainEvent {
   eventId?: string;
@@ -155,7 +362,7 @@ export interface DomainEvent {
   institutionId?: string;
   actorUserId?: string;
   actorRole?: string;
-  actorWorkspace?: string;
+  actorWorkspace?: WorkspaceType | string;
   entityType: string;
   entityId: string;
   action?: string;
@@ -168,9 +375,14 @@ export interface DomainEvent {
   metadata?: Record<string, any>;
   correlationId?: string;
 
-  // Optional direct recipient overrides (if already resolved)
+  // Recipient & Scope overrides
   targetUserIds?: string[];
   departmentId?: string;
   sectionId?: string;
   courseId?: string;
+  studentId?: string;
+  facultyId?: string;
+  hostelId?: string;
+  transportRouteId?: string;
+  audience?: CircularAudienceTarget;
 }

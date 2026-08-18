@@ -6,8 +6,11 @@ product/server/node_modules/
 # Build outputs
 dist/
 build/
+releases/
+*.apk
 product/client/dist/
 product/client/dist-mobile/
+product/client/android/app/build/
 product/server/dist/
 product/server/uploads/
 
