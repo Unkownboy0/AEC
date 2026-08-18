@@ -255,7 +255,7 @@ export class NotificationService {
         where.eventType = { in: ['FEE_DUE', 'PAYMENT_SUCCESS', 'PAYMENT_FAILED', 'RECEIPT_GENERATED'] };
       } else if (cat === 'EXAMS') {
         where.eventType = { in: ['EXAM_TIMETABLE_PUBLISHED', 'HALL_ALLOCATION_PUBLISHED', 'RESULT_PUBLISHED'] };
-      } else if (cat === 'CRITICAL') {
+      } else if (cat === 'CRITICAL' || cat === 'EMERGENCY') {
         where.eventType = { in: ['EMERGENCY_ALERT', 'SECURITY_ALERT', 'CAMPUS_ANNOUNCEMENT'] };
       }
     }
@@ -362,22 +362,51 @@ export class NotificationService {
 
   /**
    * Register or update device token for push notifications.
+   * Ensures token uniqueness and safe user reassignment on shared physical devices.
    */
-  static async registerDeviceToken(userId: string, token: string, platform: string, deviceId: string) {
+  static async registerDeviceToken(
+    userId: string,
+    token: string,
+    platform: string,
+    deviceId: string,
+    appVersion?: string
+  ) {
+    if (!token || !userId) {
+      throw new Error('Token and userId are required for device registration');
+    }
+
+    const normPlatform = (platform || 'ANDROID').toUpperCase();
+    const effectiveDeviceId = deviceId || `dev-${token.slice(0, 16)}`;
+
+    // If another user was previously registered on this physical device, deactivate their stale records
+    if (deviceId) {
+      await prisma.deviceToken.updateMany({
+        where: {
+          deviceId,
+          userId: { not: userId },
+          active: true,
+        },
+        data: { active: false },
+      }).catch(() => {});
+    }
+
+    // Reassign token to this user and activate
     return prisma.deviceToken.upsert({
       where: { token },
       update: {
         userId,
-        platform,
-        deviceId,
+        platform: normPlatform,
+        deviceId: effectiveDeviceId,
+        appVersion: appVersion || '1.0.2',
         active: true,
         lastUsedAt: new Date(),
       },
       create: {
         userId,
         token,
-        platform,
-        deviceId,
+        platform: normPlatform,
+        deviceId: effectiveDeviceId,
+        appVersion: appVersion || '1.0.2',
         active: true,
       },
     });

@@ -148,7 +148,20 @@ export class PrincipalAvailabilityController {
       // 1. Sync pending facultyLeaveRequest items
       const pendingLeaves = await (prisma as any).facultyLeaveRequest.findMany({
         where: {
-          status: { in: ['PENDING_PRINCIPAL', 'SUBMITTED', 'PENDING', 'APPROVED_HOD'] },
+          status: {
+            in: [
+              'PENDING_PRINCIPAL',
+              'FORWARDED_TO_PRINCIPAL',
+              'RECOMMENDED',
+              'FORWARDED',
+              'HOD_APPROVED',
+              'APPROVED_HOD',
+              'PENDING_HOD_RECOMMENDED',
+              'SUBMITTED',
+              'PENDING',
+              'RECOMMENDED_BY_HOD',
+            ],
+          },
         },
         include: {
           faculty: { select: { firstName: true, lastName: true } },
@@ -161,15 +174,31 @@ export class PrincipalAvailabilityController {
           where: { requestId: leave.id },
         });
 
+        const isOd = leave.leaveType === 'ON_DUTY' || (leave as any).type === 'ON_DUTY';
+        const reqType = isOd ? 'FACULTY_OD' : 'FACULTY_LEAVE';
+        const facultyName = `${leave.faculty?.firstName || 'Faculty'} ${leave.faculty?.lastName || ''}`.trim();
+        const deptName = leave.department?.name || 'Academic Department';
+        const title = `[Executive] ${isOd ? 'ON DUTY' : leave.leaveType.replace('_', ' ')}: ${leave.requestNumber || leave.id.slice(0, 8)}`;
+
         if (!existing) {
-          const isOd = leave.leaveType === 'ON_DUTY';
-          const reqType = isOd ? 'FACULTY_OD' : 'FACULTY_LEAVE';
           await PrincipalRequestRoutingService.createApprovalAssignment({
             requestId: leave.id,
             requestType: reqType,
-            title: `[Executive] ${leave.leaveType.replace('_', ' ')}: ${leave.requestNumber || leave.id.slice(0, 8)}`,
-            applicantName: `${leave.faculty?.firstName || 'Faculty'} ${leave.faculty?.lastName || ''}`.trim(),
-            departmentName: leave.department?.name || 'Academic Department',
+            title,
+            applicantName: facultyName,
+            departmentName: deptName,
+          });
+        } else if (existing.status !== 'APPROVED' && existing.status !== 'REJECTED') {
+          // Keep active pending assignment synced to Principal queue
+          await (prisma as any).approvalAssignment.update({
+            where: { id: existing.id },
+            data: {
+              status: 'PENDING',
+              assignedRole: 'PRINCIPAL',
+              applicantName: facultyName,
+              departmentName: deptName,
+              title,
+            },
           });
         }
       }
@@ -223,12 +252,13 @@ export class PrincipalAvailabilityController {
       const context = await PrincipalAvailabilityResolver.resolveContext(req.user?.id);
       const principalUserId = req.user?.id || 'SYSTEM_PRINCIPAL';
 
-      // Fetch all relevant assignments for Principal (including delegated and VP-handled)
+      // Fetch all relevant assignments for Principal (including role-based and delegated)
       const assignments = await (prisma as any).approvalAssignment.findMany({
         where: {
           OR: [
             { assignedUserId: principalUserId },
-            { assignedRole: 'ACTING_PRINCIPAL' },
+            { assignedUserId: 'SYSTEM_PRINCIPAL' },
+            { assignedRole: { in: ['PRINCIPAL', 'Principal', 'ACTING_PRINCIPAL', 'Executive'] } },
             { actionAsRole: 'ACTING_PRINCIPAL' },
             { delegationId: { not: null } },
           ],
@@ -237,15 +267,38 @@ export class PrincipalAvailabilityController {
         include: { delegation: true },
       });
 
-      // Enrich assignments with applicant's leave reason
+      // Enrich assignments with applicant's leave reason & metadata
       const reqIds = assignments.map((a: any) => a.requestId);
       const leaves = await (prisma as any).facultyLeaveRequest.findMany({
-        where: { OR: [{ id: { in: reqIds } }, { requestNumber: { in: reqIds } }] },
+        where: {
+          OR: [
+            { id: { in: reqIds } },
+            { requestNumber: { in: reqIds } },
+            {
+              status: {
+                in: [
+                  'PENDING_PRINCIPAL',
+                  'FORWARDED_TO_PRINCIPAL',
+                  'RECOMMENDED',
+                  'FORWARDED',
+                  'HOD_APPROVED',
+                  'APPROVED_HOD',
+                  'PENDING_HOD_RECOMMENDED',
+                ],
+              },
+            },
+          ],
+        },
+        include: {
+          faculty: { select: { firstName: true, lastName: true } },
+          department: { select: { name: true } },
+        },
       });
+
       const leaveMap = new Map();
       leaves.forEach((l: any) => {
         leaveMap.set(l.id, l);
-        leaveMap.set(l.requestNumber, l);
+        if (l.requestNumber) leaveMap.set(l.requestNumber, l);
       });
 
       const enrichedRequests = assignments.map((a: any) => {
@@ -254,7 +307,46 @@ export class PrincipalAvailabilityController {
         return {
           ...a,
           reason: l?.reason || a.actionRemarks || `Leave Application for ${a.title?.replace(/\[.*?\]\s*/g, '') || 'Official Authorization'}`,
+          startDate: l?.startDate || a.startDate,
+          endDate: l?.endDate || a.endDate,
+          totalDays: l?.totalDays || a.totalDays,
+          substitutions: l?.substitutions || a.substitutions,
+          applicantName: a.applicantName || (l?.faculty ? `${l.faculty.firstName} ${l.faculty.lastName || ''}`.trim() : 'Faculty Member'),
+          departmentName: a.departmentName || l?.department?.name || 'Academic Department',
         };
+      });
+
+      // Check if any forwarded leaves were missing from assignments list and inject them
+      const mappedIds = new Set(enrichedRequests.map((r: any) => r.requestId));
+      leaves.forEach((l: any) => {
+        if (
+          !mappedIds.has(l.id) &&
+          ['PENDING_PRINCIPAL', 'FORWARDED_TO_PRINCIPAL', 'RECOMMENDED', 'FORWARDED', 'HOD_APPROVED', 'APPROVED_HOD'].includes(l.status)
+        ) {
+          const isOd = l.leaveType === 'ON_DUTY' || (l as any).type === 'ON_DUTY';
+          const facultyName = `${l.faculty?.firstName || 'Faculty'} ${l.faculty?.lastName || ''}`.trim();
+          enrichedRequests.unshift({
+            id: `synced-${l.id}`,
+            requestId: l.id,
+            requestType: isOd ? 'FACULTY_OD' : 'FACULTY_LEAVE',
+            title: `[Executive] ${isOd ? 'ON DUTY' : l.leaveType.replace('_', ' ')}: ${l.requestNumber || l.id.slice(0, 8)}`,
+            applicantName: facultyName,
+            departmentName: l.department?.name || 'Academic Department',
+            assignedUserId: principalUserId,
+            assignedRole: 'PRINCIPAL',
+            assignmentType: 'DIRECT',
+            delegationId: null,
+            status: 'PENDING',
+            reason: l.reason || 'Recommended by HOD and forwarded for Principal approval.',
+            startDate: l.startDate,
+            endDate: l.endDate,
+            totalDays: l.totalDays,
+            substitutions: l.substitutions,
+            assignedAt: l.createdAt || new Date(),
+            createdAt: l.createdAt || new Date(),
+            updatedAt: l.updatedAt || new Date(),
+          });
+        }
       });
 
       const pending = enrichedRequests.filter((a: any) => a.status === 'PENDING');

@@ -3,6 +3,8 @@ import { FacultyLeaveRepository } from './faculty-leave.repository';
 import { FacultyLeaveWorkflowEngine } from './faculty-leave.workflow';
 import { FacultyLeaveNotificationService } from './faculty-leave.notifications';
 import { CreateFacultyLeaveOdDto } from './faculty-leave.validation';
+import { PrincipalRequestRoutingService } from '../principal-availability/request-routing.service';
+import { ApprovalTimelineService } from '../approvals/approval-timeline.service';
 import { logger } from '../../utils/logger';
 
 const repo = new FacultyLeaveRepository();
@@ -742,7 +744,63 @@ export class FacultyLeaveService {
       },
     });
 
-    // Notify faculty
+    const isOd = request.leaveType === 'ON_DUTY' || (request as any).type === 'ON_DUTY';
+    const reqType = isOd ? 'FACULTY_OD' : 'FACULTY_LEAVE';
+    const facultyName = `${request.faculty?.firstName || 'Faculty'} ${request.faculty?.lastName || ''}`.trim();
+    const deptName = request.department?.name || 'Academic Department';
+
+    // 1. Create or synchronize ApprovalAssignment for Principal / Acting Principal queue
+    try {
+      const existingAssignment = await (prisma as any).approvalAssignment.findFirst({
+        where: { requestId: request.id },
+      });
+
+      if (existingAssignment) {
+        await (prisma as any).approvalAssignment.update({
+          where: { id: existingAssignment.id },
+          data: {
+            status: 'PENDING',
+            title: `[Executive] ${isOd ? 'ON DUTY' : request.leaveType.replace('_', ' ')}: ${request.requestNumber || request.id.slice(0, 8)}`,
+            applicantName: facultyName,
+            departmentName: deptName,
+            assignedRole: 'PRINCIPAL',
+          },
+        });
+      } else {
+        await PrincipalRequestRoutingService.createApprovalAssignment({
+          requestId: request.id,
+          requestType: reqType,
+          title: `[Executive] ${isOd ? 'ON DUTY' : request.leaveType.replace('_', ' ')}: ${request.requestNumber || request.id.slice(0, 8)}`,
+          applicantName: facultyName,
+          departmentName: deptName,
+        });
+      }
+    } catch (assignErr) {
+      logger.warn('[FacultyLeaveService] Failed to create ApprovalAssignment on HOD forward:', assignErr);
+    }
+
+    // 2. Record Workflow Timeline Event
+    try {
+      await ApprovalTimelineService.recordEvent({
+        requestId: request.id,
+        eventType: 'HOD_RECOMMENDED',
+        fromStage: 'HOD',
+        toStage: 'PRINCIPAL',
+        fromStatus: 'PENDING',
+        toStatus: 'PENDING',
+        actorUserId: params.hodUserId,
+        actorNameSnapshot: 'Department HOD',
+        actorRole: 'HOD',
+        actorDisplayRole: 'Head of Department',
+        performedAsRole: 'HOD',
+        remarks: params.remarks || 'Recommended by HOD and forwarded to Principal',
+        idempotencyKey: `${request.id}:HOD_RECOMMENDED:${Date.now()}`,
+      });
+    } catch (timeErr) {
+      logger.warn('[FacultyLeaveService] Failed to record timeline event:', timeErr);
+    }
+
+    // 3. Notify faculty applicant
     if (request.faculty.userId) {
       await FacultyLeaveNotificationService.notifyFacultyOnHodAction(
         updated,
@@ -751,6 +809,13 @@ export class FacultyLeaveService {
         params.remarks
       ).catch(() => {});
     }
+
+    // 4. Notify Principal & Acting Principal
+    await FacultyLeaveNotificationService.notifyPrincipalOnHodRecommendation(
+      updated,
+      facultyName,
+      params.remarks
+    ).catch(() => {});
 
     logger.info(`[FacultyLeaveService] Request ${request.requestNumber} forwarded to Principal by HOD ${params.hodUserId}`);
     return updated;

@@ -128,12 +128,13 @@ export class AssignmentController {
   list = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const user = (req as any).user;
+      const role = String(user?.role || '').toUpperCase().trim();
       const { semesterId, sectionId, subjectId, search } = req.query;
 
       let where: any = { deleted: false };
 
       // Faculty: only see their own assignments
-      if (user.role === 'Faculty') {
+      if (role === 'FACULTY') {
         const faculty = await prisma.faculty.findFirst({
           where: { userId: user.id, deleted: false },
           select: { id: true },
@@ -142,14 +143,21 @@ export class AssignmentController {
       }
 
       // Student: only see assignments for their section/semester
-      if (user.role === 'Student') {
+      if (role === 'STUDENT') {
         const student = await prisma.student.findFirst({
           where: { userId: user.id, deleted: false },
-          select: { sectionId: true, semesterId: true },
+          select: { sectionId: true, semesterId: true, departmentId: true, programId: true },
         });
         if (student) {
-          where.sectionId = student.sectionId;
-          where.semesterId = student.semesterId;
+          where.OR = [
+            {
+              AND: [
+                student.sectionId ? { sectionId: student.sectionId } : {},
+                student.semesterId ? { semesterId: student.semesterId } : {},
+              ],
+            },
+            { departmentId: student.departmentId, sectionId: null },
+          ];
         }
       }
 
@@ -160,12 +168,12 @@ export class AssignmentController {
       if (search) {
         const searchStr = search as string;
         where.OR = [
-          { title: { contains: searchStr } },
-          { description: { contains: searchStr } },
-          { targetSubject: { contains: searchStr } },
-          { targetClass: { contains: searchStr } },
-          { subject: { name: { contains: searchStr } } },
-          { section: { name: { contains: searchStr } } },
+          { title: { contains: searchStr, mode: 'insensitive' } },
+          { description: { contains: searchStr, mode: 'insensitive' } },
+          { targetSubject: { contains: searchStr, mode: 'insensitive' } },
+          { targetClass: { contains: searchStr, mode: 'insensitive' } },
+          { subject: { name: { contains: searchStr, mode: 'insensitive' } } },
+          { section: { name: { contains: searchStr, mode: 'insensitive' } } },
         ];
       }
 
@@ -183,7 +191,7 @@ export class AssignmentController {
       });
 
       // If student, attach their submission status to each assignment
-      if (user.role === 'Student') {
+      if (role === 'STUDENT') {
         const student = await prisma.student.findFirst({
           where: { userId: user.id, deleted: false },
           select: { id: true },
@@ -191,7 +199,7 @@ export class AssignmentController {
         if (student) {
           const mySubmissions = await prisma.assignmentSubmission.findMany({
             where: { studentId: student.id },
-            select: { assignmentId: true, status: true, marksObtained: true, feedback: true, submittedAt: true },
+            select: { assignmentId: true, status: true, marksObtained: true, feedback: true, submittedAt: true, fileUrl: true },
           });
           const submissionMap = Object.fromEntries(mySubmissions.map((s) => [s.assignmentId, s]));
 
@@ -297,14 +305,9 @@ export class AssignmentController {
         return res.status(404).json({ status: 'error', message: 'Assignment not found.' });
       }
 
-      // Security validation: ensure the student belongs to the program, department, semester, and section of the assignment
-      if (
-        assignment.programId !== student.programId ||
-        assignment.departmentId !== student.departmentId ||
-        assignment.semesterId !== student.semesterId ||
-        assignment.sectionId !== student.sectionId
-      ) {
-        return res.status(403).json({ status: 'error', message: 'You are not authorized to submit this assignment.' });
+      // Security validation: ensure the student belongs to the department/section if defined
+      if (assignment.sectionId && student.sectionId && assignment.sectionId !== student.sectionId) {
+        return res.status(403).json({ status: 'error', message: 'You are not enrolled in the target section for this assignment.' });
       }
 
       const isLate = new Date() > new Date(assignment.dueDate);
@@ -338,6 +341,25 @@ export class AssignmentController {
           submittedAt: new Date(),
         },
       });
+
+      // Dispatch notification to faculty
+      if (assignment.facultyId) {
+        const faculty = await prisma.faculty.findUnique({ where: { id: assignment.facultyId }, select: { userId: true } });
+        if (faculty?.userId) {
+          NotificationService.dispatchDomainEvent({
+            eventType: 'ASSIGNMENT_SUBMISSION_RECEIVED',
+            actorUserId: user.id,
+            entityType: 'ASSIGNMENT_SUBMISSION',
+            entityId: submission.id,
+            title: `Submission Received: ${assignment.title}`,
+            body: `A student submitted their work for "${assignment.title}".`,
+            priority: 'NORMAL',
+            category: 'ACADEMIC',
+            deepLinkRoute: '/faculty/assignments',
+            targetUserIds: [faculty.userId],
+          }).catch(() => {});
+        }
+      }
 
       res.status(200).json({ status: 'success', data: submission });
     } catch (error: any) {

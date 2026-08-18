@@ -4,6 +4,8 @@ import { useAuth } from '../../context/AuthContext';
 import { AecCinematicLoader } from '../../components/common/AecCinematicLoader';
 import { useNavigate } from 'react-router-dom';
 
+import { consumePendingDeepLink } from '../../platform/pending-deep-link';
+
 export const AppBootstrap: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [isBootstrapped, setIsBootstrapped] = useState(false);
   const { user, isLoading: authLoading } = useAuth();
@@ -54,17 +56,18 @@ export const AppBootstrap: React.FC<{ children: React.ReactNode }> = ({ children
   }, [navigate]);
 
   // Post-auth: load device capability policy once after user is confirmed authenticated.
-  // This is intentionally deferred from AppInit to avoid pre-auth network calls that caused:
-  //   - Mixed Content warnings (/api/settings/device-capabilities over HTTP before scheme settled)
-  //   - 401 errors (unauthenticated call)
-  //   - Startup frame skipping (contributed to the 497-frame burst)
+  // Also check and consume any cold-launch deep-link route.
   useEffect(() => {
     if (!user || capabilitiesLoadedRef.current) return;
     capabilitiesLoadedRef.current = true;
     import('../../platform/device-capabilities.manager').then(({ deviceCapabilities }) => {
       deviceCapabilities.loadEffectivePolicy().catch(() => {});
     });
-  }, [user]);
+    const pending = consumePendingDeepLink();
+    if (pending) {
+      navigate(pending, { replace: false });
+    }
+  }, [user, navigate]);
 
   const [loaderFinished, setLoaderFinished] = useState(false);
 

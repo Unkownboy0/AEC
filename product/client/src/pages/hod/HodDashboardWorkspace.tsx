@@ -94,8 +94,8 @@ export const HodDashboardWorkspace: React.FC = () => {
         />
       </div>
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-        {[['Subjects & classes','/hod/academics'],['Timetable','/hod/timetable'],['Attendance','/hod/attendance'],['Mentor allocation','/hod/mentors'],['Tasks','/hod/tasks'],['Reports','/hod/reports']].map(([title, route]) => <button key={title} onClick={() => navigate(route)} className="rounded-xl border bg-card p-3 text-left text-xs font-semibold transition hover:-translate-y-0.5 hover:border-indigo-400">{title}<ArrowUpRight className="mt-3 h-4 w-4 text-indigo-500"/></button>)}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-7">
+        {[['Subjects & classes','/hod/academics'],['Faculty allocation','/hod/allocation'],['Timetable','/hod/timetable'],['Attendance','/hod/attendance'],['Mentor allocation','/hod/mentors'],['Tasks','/hod/tasks'],['Reports','/hod/reports']].map(([title, route]) => <button key={title} onClick={() => navigate(route)} className="rounded-xl border bg-card p-3 text-left text-xs font-semibold transition hover:-translate-y-0.5 hover:border-indigo-400">{title}<ArrowUpRight className="mt-3 h-4 w-4 text-indigo-500"/></button>)}
       </div>
 
       {/* Quick Action Matrix */}

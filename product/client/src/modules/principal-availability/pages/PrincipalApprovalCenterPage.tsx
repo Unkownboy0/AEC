@@ -147,14 +147,30 @@ export const PrincipalApprovalCenterPage: React.FC = () => {
   // Filter requests
   const filteredRequests = requests.filter((r) => {
     let matchTab = true;
-    if (activeTab === 'PENDING') matchTab = r.status === 'PENDING';
-    else if (activeTab === 'PROCESSED') matchTab = r.status === 'APPROVED' || r.status === 'REJECTED';
-    else if (activeTab === 'VP_HANDLED') matchTab = Boolean(r.actionAsRole === 'ACTING_PRINCIPAL');
-    else if (activeTab === 'RETURNED') matchTab = r.assignmentType === 'RETURNED_TO_PRINCIPAL' || r.status === 'RETURNED';
+    const s = (r.status || '').toUpperCase();
+    if (activeTab === 'PENDING') {
+      matchTab = s === 'PENDING' || s === 'FORWARDED_TO_PRINCIPAL' || s === 'RECOMMENDED' || s === 'PENDING_PRINCIPAL' || s === 'SUBMITTED' || s === 'FORWARDED';
+    } else if (activeTab === 'PROCESSED') {
+      matchTab = s === 'APPROVED' || s === 'APPROVED_PRINCIPAL' || s === 'REJECTED' || s === 'REJECTED_PRINCIPAL';
+    } else if (activeTab === 'VP_HANDLED') {
+      matchTab = Boolean(r.actionAsRole === 'ACTING_PRINCIPAL' || r.assignedRole === 'ACTING_PRINCIPAL');
+    } else if (activeTab === 'RETURNED') {
+      matchTab = r.assignmentType === 'RETURNED_TO_PRINCIPAL' || s === 'RETURNED' || s === 'RETURNED_BY_PRINCIPAL';
+    }
 
     let matchCat = true;
     if (selectedCategory !== 'ALL') {
-      matchCat = r.requestType === selectedCategory;
+      if (selectedCategory === 'FACULTY_LEAVE') {
+        matchCat =
+          r.requestType === 'FACULTY_LEAVE' ||
+          r.requestType === 'FACULTY_OD' ||
+          r.requestType === 'LEAVE' ||
+          r.requestType === 'ON_DUTY' ||
+          r.requestType === 'STUDENT_LEAVE' ||
+          r.requestType === 'STUDENT_OD';
+      } else {
+        matchCat = r.requestType === selectedCategory;
+      }
     }
 
     return matchTab && matchCat;

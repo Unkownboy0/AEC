@@ -12,6 +12,12 @@ let _app: admin.app.App | null = null;
 let _attempted = false;
 
 function getFirebaseApp(): admin.app.App | null {
+  if (_app) return _app;
+  const existingApp = admin.apps.find((a) => a?.name === 'campusos-fcm');
+  if (existingApp) {
+    _app = existingApp;
+    return _app;
+  }
   if (_attempted) return _app;
   _attempted = true;
 

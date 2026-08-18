@@ -80,6 +80,47 @@ export class FacultyLeaveNotificationService {
   }
 
   /**
+   * Send notification to Principal / Acting Principal when HOD recommends & forwards a Faculty request.
+   */
+  static async notifyPrincipalOnHodRecommendation(request: any, facultyName: string, remarks?: string) {
+    const isOd = request.leaveType === 'ON_DUTY' || request.type === 'ON_DUTY' || request.type === 'OD';
+    const title = `Faculty ${isOd ? 'OD' : 'Leave'} Forwarded for Approval`;
+    const startDateStr = new Date(request.startDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
+    const endDateStr = new Date(request.endDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
+    const body = `${facultyName}'s ${request.leaveType || 'Leave'} (${startDateStr} - ${endDateStr}) was recommended by HOD and forwarded for your final approval.`;
+    const deepLinkRoute = `/principal/approval-center`;
+
+    const principalUsers = await prisma.user.findMany({
+      where: {
+        role: { name: { in: ['Principal', 'PRINCIPAL', 'Vice Principal', 'VICE_PRINCIPAL', 'VP'] } },
+        status: 'ACTIVE',
+      },
+      select: { id: true },
+    });
+
+    const targetUserIds = principalUsers.map((u) => u.id);
+
+    if (targetUserIds.length > 0) {
+      await NotificationService.dispatchDomainEvent({
+        eventType: isOd ? 'FACULTY_OD_RECOMMENDED' : 'FACULTY_LEAVE_RECOMMENDED',
+        actorUserId: request.hodId || request.facultyRequesterId,
+        entityType: 'FACULTY_LEAVE_REQUEST',
+        entityId: request.id,
+        title,
+        body,
+        priority: request.isEmergency ? 'CRITICAL' : 'HIGH',
+        category: 'APPROVALS',
+        deepLinkRoute,
+        targetUserIds,
+      }).catch((err) => {
+        logger.warn('[FacultyLeaveNotifications] Failed to notify Principal:', err);
+      });
+    }
+
+    facultyLeaveEvents.emit('principal.faculty-request.received', { requestId: request.id });
+  }
+
+  /**
    * Send notification to Substitute Faculty, Home HOD, Cross-Department HODs, and Applicant on Principal final approval.
    */
   static async notifySubstitutesAndStakeholdersOnApproval(params: {

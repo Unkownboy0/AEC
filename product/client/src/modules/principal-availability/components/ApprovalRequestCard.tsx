@@ -54,12 +54,14 @@ export const ApprovalRequestCard: React.FC<ApprovalRequestCardProps> = ({
 
         {/* Applicant Details */}
         <div className="space-y-2 text-xs text-slate-600 dark:text-slate-400 bg-slate-50/80 dark:bg-slate-950/60 p-3 rounded-xl border border-slate-100 dark:border-slate-800/80">
-          {/* Submitted By (HOD Name) */}
+          {/* Submitted By (Applicant Name) */}
           <div className="flex items-center justify-between">
-            <span className="text-slate-400 dark:text-slate-500 font-medium">HOD Name:</span>
+            <span className="text-slate-400 dark:text-slate-500 font-medium">
+              {isHodApplicant ? 'Applicant (HOD):' : 'Faculty Applicant:'}
+            </span>
             <span className="font-extrabold text-slate-900 dark:text-slate-100 flex items-center gap-1">
               <User className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />
-              {request.applicantName || 'John Doe'}
+              {request.applicantName || 'Faculty Member'}
             </span>
           </div>
 

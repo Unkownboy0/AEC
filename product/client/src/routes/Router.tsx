@@ -96,6 +96,7 @@ import { FacultyLeaveOdPage } from '../modules/faculty/leave-od/pages/FacultyLea
 import { FacultyLeaveDetailPage } from '../modules/faculty/leave-od/pages/FacultyLeaveDetailPage';
 import { HodFacultyRequestsPage } from '../modules/hod/faculty-requests/pages/HodFacultyRequestsPage';
 import { HodTasksPage } from '../modules/hod/tasks/pages/HodTasksPage';
+import HodFacultyAllocationPage from '../modules/hod/pages/HodFacultyAllocationPage';
 
 // ─── Shared Pages ───────────────────────────────────────────────
 import { NotificationsPage } from '../pages/shared/NotificationsPage';
@@ -632,6 +633,8 @@ export const AppRouter: React.FC = () => {
           <Route path="hod/profile" element={<HODProfile />} />
           {/* HOD Notifications — was MISSING */}
           <Route path="hod/notifications" element={<NotificationsPage />} />
+          {/* HOD Faculty Allocation — PREVIOUSLY MISSING */}
+          <Route path="hod/allocation" element={<HodFacultyAllocationPage />} />
 
           {/* ─── Faculty Portal Direct Routes ─────────────────── */}
           <Route path="faculty/leave-od" element={<FacultyLeaveOdPage />} />

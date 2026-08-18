@@ -59,6 +59,15 @@ router.get('/attendance', controller.getDepartmentAttendance);
 // 6. Tasks
 router.get('/tasks', controller.getTasks);
 router.post('/tasks', controller.createTask);
+// Tasks the HOD created and assigned to faculty
+router.get('/tasks/assigned-by-me', controller.getTasksAssignedByHod);
+// Faculty allocation (subject→faculty mapping)
+router.get('/allocation/subjects', controller.getAllocatableSubjects);
+router.get('/allocation/sections', controller.getAllocatableSections);
+router.get('/allocation/faculty-workload', controller.getFacultyWorkload);
+router.post('/allocation/assign', controller.createFacultyAllocation);
+router.delete('/allocation/:allocationId', controller.removeFacultyAllocation);
+router.get('/allocation', controller.getFacultyAllocations);
 
 // 7. Circulars & Announcements
 router.get('/circulars', controller.listCirculars);

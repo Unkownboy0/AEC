@@ -79,7 +79,9 @@ const Login: React.FC = () => {
   // Redirect if already authenticated
   useEffect(() => {
     if (isAuthenticated) {
-      navigate(getRoleHome(currentUser));
+      const pendingDeepLink = consumePendingDeepLink();
+      const target = pendingDeepLink || getRoleHome(currentUser);
+      navigate(target, { replace: true });
     }
   }, [isAuthenticated, navigate, currentUser]);
 

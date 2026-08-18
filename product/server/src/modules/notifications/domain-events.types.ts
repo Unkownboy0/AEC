@@ -62,6 +62,7 @@ export type DomainEventType =
   | 'ASSIGNMENT_UPDATED'
   | 'ASSIGNMENT_DUE_SOON'
   | 'ASSIGNMENT_SUBMITTED'
+  | 'ASSIGNMENT_SUBMISSION_RECEIVED'
   | 'ASSIGNMENT_GRADED'
   | 'ATTENDANCE_MARKED'
   | 'ATTENDANCE_CORRECTED'
@@ -144,7 +145,8 @@ export type NotificationCategory =
   | 'EXAMS'
   | 'ADMINISTRATIVE'
   | 'CIRCULARS'
-  | 'CRITICAL';
+  | 'CRITICAL'
+  | 'EMERGENCY';
 
 export interface DomainEvent {
   eventId?: string;

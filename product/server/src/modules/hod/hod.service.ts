@@ -304,6 +304,29 @@ export class HodService {
           assigneeId: userId,
         })),
       });
+
+      // Dispatch TASK_ASSIGNED notification to each faculty assignee
+      const notifyIds = Array.from(userIdsToAssign);
+      if (notifyIds.length > 0) {
+        NotificationService.dispatchDomainEvent({
+          eventType: 'TASK_ASSIGNED',
+          entityType: 'TASK',
+          entityId: task.id,
+          title: `New Task Assigned: ${payload.title}`,
+          body: `You have been assigned a new task by your HOD. Priority: ${payload.priority || 'MEDIUM'}. Due: ${validDueDate.toLocaleDateString('en-IN')}.`,
+          priority: payload.priority === 'URGENT' || payload.priority === 'HIGH' ? 'HIGH' : 'NORMAL',
+          category: 'TASKS',
+          deepLinkRoute: `/faculty/tasks`,
+          targetUserIds: notifyIds,
+          actorUserId: creatorUserId,
+          actorRole: 'HOD',
+          actorWorkspace: 'HOD',
+          metadata: { taskNumber: task.taskNumber, dueDate: validDueDate.toISOString() },
+        }).catch((err) => {
+          // Non-fatal — task was already created successfully
+          console.warn('[HOD Task] Notification dispatch failed (non-fatal):', err?.message);
+        });
+      }
     }
 
     return task;

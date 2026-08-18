@@ -264,7 +264,8 @@ export class RecipientResolverService {
           break;
         }
 
-        case 'ASSIGNMENT_SUBMITTED': {
+        case 'ASSIGNMENT_SUBMITTED':
+        case 'ASSIGNMENT_SUBMISSION_RECEIVED': {
           if (event.metadata?.facultyUserId) {
             recipients.add(event.metadata.facultyUserId);
           }

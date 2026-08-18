@@ -449,6 +449,17 @@ export const ROUTE_REGISTRY: NavEntry[] = [
     order: 2,
   },
   {
+    id: 'hod-allocation',
+    label: 'Faculty Allocation',
+    description: 'Assign faculty to subjects and sections',
+    icon: 'Layers3',
+    path: '/hod/allocation',
+    roles: ['HOD', 'HEAD_OF_DEPARTMENT'],
+    group: 'management',
+    mobilePlacement: 'more',
+    order: 3,
+  },
+  {
     id: 'hod-students',
     label: 'Student Records',
     description: 'All students in your department',

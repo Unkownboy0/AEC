@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { CheckSquare, Plus, Clock, RefreshCw, Send, AlertCircle, HelpCircle, Layers, Calendar, User, Paperclip, X, FileText } from 'lucide-react';
+import { CheckSquare, Plus, Clock, RefreshCw, Send, AlertCircle, HelpCircle, Layers, Calendar, User, Paperclip, X, FileText, Users, ChevronDown } from 'lucide-react';
 import { DataTable, Column } from '../../../design-system/components/DataTable';
 import { StatusBadge } from '../../../design-system/components/StatusBadge';
 import { ErrorState } from '../../../design-system/components/ErrorState';
@@ -16,6 +16,19 @@ export const HodTasksPage: React.FC = () => {
   const [tasks, setTasks] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'received' | 'assigned'>('received');
+
+  // Tasks HOD assigned to faculty
+  const [assignedTasks, setAssignedTasks] = useState<any[]>([]);
+  const [isLoadingAssigned, setIsLoadingAssigned] = useState(false);
+
+  // Department faculty for the assignment modal
+  const [deptFaculty, setDeptFaculty] = useState<any[]>([]);
+
+  // Create task modal
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [createForm, setCreateForm] = useState({ title: '', description: '', priority: 'MEDIUM', dueAt: '', assigneeUserIds: [] as string[] });
+  const [isCreating, setIsCreating] = useState(false);
 
   // Action modal
   const [selectedTask, setSelectedTask] = useState<any | null>(null);
@@ -134,9 +147,32 @@ export const HodTasksPage: React.FC = () => {
     }
   }, []);
 
+  // Fetch tasks assigned BY this HOD to faculty
+  const fetchAssignedTasks = useCallback(async () => {
+    setIsLoadingAssigned(true);
+    try {
+      const res = await api.get('/hod/tasks/assigned-by-me');
+      setAssignedTasks(res.data?.data || []);
+    } catch {
+      // non-fatal
+    } finally {
+      setIsLoadingAssigned(false);
+    }
+  }, []);
+
+  // Fetch department faculty for create modal
+  const fetchDeptFaculty = useCallback(async () => {
+    try {
+      const res = await api.get('/hod/faculty');
+      setDeptFaculty(res.data?.data || []);
+    } catch {}
+  }, []);
+
   // Initial load + Realtime polling interval (every 6s) + Window SSE listener
   useEffect(() => {
     fetchTasks(false);
+    fetchAssignedTasks();
+    fetchDeptFaculty();
 
     const interval = setInterval(() => {
       fetchTasks(true);
@@ -156,7 +192,27 @@ export const HodTasksPage: React.FC = () => {
       window.removeEventListener('realtime:TASK_UPDATED', handleRealtime);
       window.removeEventListener('realtime:TASK_CREATED', handleRealtime);
     };
-  }, [fetchTasks]);
+  }, [fetchTasks, fetchAssignedTasks, fetchDeptFaculty]);
+
+  // Handle creating a task and assigning to faculty
+  const handleCreateTask = async () => {
+    if (!createForm.title.trim()) { toast.error('Task title is required.'); return; }
+    setIsCreating(true);
+    try {
+      await api.post('/hod/tasks', {
+        ...createForm,
+        assigneeUserIds: createForm.assigneeUserIds,
+      });
+      toast.success('Task assigned to faculty successfully.');
+      setShowCreateModal(false);
+      setCreateForm({ title: '', description: '', priority: 'MEDIUM', dueAt: '', assigneeUserIds: [] });
+      fetchAssignedTasks();
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || 'Failed to create task.');
+    } finally {
+      setIsCreating(false);
+    }
+  };
 
   // Base64 File Upload implementation complying with backend /api/files/upload JSON contract
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -442,14 +498,42 @@ export const HodTasksPage: React.FC = () => {
             HOD Task Desk
           </h1>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Departmental & Executive tasks assigned by VP, Deans, Principal, and Authorities. Synchronized live in real-time.
+            Manage tasks assigned to you and assign tasks to your faculty.
           </p>
         </div>
+        <div className="flex items-center gap-2 self-start sm:self-auto">
+          <button
+            onClick={() => { setShowCreateModal(true); }}
+            className="px-3 py-2 rounded-xl bg-primary text-primary-foreground text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer shadow-sm hover:bg-primary/90"
+          >
+            <Plus className="h-3.5 w-3.5" /> Assign to Faculty
+          </button>
+          <button
+            onClick={() => fetchTasks(false)}
+            className="px-3 py-2 rounded-xl border border-border bg-background hover:bg-muted text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+          >
+            <RefreshCw className="h-3.5 w-3.5" /> Refresh
+          </button>
+        </div>
+      </div>
+
+      {/* Tab Switcher */}
+      <div className="flex gap-1 p-1 rounded-xl bg-muted/50 border border-border w-fit">
         <button
-          onClick={() => fetchTasks(false)}
-          className="px-3 py-2 rounded-xl border border-border bg-background hover:bg-muted text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer self-start sm:self-auto"
+          onClick={() => setActiveTab('received')}
+          className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+            activeTab === 'received' ? 'bg-primary text-primary-foreground shadow-xs' : 'text-muted-foreground hover:text-foreground'
+          }`}
         >
-          <RefreshCw className="h-3.5 w-3.5" /> Refresh
+          Assigned to Me ({tasks.length})
+        </button>
+        <button
+          onClick={() => { setActiveTab('assigned'); fetchAssignedTasks(); }}
+          className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+            activeTab === 'assigned' ? 'bg-primary text-primary-foreground shadow-xs' : 'text-muted-foreground hover:text-foreground'
+          }`}
+        >
+          Assigned by Me ({assignedTasks.length})
         </button>
       </div>
 
@@ -477,7 +561,7 @@ export const HodTasksPage: React.FC = () => {
 
       {error ? (
         <ErrorState title="Unable to load tasks" message={error} onRetry={() => fetchTasks(false)} />
-      ) : (
+      ) : activeTab === 'received' ? (
         <DataTable
           columns={columns}
           data={tasks}
@@ -487,6 +571,45 @@ export const HodTasksPage: React.FC = () => {
           emptyTitle="No assigned tasks found"
           emptyDescription="Tasks assigned by VP, Academic Dean, Admission Dean, and Principal will appear here automatically."
         />
+      ) : (
+        /* Assigned by HOD tab */
+        <div className="space-y-3">
+          {isLoadingAssigned ? (
+            <div className="p-6 text-center text-muted-foreground text-sm">Loading...</div>
+          ) : assignedTasks.length === 0 ? (
+            <div className="p-10 text-center">
+              <Users className="w-10 h-10 mx-auto mb-3 text-muted-foreground opacity-30"/>
+              <p className="text-sm font-medium text-muted-foreground">No tasks assigned to faculty yet</p>
+              <p className="text-xs text-muted-foreground mt-1">Use "Assign to Faculty" above to create faculty tasks</p>
+            </div>
+          ) : assignedTasks.map((t: any) => (
+            <div key={t.id} className="bg-card border border-border rounded-xl p-4 space-y-2">
+              <div className="flex items-start justify-between gap-2">
+                <div>
+                  <p className="font-semibold text-sm text-foreground">{t.title}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">{t.description}</p>
+                </div>
+                <StatusBadge status={t.status || 'ASSIGNED'} size="sm" />
+              </div>
+              <div className="flex flex-wrap gap-1.5 text-xs">
+                <span className="px-2 py-0.5 rounded-full bg-muted text-muted-foreground border border-border">
+                  Priority: {t.priority}
+                </span>
+                {t.dueDate && (
+                  <span className="px-2 py-0.5 rounded-full bg-muted text-muted-foreground border border-border flex items-center gap-1">
+                    <Calendar className="w-3 h-3"/> Due: {new Date(t.dueDate).toLocaleDateString()}
+                  </span>
+                )}
+              </div>
+              {t.assignees && t.assignees.length > 0 && (
+                <div className="text-xs text-muted-foreground">
+                  <span className="font-semibold">Assigned to:</span>{' '}
+                  {t.assignees.map((a: any) => `${a.assignee?.firstName || ''} ${a.assignee?.lastName || ''}`.trim()).join(', ')}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
       )}
 
       {/* Query / Submit Modal with Base64 File Attachment */}
@@ -568,6 +691,104 @@ export const HodTasksPage: React.FC = () => {
               className="px-5 py-2 rounded-xl bg-primary text-primary-foreground text-xs font-bold disabled:opacity-50 shadow-xs hover:bg-primary/90 cursor-pointer"
             >
               {isSubmitting ? 'Sending...' : 'Submit'}
+            </button>
+          </div>
+        </div>
+      </Modal>
+      {/* Create Task Modal */}
+      <Modal
+        isOpen={showCreateModal}
+        onClose={() => { setShowCreateModal(false); setCreateForm({ title: '', description: '', priority: 'MEDIUM', dueAt: '', assigneeUserIds: [] }); }}
+        title="Assign Task to Faculty"
+        subtitle="Create and assign a task to one or more faculty members"
+        maxWidth="md"
+      >
+        <div className="space-y-4 text-xs">
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Task Title *</label>
+            <input
+              type="text"
+              value={createForm.title}
+              onChange={e => setCreateForm(f => ({ ...f, title: e.target.value }))}
+              placeholder="e.g. Submit attendance report for week 3"
+              className="w-full px-3 py-2.5 rounded-xl border border-border bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Description</label>
+            <textarea
+              rows={3}
+              value={createForm.description}
+              onChange={e => setCreateForm(f => ({ ...f, description: e.target.value }))}
+              placeholder="Task details and instructions for faculty..."
+              className="w-full px-3 py-2.5 rounded-xl border border-border bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none"
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Priority</label>
+              <div className="relative">
+                <select
+                  value={createForm.priority}
+                  onChange={e => setCreateForm(f => ({ ...f, priority: e.target.value }))}
+                  className="w-full appearance-none pl-3 pr-8 py-2.5 rounded-xl border border-border bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                >
+                  {['LOW','MEDIUM','HIGH','URGENT'].map(p => <option key={p} value={p}>{p}</option>)}
+                </select>
+                <ChevronDown className="absolute right-2.5 top-3 w-4 h-4 text-muted-foreground pointer-events-none"/>
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Due Date</label>
+              <input
+                type="date"
+                value={createForm.dueAt}
+                onChange={e => setCreateForm(f => ({ ...f, dueAt: e.target.value }))}
+                className="w-full px-3 py-2.5 rounded-xl border border-border bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+              />
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Assign to Faculty (multi-select)</label>
+            <div className="border border-border rounded-xl p-2 bg-background max-h-40 overflow-y-auto space-y-1">
+              {deptFaculty.length === 0 ? (
+                <p className="text-xs text-muted-foreground p-2">No department faculty loaded</p>
+              ) : deptFaculty.map((f: any) => {
+                const checked = createForm.assigneeUserIds.includes(f.userId || f.id);
+                const assigneeId = f.userId || f.id;
+                return (
+                  <label key={f.id} className={`flex items-center gap-2 p-2 rounded-lg cursor-pointer transition-colors ${checked ? 'bg-primary/10' : 'hover:bg-muted'}`}>
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() => setCreateForm(prev => ({
+                        ...prev,
+                        assigneeUserIds: checked
+                          ? prev.assigneeUserIds.filter(id => id !== assigneeId)
+                          : [...prev.assigneeUserIds, assigneeId],
+                      }))}
+                      className="rounded border-border"
+                    />
+                    <span className="text-sm text-foreground">{f.firstName} {f.lastName}</span>
+                    <span className="text-xs text-muted-foreground ml-auto">{f.designation}</span>
+                  </label>
+                );
+              })}
+            </div>
+            {createForm.assigneeUserIds.length > 0 && (
+              <p className="text-xs text-primary font-medium">{createForm.assigneeUserIds.length} faculty member(s) selected</p>
+            )}
+          </div>
+          <div className="flex justify-end gap-2 pt-2 border-t border-border">
+            <button type="button" onClick={() => setShowCreateModal(false)} className="px-4 py-2 rounded-xl border border-border text-xs font-semibold hover:bg-muted">Cancel</button>
+            <button
+              type="button"
+              onClick={handleCreateTask}
+              disabled={isCreating || !createForm.title.trim()}
+              className="px-5 py-2 rounded-xl bg-primary text-primary-foreground text-xs font-bold disabled:opacity-50 shadow-xs hover:bg-primary/90 cursor-pointer flex items-center gap-1.5"
+            >
+              {isCreating ? <RefreshCw className="w-3.5 h-3.5 animate-spin"/> : <Send className="w-3.5 h-3.5"/>}
+              {isCreating ? 'Assigning...' : 'Assign Task'}
             </button>
           </div>
         </div>

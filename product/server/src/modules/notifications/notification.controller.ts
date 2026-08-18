@@ -57,8 +57,8 @@ export class NotificationController {
   static async registerDeviceToken(req: Request, res: Response, next: NextFunction) {
     try {
       const userId = (req as any).user.id;
-      const { token, platform, deviceId } = req.body;
-      const device = await NotificationService.registerDeviceToken(userId, token, platform, deviceId);
+      const { token, platform, deviceId, appVersion } = req.body || {};
+      const device = await NotificationService.registerDeviceToken(userId, token, platform, deviceId, appVersion);
       res.status(200).json({ status: 'success', data: device });
     } catch (error) {
       next(error);

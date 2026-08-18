@@ -15,7 +15,7 @@ import { Bell, ArrowRight, X, Sparkles } from 'lucide-react';
 import api from '../lib/axios';
 import { useAuth } from '../context/AuthContext';
 import { resolveNotificationRoute } from './notification-router';
-import { setPendingDeepLink } from '../platform/pending-deep-link';
+import { setPendingDeepLink, consumePendingDeepLink } from '../platform/pending-deep-link';
 import { initFirebaseAnalytics, requestWebFcmToken, onForegroundWebMessage } from '../lib/firebase';
 import type {
   AppNotification,
@@ -116,11 +116,12 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const [deviceToken, setDeviceToken] = useState<string | null>(null);
   const [activeToast, setActiveToast] = useState<ActiveNotificationToast | null>(null);
 
-  const pushListenersRegistered = useRef(false);
+  const listenersAttachedRef = useRef(false);
   const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const toastTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const prevUnreadCountRef = useRef<number | null>(null);
   const lastRegisteredTokenRef = useRef<string | null>(null);
+  const lastRegisteredUserIdRef = useRef<string | null>(null);
 
   // ── Auto-dismiss toast banner after 6 seconds ──────────────────────
   useEffect(() => {
@@ -135,34 +136,35 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     };
   }, [activeToast]);
 
-  // ── Request Native & Web Notification Permissions ──────────────────
-  useEffect(() => {
-    async function requestPermissions() {
-      if (Capacitor.isNativePlatform()) {
-        try {
-          await LocalNotifications.requestPermissions();
-          await LocalNotifications.createChannel({
-            id: 'campusos_alerts',
-            name: 'CampusOS High Priority Alerts',
-            description: 'Instant notification alerts for leave, approvals, tasks & circulars',
-            importance: 5, // MAX importance for heads-up banner
-            visibility: 1,
-            vibration: true,
-          });
-        } catch (e) {
-          console.warn('[Notifications] Native channel init failed:', e);
-        }
-      } else if (typeof window !== 'undefined' && 'Notification' in window) {
-        if (Notification.permission === 'default') {
-          Notification.requestPermission().catch(() => {});
-        }
-      }
+  // ── Register push token with backend ──────────────────────────────
+  const registerTokenWithBackend = useCallback(async (token: string, platform: 'android' | 'ios' | 'web', targetUserId?: string) => {
+    const currentUserId = targetUserId || user?.id;
+    if (!currentUserId || !token) return;
+
+    if (lastRegisteredTokenRef.current === token && lastRegisteredUserIdRef.current === currentUserId) {
+      return;
     }
 
-    requestPermissions();
-  }, []);
+    try {
+      const deviceId = getOrCreateDeviceId();
+      const payload: DeviceTokenRegistration & { appVersion?: string } = {
+        token,
+        platform,
+        deviceId,
+        appVersion: '1.0.2',
+      };
+      await api.post('/notifications/device-tokens', payload);
+      lastRegisteredTokenRef.current = token;
+      lastRegisteredUserIdRef.current = currentUserId;
+      setDeviceToken(token);
+      console.log(`[PUSH] backend-device-register=200 platform=${platform} userId=${currentUserId.slice(0, 8)}...`);
+    } catch (err: any) {
+      const status = err.response?.status || 'network-error';
+      console.warn(`[PUSH] backend-register-failed status=${status}`, err);
+    }
+  }, [user?.id]);
 
-  // ── Dispatch Native Mobile, In-App Toast & Web OS Notification Banner ─
+  // ── Dispatch In-App Toast Banner & Web OS Notification Banner ───────
   const triggerNativeDeviceNotification = useCallback(
     async (title: string, body: string, type?: string, entityId?: string, deepLink?: string) => {
       // 1. Play soft audio chime & haptic feedback
@@ -180,26 +182,8 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
         createdAt: Date.now(),
       });
 
-      // 3. Schedule OS level notification
-      if (Capacitor.isNativePlatform()) {
-        try {
-          await LocalNotifications.schedule({
-            notifications: [
-              {
-                title,
-                body,
-                id: Math.floor(Math.random() * 100000),
-                schedule: { at: new Date(Date.now() + 100) },
-                channelId: 'campusos_alerts',
-                actionTypeId: 'OPEN_APP',
-                extra: { eventType: type, relatedEntityId: entityId, deepLinkRoute: deepLink },
-              },
-            ],
-          });
-        } catch (err) {
-          console.warn('[Notifications] Native LocalNotifications schedule failed:', err);
-        }
-      } else if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+      // 3. Browser web notification if permitted (native mobile relies on heads-up in-app toast + FCM system alert)
+      if (!Capacitor.isNativePlatform() && typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
         try {
           const notif = new Notification(title, {
             body,
@@ -211,7 +195,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
           notif.onclick = (e) => {
             e.preventDefault();
             window.focus();
-            const targetRoute = resolveNotificationRoute(type || 'GENERAL', entityId, deepLink);
+            const targetRoute = resolveNotificationRoute(type || 'GENERAL', entityId, deepLink, user?.role);
             if (targetRoute) {
               navigate(targetRoute);
             }
@@ -222,7 +206,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
         }
       }
     },
-    [navigate]
+    [navigate, user?.role]
   );
 
   // ── Fetch notifications list ───────────────────────────────────────
@@ -237,7 +221,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
         setMeta(res.data.meta);
         const newUnread = res.data.meta?.unreadCount ?? 0;
 
-        // Trigger native notification only if new unread notifications arrived after initial load
+        // Trigger in-app toast only if new unread notifications arrived after initial load
         if (prevUnreadCountRef.current !== null && newUnread > prevUnreadCountRef.current && fetchedList.length > 0) {
           const latest = fetchedList[0];
           if (latest && !latest.isRead) {
@@ -309,16 +293,24 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
   }, []);
 
   const clearNotification = useCallback(async (id: string) => {
-    await api.delete(`/notifications/${id}`);
-    setNotifications((prev) => prev.filter((item) => item.id !== id));
-    setUnreadCount((count) => Math.max(0, count - (notifications.find((item) => item.id === id && !item.isRead) ? 1 : 0)));
+    try {
+      await api.delete(`/notifications/${id}`);
+      setNotifications((prev) => prev.filter((item) => item.id !== id));
+      setUnreadCount((count) => Math.max(0, count - (notifications.find((item) => item.id === id && !item.isRead) ? 1 : 0)));
+    } catch (err) {
+      console.warn('[Notifications] Clear notification failed:', err);
+    }
   }, [notifications]);
 
   const clearAllNotifications = useCallback(async () => {
-    await api.delete('/notifications/clear-all');
-    setNotifications([]);
-    setUnreadCount(0);
-    setMeta((current) => current ? { ...current, total: 0, unreadCount: 0, totalPages: 0 } : current);
+    try {
+      await api.delete('/notifications/clear-all');
+      setNotifications([]);
+      setUnreadCount(0);
+      setMeta((current) => current ? { ...current, total: 0, unreadCount: 0, totalPages: 0 } : current);
+    } catch (err) {
+      console.warn('[Notifications] Clear all failed:', err);
+    }
   }, []);
 
   // ── Trigger live test notification for currently logged-in user ─────
@@ -347,112 +339,40 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     }
   }, [user, fetchUnreadCount, fetchNotifications, triggerNativeDeviceNotification]);
 
-  // ── Register push token with backend ──────────────────────────────
-  const registerTokenWithBackend = useCallback(async (token: string, platform: 'android' | 'ios' | 'web') => {
-    if (lastRegisteredTokenRef.current === token) return;
-    try {
-      const deviceId = getOrCreateDeviceId();
-      const payload: DeviceTokenRegistration = {
-        token,
-        platform,
-        deviceId,
-      };
-      await api.post('/notifications/device-tokens', payload);
-      lastRegisteredTokenRef.current = token;
-      setDeviceToken(token);
-      console.log(`[Push] Backend registration: SUCCESS (${platform})`);
-    } catch (err) {
-      console.warn('[Push] Backend registration: FAILED', err);
+  // ── Check pending deep link when user becomes authenticated ───────
+  useEffect(() => {
+    if (user?.id) {
+      const pending = consumePendingDeepLink();
+      if (pending) {
+        console.log(`[PUSH] Consuming cold-launch pending deep link: ${pending}`);
+        navigate(pending, { replace: false });
+      }
+    } else {
+      // User logged out — clear registration tracking
+      lastRegisteredUserIdRef.current = null;
+      lastRegisteredTokenRef.current = null;
     }
-  }, []);
+  }, [user?.id, navigate]);
 
-  // ── Cold-launch & Background deep link capture ─────────────────────
+  // ── Native Push Listeners Setup & Registration (Once on Native Mount) ─
   useEffect(() => {
     if (!Capacitor.isNativePlatform()) return;
 
-    let removePushListener: (() => void) | null = null;
-    let removeLocalListener: (() => void) | null = null;
+    let removePushAction: (() => void) | null = null;
+    let removeLocalAction: (() => void) | null = null;
+    let removePushReceived: (() => void) | null = null;
+    let removePushRegistration: (() => void) | null = null;
+    let removePushError: (() => void) | null = null;
 
-    PushNotifications.addListener('pushNotificationActionPerformed', (action) => {
-      const rawNotif = action.notification as any;
-      const data = (rawNotif?.data || rawNotif?.extra || rawNotif) as Record<string, any> | undefined;
-      const eventType = data?.eventType || data?.type || data?.event_type;
-      const entityId = data?.relatedEntityId || data?.entityId || data?.id;
-      const deepLink = data?.deepLinkRoute || data?.deepLink || data?.route || data?.url;
+    const setupNativePush = async () => {
+      console.log('[PUSH] bootstrap-start');
 
-      const route = resolveNotificationRoute(eventType, entityId, deepLink, user?.role);
-      if (route) {
-        if (user) {
-          navigate(route, { replace: false });
-          fetchUnreadCount();
-        } else {
-          setPendingDeepLink(route);
-        }
-      }
-    }).then((listener) => {
-      removePushListener = () => listener.remove();
-    }).catch((err) => {
-      console.warn('[Notifications] Push tap listener setup failed:', err);
-    });
-
-    LocalNotifications.addListener('localNotificationActionPerformed', (action) => {
-      const rawNotif = action.notification as any;
-      const data = (rawNotif?.extra || rawNotif?.data || rawNotif) as Record<string, any> | undefined;
-      const eventType = data?.eventType || data?.type || data?.event_type;
-      const entityId = data?.relatedEntityId || data?.entityId || data?.id;
-      const deepLink = data?.deepLinkRoute || data?.deepLink || data?.route || data?.url;
-
-      const route = resolveNotificationRoute(eventType, entityId, deepLink, user?.role);
-      if (route) {
-        if (user) {
-          navigate(route, { replace: false });
-          fetchUnreadCount();
-        } else {
-          setPendingDeepLink(route);
-        }
-      }
-    }).then((listener) => {
-      removeLocalListener = () => listener.remove();
-    }).catch((err) => {
-      console.warn('[Notifications] Local notification tap listener setup failed:', err);
-    });
-
-    return () => {
-      removePushListener?.();
-      removeLocalListener?.();
-    };
-  }, [user, navigate, fetchUnreadCount]);
-
-  // ── Register Capacitor push listeners (Mobile Native OS) ──────────
-  useEffect(() => {
-    if (!user || !Capacitor.isNativePlatform() || pushListenersRegistered.current) return;
-
-    const setup = async () => {
       try {
         const platform = Capacitor.getPlatform() as 'android' | 'ios';
 
-        try {
-          const { value: cachedToken } = await (await import('@capacitor/preferences')).Preferences.get({ key: 'campusos_fcm_token' });
-          if (cachedToken) {
-            registerTokenWithBackend(cachedToken, platform);
-          }
-        } catch (_) {}
-
-        let status = await PushNotifications.checkPermissions();
-
-        if (status.receive === 'prompt') {
-          status = await PushNotifications.requestPermissions();
-        }
-
-        if (status.receive !== 'granted') {
-          console.warn('[Push] Permission: DENIED / NOT GRANTED', status.receive);
-          return;
-        }
-
-        console.log('[Push] Permission: GRANTED');
-
-        try {
-          if (platform === 'android') {
+        // 1. Create Android Notification Channel
+        if (platform === 'android') {
+          try {
             await PushNotifications.createChannel({
               id: 'campusos_alerts',
               name: 'CampusOS Alerts',
@@ -462,23 +382,37 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
               sound: 'default',
               vibration: true,
               lights: true,
-            }).catch(() => {});
+            });
+          } catch (channelErr) {
+            console.warn('[PUSH] Channel creation warning:', channelErr);
           }
+        }
 
-          await PushNotifications.addListener('registration', (tokenData) => {
-            console.log('[Push] FCM token received: YES');
+        // 2. Install Listeners BEFORE calling PushNotifications.register()
+        if (!listenersAttachedRef.current) {
+          const regSub = await PushNotifications.addListener('registration', (tokenData) => {
+            const rawToken = tokenData.value;
+            const fingerprint = rawToken ? `${rawToken.slice(0, 6)}...${rawToken.slice(-6)} (len=${rawToken.length})` : 'empty';
+            console.log(`[PUSH] registration-success tokenFingerprint=${fingerprint}`);
+
             import('@capacitor/preferences').then(({ Preferences }) => {
-              Preferences.set({ key: 'campusos_fcm_token', value: tokenData.value }).catch(() => {});
+              Preferences.set({ key: 'campusos_fcm_token', value: rawToken }).catch(() => {});
             }).catch(() => {});
-            registerTokenWithBackend(tokenData.value, platform);
-          });
 
-          await PushNotifications.addListener('registrationError', (err) => {
-            console.error('[Push] Registration error from FCM:', err);
+            setDeviceToken(rawToken);
+            if (user?.id) {
+              registerTokenWithBackend(rawToken, platform, user.id);
+            }
           });
+          removePushRegistration = () => regSub.remove();
 
-          await PushNotifications.addListener('pushNotificationReceived', (notification) => {
-            console.log('[Push] Foreground push received:', notification.title);
+          const errSub = await PushNotifications.addListener('registrationError', (err) => {
+            console.error(`[PUSH] registration-error code=${err?.error || JSON.stringify(err)}`);
+          });
+          removePushError = () => errSub.remove();
+
+          const recSub = await PushNotifications.addListener('pushNotificationReceived', (notification) => {
+            console.log(`[PUSH] pushNotificationReceived title="${notification.title || ''}"`);
             fetchUnreadCount();
             fetchNotifications(1);
             triggerNativeDeviceNotification(
@@ -489,23 +423,116 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
               notification.data?.deepLinkRoute
             );
           });
+          removePushReceived = () => recSub.remove();
 
-          await PushNotifications.register();
-          pushListenersRegistered.current = true;
-        } catch (regErr) {
-          console.warn('[Push] Native push registration skipped:', regErr);
+          const actionSub = await PushNotifications.addListener('pushNotificationActionPerformed', (action) => {
+            const rawNotif = action.notification as any;
+            const data = (rawNotif?.data || rawNotif?.extra || rawNotif) as Record<string, any> | undefined;
+            const eventType = data?.eventType || data?.type || data?.event_type;
+            const entityId = data?.relatedEntityId || data?.entityId || data?.id;
+            const deepLink = data?.deepLinkRoute || data?.deepLink || data?.route || data?.url;
+
+            console.log(`[PUSH] pushNotificationActionPerformed eventType=${eventType || 'GENERAL'} entityId=${entityId || 'none'}`);
+
+            const route = resolveNotificationRoute(eventType, entityId, deepLink, user?.role);
+            if (route) {
+              if (user?.id) {
+                navigate(route, { replace: false });
+                fetchUnreadCount();
+              } else {
+                setPendingDeepLink(route);
+              }
+            }
+          });
+          removePushAction = () => actionSub.remove();
+
+          const localActionSub = await LocalNotifications.addListener('localNotificationActionPerformed', (action) => {
+            const rawNotif = action.notification as any;
+            const data = (rawNotif?.extra || rawNotif?.data || rawNotif) as Record<string, any> | undefined;
+            const eventType = data?.eventType || data?.type || data?.event_type;
+            const entityId = data?.relatedEntityId || data?.entityId || data?.id;
+            const deepLink = data?.deepLinkRoute || data?.deepLink || data?.route || data?.url;
+
+            const route = resolveNotificationRoute(eventType, entityId, deepLink, user?.role);
+            if (route) {
+              if (user?.id) {
+                navigate(route, { replace: false });
+                fetchUnreadCount();
+              } else {
+                setPendingDeepLink(route);
+              }
+            }
+          });
+          removeLocalAction = () => localActionSub.remove();
+
+          listenersAttachedRef.current = true;
+          console.log('[PUSH] listeners-installed');
         }
+
+        // 3. Permission Check & Request (Handles prompt, prompt-with-rationale, granted, denied)
+        let permStatus = await PushNotifications.checkPermissions();
+        console.log(`[PUSH] permission-check state=${permStatus.receive}`);
+
+        if (permStatus.receive === 'prompt' || permStatus.receive === 'prompt-with-rationale') {
+          permStatus = await PushNotifications.requestPermissions();
+          console.log(`[PUSH] permission-requested result=${permStatus.receive}`);
+        }
+
+        if (permStatus.receive === 'granted') {
+          console.log('[PUSH] permission=granted');
+          console.log('[PUSH] register-called');
+          await PushNotifications.register();
+          console.log('[PUSH] ready');
+        } else {
+          console.warn(`[PUSH] permission=${permStatus.receive}`);
+        }
+
+        // 4. Check cached token and sync if user is active
+        try {
+          const { Preferences } = await import('@capacitor/preferences');
+          const { value: cachedToken } = await Preferences.get({ key: 'campusos_fcm_token' });
+          if (cachedToken) {
+            setDeviceToken(cachedToken);
+            if (user?.id) {
+              registerTokenWithBackend(cachedToken, platform, user.id);
+            }
+          }
+        } catch (_) {}
       } catch (err) {
-        console.warn('[Notifications] Mobile push setup failed:', err);
+        console.error('[PUSH] Native push bootstrap error:', err);
       }
     };
 
-    setup();
-  }, [user, registerTokenWithBackend, fetchUnreadCount, fetchNotifications, triggerNativeDeviceNotification]);
+    setupNativePush();
+
+    return () => {
+      removePushRegistration?.();
+      removePushError?.();
+      removePushReceived?.();
+      removePushAction?.();
+      removeLocalAction?.();
+    };
+  }, []); // Run once on mount to establish permanent native listeners
+
+  // ── Sync Device Token to Backend whenever Authenticated User Changes ─
+  useEffect(() => {
+    if (!user?.id) return;
+
+    if (Capacitor.isNativePlatform()) {
+      const platform = Capacitor.getPlatform() as 'android' | 'ios';
+      import('@capacitor/preferences').then(({ Preferences }) => {
+        Preferences.get({ key: 'campusos_fcm_token' }).then(({ value: cachedToken }) => {
+          if (cachedToken) {
+            registerTokenWithBackend(cachedToken, platform, user.id);
+          }
+        }).catch(() => {});
+      }).catch(() => {});
+    }
+  }, [user?.id, registerTokenWithBackend]);
 
   // ── Register Web Firebase Push Listener & Token (Web Browser) ─────
   useEffect(() => {
-    if (!user || Capacitor.isNativePlatform()) return;
+    if (!user?.id || Capacitor.isNativePlatform()) return;
 
     let unsubscribeForeground: (() => void) | null = null;
 
@@ -518,7 +545,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
         if (Notification.permission === 'granted') {
           const webToken = await requestWebFcmToken();
           if (webToken) {
-            registerTokenWithBackend(webToken, 'web');
+            registerTokenWithBackend(webToken, 'web', user.id);
           }
         }
 
@@ -538,7 +565,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
           unsubscribeForeground = unsub;
         }
       } catch (err) {
-        console.warn('[Notifications] Web push setup failed:', err);
+        console.warn('[PUSH] Web push setup failed:', err);
       }
     };
 
@@ -547,7 +574,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     return () => {
       if (unsubscribeForeground) unsubscribeForeground();
     };
-  }, [user, registerTokenWithBackend, fetchUnreadCount, fetchNotifications, triggerNativeDeviceNotification]);
+  }, [user?.id, registerTokenWithBackend, fetchUnreadCount, fetchNotifications, triggerNativeDeviceNotification]);
 
   // ── Real-time 3s Polling + Window Focus Sync ────────────────────────
   useEffect(() => {
