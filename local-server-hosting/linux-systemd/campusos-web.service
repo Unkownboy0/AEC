@@ -1,0 +1,26 @@
+[Unit]
+Description=CampusOS Web SPA & Proxy Production Service
+After=network.target campusos-backend.service
+Wants=campusos-backend.service
+
+[Service]
+Type=simple
+User=campusos
+WorkingDirectory=/opt/campusos/local-server-hosting
+ExecStart=/usr/bin/node scripts/local-web-server.mjs
+Restart=always
+RestartSec=5
+Environment=NODE_ENV=production
+Environment=PORT=5173
+Environment=BACKEND_URL=http://127.0.0.1:5000
+
+# Security Sandbox options
+ProtectSystem=full
+NoNewPrivileges=true
+PrivateTmp=true
+
+# Resource limits
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target

@@ -4,7 +4,22 @@ This directory contains everything required to publish and host **CampusOS** on 
 
 ---
 
-## ⚡ Quickstart — 3-Step Launch (Windows)
+## ⚡ Quickstart — Linux / Ubuntu (1-Command Auto Deploy)
+
+```bash
+# Clone the repository onto Ubuntu server
+sudo git clone https://github.com/Unkownboy0/AEC.git /opt/campusos
+sudo chown -R $USER:$USER /opt/campusos
+cd /opt/campusos
+
+# Run the Ubuntu Auto-Installer
+sudo bash local-server-hosting/linux-systemd/ubuntu-setup.sh
+```
+*(For complete Ubuntu step-by-step instructions, see [`UBUNTU_DEPLOYMENT_GUIDE.md`](./UBUNTU_DEPLOYMENT_GUIDE.md))*
+
+---
+
+## ⚡ Quickstart — Windows (3-Step Launch)
 
 Navigate to the `windows-native/` folder and run the numbered batch scripts in order:
 
@@ -27,10 +42,18 @@ Once running:
 ```text
 local-server-hosting/
 ├── README.md                      # Master overview & quick start
+├── UBUNTU_DEPLOYMENT_GUIDE.md     # Dedicated Ubuntu/Debian deployment manual
 ├── DEPLOYMENT_GUIDE.md            # In-depth architectural & network configuration manual
 ├── CHECKLIST_AND_TODOS.md         # Pre-flight, deployment, and maintenance checklist
 ├── docker-compose.yml             # 1-command Docker stack (PostgreSQL + API + Nginx)
+├── ecosystem.config.cjs           # PM2 production process configuration
 ├── .env.local-server.example      # Pre-configured production environment variables
+│
+├── linux-systemd/                 # Linux on-premise server deployment
+│   ├── ubuntu-setup.sh            # 1-command auto-provisioning for fresh Ubuntu OS
+│   ├── deploy-linux.sh            # 1-step automated build & PM2 deployer
+│   ├── campusos-backend.service   # Systemd unit file for API server
+│   └── campusos-web.service       # Systemd unit file for Web SPA server
 │
 ├── windows-native/                # Windows host automation scripts
 │   ├── 01-prerequisites-check.bat # Check Node.js, ports, DB
@@ -40,19 +63,16 @@ local-server-hosting/
 │   ├── 05-stop-campusos.bat       # Gracefully kill running server processes
 │   ├── open-firewall-ports.bat    # Allow ports 80, 5000, 5173 through Windows Firewall
 │   ├── find-lan-ip.bat            # Auto-detect your local IPv4 address
-│   └── ecosystem.config.cjs       # PM2 production process configuration
+│   └── ecosystem.config.cjs       # PM2 Windows process configuration
 │
 ├── nginx/                         # Nginx reverse proxy configuration
 │   ├── nginx.conf                 # SPA routing, Gzip, caching, API proxy
 │   └── certs/                     # SSL/TLS certificates directory
 │
-├── linux-systemd/                 # Linux on-premise server deployment
-│   ├── campusos-backend.service   # Systemd unit file for API server
-│   └── deploy-linux.sh            # 1-step automated bash deployment script
-│
 └── scripts/                       # Reusable hosting utilities
     ├── local-web-server.mjs       # Zero-dependency Node.js production static SPA server + API proxy
-    └── backup-db.bat              # 1-click database backup utility
+    ├── backup-db.sh               # Linux automated PostgreSQL backup with retention
+    └── backup-db.bat              # Windows 1-click database backup utility
 ```
 
 ---
