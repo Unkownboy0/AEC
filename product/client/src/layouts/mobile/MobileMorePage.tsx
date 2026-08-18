@@ -30,8 +30,8 @@ export const MobileMorePage: React.FC<MobileMorePageProps> = ({ isOpen, onClose 
 
   if (!isOpen || !user) return null;
 
-  const role = user.role || 'STUDENT';
-  const sections = getMorePageSectionsForRole(role);
+  const activeRole = user.activeWorkspace || user.role || 'STUDENT';
+  const sections = getMorePageSectionsForRole(activeRole);
 
   const handleNavigate = (path: string) => {
     onClose();
@@ -64,7 +64,7 @@ export const MobileMorePage: React.FC<MobileMorePageProps> = ({ isOpen, onClose 
                 All Modules & Services
               </h2>
               <p className="text-xs text-text-muted mt-0.5">
-                Quick access to all features for {user.firstName || (user as any).name || role}
+                Quick access to all features for {user.firstName || (user as any).name || activeRole}
               </p>
             </div>
             <button

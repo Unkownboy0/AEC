@@ -39,35 +39,26 @@ export const FacultyDashboard: React.FC = () => {
     { intervalMs: 10000 }
   );
 
-  const fallbackData = {
-    todayClassesCount: 4,
+  // Default empty state when backend data is loading or empty
+  const defaultData = {
+    todayClassesCount: 0,
     metrics: {
-      pendingAttendance: 1,
-      assignmentsToGrade: 3,
-      marksToEnter: 2,
-      studentsOnLeave: 4,
+      pendingAttendance: 0,
+      assignmentsToGrade: 0,
+      marksToEnter: 0,
+      studentsOnLeave: 0,
     },
-    classesSchedule: [
-      { period: 1, time: '09:00 AM - 10:00 AM', subject: 'Data Structures', room: 'Lab 3', status: 'Completed' },
-      { period: 2, time: '10:15 AM - 11:15 AM', subject: 'Algorithms', room: 'Hall B', status: 'Pending Attendance' },
-      { period: 3, time: '01:30 PM - 02:30 PM', subject: 'Database Systems', room: 'Room 204', status: 'Upcoming' },
-      { period: 4, time: '02:45 PM - 03:45 PM', subject: 'Operating Systems', room: 'Lab 1', status: 'Upcoming' },
-    ],
-    pendingTasks: [
-      { id: '1', title: 'Grade Mid-Term Assignments', count: 18, actionPath: '/faculty/assignments' },
-      { id: '2', title: 'Enter Internal Test 1 Marks', count: 42, actionPath: '/faculty/internal-marks' },
-    ],
+    classesSchedule: [],
+    pendingTasks: [],
   };
 
-  const data = syncData || fallbackData;
+  const data = syncData || defaultData;
   const loading = isSyncLoading && !syncData;
-  const error = null;
 
   if (loading) return <Skeleton variant="card" count={4} />;
-  if (error) return <ErrorState title="Faculty Dashboard Error" message={error} onRetry={refetch} />;
 
-  const facultyName = user ? `Dr. ${user.firstName} ${user.lastName}` : 'Dr. Priya';
-  const classesCount = data?.todayClassesCount ?? 4;
+  const facultyName = user ? `${user.firstName} ${user.lastName}` : 'Faculty Member';
+  const classesCount = data?.todayClassesCount ?? 0;
 
   return (
     <motion.div variants={pageVariants} initial="initial" animate="animate" exit="exit" className="space-y-6">

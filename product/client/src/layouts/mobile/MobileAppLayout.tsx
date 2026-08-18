@@ -25,12 +25,31 @@ export const MobileAppLayout: React.FC<{ children?: React.ReactNode }> = ({ chil
   const navigate = useNavigate();
   const { user } = useAuth();
 
-  const roleUpper = (user?.role || '').toUpperCase();
-  const notifPath = roleUpper.includes('PRINCIPAL') ? '/principal/notifications'
-    : roleUpper.includes('VP') ? '/vp/notifications'
-    : roleUpper.includes('HOD') ? '/hod/notifications'
-    : roleUpper.includes('FACULTY') ? '/faculty/notifications'
-    : '/student/notifications';
+  // Resolve notification path from active workspace (preferred) or base role.
+  // Covers all 15+ workspace roles so tapping the bell always reaches the right inbox.
+  const activeWs = ((user?.activeWorkspace || user?.role || '') as string).toUpperCase();
+  const notifPath = (() => {
+    if (activeWs.includes('PRINCIPAL')) return '/principal/notifications';
+    if (activeWs.includes('VICE_PRINCIPAL') || activeWs === 'VP') return '/vp/notifications';
+    if (activeWs.includes('ACADEMIC_DEAN')) return '/academic-dean/notifications';
+    if (
+      activeWs.includes('ADMISSION_DEAN') ||
+      activeWs.includes('A_AND_A_DEAN') ||
+      activeWs.includes('ADMINISTRATION_DEAN')
+    ) return '/admission-dean/notifications';
+    if (activeWs.includes('IQAC')) return '/iqac/notifications';
+    if (activeWs.includes('COE') || activeWs.includes('CONTROLLER_OF_EXAM') || activeWs.includes('EXAMINATION_CELL')) return '/notifications';
+    if (activeWs.includes('HEAD_OF_DEPARTMENT') || activeWs === 'HOD') return '/hod/notifications';
+    if (activeWs.includes('CLASS_ADVIS')) return '/class-adviser/notifications';
+    if (activeWs === 'MENTOR') return '/faculty/notifications';
+    if (activeWs.includes('FACULTY') || activeWs.includes('FACULTY_MEMBER')) return '/faculty/notifications';
+    if (activeWs === 'PARENT') return '/parent/notifications';
+    if (activeWs.includes('ACCOUNTANT') || activeWs.includes('ACCOUNTS')) return '/notifications';
+    if (activeWs === 'AO' || activeWs.includes('ACCOUNTS_OFFICER')) return '/notifications';
+    if (activeWs === 'STUDENT') return '/student/notifications';
+    // Operational roles: library, hostel, transport, placement, HR, placement, college admin etc.
+    return '/notifications';
+  })();
 
   return (
     <div className="relative isolate lg:hidden min-h-dvh bg-app-bg text-foreground flex flex-col font-sans antialiased">

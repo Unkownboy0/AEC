@@ -33,6 +33,18 @@ export class FacultyController {
     }
   }
 
+  // ─── GET /api/faculty/class-adviser/dashboard ──────────────────
+  static async getClassAdviserDashboard(req: Request, res: Response) {
+    try {
+      const user = (req as any).user;
+      const requestedSectionId = req.query.sectionId as string | undefined;
+      const data = await FacultyDashboardService.getClassAdviserDashboard(user.id, requestedSectionId);
+      return res.json({ status: 'success', data });
+    } catch (err: any) {
+      return res.status(err.statusCode || 500).json({ status: 'error', message: err.message });
+    }
+  }
+
   // ─── GET /api/faculty/subjects ────────────────────────────────
   static async getSubjects(req: Request, res: Response) {
     try {

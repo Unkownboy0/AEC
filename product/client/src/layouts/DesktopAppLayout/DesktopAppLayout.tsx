@@ -4,7 +4,8 @@ import { clsx } from 'clsx';
 import { X } from 'lucide-react';
 import { DesktopSidebar } from '../../navigation/desktop/DesktopSidebar';
 import { TopHeader } from '../../navigation/desktop/TopHeader';
-import { MobileBottomNav } from '../../navigation/mobile/MobileBottomNav';
+import { MobileBottomNav } from '../../layouts/mobile/MobileBottomNav';
+import { MobileMorePage } from '../../layouts/mobile/MobileMorePage';
 import { useAuth } from '../../context/AuthContext';
 import { useDevice } from '../../context/DeviceContext';
 import { getMenuGroupsForRole } from '../../navigation/route-config/menuConfig';
@@ -126,8 +127,11 @@ export const DesktopAppLayout: React.FC<DesktopAppLayoutProps> = ({ children }) 
         </div>
       </div>
 
-      {/* Mobile Bottom Navigation */}
-      <MobileBottomNav role={user?.role} />
+      {/* Mobile Bottom Navigation — uses correct layout/mobile version */}
+      <MobileBottomNav
+        onOpenMore={() => {}}
+        isMoreActive={false}
+      />
     </div>
   );
 };

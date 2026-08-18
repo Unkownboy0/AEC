@@ -8,18 +8,25 @@ import type { NavEntry, NavGroup, NavGroupConfig } from './navigation.types';
   and return structured sidebar groups or mobile nav configs.
 */
 
+import { getMobileTabEntriesForRole } from './mobile-navigation';
+
 /** Normalize role string to uppercase for registry matching */
 function normalizeRole(role?: string): string {
-  return (role || '').toUpperCase().trim();
+  return (role || '').trim().toUpperCase().replace(/[\s-]+/g, '_');
 }
 
 /**
  * Get all NavEntries visible to a given role
  */
 export function getEntriesForRole(role?: string): NavEntry[] {
+  if (!role) return [];
   const r = normalizeRole(role);
+  const rawUpper = (role || '').toUpperCase().trim();
   return ROUTE_REGISTRY.filter((entry) =>
-    entry.roles.some((er) => er.toUpperCase() === r)
+    entry.roles.some((er) => {
+      const entryNormalized = normalizeRole(er);
+      return entryNormalized === r || er.toUpperCase() === rawUpper;
+    })
   ).sort((a, b) => a.order - b.order);
 }
 
@@ -72,10 +79,16 @@ export function getSidebarGroupsForRole(role?: string): SidebarGroup[] {
 }
 
 /**
- * Get the 5 bottom-nav tabs for a role
- * Returns entries where mobilePlacement === 'tab', capped at 5
+ * Get the bottom-nav tabs for a role
+ * Uses canonical 4-tab role configuration
  */
 export function getMobileTabsForRole(role?: string): NavEntry[] {
+  if (!role) return [];
+  const configuredTabs = getMobileTabEntriesForRole(role);
+  if (configuredTabs && configuredTabs.length > 0) {
+    return configuredTabs.slice(0, 4);
+  }
+
   return getEntriesForRole(role)
     .filter((e) => e.mobilePlacement === 'tab')
     .sort((a, b) => a.order - b.order)

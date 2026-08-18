@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import {
   Users, User, CheckSquare, BarChart2, DollarSign, Calendar, Clock,
   MessageSquare, ChevronRight, ShieldAlert, Award, FileText, Download, Send, CheckCircle2,
@@ -26,12 +27,29 @@ interface LinkedChild {
 
 export const ParentWorkspacePortal: React.FC = () => {
   const { user } = useAuth();
+  const location = useLocation();
   const [childrenList, setChildrenList] = useState<LinkedChild[]>([]);
   const [selectedChildId, setSelectedChildId] = useState<string>('');
   const [activeTab, setActiveTab] = useState<
     'overview' | 'attendance' | 'marks' | 'fees' | 'receipts' | 'leave' | 'timetable' | 'transport' | 'circulars' | 'mentor' | 'preferences'
   >('overview');
   const [loading, setLoading] = useState(true);
+
+  // Sync activeTab with URL pathname
+  useEffect(() => {
+    const p = location.pathname;
+    if (p.includes('/attendance')) setActiveTab('attendance');
+    else if (p.includes('/marks')) setActiveTab('marks');
+    else if (p.includes('/fees')) setActiveTab('fees');
+    else if (p.includes('/receipts')) setActiveTab('receipts');
+    else if (p.includes('/leave')) setActiveTab('leave');
+    else if (p.includes('/timetable')) setActiveTab('timetable');
+    else if (p.includes('/transport')) setActiveTab('transport');
+    else if (p.includes('/circulars')) setActiveTab('circulars');
+    else if (p.includes('/mentor') || p.includes('/messages')) setActiveTab('mentor');
+    else if (p.includes('/preferences') || p.includes('/profile')) setActiveTab('preferences');
+    else setActiveTab('overview');
+  }, [location.pathname]);
 
   // Tab Data States
   const [attendanceData, setAttendanceData] = useState<any>(null);

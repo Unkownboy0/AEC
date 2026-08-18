@@ -7,6 +7,7 @@ const router = Router();
 router.use(requireAuth);
 
 router.get('/dashboard', FacultyController.getDashboard);
+router.get('/class-adviser/dashboard', FacultyController.getClassAdviserDashboard);
 router.get('/subjects', FacultyController.getSubjects);
 router.get('/timetable', FacultyController.getTimetable);
 router.get('/attendance/sessions/today', FacultyController.getTodayAttendanceSessions);

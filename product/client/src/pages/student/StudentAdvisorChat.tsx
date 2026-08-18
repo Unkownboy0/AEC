@@ -1,217 +1,200 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { MessageSquare, Send, Clock, CheckCircle, Phone, Video, Paperclip, ChevronDown, ChevronUp } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import { CheckCircle, MessageSquare, Paperclip, RefreshCw, Send, UserRound } from 'lucide-react';
+import api from '../../lib/axios';
+import { downloadAndOpen } from '../../platform/download';
 import { toast } from '../../components/ui/Toast';
 import { Loading } from '../../components/ui/Loading';
 
-interface Message {
-  id: string;
-  senderRole: 'Student' | 'Advisor';
-  senderName: string;
-  message: string;
-  timestamp: string;
-  read: boolean;
+interface Participant { id: string; name: string; designation?: string | null; department?: string | null }
+interface Conversation {
+  conversationId: string;
+  participant: Participant;
+  unreadCount: number;
+  lastMessage?: { message?: string };
 }
+interface ChatMessage {
+  id: string;
+  senderRole: 'Student' | 'Faculty';
+  message: string;
+  sentTime: string;
+  status: string;
+  attachmentUrl?: string | null;
+  attachmentType?: string | null;
+}
+interface PendingAttachment { name: string; base64: string }
 
-const DEMO_MESSAGES: Message[] = [
-  { id: '1', senderRole: 'Advisor', senderName: 'Dr. Kavitha Rajan', message: 'Hello! I\'m your assigned academic advisor for this semester. Feel free to reach out regarding academics, career guidance, or any concerns.', timestamp: '2026-07-20T09:00:00', read: true },
-  { id: '2', senderRole: 'Student', senderName: 'You', message: 'Thank you Dr. Kavitha! I had a question regarding my CGPA eligibility for the upcoming Google drive. Could you review my profile?', timestamp: '2026-07-20T09:15:00', read: true },
-  { id: '3', senderRole: 'Advisor', senderName: 'Dr. Kavitha Rajan', message: 'Certainly! I checked your academic profile — your current CGPA of 9.5 and zero arrears makes you fully eligible. I have forwarded your profile to the placement cell for priority listing. Also, please ensure your resume is uploaded to the portal before the deadline.', timestamp: '2026-07-20T09:45:00', read: true },
-  { id: '4', senderRole: 'Advisor', senderName: 'Dr. Kavitha Rajan', message: 'Also, I recommend attending the upcoming mock aptitude test on July 28th organized by the Training & Placement Cell. Your participation will be marked positively.', timestamp: '2026-07-21T10:00:00', read: false },
-];
-
-const ADVISOR_INFO = {
-  name: 'Dr. Kavitha Rajan',
-  designation: 'Associate Professor & Academic Advisor',
-  department: 'Computer Science & Engineering',
-  email: 'kavitha.rajan@geetorus.edu.in',
-  phone: '+91 98001 23456',
-  availability: 'Mon–Fri: 10:00 AM – 4:00 PM',
-  initials: 'KR',
-};
+const initials = (name?: string) => (name || 'Faculty').split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]).join('').toUpperCase();
 
 export const StudentAdvisorChat: React.FC = () => {
-  const [messages, setMessages] = useState<Message[]>(DEMO_MESSAGES);
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [availableFaculty, setAvailableFaculty] = useState<Participant[]>([]);
+  const [activeConversation, setActiveConversation] = useState<Conversation | null>(null);
+  const [selectedFacultyId, setSelectedFacultyId] = useState('');
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [replyInput, setReplyInput] = useState('');
+  const [attachment, setAttachment] = useState<PendingAttachment | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [isAdvisorInfoExpanded, setIsAdvisorInfoExpanded] = useState(false);
+  const [isSending, setIsSending] = useState(false);
+  const [error, setError] = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    setIsLoading(false);
-    scrollToBottom();
-  }, []);
-
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
-
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  const loadMessages = async (conversationId: string) => {
+    const response = await api.get(`/chat/messages/${encodeURIComponent(conversationId)}`);
+    setMessages(response.data?.data || []);
   };
 
-  const handleSend = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!replyInput.trim()) return;
-    const newMsg: Message = {
-      id: Date.now().toString(),
-      senderRole: 'Student',
-      senderName: 'You',
-      message: replyInput.trim(),
-      timestamp: new Date().toISOString(),
-      read: true,
-    };
-    setMessages(prev => [...prev, newMsg]);
-    setReplyInput('');
-
-    // Simulate advisor response after delay
-    setTimeout(() => {
-      const responses = [
-        'Thank you for reaching out! I will review this and get back to you shortly.',
-        'Great question! Let me check the latest guidelines and respond to you by tomorrow.',
-        'I have noted your concern. Please visit my office during consultation hours for a detailed discussion.',
-      ];
-      const autoReply: Message = {
-        id: (Date.now() + 1).toString(),
-        senderRole: 'Advisor',
-        senderName: ADVISOR_INFO.name,
-        message: responses[Math.floor(Math.random() * responses.length)],
-        timestamp: new Date().toISOString(),
-        read: false,
-      };
-      setMessages(prev => [...prev, autoReply]);
-    }, 1800);
+  const loadConversations = async (preferredId?: string) => {
+    const response = await api.get('/chat/conversations');
+    const next: Conversation[] = response.data?.data || [];
+    setConversations(next);
+    const selected = next.find((item) => item.conversationId === preferredId)
+      || next.find((item) => item.conversationId === activeConversation?.conversationId)
+      || next[0]
+      || null;
+    setActiveConversation(selected);
+    return selected;
   };
 
-  const unreadCount = messages.filter(m => m.senderRole === 'Advisor' && !m.read).length;
+  const loadPage = async () => {
+    setIsLoading(true);
+    setError('');
+    try {
+      const [conversationResponse, facultyResponse] = await Promise.all([
+        api.get('/chat/conversations'),
+        api.get('/chat/faculty/list'),
+      ]);
+      const next: Conversation[] = conversationResponse.data?.data || [];
+      setConversations(next);
+      setAvailableFaculty(facultyResponse.data?.data || []);
+      const first = next[0] || null;
+      setActiveConversation(first);
+      if (first) await loadMessages(first.conversationId);
+      else setMessages([]);
+    } catch (requestError: any) {
+      setError(requestError.response?.data?.message || 'We could not load your conversations.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-  if (isLoading) return <Loading text="Connecting to Advisor Chat..." />;
+  useEffect(() => { void loadPage(); }, []);
+  useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
+
+  const selectConversation = async (conversation: Conversation) => {
+    setActiveConversation(conversation);
+    setSelectedFacultyId('');
+    setError('');
+    try { await loadMessages(conversation.conversationId); }
+    catch (requestError: any) { setError(requestError.response?.data?.message || 'We could not load this conversation.'); }
+  };
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+    if (file.size > 25 * 1024 * 1024) return toast.error('Attachments must be 25 MB or smaller.');
+    const reader = new FileReader();
+    reader.onload = () => setAttachment({ name: file.name, base64: String(reader.result || '') });
+    reader.onerror = () => toast.error('We could not read that file.');
+    reader.readAsDataURL(file);
+  };
+
+  const handleSend = async (event: React.FormEvent) => {
+    event.preventDefault();
+    const recipientId = activeConversation?.participant.id || selectedFacultyId;
+    if (!recipientId) return toast.error('Choose an authorized faculty member.');
+    if (!replyInput.trim() && !attachment) return toast.error('Enter a message or attach a file.');
+    setIsSending(true);
+    try {
+      const response = await api.post('/chat/messages', {
+        recipientId,
+        message: replyInput.trim(),
+        priority: 'NORMAL',
+        attachmentBase64: attachment?.base64,
+        attachmentName: attachment?.name,
+      });
+      setReplyInput('');
+      setAttachment(null);
+      const selected = await loadConversations(response.data?.data?.conversationId);
+      if (selected) await loadMessages(selected.conversationId);
+    } catch (requestError: any) {
+      toast.error(requestError.response?.data?.message || 'We could not send your message.');
+    } finally { setIsSending(false); }
+  };
+
+  const openAttachment = async (message: ChatMessage) => {
+    if (!message.attachmentUrl) return;
+    const result = await downloadAndOpen(
+      message.attachmentUrl,
+      `chat-attachment-${message.id}.${(message.attachmentType || 'bin').toLowerCase()}`,
+    );
+    if (!result.success) toast.error(result.error || 'We could not open this attachment.');
+  };
+
+  if (isLoading) return <Loading text="Loading conversations..." />;
+  const recipient = activeConversation?.participant || availableFaculty.find((item) => item.id === selectedFacultyId) || null;
 
   return (
-    <div className="h-[calc(100dvh-5.5rem)] lg:h-[calc(100dvh-7.5rem)] flex flex-col gap-0 animate-in fade-in duration-200">
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 h-full min-h-0">
-
-        {/* Advisor Info Panel */}
-        <div className="lg:col-span-1 space-y-3">
-          <div className="border bg-card p-4 sm:p-5 rounded-2xl shadow-sm space-y-3">
-            <div className="flex items-center justify-between">
-              <h3 className="text-xs font-black uppercase tracking-wider text-slate-400">Your Advisor</h3>
-              <button
-                type="button"
-                onClick={() => setIsAdvisorInfoExpanded(!isAdvisorInfoExpanded)}
-                className="lg:hidden p-1 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-muted"
-                aria-label="Toggle advisor info"
-              >
-                {isAdvisorInfoExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-              </button>
-            </div>
-
-            <div className="text-center space-y-2">
-              <div className="h-12 w-12 sm:h-16 sm:w-16 rounded-full bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-black text-lg sm:text-xl mx-auto">
-                {ADVISOR_INFO.initials}
-              </div>
-              <div>
-                <p className="text-sm font-extrabold text-slate-800 dark:text-white">{ADVISOR_INFO.name}</p>
-                <p className="text-[10px] text-slate-400 font-bold">{ADVISOR_INFO.designation}</p>
-              </div>
-              <div className="flex items-center justify-center gap-1.5">
-                <span className="h-2 w-2 rounded-full bg-emerald-500" />
-                <span className="text-[10px] text-emerald-600 font-bold">Available Now</span>
-              </div>
-            </div>
-
-            {/* Expandable Details on Mobile / Always visible on Desktop */}
-            <div className={`${isAdvisorInfoExpanded ? 'block' : 'hidden lg:block'} space-y-2 text-[10px] font-semibold text-slate-500 border-t pt-3`}>
-              <p><span className="font-extrabold text-slate-600 dark:text-slate-300">Dept:</span> {ADVISOR_INFO.department}</p>
-              <p><span className="font-extrabold text-slate-600 dark:text-slate-300">Hours:</span> {ADVISOR_INFO.availability}</p>
-              <p><span className="font-extrabold text-slate-600 dark:text-slate-300">Email:</span> <span className="text-indigo-600 break-all">{ADVISOR_INFO.email}</span></p>
-
-              <div className="flex gap-2 pt-2">
-                <button onClick={() => toast.info('Email opened in your default mail client.')}
-                  className="flex-1 py-2 border text-[10px] font-black rounded-xl hover:bg-muted flex items-center justify-center gap-1 touch-target">
-                  <Phone className="h-3 w-3" /> Contact
-                </button>
-                <button onClick={() => toast.info('Video meeting scheduled — check your email for the link.')}
-                  className="flex-1 py-2 border text-[10px] font-black rounded-xl hover:bg-muted flex items-center justify-center gap-1 touch-target">
-                  <Video className="h-3 w-3" /> Meet
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {unreadCount > 0 && (
-            <div className="border border-indigo-200 dark:border-indigo-800 bg-indigo-50 dark:bg-indigo-900/20 p-2.5 rounded-xl text-xs font-semibold text-indigo-700 dark:text-indigo-300 flex items-center gap-2">
-              <MessageSquare className="h-4 w-4 shrink-0" />
-              {unreadCount} unread message{unreadCount > 1 ? 's' : ''} from advisor
-            </div>
-          )}
+    <section className="min-h-[calc(100dvh-9rem)] lg:h-[calc(100dvh-8rem)] grid grid-cols-1 lg:grid-cols-[18rem_minmax(0,1fr)] gap-4">
+      <aside className="rounded-2xl bg-card ring-1 ring-border/70 overflow-hidden">
+        <div className="p-4 border-b border-border">
+          <h1 className="text-base font-bold">Faculty conversations</h1>
+          <p className="mt-1 text-xs text-muted-foreground">Only assigned mentors and class faculty are available.</p>
         </div>
-
-        {/* Chat Panel */}
-        <div className="lg:col-span-3 border bg-card rounded-2xl shadow-sm flex flex-col flex-1 min-h-0 overflow-hidden">
-          {/* Chat Header */}
-          <div className="p-3.5 sm:p-4 border-b flex items-center gap-3 shrink-0 bg-surface">
-            <div className="h-9 w-9 rounded-full bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-black">
-              {ADVISOR_INFO.initials}
-            </div>
-            <div>
-              <p className="text-sm font-extrabold text-slate-800 dark:text-white">{ADVISOR_INFO.name}</p>
-              <p className="text-[10px] text-slate-400 font-bold">{ADVISOR_INFO.designation}</p>
-            </div>
-            <div className="ml-auto flex items-center gap-1.5">
-              <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-              <span className="text-[10px] text-emerald-600 font-bold hidden sm:block">Online</span>
-            </div>
-          </div>
-
-          {/* Messages List Area */}
-          <div className="flex-1 min-h-0 overflow-y-auto p-3.5 sm:p-4 space-y-3.5 bg-slate-50/40 dark:bg-slate-900/20">
-            {messages.map(m => (
-              <div key={m.id} className={`flex ${m.senderRole === 'Student' ? 'justify-end' : 'justify-start'}`}>
-                {m.senderRole === 'Advisor' && (
-                  <div className="h-7 w-7 rounded-full bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-black text-xs shrink-0 mr-2 mt-1">
-                    {ADVISOR_INFO.initials}
-                  </div>
-                )}
-                <div className="max-w-[82%] sm:max-w-[75%] space-y-1">
-                  <div className={`p-3 rounded-2xl text-xs font-semibold leading-relaxed shadow-xs ${
-                    m.senderRole === 'Student'
-                      ? 'bg-indigo-600 text-white rounded-br-sm'
-                      : 'bg-surface text-slate-700 dark:text-slate-200 border rounded-bl-sm'
-                  }`}>
-                    {m.message}
-                  </div>
-                  <p className={`text-[9px] font-bold text-slate-400 ${m.senderRole === 'Student' ? 'text-right' : ''}`}>
-                    {new Date(m.timestamp).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
-                    {m.senderRole === 'Student' && <CheckCircle className="inline h-2.5 w-2.5 ml-1 text-indigo-400" />}
-                  </p>
+        {conversations.length ? (
+          <div className="flex lg:block gap-2 overflow-x-auto lg:overflow-y-auto p-2 lg:max-h-[calc(100dvh-16rem)]">
+            {conversations.map((conversation) => (
+              <button key={conversation.conversationId} type="button" onClick={() => void selectConversation(conversation)} className={`min-w-64 lg:min-w-0 w-full rounded-xl p-3 text-left transition-colors ${activeConversation?.conversationId === conversation.conversationId ? 'bg-primary/10 text-primary' : 'hover:bg-muted/60'}`}>
+                <div className="flex items-center gap-3">
+                  <span className="h-10 w-10 shrink-0 rounded-xl bg-primary/10 text-primary flex items-center justify-center text-xs font-bold">{initials(conversation.participant.name)}</span>
+                  <span className="min-w-0 flex-1"><span className="block truncate text-sm font-semibold">{conversation.participant.name}</span><span className="block truncate text-xs text-muted-foreground">{conversation.lastMessage?.message || 'Attachment'}</span></span>
+                  {conversation.unreadCount > 0 && <span className="rounded-md bg-primary px-1.5 py-0.5 text-[10px] font-bold text-primary-foreground">{conversation.unreadCount}</span>}
                 </div>
-              </div>
+              </button>
             ))}
+          </div>
+        ) : (
+          <div className="p-5 text-center"><MessageSquare className="mx-auto h-8 w-8 text-muted-foreground/40" /><p className="mt-3 text-sm font-semibold">No conversations yet</p><p className="mt-1 text-xs text-muted-foreground">Choose an authorized faculty member to begin.</p></div>
+        )}
+      </aside>
+
+      <div className="min-h-[30rem] rounded-2xl bg-card ring-1 ring-border/70 overflow-hidden flex flex-col">
+        <header className="p-4 border-b border-border flex items-center gap-3">
+          <span className="h-10 w-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center text-xs font-bold">{recipient ? initials(recipient.name) : <UserRound className="h-5 w-5" />}</span>
+          <div className="min-w-0 flex-1">
+            {recipient ? <><p className="truncate text-sm font-bold">{recipient.name}</p><p className="truncate text-xs text-muted-foreground">{[recipient.designation, recipient.department].filter(Boolean).join(' · ') || 'Faculty'}</p></> : (
+              <select value={selectedFacultyId} onChange={(event) => setSelectedFacultyId(event.target.value)} className="w-full max-w-sm rounded-xl border border-border bg-background px-3 py-2 text-sm" aria-label="Choose faculty member"><option value="">Choose faculty member</option>{availableFaculty.map((faculty) => <option key={faculty.id} value={faculty.id}>{faculty.name}{faculty.designation ? ` · ${faculty.designation}` : ''}</option>)}</select>
+            )}
+          </div>
+          <button type="button" onClick={() => void loadPage()} className="touch-target rounded-xl p-2 text-muted-foreground hover:bg-muted" aria-label="Refresh conversations"><RefreshCw className="h-4 w-4" /></button>
+        </header>
+
+        {error ? (
+          <div className="flex-1 flex flex-col items-center justify-center p-6 text-center"><p className="text-sm font-semibold text-danger">{error}</p><button type="button" onClick={() => void loadPage()} className="mt-4 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground">Retry</button></div>
+        ) : (
+          <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-3 bg-muted/20">
+            {messages.length === 0 && recipient && <p className="py-12 text-center text-sm text-muted-foreground">No messages in this conversation.</p>}
+            {!recipient && <p className="py-12 text-center text-sm text-muted-foreground">Select a faculty member to view or start a conversation.</p>}
+            {messages.map((message) => {
+              const mine = message.senderRole === 'Student';
+              return <article key={message.id} className={`flex ${mine ? 'justify-end' : 'justify-start'}`}><div className={`max-w-[84%] sm:max-w-[72%] rounded-2xl px-3.5 py-3 text-sm ${mine ? 'rounded-br-sm bg-primary text-primary-foreground' : 'rounded-bl-sm bg-background ring-1 ring-border'}`}>{message.message && <p className="whitespace-pre-wrap break-words">{message.message}</p>}{message.attachmentUrl && <button type="button" className="mt-2 block underline underline-offset-2" onClick={() => void openAttachment(message)}>Open {message.attachmentType || 'attachment'}</button>}<p className={`mt-1.5 text-[10px] ${mine ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>{new Date(message.sentTime).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}{mine && <CheckCircle className="ml-1 inline h-3 w-3" />}</p></div></article>;
+            })}
             <div ref={messagesEndRef} />
           </div>
+        )}
 
-          {/* Composer Input - Sticky at bottom */}
-          <form onSubmit={handleSend} className="p-3 sm:p-4 border-t bg-surface flex gap-2 shrink-0 items-center">
-            <button type="button" onClick={() => toast.info('File attachment coming soon.')}
-              className="p-2.5 hover:bg-muted rounded-xl border transition-colors shrink-0 touch-target"
-              title="Attach File">
-              <Paperclip className="h-4 w-4 text-slate-400" />
-            </button>
-            <input
-              type="text"
-              value={replyInput}
-              onChange={e => setReplyInput(e.target.value)}
-              placeholder="Type your message to advisor..."
-              className="flex-1 text-xs px-3.5 py-2.5 min-h-[40px] border rounded-xl bg-background outline-none font-semibold focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/15 transition-all"
-            />
-            <button type="submit"
-              className="px-4 py-2.5 min-h-[40px] bg-indigo-600 text-white text-xs font-black rounded-xl shadow hover:bg-indigo-700 active:scale-95 transition-all flex items-center gap-1.5 shrink-0 touch-target">
-              <Send className="h-4 w-4" />
-            </button>
-          </form>
-        </div>
+        <form onSubmit={handleSend} className="border-t border-border bg-card p-3 sm:p-4">
+          {attachment && <div className="mb-2 flex items-center justify-between rounded-lg bg-muted px-3 py-2 text-xs"><span className="truncate">{attachment.name}</span><button type="button" onClick={() => setAttachment(null)} className="font-semibold text-danger">Remove</button></div>}
+          <div className="flex items-center gap-2">
+            <input ref={fileInputRef} type="file" className="hidden" onChange={handleFileChange} accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx" />
+            <button type="button" onClick={() => fileInputRef.current?.click()} className="touch-target rounded-xl border border-border p-2.5 text-muted-foreground hover:bg-muted" aria-label="Attach file"><Paperclip className="h-4 w-4" /></button>
+            <input value={replyInput} onChange={(event) => setReplyInput(event.target.value)} placeholder="Write a message" disabled={!recipient || isSending} className="min-h-11 flex-1 rounded-xl border border-border bg-background px-3.5 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 disabled:opacity-60" />
+            <button type="submit" disabled={!recipient || isSending} className="touch-target rounded-xl bg-primary px-4 text-primary-foreground active:scale-[0.98] disabled:opacity-50" aria-label="Send message"><Send className="h-4 w-4" /></button>
+          </div>
+        </form>
       </div>
-    </div>
+    </section>
   );
 };
 

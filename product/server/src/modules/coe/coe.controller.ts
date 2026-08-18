@@ -12,6 +12,7 @@ export class CoeController {
   allocateSeats = this.wrap((req) => this.service.allocateSeats(req.body, req.user!.id, req), 201);
   publishSeats = this.wrap((req) => this.service.publishSeats(req.params.scheduleEntryId, req.user!.id, req));
   assignInvigilator = this.wrap((req) => this.service.assignInvigilator(req.body, req.user!.id, req), 201);
+  publishResults = this.wrap((req) => this.service.publishResults(req.params.examId, req.user!.id, req));
   studentHall = this.wrap((req) => this.service.studentHallView(req.user!.id));
 
   private wrap(handler: (req: Request) => Promise<any>, status = 200) {

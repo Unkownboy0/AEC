@@ -33,7 +33,11 @@ export const ProtectedRoute: React.FC<RouteGuardProps> = ({
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  const role = user.role || 'STUDENT';
+  // Authorization follows the server-selected workspace. The base identity role can
+  // remain FACULTY while the same account is actively operating as HOD or MENTOR.
+  // Validating only user.role made an authorized workspace switch navigate straight
+  // into the global Access Denied state.
+  const role = user.activeWorkspace || user.role || 'STUDENT';
   const resolveResult = resolveRoutePath(location.pathname, role);
 
   if (allowedRoles && allowedRoles.length > 0) {

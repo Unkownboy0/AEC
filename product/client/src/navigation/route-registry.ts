@@ -76,6 +76,57 @@ export const ROUTE_REGISTRY: NavEntry[] = [
   {id:'academic-dean-circulars',label:'Circulars',icon:'Megaphone',description:'Publish and review academic circulars',path:'/academic-dean/circulars',roles:['ACADEMIC_DEAN','Academic Dean'],group:'communication',mobilePlacement:'more',order:1},
   {id:'academic-dean-reports',label:'Reports & Analytics',icon:'ChartNoAxesColumnIncreasing',description:'Review institutional academic reports',path:'/academic-dean/reports',roles:['ACADEMIC_DEAN','Academic Dean'],group:'insights',mobilePlacement:'tab',order:1},
   {id:'academic-dean-notifications',label:'Notifications',icon:'Bell',description:'Academic workflow notifications',path:'/academic-dean/notifications',roles:['ACADEMIC_DEAN','Academic Dean'],group:'communication',mobilePlacement:'more',order:2},
+  // Academic Dean - add approvals tab
+  {id:'academic-dean-approvals',label:'Approvals',icon:'CircleCheckBig',description:'Academic approval requests',path:'/academic-dean/approvals',roles:['ACADEMIC_DEAN','Academic Dean'],group:'overview',mobilePlacement:'tab',order:3,badgeKey:'pendingApprovals'},
+  {id:'academic-dean-profile',label:'My Profile',icon:'UserRound',description:'View and edit your profile',path:'/academic-dean/profile',roles:['ACADEMIC_DEAN','Academic Dean'],group:'account',mobilePlacement:'more',order:1},
+
+  // ADMISSION DEAN routes
+  {id:'admission-dean-dashboard',label:'Dashboard',icon:'LayoutDashboard',description:'Admissions and administration overview',path:'/admission-dean/dashboard',roles:['ADMISSION_DEAN','Admission Dean','ADMISSION_AND_ADMINISTRATION_DEAN','ADMINISTRATION_DEAN'],group:'overview',mobilePlacement:'tab',order:1},
+  {id:'admission-dean-admissions',label:'Admissions',icon:'UserPlus',description:'Applications and admission funnel',path:'/admission-dean/admissions',roles:['ADMISSION_DEAN','Admission Dean','ADMISSION_AND_ADMINISTRATION_DEAN','ADMINISTRATION_DEAN'],group:'management',mobilePlacement:'tab',order:1},
+  {id:'admission-dean-services',label:'Student Services',icon:'Layers3',description:'Student administration & services',path:'/admission-dean/services',roles:['ADMISSION_DEAN','Admission Dean','ADMISSION_AND_ADMINISTRATION_DEAN','ADMINISTRATION_DEAN'],group:'management',mobilePlacement:'tab',order:2},
+  {id:'admission-dean-approvals',label:'Requests & Approvals',icon:'CircleCheckBig',description:'Administrative and admission requests',path:'/admission-dean/approvals',roles:['ADMISSION_DEAN','Admission Dean','ADMISSION_AND_ADMINISTRATION_DEAN','ADMINISTRATION_DEAN'],group:'requests',mobilePlacement:'tab',order:1,badgeKey:'pendingApprovals'},
+  {id:'admission-dean-notifications',label:'Notifications',icon:'Bell',description:'Admission alerts and updates',path:'/admission-dean/notifications',roles:['ADMISSION_DEAN','Admission Dean','ADMISSION_AND_ADMINISTRATION_DEAN','ADMINISTRATION_DEAN'],group:'communication',mobilePlacement:'more',order:1},
+  {id:'admission-dean-profile',label:'My Profile',icon:'UserRound',description:'View and edit your profile',path:'/admission-dean/profile',roles:['ADMISSION_DEAN','Admission Dean','ADMISSION_AND_ADMINISTRATION_DEAN','ADMINISTRATION_DEAN'],group:'account',mobilePlacement:'more',order:1},
+
+  // IQAC routes
+  {id:'iqac-dashboard',label:'Dashboard',icon:'LayoutDashboard',description:'Quality overview and accreditation KPIs',path:'/iqac/dashboard',roles:['IQAC','IQAC_DEAN','IQAC Dean'],group:'overview',mobilePlacement:'tab',order:1},
+  {id:'iqac-approvals',label:'Approvals',icon:'CircleCheckBig',description:'IQAC approval requests',path:'/iqac/approvals',roles:['IQAC','IQAC_DEAN','IQAC Dean'],group:'overview',mobilePlacement:'tab',order:2,badgeKey:'pendingApprovals'},
+  {id:'iqac-evidence',label:'Evidence',icon:'FolderArchive',description:'Quality evidence repository',path:'/iqac/evidence',roles:['IQAC','IQAC_DEAN','IQAC Dean'],group:'management',mobilePlacement:'tab',order:1},
+  {id:'iqac-tasks',label:'Tasks',icon:'ListChecks',description:'Accreditation tasks and deadlines',path:'/iqac/tasks',roles:['IQAC','IQAC_DEAN','IQAC Dean'],group:'management',mobilePlacement:'more',order:2,badgeKey:'pendingTasks'},
+  {id:'iqac-accreditation',label:'Accreditation',icon:'Award',description:'NAAC, NBA and accreditation workflows',path:'/iqac/accreditation',roles:['IQAC','IQAC_DEAN','IQAC Dean'],group:'management',mobilePlacement:'more',order:3},
+  {id:'iqac-reports',label:'Reports',icon:'ChartSpline',description:'Quality and accreditation reports',path:'/iqac/reports',roles:['IQAC','IQAC_DEAN','IQAC Dean'],group:'insights',mobilePlacement:'more',order:1},
+  {id:'iqac-circulars',label:'Circulars',icon:'Megaphone',description:'Quality circulars and notices',path:'/iqac/circulars',roles:['IQAC','IQAC_DEAN','IQAC Dean'],group:'communication',mobilePlacement:'more',order:1},
+  {id:'iqac-notifications',label:'Notifications',icon:'Bell',description:'Quality workflow notifications',path:'/iqac/notifications',roles:['IQAC','IQAC_DEAN','IQAC Dean'],group:'communication',mobilePlacement:'tab',order:4,badgeKey:'unreadNotifications'},
+  {id:'iqac-profile',label:'My Profile',icon:'UserRound',description:'View and edit your profile',path:'/iqac/profile',roles:['IQAC','IQAC_DEAN','IQAC Dean'],group:'account',mobilePlacement:'more',order:1},
+
+  // MENTOR routes (faculty acting as mentor)
+  {id:'mentor-dashboard',label:'Dashboard',icon:'LayoutDashboard',description:'Mentor overview and mentee status',path:'/faculty/mentor/dashboard',roles:['MENTOR'],group:'overview',mobilePlacement:'tab',order:1},
+  {id:'mentor-students',label:'My Mentees',icon:'Heart',description:'All your assigned mentee students',path:'/mentor/students',roles:['MENTOR'],group:'teaching',mobilePlacement:'tab',order:1},
+  {id:'mentor-leave-od',label:'Approvals',icon:'CircleCheckBig',description:'Leave and OD approval requests from mentees',path:'/mentor/leave-od',roles:['MENTOR'],group:'requests',mobilePlacement:'tab',order:1,badgeKey:'pendingApprovals'},
+  {id:'mentor-attendance',label:'Attendance',icon:'ClipboardCheck',description:'Mentee attendance overview',path:'/faculty/mentor/attendance',roles:['MENTOR'],group:'academics',mobilePlacement:'more',order:1},
+  {id:'mentor-academics',label:'Academic Performance',icon:'ChartNoAxesColumnIncreasing',description:'Mentee academic progress',path:'/faculty/mentor/academics',roles:['MENTOR'],group:'academics',mobilePlacement:'more',order:2},
+  {id:'mentor-counselling',label:'Counselling',icon:'MessageSquare',description:'Counselling sessions and notes',path:'/faculty/mentor/counselling',roles:['MENTOR'],group:'responsibilities',mobilePlacement:'more',order:1},
+  {id:'mentor-parents',label:'Parent Comm',icon:'Phone',description:'Parent communication and meetings',path:'/faculty/mentor/parents',roles:['MENTOR'],group:'responsibilities',mobilePlacement:'more',order:2},
+  {id:'mentor-notifications',label:'Notifications',icon:'Bell',description:'Mentor notifications',path:'/faculty/notifications',roles:['MENTOR'],group:'communication',mobilePlacement:'more',order:1,badgeKey:'unreadNotifications'},
+  {id:'mentor-profile',label:'My Profile',icon:'UserRound',description:'View and edit your profile',path:'/faculty/profile',roles:['MENTOR'],group:'account',mobilePlacement:'more',order:4},
+
+  // CLASS_ADVISER routes
+  {id:'class-adviser-dashboard',label:'Dashboard',icon:'LayoutDashboard',description:'Class overview and student status',path:'/class-adviser/dashboard',roles:['CLASS_ADVISER','Class Adviser','CLASS_ADVISOR'],group:'overview',mobilePlacement:'tab',order:1},
+  {id:'class-adviser-students',label:'My Class',icon:'GraduationCap',description:'Students in your assigned class',path:'/class-adviser/students',roles:['CLASS_ADVISER','Class Adviser','CLASS_ADVISOR'],group:'teaching',mobilePlacement:'tab',order:1},
+  {id:'class-adviser-attendance',label:'Attendance',icon:'ClipboardCheck',description:'Class attendance monitoring',path:'/class-adviser/attendance',roles:['CLASS_ADVISER','Class Adviser','CLASS_ADVISOR'],group:'teaching',mobilePlacement:'tab',order:2},
+  {id:'class-adviser-approvals',label:'Approvals',icon:'CircleCheckBig',description:'Class student leave and requests',path:'/class-adviser/leave-od',roles:['CLASS_ADVISER','Class Adviser','CLASS_ADVISOR'],group:'requests',mobilePlacement:'tab',order:1,badgeKey:'pendingApprovals'},
+  {id:'class-adviser-academics',label:'Academic Progress',icon:'ChartNoAxesColumnIncreasing',description:'Academic performance of class',path:'/class-adviser/academics',roles:['CLASS_ADVISER','Class Adviser','CLASS_ADVISOR'],group:'academics',mobilePlacement:'more',order:1},
+  {id:'class-adviser-circulars',label:'Circulars',icon:'Megaphone',description:'Class circulars and notices',path:'/class-adviser/circulars',roles:['CLASS_ADVISER','Class Adviser','CLASS_ADVISOR'],group:'communication',mobilePlacement:'more',order:1},
+  {id:'class-adviser-notifications',label:'Notifications',icon:'Bell',description:'Class advisement alerts',path:'/class-adviser/notifications',roles:['CLASS_ADVISER','Class Adviser','CLASS_ADVISOR'],group:'communication',mobilePlacement:'more',order:2},
+  {id:'class-adviser-profile',label:'My Profile',icon:'UserRound',description:'View and edit your profile',path:'/class-adviser/profile',roles:['CLASS_ADVISER','Class Adviser','CLASS_ADVISOR'],group:'account',mobilePlacement:'tab',order:4},
+
+  // Notification and sub-tab routes
+  {id:'student-notifications',label:'Notifications',icon:'Bell',description:'Student alerts and updates',path:'/student/notifications',roles:['STUDENT','student'],group:'communication',mobilePlacement:'tab',order:3,badgeKey:'unreadNotifications'},
+  {id:'faculty-notifications',label:'Notifications',icon:'Bell',description:'Faculty alerts and notices',path:'/faculty/notifications',roles:['FACULTY','faculty','FACULTY_MEMBER'],group:'communication',mobilePlacement:'tab',order:4,badgeKey:'unreadNotifications'},
+  {id:'hod-department-overview',label:'Department',icon:'Building2',description:'Department profile and structure',path:'/hod/department-overview',roles:['HOD','HEAD_OF_DEPARTMENT'],group:'management',mobilePlacement:'tab',order:2},
+  {id:'hod-notifications',label:'Notifications',icon:'Bell',description:'Department notifications',path:'/hod/notifications',roles:['HOD','HEAD_OF_DEPARTMENT'],group:'communication',mobilePlacement:'tab',order:4,badgeKey:'unreadNotifications'},
+  {id:'principal-notifications',label:'Notifications',icon:'Bell',description:'Executive alerts and notices',path:'/principal/notifications',roles:['PRINCIPAL','Principal'],group:'communication',mobilePlacement:'tab',order:4,badgeKey:'unreadNotifications'},
+
   // ====================================================
   // STUDENT ROUTES
   // ====================================================
@@ -295,7 +346,7 @@ export const ROUTE_REGISTRY: NavEntry[] = [
     path: '/faculty/attendance',
     roles: ['FACULTY', 'faculty', 'FACULTY_MEMBER'],
     group: 'teaching',
-    mobilePlacement: 'tab',
+    mobilePlacement: 'more',
     order: 2,
   },
   {
@@ -328,7 +379,7 @@ export const ROUTE_REGISTRY: NavEntry[] = [
     path: '/faculty/students',
     roles: ['FACULTY', 'faculty', 'FACULTY_MEMBER'],
     group: 'teaching',
-    mobilePlacement: 'tab',
+    mobilePlacement: 'more',
     order: 5,
   },
   {
@@ -434,7 +485,7 @@ export const ROUTE_REGISTRY: NavEntry[] = [
     path: '/hod/department-availability',
     roles: ['HOD', 'HEAD_OF_DEPARTMENT'],
     group: 'management',
-    mobilePlacement: 'tab',
+    mobilePlacement: 'more',
     order: 1,
   },
   {
@@ -489,7 +540,7 @@ export const ROUTE_REGISTRY: NavEntry[] = [
     path: '/hod/tasks',
     roles: ['HOD', 'HEAD_OF_DEPARTMENT'],
     group: 'management',
-    mobilePlacement: 'tab',
+    mobilePlacement: 'more',
     order: 5,
     badgeKey: 'pendingTasks',
   },
@@ -545,7 +596,7 @@ export const ROUTE_REGISTRY: NavEntry[] = [
     path: '/hod/profile',
     roles: ['HOD', 'HEAD_OF_DEPARTMENT'],
     group: 'account',
-    mobilePlacement: 'tab',
+    mobilePlacement: 'more',
     order: 1,
   },
 
@@ -710,8 +761,21 @@ export const ROUTE_REGISTRY: NavEntry[] = [
     path: '/principal/profile',
     roles: ['PRINCIPAL'],
     group: 'account',
+    mobilePlacement: 'more',
+    order: 4,
+  },
+  {
+    id: 'principal-notifications',
+    label: 'Notifications',
+    shortLabel: 'Alerts',
+    description: 'Principal notifications and alerts',
+    icon: 'Bell',
+    path: '/principal/notifications',
+    roles: ['PRINCIPAL'],
+    group: 'communication',
     mobilePlacement: 'tab',
     order: 4,
+    badgeKey: 'unreadNotifications',
   },
 
   // ====================================================
@@ -815,7 +879,7 @@ export const ROUTE_REGISTRY: NavEntry[] = [
     path: '/vp/profile',
     roles: ['VICE_PRINCIPAL', 'VP'],
     group: 'account',
-    mobilePlacement: 'tab',
+    mobilePlacement: 'more',
     order: 5,
   },
 

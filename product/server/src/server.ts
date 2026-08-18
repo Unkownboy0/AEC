@@ -9,14 +9,14 @@ const server = app.listen(env.PORT, '0.0.0.0', () => {
 
 server.on('error', (err: any) => {
   if (err.code === 'EADDRINUSE') {
-    setTimeout(() => {
-      try {
-        server.close();
-        server.listen(env.PORT, '0.0.0.0');
-      } catch (_) {}
-    }, 1000);
+    // A deployment must not appear healthy while an older process still owns the
+    // configured port. Let the service manager surface and restart the failed unit
+    // instead of silently retrying forever against the same occupied address.
+    logger.error(`CampusOS API could not start: port ${env.PORT} is already in use.`);
+    void prisma.$disconnect().finally(() => process.exit(1));
   } else {
     logger.error('HTTP Server Error:', err);
+    void prisma.$disconnect().finally(() => process.exit(1));
   }
 });
 
@@ -51,9 +51,6 @@ process.on('unhandledRejection', (reason, promise) => {
 });
 
 process.on('uncaughtException', (error: any) => {
-  if (error && error.code === 'EADDRINUSE') {
-    return;
-  }
   logger.error('Uncaught Exception thrown:', error);
   gracefulShutdown('UNCAUGHT_EXCEPTION');
 });

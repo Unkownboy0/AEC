@@ -210,4 +210,41 @@ export class CoeService {
       return { ...allocation, schedule, room: rooms.find((item: any) => item.id === allocation.roomId), subject: subjects.find((item: any) => item.id === schedule?.subjectId), exam: exams.find((item: any) => item.id === schedule?.examId) };
     });
   }
+
+  async publishResults(examId: string, actorId: string, req?: any) {
+    if (!examId || examId.trim() === '') {
+      throw new BadRequestException('Exam ID is required for result publication');
+    }
+    const exam = await db.exam.findFirst({ where: { id: examId, deleted: false } });
+    if (!exam) {
+      throw new NotFoundException('Exam record not found');
+    }
+    const updated = await db.mark.updateMany({
+      where: { examId, status: { in: ['DRAFT', 'SUBMITTED', 'ENTERED'] } },
+      data: { status: 'PUBLISHED' },
+    });
+
+    NotificationService.dispatchDomainEvent({
+      eventType: 'RESULT_PUBLISHED',
+      actorUserId: actorId,
+      entityType: 'EXAM_RESULT',
+      entityId: examId,
+      title: 'Exam Results Published',
+      body: `Examination results for ${exam.name || 'term exams'} have been published.`,
+      priority: 'HIGH',
+      category: 'EXAMS',
+      deepLinkRoute: '/student/results',
+    }).catch((err) => console.error('[CoeService] Result publish notification error:', err));
+
+    await AuditService.log({
+      actorId,
+      action: 'PUBLISH_RESULTS',
+      entityType: 'EXAM_RESULT',
+      entityId: examId,
+      description: `Published exam results for ${exam.name}`,
+      req,
+    });
+
+    return { examId, status: 'PUBLISHED', recordsPublished: updated.count };
+  }
 }

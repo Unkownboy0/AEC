@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { requireAuth, requireRole } from '../../core/middlewares/auth.middleware';
+import { requireAuth, requireRole, requirePermission } from '../../core/middlewares/auth.middleware';
 import { CoeController } from './coe.controller';
 
 const router = Router();
@@ -17,5 +17,7 @@ router.post('/rooms', coeOnly, controller.createRoom);
 router.post('/hall-allocations/auto', coeOnly, controller.allocateSeats);
 router.post('/hall-allocations/:scheduleEntryId/publish', coeOnly, controller.publishSeats);
 router.post('/invigilation', coeOnly, controller.assignInvigilator);
+// Explicit RESULT_PUBLISH permission requirement for exam result publication
+router.post('/exams/:examId/results/publish', coeOnly, requirePermission('RESULT_PUBLISH'), controller.publishResults);
 
 export default router;

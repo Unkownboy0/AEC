@@ -3,12 +3,14 @@ import { useAuth } from '../context/AuthContext';
 import { Building2, ChevronDown, Check, Shield } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { getRoleHome } from '../navigation/role-home';
+import { useQueryClient } from '@tanstack/react-query';
 
 export const WorkspaceSwitcher: React.FC = () => {
   const { user, switchWorkspace } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -38,6 +40,11 @@ export const WorkspaceSwitcher: React.FC = () => {
 
     try {
       await switchWorkspace(ws);
+      // Workspace-scoped responses must never survive a successful context switch.
+      // Cancel in-flight requests first so a late response from the old workspace
+      // cannot repopulate the cache after it has been cleared.
+      await queryClient.cancelQueries();
+      queryClient.clear();
       navigate(getRoleHome({ role: ws, activeWorkspace: ws, menus: [] }), { replace: true });
     } catch (err) {
       console.error('Failed to switch workspace', err);

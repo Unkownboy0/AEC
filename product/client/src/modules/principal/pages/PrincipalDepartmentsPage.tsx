@@ -16,14 +16,21 @@ export const PrincipalDepartmentsPage: React.FC = () => {
     setIsLoading(true);
     setError(null);
     try {
-      const res = await api.get('/enterprise/hod/students');
+      const res = await api.get('/enterprise/vp/departments');
       if (res.data?.status === 'success') {
-        setDepartments([
-          { id: '1', name: 'Computer Science & Engineering', code: 'CSE', hod: 'Dr. R. Sharma', facultyCount: 28, studentCount: 480, avgAttendance: 92 },
-          { id: '2', name: 'Information Technology', code: 'IT', hod: 'Dr. K. Patel', facultyCount: 22, studentCount: 360, avgAttendance: 89 },
-          { id: '3', name: 'Electronics & Comm. Engg', code: 'ECE', hod: 'Dr. V. Menon', facultyCount: 24, studentCount: 420, avgAttendance: 91 },
-          { id: '4', name: 'Mechanical Engineering', code: 'MECH', hod: 'Dr. S. Kumar', facultyCount: 20, studentCount: 320, avgAttendance: 86 },
-        ]);
+        const rawDepts = res.data?.data?.departments || res.data?.data || [];
+        const formatted = rawDepts.map((d: any) => ({
+          id: d.id,
+          code: d.code || '—',
+          name: d.name || 'Unnamed Department',
+          hod: d.hod || (d.hodUser ? `${d.hodUser.firstName} ${d.hodUser.lastName}` : d.hodName || 'Not Assigned'),
+          facultyCount: d.facultyCount ?? d.faculty ?? d._count?.faculties ?? 0,
+          studentCount: d.studentCount ?? d.students ?? d._count?.students ?? 0,
+          avgAttendance: d.avgAttendance ?? d.attendance ?? 0,
+        }));
+        setDepartments(formatted);
+      } else {
+        throw new Error(res.data?.message || 'Failed to fetch real department metrics from server');
       }
     } catch (err: any) {
       setError(err.message || 'Failed to load department metrics');
@@ -42,7 +49,7 @@ export const PrincipalDepartmentsPage: React.FC = () => {
     { key: 'hod', header: 'HOD Name', render: (item) => item.hod },
     { key: 'facultyCount', header: 'Faculty', sortable: true, render: (item) => `${item.facultyCount} Members` },
     { key: 'studentCount', header: 'Students', sortable: true, render: (item) => `${item.studentCount} Enrolled` },
-    { key: 'avgAttendance', header: 'Avg Attendance', sortable: true, render: (item) => <span className="font-bold text-emerald-500">{item.avgAttendance}%</span> },
+    { key: 'avgAttendance', header: 'Avg Attendance', sortable: true, render: (item) => <span className="font-bold text-emerald-500">{item.avgAttendance ? `${item.avgAttendance}%` : 'N/A'}</span> },
   ];
 
   return (

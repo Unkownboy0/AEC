@@ -8,6 +8,8 @@ const ROLE_HOME: Record<string, string> = {
   FACULTY: '/faculty/dashboard',
   FACULTY_MEMBER: '/faculty/dashboard',
   MENTOR: '/faculty/mentor/dashboard',
+  CLASS_ADVISER: '/class-adviser/dashboard',
+  CLASS_ADVISOR: '/class-adviser/dashboard',
   HOD: '/hod/dashboard',
   HEAD_OF_DEPARTMENT: '/hod/dashboard',
   PRINCIPAL: '/principal/dashboard',
@@ -17,6 +19,8 @@ const ROLE_HOME: Record<string, string> = {
   ADMISSION_DEAN: '/admission-dean/dashboard',
   ADMISSION_AND_ADMINISTRATION_DEAN: '/admission-dean/dashboard',
   ADMISSION_ADMINISTRATION_DEAN: '/admission-dean/dashboard',
+  ADMINISTRATION_DEAN: '/admission-dean/dashboard',
+  A_AND_A_DEAN: '/admission-dean/dashboard',
   IQAC: '/iqac/dashboard',
   IQAC_DEAN: '/iqac/dashboard',
   IQAC_EXECUTIVE_OFFICER: '/iqac-executive',
@@ -32,8 +36,8 @@ const ROLE_HOME: Record<string, string> = {
   ADMINISTRATOR: '/admin/dashboard',
   OFFICE: '/admin/dashboard',
   OFFICE_ADMINISTRATION: '/admin/dashboard',
-  PLACEMENT: '/placements/dashboard',
-  PLACEMENT_OFFICER: '/placements/dashboard',
+  PLACEMENT: '/placement',
+  PLACEMENT_OFFICER: '/placement',
   LIBRARY: '/library',
   LIBRARIAN: '/library',
   EXAMINATION_CELL: '/coe/dashboard',
@@ -47,6 +51,7 @@ const ROLE_HOME: Record<string, string> = {
   MANAGEMENT: '/management/dashboard',
   GOVERNING_BODY: '/governing-body/dashboard',
   SECURITY: '/security',
+  CAMPUS_SECURITY: '/security',
 };
 
 export function getRoleHome(user?: Pick<User, 'role' | 'activeWorkspace' | 'menus'> | null): string {

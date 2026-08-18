@@ -32,8 +32,8 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
 
   if (!user) return null;
 
-  const role = user.role || 'STUDENT';
-  const tabs = getMobileTabsForRole(role);
+  const activeRole = user.activeWorkspace || user.role || 'STUDENT';
+  const tabs = getMobileTabsForRole(activeRole);
 
   const triggerHaptic = () => {
     if (typeof window !== 'undefined' && 'vibrate' in navigator) {

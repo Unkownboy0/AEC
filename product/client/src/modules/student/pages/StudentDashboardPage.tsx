@@ -33,31 +33,21 @@ export const StudentDashboardPage: React.FC = () => {
     { intervalMs: 10000 }
   );
 
-  // Fallback state if API fails or backend offline
-  const fallbackData = {
+  // Default empty state when data is not yet available or empty
+  const defaultData = {
     metrics: {
-      attendancePercentage: 92,
-      cgpa: '9.2',
-      pendingAssignmentsCount: 2,
-      leaveStatus: 'APPROVED',
+      attendancePercentage: 0,
+      cgpa: 'N/A',
+      pendingAssignmentsCount: 0,
+      leaveStatus: 'NONE',
       feeDue: '₹0',
     },
-    todaysClasses: [
-      { time: '09:00 AM - 10:00 AM', subject: 'Data Structures & Algorithms', room: 'Lab 3', teacher: 'Dr. Priya' },
-      { time: '10:15 AM - 11:15 AM', subject: 'Database Management Systems', room: 'Hall B', teacher: 'Prof. Ramesh' },
-      { time: '01:30 PM - 02:30 PM', subject: 'Computer Networks', room: 'Room 204', teacher: 'Dr. Priya' },
-    ],
-    pendingAssignments: [
-      { title: 'Tree Traversal Implementation', subject: 'DSA', dueDate: 'Tomorrow, 11:59 PM' },
-      { title: 'ER Diagram & Relational Schema', subject: 'DBMS', dueDate: '08 Aug, 05:00 PM' },
-    ],
-    latestCirculars: [
-      { id: '1', title: 'Mid-Semester Examination Schedule', date: '04 Aug 2026' },
-      { id: '2', title: 'Annual Cultural Fest Registration Open', date: '02 Aug 2026' },
-    ],
+    todaysClasses: [],
+    pendingAssignments: [],
+    latestCirculars: [],
   };
 
-  const data = syncData || fallbackData;
+  const data = syncData || defaultData;
   const isLoading = isSyncLoading && !syncData;
   const error = syncError ? (syncError.message || 'Error loading dashboard') : null;
 
@@ -65,7 +55,7 @@ export const StudentDashboardPage: React.FC = () => {
     return <Skeleton variant="card" count={4} />;
   }
 
-  if (error) {
+  if (error && !syncData) {
     return <ErrorState title="Student Dashboard Error" message={error} onRetry={refetch} />;
   }
 

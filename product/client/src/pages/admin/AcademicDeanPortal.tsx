@@ -11,6 +11,8 @@ import { useAuth } from '../../context/AuthContext';
 
 import { ExecutiveLeaveOdModal } from '../../components/shared/ExecutiveLeaveOdModal';
 
+import { HodLeaveOdApprovalDesk } from '../hod/HodLeaveOdApprovalDesk';
+
 interface AcademicDeanPortalProps {
   user?: any;
 }
@@ -18,6 +20,7 @@ interface AcademicDeanPortalProps {
 const VALID_TABS = [
   'dashboard',
   'task_workspace',
+  'approvals',
   'departments',
   'hod_directory',
   'academic_monitoring',
@@ -48,6 +51,7 @@ export const AcademicDeanPortal: React.FC<AcademicDeanPortalProps> = ({ user: pr
 
   const routeTab = location.pathname.endsWith('/tasks') ? 'task_workspace'
     : location.pathname.endsWith('/academics') ? 'academic_monitoring'
+    : location.pathname.endsWith('/approvals') ? 'approvals'
     : location.pathname.endsWith('/reports') ? 'reports_analytics'
     : null;
   const rawTab = (searchParams.get('tab') || routeTab) as AcademicTab | null;
@@ -60,6 +64,7 @@ export const AcademicDeanPortal: React.FC<AcademicDeanPortalProps> = ({ user: pr
   const workspaceTabs = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'task_workspace', label: 'Task Workspace', icon: Layers, badge: 'Core' },
+    { id: 'approvals', label: 'Approvals', icon: Layers },
   ];
 
   return (
@@ -96,8 +101,9 @@ export const AcademicDeanPortal: React.FC<AcademicDeanPortalProps> = ({ user: pr
       <div className="min-w-0">
         {activeTab === 'dashboard' && <AcademicDeanDashboard user={user} onNavigateTab={(tab: string) => setActiveTab(tab as any)} />}
         {activeTab === 'task_workspace' && <AcademicTaskWorkspace user={user} />}
+        {activeTab === 'approvals' && <HodLeaveOdApprovalDesk />}
         {activeTab === 'academic_monitoring' && <AcademicMonitoring onOpenTasks={() => setActiveTab('task_workspace')} />}
-        {activeTab !== 'dashboard' && activeTab !== 'task_workspace' && activeTab !== 'academic_monitoring' && (
+        {activeTab !== 'dashboard' && activeTab !== 'task_workspace' && activeTab !== 'approvals' && activeTab !== 'academic_monitoring' && (
           <div className="space-y-4">
             <div className="border bg-card p-6 rounded-2xl space-y-2 text-center py-16">
               <Building className="h-10 w-10 text-primary mx-auto" />

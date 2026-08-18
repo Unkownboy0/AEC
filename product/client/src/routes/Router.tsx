@@ -147,10 +147,12 @@ import { SuperAdminControlCenter } from '../pages/admin/SuperAdminControlCenter'
 import ManagementWorkspace from '../pages/management/ManagementWorkspace';
 
 import { PrincipalApprovalCenterPage as PrincipalApprovalCenter } from '../modules/principal-availability/pages/PrincipalApprovalCenterPage';
+import { HandoverPage as PrincipalDelegationPage } from '../modules/principal-availability/pages/HandoverPage';
 import { VpActingPrincipalApprovalPage } from '../modules/vp/pages/acting-principal/VpActingPrincipalApprovalPage';
 import { VpDelegatedRequestDetailsPage } from '../modules/vp/pages/acting-principal/VpDelegatedRequestDetailsPage';
 import { ActingPrincipalRouteGuard } from '../modules/vp/guards/ActingPrincipalRouteGuard';
 import PrincipalCommandCentrePage from '../modules/principal/pages/PrincipalCommandCentrePage';
+import { PrincipalDepartmentsPage } from '../modules/principal/pages/PrincipalDepartmentsPage';
 import { VpDashboardPage } from '../modules/vp/pages/VpDashboardPage';
 
 import { AcademicDeanPortal } from '../pages/admin/AcademicDeanPortal';
@@ -172,6 +174,8 @@ const LibrarianWorkspace = React.lazy(() => import('../modules/library/Librarian
 const HostelWardenWorkspace = React.lazy(() => import('../modules/hostel/HostelWardenWorkspace'));
 const TransportManagerWorkspace = React.lazy(() => import('../modules/transport/TransportManagerWorkspace'));
 const PlacementOfficerWorkspace = React.lazy(() => import('../modules/placement/PlacementOfficerWorkspace'));
+// Finance workspaces (lazy-loaded for bundle size)
+const FinanceWorkspaceLazy = React.lazy(() => import('../modules/finance/FinanceWorkspace'));
 
 const SuspenseWrap = ({ children }: { children: React.ReactNode }) => (
   <React.Suspense fallback={
@@ -213,6 +217,7 @@ import { MentorParentCommunicationPage } from '../modules/mentor/pages/MentorPar
 import { MentorMeetingsPage } from '../modules/mentor/pages/MentorMeetingsPage';
 import { MentorStudentDetailPage } from '../modules/mentor/pages/MentorStudentDetailPage';
 import { HodMentorsWorkspace } from '../pages/hod/HodMentorsWorkspace';
+import { ClassAdviserDashboardPage } from '../modules/faculty/pages/ClassAdviserDashboardPage';
 
 // React component registry mapping keys to Page Components
 const COMPONENT_MAP: Record<string, React.ComponentType<any>> = {
@@ -473,21 +478,49 @@ export const AppRouter: React.FC = () => {
           <Route path="faculty/circulars/:id" element={<CircularDetailPage />} />
           <Route path="faculty/notifications" element={<NotificationsPage />} />
 
-          {/* ─── Mentor Route Alias ───────────────────────── */}
+          {/* ─── Mentor Route Aliases ───────────────────────── */}
           <Route path="mentor" element={<Navigate to="/faculty/mentor/dashboard" replace />} />
           <Route path="mentor/dashboard" element={<MentorDashboardPage />} />
           <Route path="mentor/students" element={<MentorStudentsPage />} />
           <Route path="mentor/students/:studentId" element={<MentorStudentDetailPage />} />
           <Route path="mentor/leave-od" element={<MentorApprovalsPage />} />
           <Route path="mentor/leave-od/:requestId" element={<MentorLeaveRequestDetailPage />} />
+          <Route path="mentor/approvals" element={<MentorApprovalsPage />} />
+          <Route path="mentor/approvals/:requestId" element={<MentorLeaveRequestDetailPage />} />
+          <Route path="mentor/attendance" element={<MentorAttendanceOverviewPage />} />
+          <Route path="mentor/academics" element={<MentorAcademicsPage />} />
+          <Route path="mentor/counselling" element={<MentorCounsellingPage />} />
+          <Route path="mentor/parents" element={<MentorParentCommunicationPage />} />
+          <Route path="mentor/meetings" element={<MentorMeetingsPage />} />
+          <Route path="mentor/tasks" element={<MentorDashboardPage />} />
+          <Route path="mentor/messages" element={<MentorDashboardPage />} />
+          <Route path="mentor/reports" element={<MentorDashboardPage />} />
+          <Route path="mentor/circulars" element={<FacultyCircularsPage />} />
+          <Route path="mentor/notifications" element={<NotificationsPage />} />
+          <Route path="mentor/profile" element={<Profile />} />
+
+          {/* ─── Class Adviser Workspace Routes ────────────── */}
+          <Route path="class-adviser" element={<Navigate to="/class-adviser/dashboard" replace />} />
+          <Route path="class-adviser/dashboard" element={<ClassAdviserDashboardPage />} />
+          <Route path="class-adviser/students" element={<HodStudentWorkspace />} />
+          <Route path="class-adviser/attendance" element={<HodAttendanceWorkspace />} />
+          <Route path="class-adviser/academics" element={<AcademicPerformance />} />
+          <Route path="class-adviser/leave-od" element={<HodLeaveOdApprovalDesk />} />
+          <Route path="class-adviser/leave-od/:requestId" element={<HodLeaveOdApprovalDesk />} />
+          <Route path="class-adviser/approvals" element={<HodLeaveOdApprovalDesk />} />
+          <Route path="class-adviser/approvals/:requestId" element={<HodLeaveOdApprovalDesk />} />
+          <Route path="class-adviser/assignments" element={<FacultyWorkspacePortal />} />
+          <Route path="class-adviser/circulars" element={<FacultyCircularsPage />} />
+          <Route path="class-adviser/notifications" element={<NotificationsPage />} />
+          <Route path="class-adviser/profile" element={<Profile />} />
 
           {/* ─── Principal Workspace Routes ───────────────── */}
           <Route path="principal" element={<Navigate to="/principal/dashboard" replace />} />
           <Route path="principal/dashboard" element={<PrincipalCommandCentrePage />} />
           <Route path="principal/approval-center" element={<PrincipalApprovalCenter />} />
           <Route path="principal/department-availability" element={<DepartmentAvailabilityPage />} />
-          <Route path="principal/departments" element={<InstitutionDetailsPage />} />
-          <Route path="principal/faculty" element={<InstitutionDetailsPage />} />
+          <Route path="principal/departments" element={<PrincipalDepartmentsPage />} />
+          <Route path="principal/faculty" element={<PrincipalDepartmentsPage />} />
           <Route path="principal/faculty/:userId" element={<UniversalProfilePage />} />
           <Route path="principal/students" element={<StudentDirectoryPage />} />
           <Route path="principal/students/:userId" element={<UniversalProfilePage />} />
@@ -498,7 +531,7 @@ export const AppRouter: React.FC = () => {
           <Route path="principal/complaints" element={<ComplaintsPage />} />
           <Route path="principal/reports" element={<ReportsPanel />} />
           <Route path="principal/placement" element={<PlacementEngine />} />
-          <Route path="principal/delegation" element={<DepartmentAvailabilityPage />} />
+          <Route path="principal/delegation" element={<PrincipalDelegationPage />} />
           <Route path="principal/search" element={<InstitutionDetailsPage />} />
           <Route path="principal/profile" element={<Profile />} />
           <Route path="principal/notifications" element={<NotificationsPage />} />
@@ -559,11 +592,13 @@ export const AppRouter: React.FC = () => {
           <Route path="academic-dean/dashboard" element={<AcademicDeanPortal user={user} />} />
           <Route path="academic-dean/academics" element={<AcademicDeanPortal user={user} />} />
           <Route path="academic-dean/tasks" element={<AcademicDeanPortal user={user} />} />
+          <Route path="academic-dean/approvals" element={<AcademicDeanPortal user={user} />} />
           <Route path="academic-dean/department-availability" element={<InstitutionAvailabilityDashboard />} />
           <Route path="academic-dean/circulars" element={<DeanCircularsPage />} />
           <Route path="academic-dean/circulars/:id" element={<CircularDetailPage />} />
           <Route path="academic-dean/reports" element={<AcademicDeanPortal user={user} />} />
           <Route path="academic-dean/notifications" element={<NotificationsPage />} />
+          <Route path="academic-dean/profile" element={<UniversalProfilePage />} />
 
           {/* ─── Admission Dean Routes ────────────────────── */}
           <Route path="admission-dean" element={<Navigate to="/admission-dean/dashboard" replace />} />
@@ -590,6 +625,7 @@ export const AppRouter: React.FC = () => {
           <Route path="iqac" element={<Navigate to="/iqac/dashboard" replace />} />
           <Route path="iqac/dashboard" element={<IQACDeanPortal user={user} />} />
           <Route path="iqac/accreditation" element={<IQACDeanPortal user={user} />} />
+          <Route path="iqac/approvals" element={<IQACDeanPortal user={user} />} />
           <Route path="iqac/tasks" element={<WorkManagementWorkspace />} />
           <Route path="iqac/evidence" element={<IQACDeanPortal user={user} />} />
           <Route path="iqac/department-availability" element={<DepartmentAvailabilityPage />} />
@@ -597,6 +633,7 @@ export const AppRouter: React.FC = () => {
           <Route path="iqac/circulars/:id" element={<CircularDetailPage />} />
           <Route path="iqac/reports" element={<IQACDeanPortal user={user} />} />
           <Route path="iqac/notifications" element={<NotificationsPage />} />
+          <Route path="iqac/profile" element={<Profile />} />
 
           {/* ─── HOD Portal Direct Routes ─────────────────── */}
           <Route path="hod" element={<Navigate to="/hod/dashboard" replace />} />
@@ -655,9 +692,18 @@ export const AppRouter: React.FC = () => {
           <Route path="student/leave-od" element={<React.Suspense fallback={<div className="p-6">Loading...</div>}><StudentLeaveOd /></React.Suspense>} />
           <Route path="student/leave-od/:id" element={<React.Suspense fallback={<div className="p-6">Loading...</div>}><StudentLeaveOd /></React.Suspense>} />
           <Route path="student/fees" element={<FeeLedgerPage />} />
-          <Route path="accountant/*" element={<FinanceWorkspace />} />
-          <Route path="ao/*" element={<FinanceWorkspace />} />
-          <Route path="principal/finance" element={<FinanceWorkspace />} />
+          {/* Student Academics — overview page redirecting to key academic modules */}
+          <Route path="student/academics" element={<React.Suspense fallback={<div className="p-6">Loading...</div>}><StudentAttendance /></React.Suspense>} />
+
+          {/* ─── Accountant / Finance Routes ─────────────────────── */}
+          <Route path="accountant" element={<Navigate to="/accountant/dashboard" replace />} />
+          <Route path="accountant/dashboard" element={<SuspenseWrap><FinanceWorkspaceLazy /></SuspenseWrap>} />
+          <Route path="accountant/*" element={<SuspenseWrap><FinanceWorkspaceLazy /></SuspenseWrap>} />
+          {/* AO routes */}
+          <Route path="ao" element={<Navigate to="/ao/dashboard" replace />} />
+          <Route path="ao/dashboard" element={<SuspenseWrap><FinanceWorkspaceLazy /></SuspenseWrap>} />
+          <Route path="ao/*" element={<SuspenseWrap><FinanceWorkspaceLazy /></SuspenseWrap>} />
+          <Route path="principal/finance" element={<SuspenseWrap><FinanceWorkspaceLazy /></SuspenseWrap>} />
           <Route path="student/circulars" element={<React.Suspense fallback={<div className="p-6">Loading...</div>}><StudentCirculars /></React.Suspense>} />
           <Route path="student/circulars/:id" element={<CircularDetailPage />} />
           <Route path="student/messages" element={<React.Suspense fallback={<div className="p-6">Loading...</div>}><StudentAdvisorChat /></React.Suspense>} />
@@ -679,6 +725,8 @@ export const AppRouter: React.FC = () => {
           <Route path="transport/*" element={<SuspenseWrap><TransportManagerWorkspace /></SuspenseWrap>} />
           <Route path="placement" element={<SuspenseWrap><PlacementOfficerWorkspace /></SuspenseWrap>} />
           <Route path="placement/*" element={<SuspenseWrap><PlacementOfficerWorkspace /></SuspenseWrap>} />
+          <Route path="placements" element={<SuspenseWrap><PlacementOfficerWorkspace /></SuspenseWrap>} />
+          <Route path="placements/*" element={<SuspenseWrap><PlacementOfficerWorkspace /></SuspenseWrap>} />
 
           {/* ─── Parent Direct Routes (Prevent 404 on Direct Links) ─── */}
           <Route path="parent" element={<Navigate to="/parent/dashboard" replace />} />
@@ -687,8 +735,14 @@ export const AppRouter: React.FC = () => {
           <Route path="parent/marks" element={<ParentWorkspacePortal />} />
           <Route path="parent/timetable" element={<ParentWorkspacePortal />} />
           <Route path="parent/fees" element={<ParentWorkspacePortal />} />
+          <Route path="parent/leave" element={<ParentWorkspacePortal />} />
+          <Route path="parent/receipts" element={<ParentWorkspacePortal />} />
+          <Route path="parent/transport" element={<ParentWorkspacePortal />} />
+          <Route path="parent/mentor" element={<ParentWorkspacePortal />} />
+          <Route path="parent/preferences" element={<ParentWorkspacePortal />} />
           <Route path="parent/messages" element={<ParentWorkspacePortal />} />
           <Route path="parent/circulars" element={<ParentWorkspacePortal />} />
+          <Route path="parent/notifications" element={<NotificationsPage />} />
           <Route path="parent/profile" element={<ParentWorkspacePortal />} />
 
           {/* Access Denied — shown for unauthorized routes, not 404 */}

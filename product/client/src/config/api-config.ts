@@ -31,12 +31,26 @@ export interface ApiConfigValidationResult {
 export function validateApiConfig(): ApiConfigValidationResult {
   const isNative = Capacitor.isNativePlatform();
   const platform = isNative ? Capacitor.getPlatform() : 'web';
+  const isProduction = import.meta.env.VITE_APP_ENV === 'production';
 
   if (!API_BASE_URL) {
     return {
       isValid: false,
       message: 'Configuration Error: The mobile app could not connect to CampusOS services. API_BASE_URL is missing.',
       details: { apiUrl: '', socketUrl: SOCKET_URL, isNative, platform },
+    };
+  }
+
+  // Production Build Guard: Production environment MUST use public HTTPS API URL
+  const isLocalOrLan = /localhost|127\.0\.0\.1|10\.0\.2\.2|10\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+|172\.(1[6-9]|2\d|3[01])\.\d+\.\d+/i.test(API_BASE_URL);
+  const isPlainHttp = API_BASE_URL.startsWith('http://');
+
+  if (isProduction && (isLocalOrLan || isPlainHttp)) {
+    console.error('[Production API Build Guard] Invalid API_BASE_URL for production deployment:', API_BASE_URL);
+    return {
+      isValid: false,
+      message: `Production Release Guard: CampusOS Production builds cannot use LAN IP or plain HTTP API URL (${API_BASE_URL}). Configure a valid public HTTPS endpoint in VITE_API_BASE_URL.`,
+      details: { apiUrl: API_BASE_URL, socketUrl: SOCKET_URL, isNative, platform },
     };
   }
 

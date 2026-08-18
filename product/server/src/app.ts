@@ -168,7 +168,7 @@ app.use(sanitizeInput);
 // Global API rate limiting
 app.use('/api', apiRateLimiter);
 
-// Health Check
+// Health & Readiness Checks
 app.get('/api/health', async (req, res) => {
   let dbStatus: 'ok' | 'error' = 'ok';
   let dbLatencyMs: number | null = null;
@@ -192,6 +192,58 @@ app.get('/api/health', async (req, res) => {
     checks: {
       database: { status: dbStatus, latencyMs: dbLatencyMs },
       storage: { status: 'ok' },
+    },
+  });
+});
+
+app.get('/api/health/live', (req, res) => {
+  res.status(200).json({
+    status: 'ok',
+    uptime: Math.floor(process.uptime()),
+    timestamp: new Date().toISOString(),
+    requestId: (req as any).requestId,
+  });
+});
+
+app.get('/api/health/ready', async (req, res) => {
+  let dbStatus: 'ok' | 'error' = 'ok';
+  let dbLatencyMs: number | null = null;
+  let storageStatus: 'ok' | 'error' = 'ok';
+  
+  try {
+    const start = Date.now();
+    await (prisma as any).$queryRaw`SELECT 1`;
+    dbLatencyMs = Date.now() - start;
+  } catch {
+    dbStatus = 'error';
+  }
+
+  try {
+    if (!fs.existsSync(env.STORAGE_ROOT)) {
+      fs.mkdirSync(env.STORAGE_ROOT, { recursive: true });
+    }
+  } catch {
+    storageStatus = 'error';
+  }
+
+  const isReady = dbStatus === 'ok' && storageStatus === 'ok';
+
+  res.status(isReady ? 200 : 503).json({
+    status: isReady ? 'ready' : 'not_ready',
+    version: '1.0.0',
+    environment: env.NODE_ENV,
+    uptime: Math.floor(process.uptime()),
+    timestamp: new Date().toISOString(),
+    requestId: (req as any).requestId,
+    memory: {
+      heapUsedMb: Math.round(process.memoryUsage().heapUsed / 1024 / 1024),
+      heapTotalMb: Math.round(process.memoryUsage().heapTotal / 1024 / 1024),
+      rssMb: Math.round(process.memoryUsage().rss / 1024 / 1024),
+    },
+    dependencies: {
+      database: { status: dbStatus, latencyMs: dbLatencyMs },
+      storage: { status: storageStatus, root: env.STORAGE_ROOT },
+      delegationExpiryJob: { status: 'active' },
     },
   });
 });
