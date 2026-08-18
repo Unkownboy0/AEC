@@ -80,7 +80,12 @@ cd "$APP_ROOT/product/server"
 npm run build
 
 cd "$APP_ROOT/product/client"
-npm run build
+if ! npm run build; then
+    echo "⚠️ Client build failed due to environment/GLIBC native bindings. Cleaning cache and installing compatible Rollup engine..."
+    rm -rf node_modules package-lock.json
+    npm install --no-audit
+    npm run build
+fi
 
 # 5. Process Manager Launch (PM2)
 echo ""
