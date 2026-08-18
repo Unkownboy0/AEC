@@ -18,9 +18,36 @@ ENV_FILE="$APP_ROOT/product/server/.env"
 EXAMPLE_ENV="$APP_ROOT/local-server-hosting/.env.local-server.example"
 
 if [ ! -f "$ENV_FILE" ]; then
-    echo "⚠️  product/server/.env not found! Copying from .env.local-server.example..."
-    cp "$EXAMPLE_ENV" "$ENV_FILE"
-    echo "ℹ️  Created $ENV_FILE. Please verify DATABASE_URL and secrets."
+    if [ -f "$EXAMPLE_ENV" ]; then
+        echo "⚠️  product/server/.env not found! Copying from .env.local-server.example..."
+        cp "$EXAMPLE_ENV" "$ENV_FILE"
+    else
+        echo "⚠️  product/server/.env not found! Generating default production .env..."
+        cat << 'EOF' > "$ENV_FILE"
+# ======================================================================
+#   CampusOS Local Server Environment Configuration
+# ======================================================================
+NODE_ENV=production
+PORT=5000
+DATABASE_URL="postgresql://campusos:campusos_secure_password@127.0.0.1:5432/campusos?schema=public"
+JWT_SECRET="campusos_production_secret_must_be_32_characters_long_random_key_123"
+JWT_EXPIRES_IN=15m
+REFRESH_TOKEN_EXPIRES_IN=7d
+REMEMBER_ME_REFRESH_TOKEN_EXPIRES_IN=30d
+PASSWORD_RESET_TOKEN_MINUTES=15
+ALLOWED_ORIGINS="*"
+PUBLIC_APP_URL="http://localhost:5173"
+LOG_LEVEL=info
+STORAGE_ROOT="./uploads"
+BACKUP_ROOT="./backups"
+PG_DUMP_PATH=pg_dump
+TRUST_PROXY=1
+PAYMENT_GATEWAY=DISABLED
+CAMPUS_TENANT_ID=campusos-default
+EMAIL_PROVIDER=DISABLED
+EOF
+    fi
+    echo "ℹ️  Created $ENV_FILE. Please verify DATABASE_URL and secrets if needed."
 fi
 
 # Ensure storage and logs directories exist
