@@ -1,0 +1,27 @@
+# ==============================================================================
+# Cloudflare Zero Trust Tunnel — Ingress & Routing Configuration Template
+# ==============================================================================
+# Replace YOUR_TUNNEL_UUID with your actual tunnel UUID from `cloudflared tunnel create`
+# Replace /path/to/credentials.json with the absolute path to your tunnel credentials file
+# ==============================================================================
+
+tunnel: YOUR_TUNNEL_UUID
+credentials-file: /etc/cloudflared/YOUR_TUNNEL_UUID.json
+
+ingress:
+  # 1. API Subdomain -> Node.js Express Backend
+  - hostname: api.yourinstitution.edu
+    service: http://127.0.0.1:5000
+    originRequest:
+      connectTimeout: 30s
+      noTLSVerify: false
+
+  # 2. Main Web Subdomain -> Production SPA Static Web Server & Reverse Proxy
+  - hostname: campusos.yourinstitution.edu
+    service: http://127.0.0.1:5173
+    originRequest:
+      connectTimeout: 30s
+      noTLSVerify: false
+
+  # 3. Catch-all rule (Returns HTTP 404 for any unmapped hostnames)
+  - service: http_status:404

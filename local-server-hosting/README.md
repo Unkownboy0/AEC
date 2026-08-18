@@ -49,6 +49,14 @@ local-server-hosting/
 ├── ecosystem.config.cjs           # PM2 production process configuration
 ├── .env.local-server.example      # Pre-configured production environment variables
 │
+├── lan-to-public-hosting/         # Public exposure for LAN-only desktop (Cloudflare Tunnel & Zero Trust)
+│   ├── README.md                  # LAN-to-Public architecture & quickstart
+│   ├── PUBLIC_LAN_HOSTING_GUIDE.md# End-to-end Zero Trust & Tunnel manual
+│   ├── cloudflare/                # Cloudflare tunnel configs & auto-installers
+│   ├── ubuntu/                    # 1-Click Ubuntu public hosting & power scripts
+│   ├── windows/                   # 1-Click Windows public hosting & power scripts
+│   └── nginx/                     # Hardened reverse proxy & rate limiting config
+│
 ├── linux-systemd/                 # Linux on-premise server deployment
 │   ├── ubuntu-setup.sh            # 1-command auto-provisioning for fresh Ubuntu OS
 │   ├── deploy-linux.sh            # 1-step automated build & PM2 deployer
