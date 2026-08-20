@@ -34,6 +34,17 @@ export class NotificationController {
     }
   }
 
+  static async getBadgeSummary(req: Request, res: Response, next: NextFunction) {
+    try {
+      const userId = (req as any).user.id;
+      const roleName = req.query.role ? String(req.query.role) : undefined;
+      const badges = await NotificationService.getBadgeSummary(userId, roleName);
+      res.status(200).json({ status: 'success', data: badges });
+    } catch (error) {
+      next(error);
+    }
+  }
+
   static async markAsRead(req: Request, res: Response, next: NextFunction) {
     try {
       const userId = (req as any).user.id;

@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { requireAuth } from '../../core/middlewares/auth.middleware';
 import { prisma } from '../../lib/prisma';
 import { Request, Response, NextFunction } from 'express';
+import { profileImageDescriptor } from '../users/profile-media.service';
 
 const router = Router();
 router.use(requireAuth);
@@ -49,6 +50,8 @@ router.get('/:facultyId', async (req: Request, res: Response, next: NextFunction
             status: true,
             accountStatus: true,
             profilePhoto: true,
+            profileImageFileId: true,
+            profileImageFile: true,
             workspaces: true,
             activeWorkspace: true,
             createdAt: true,
@@ -107,7 +110,8 @@ router.get('/:facultyId', async (req: Request, res: Response, next: NextFunction
         departmentCode: faculty.department?.code,
         status: faculty.status,
         dateOfJoining: faculty.dateOfJoining,
-        profilePhoto: faculty.user?.profilePhoto || null,
+        profilePhoto: faculty.user ? profileImageDescriptor(faculty.user).url : null,
+        profileImage: faculty.user ? profileImageDescriptor(faculty.user) : null,
         emergencyName: faculty.emergencyName,
         emergencyPhone: faculty.emergencyPhone,
         addressLine1: faculty.addressLine1,

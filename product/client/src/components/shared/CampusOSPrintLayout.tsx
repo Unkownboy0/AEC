@@ -26,7 +26,7 @@ export const CampusOSPrintLayout: React.FC<CampusOSPrintLayoutProps> = ({
   orientation = 'portrait',
   showWatermark = true,
   watermarkOpacity = 0.045,
-  watermarkLogoUrl = '/branding/institution-logo.png',
+  watermarkLogoUrl = '/branding/official-logo.png',
   onClose,
   onDownloadPdf,
   children,

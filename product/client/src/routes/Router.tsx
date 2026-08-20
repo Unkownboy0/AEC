@@ -13,7 +13,8 @@ import Dashboard from '../pages/Dashboard';
 import Roles from '../pages/admin/Roles';
 import { AcademicPortal } from '../pages/admin/AcademicPortal';
 import Users from '../pages/Users';
-import Settings from '../pages/admin/Settings';
+import { Settings as AdminSettings } from '../pages/admin/Settings';
+import { Settings as PersonalSettings } from '../pages/Settings';
 import MasterLists from '../pages/admin/MasterLists';
 import MediaLibrary from '../pages/admin/MediaLibrary';
 import BackupCenter from '../pages/admin/BackupCenter';
@@ -82,6 +83,7 @@ import UniversalProfilePage from '../pages/profile/UniversalProfilePage';
 import InstitutionDetailsPage from '../pages/shared/InstitutionDetailsPage';
 import StudentDirectoryPage from '../pages/shared/StudentDirectoryPage';
 import { CoeWorkspacePage } from '../modules/deans/pages/CoeWorkspacePage';
+import CoeHallTicketsPage from '../pages/coe/CoeHallTicketsPage';
 
 // ─── Circulars Module ───────────────────────────────────────────
 import { HodCircularPage } from '../modules/circulars/pages/HodCircularPage';
@@ -162,6 +164,7 @@ import { IQACExecutivePortal } from '../pages/admin/IQACExecutivePortal';
 import { IQACDocumentationPortal } from '../pages/admin/IQACDocumentationPortal';
 import ParentWorkspacePortal from '../pages/parent/ParentWorkspacePortal';
 import FacultyWorkspacePortal from '../pages/faculty/FacultyWorkspacePortal';
+import FacultyTransport from '../pages/faculty/FacultyTransport';
 import FacultyMarksEntry from '../pages/faculty/FacultyMarksEntry';
 import MentorWorkspacePortal from '../pages/mentor/MentorWorkspacePortal';
 import { CircularCenter } from '../modules/circulars/CircularCenter';
@@ -174,7 +177,6 @@ const LibrarianWorkspace = React.lazy(() => import('../modules/library/Librarian
 const HostelWardenWorkspace = React.lazy(() => import('../modules/hostel/HostelWardenWorkspace'));
 const TransportManagerWorkspace = React.lazy(() => import('../modules/transport/TransportManagerWorkspace'));
 const PlacementOfficerWorkspace = React.lazy(() => import('../modules/placement/PlacementOfficerWorkspace'));
-// Finance workspaces (lazy-loaded for bundle size)
 const FinanceWorkspaceLazy = React.lazy(() => import('../modules/finance/FinanceWorkspace'));
 
 const SuspenseWrap = ({ children }: { children: React.ReactNode }) => (
@@ -194,8 +196,6 @@ const SuspenseWrap = ({ children }: { children: React.ReactNode }) => (
 const superAdminOnly = (element: React.ReactNode) => (
   <ProtectedRoute allowedRoles={['SUPER_ADMIN', 'Super Admin']}>{element}</ProtectedRoute>
 );
-// College Admin is seeded with every permission except settings:*/backups:* (see prisma/seed.ts),
-// so it needs access to the same admin console pages as Super Admin, minus those two.
 const institutionAdminOnly = (element: React.ReactNode) => (
   <ProtectedRoute allowedRoles={['SUPER_ADMIN', 'Super Admin', 'COLLEGE_ADMIN', 'College Admin']}>{element}</ProtectedRoute>
 );
@@ -245,58 +245,55 @@ const COMPONENT_MAP: Record<string, React.ComponentType<any>> = {
   curriculum: CurriculumManagementPortal,
   profile: Profile,
   users: Users,
-  roles: MasterRBACConsole,
-  academics: AcademicPortal,
+  people: Users,
+  roles: Roles,
+  master_lists: MasterLists,
+  master_list: MasterLists,
+  settings: PersonalSettings,
+  admin_settings: AdminSettings,
+  media_library: MediaLibrary,
+  media: MediaLibrary,
+  backups: BackupCenter,
+  backup: BackupCenter,
+  notifications: NotificationCenter,
+  security_logs: SecurityLogs,
+  security: SecurityLogs,
+  reports: ReportsPanel,
+  reports_panel: ReportsPanel,
 
-  masters: MasterLists,
   students: Students,
-  faculty_admin: Faculty,
+  student_directory: Students,
+  faculty_mgmt: Faculty,
   attendance: Attendance,
+  examinations: Exams,
   exams: Exams,
   fees: Fees,
   library: Library,
   transport: Transport,
   hostel: Hostel,
-  media: MediaLibrary,
-  backups: BackupCenter,
-  notifications: NotificationCenter,
-  security: SecurityLogs,
-  reports: ReportsPanel,
-  settings: Settings,
-  college_onboarding: CollegeOnboarding,
-  help: HelpSupport,
+  help_support: HelpSupport,
   support: HelpSupport,
+  college_onboarding: CollegeOnboarding,
+  onboarding: CollegeOnboarding,
   department_overview: DepartmentOverview,
   department_results: DepartmentResults,
-  hod_profile: HODProfile,
   department_attendance: DepartmentAttendance,
   department_subjects: DepartmentSubjects,
+  department_performance: AcademicPerformance,
   academic_performance: AcademicPerformance,
   faculty_performance: FacultyPerformance,
   department_reports: DepartmentReports,
-  hod_circulars: CircularManagement,
-  faculty_circulars: FacultyCircularsPage,
+  circular_management: CircularManagement,
+  circulars: CircularCenter,
   timetable_engine: TimetableEngine,
+  timetable: TimetableEngine,
   placement_engine: PlacementEngine,
+  placements: PlacementEngine,
   master_timetable: MasterTimetableManagement,
-
-  hod_dashboard: HodDashboardWorkspace,
-  hod_leave_approvals: HodLeaveOdApprovalDesk,
-  hod_leave_od: HodLeaveOdApprovalDesk,
-  hod_students: HodStudentWorkspace,
-  hod_faculty: HodFacultyWorkspace,
-  hod_mentors: HodStudentWorkspace,
-  hod_attendance: HodAttendanceWorkspace,
-  hod_tasks: HodTaskWorkspace,
-  hod_reports: HodReportsWorkspace,
-
-  // Enterprise WMCS & Governance Suite
-  work_management: WorkManagementWorkspace,
-  tasks: WorkManagementWorkspace,
-  governance_suite: GovernanceSuite,
   governance: GovernanceSuite,
+  governance_suite: GovernanceSuite,
 
-  // Student Registrations
+  // Student specific component mappings
   student_dashboard: StudentDashboard,
   student_profile: StudentProfile,
   student_id_card: StudentIdCard,
@@ -326,485 +323,565 @@ const COMPONENT_MAP: Record<string, React.ComponentType<any>> = {
   student_calendar: StudentCalendar,
   student_gamification: StudentGamification,
   student_certificates: StudentCertificates,
+  student_achievements: StudentAchievements,
 };
 
-export const AppRouter: React.FC = () => {
+export const Router: React.FC = () => {
   const { user } = useAuth();
 
   return (
     <Routes>
-        {/* Public Routes */}
-        <Route path="/login" element={<Login />} />
-        <Route path="/forgot-password" element={<ForgotPassword />} />
-        <Route path="/reset-password" element={<ResetPassword />} />
-        <Route path="/verify/:token" element={<IdCardVerify />} />
-        {/* Legal pages — required for App Store, accessible without authentication */}
-        <Route path="/privacy-policy" element={<SuspenseWrap><PrivacyPolicyPage /></SuspenseWrap>} />
-        <Route path="/terms" element={<SuspenseWrap><TermsOfServicePage /></SuspenseWrap>} />
-        <Route path="/terms-of-service" element={<SuspenseWrap><TermsOfServicePage /></SuspenseWrap>} />
+      {/* Public Routes */}
+      <Route path="/login" element={<Login />} />
+      <Route path="/forgot-password" element={<ForgotPassword />} />
+      <Route path="/reset-password" element={<ResetPassword />} />
+      <Route path="/verify/:token" element={<IdCardVerify />} />
+      {/* Legal pages — required for App Store, accessible without authentication */}
+      <Route path="/privacy-policy" element={<SuspenseWrap><PrivacyPolicyPage /></SuspenseWrap>} />
+      <Route path="/terms" element={<SuspenseWrap><TermsOfServicePage /></SuspenseWrap>} />
+      <Route path="/terms-of-service" element={<SuspenseWrap><TermsOfServicePage /></SuspenseWrap>} />
 
-        {/* Protected App Routes */}
+      {/* Protected App Routes */}
+      <Route
+        path="/"
+        element={
+          <ProtectedRoute>
+            <MainLayout />
+          </ProtectedRoute>
+        }
+      >
+        {/* Always enter the active role's current workspace */}
+        <Route index element={<Navigate to={getRoleHome(user)} replace />} />
+        <Route path="admin/dashboard" element={institutionAdminOnly(<SuperAdminControlCenter />)} />
+        <Route path="management/dashboard" element={managementOnly(<ManagementWorkspace />)} />
+        <Route path="governing-body/dashboard" element={managementOnly(<ManagementWorkspace />)} />
+        <Route path="admin/control-center" element={institutionAdminOnly(<SuperAdminControlCenter />)} />
+        <Route path="admin/people" element={institutionAdminOnly(<Users />)} />
+        <Route path="master-lists" element={institutionAdminOnly(<MasterLists />)} />
+        <Route path="academics" element={institutionAdminOnly(<AcademicPortal />)} />
+        <Route path="backups" element={superAdminOnly(<BackupCenter />)} />
+        <Route path="security-logs" element={institutionAdminOnly(<SecurityLogs />)} />
+        <Route path="settings" element={<PersonalSettings />} />
+        <Route path="admin/settings" element={superAdminOnly(<AdminSettings />)} />
+        <Route path="coe" element={<Navigate to="/coe/dashboard" replace />} />
+        <Route path="coe/dashboard" element={<CoeWorkspacePage />} />
+        <Route path="coe/exams" element={<Exams />} />
+        <Route path="coe/schedules" element={<Exams />} />
+        <Route path="coe/halls" element={<Exams />} />
+        <Route path="coe/hall-tickets" element={<CoeHallTicketsPage />} />
+        <Route path="coe/invigilation" element={<Exams />} />
+        <Route path="coe/marks-results" element={<Exams />} />
+        <Route path="coe/master-timetable" element={<MasterTimetableManagement />} />
+        <Route path="profile" element={<Profile />} />
+        <Route path="profile/:userId" element={<UniversalProfilePage />} />
+        <Route path="users" element={<UniversalProfilePage />} />
+        <Route path="users/:userId" element={<UniversalProfilePage />} />
+        <Route path="students" element={<StudentDirectoryPage />} />
+        <Route path="students/directory" element={<StudentDirectoryPage />} />
+        <Route path="students/:userId" element={<UniversalProfilePage />} />
+        <Route path="student/profile/:userId" element={<UniversalProfilePage />} />
+        <Route path="faculty/profile/:userId" element={<UniversalProfilePage />} />
+        <Route path="hod/students/:userId" element={<UniversalProfilePage />} />
+        <Route path="hod/faculty/:userId" element={<UniversalProfilePage />} />
+        <Route path="principal/students/:userId" element={<UniversalProfilePage />} />
+        <Route path="principal/faculty/:userId" element={<UniversalProfilePage />} />
+        <Route path="vp/students/:userId" element={<UniversalProfilePage />} />
+        <Route path="vp/faculty/:userId" element={<UniversalProfilePage />} />
+        <Route path="rbac" element={institutionAdminOnly(<IAMMasterControlConsole />)} />
+        <Route path="admin/rbac" element={institutionAdminOnly(<IAMMasterControlConsole />)} />
+        <Route path="iam" element={institutionAdminOnly(<IAMMasterControlConsole />)} />
+        <Route path="admin/iam" element={institutionAdminOnly(<IAMMasterControlConsole />)} />
+        <Route path="roles" element={institutionAdminOnly(<IAMMasterControlConsole />)} />
+
+        <Route path="institution" element={<InstitutionDetailsPage />} />
+        <Route path="institution/details" element={<InstitutionDetailsPage />} />
+        <Route path="principal/institution" element={<InstitutionDetailsPage />} />
+        <Route path="hod/institution" element={<InstitutionDetailsPage />} />
+        <Route path="faculty/institution" element={<InstitutionDetailsPage />} />
+        <Route path="student/institution" element={<InstitutionDetailsPage />} />
+        <Route path="work-management" element={<WorkManagementWorkspace />} />
+        <Route path="tasks" element={<WorkManagementWorkspace />} />
+        <Route path="governance-suite" element={<GovernanceSuite />} />
+        <Route path="governance" element={<GovernanceSuite />} />
+        <Route path="approval-center" element={<PrincipalApprovalCenter />} />
+
+        {/* ─── Global Notifications & Circulars ────────── */}
+        <Route path="notifications" element={<NotificationsPage />} />
+        <Route path="admin/notifications" element={<NotificationCenter />} />
+        <Route path="admin/notifications/control-center" element={superAdminOnly(<NotificationCenter />)} />
+        <Route path="circulars" element={<CircularCenter />} />
+        <Route path="circulars/:id" element={<CircularDetailPage />} />
+
+        {/* ─── Faculty Routes ───────────────────────────── */}
+        <Route path="faculty" element={<Navigate to="/faculty/dashboard" replace />} />
+        <Route path="faculty/dashboard" element={<FacultyWorkspacePortal />} />
+        <Route path="faculty/hub" element={<FacultyWorkspaceHub />} />
+        <Route path="faculty/workspace" element={<FacultyWorkspaceHub />} />
+        <Route path="faculty/office" element={<CampusOfficeWorkspace />} />
+        <Route path="office" element={<CampusOfficeWorkspace />} />
+        <Route path="office/dashboard" element={<CampusOfficeWorkspace />} />
+        <Route path="office/*" element={<CampusOfficeWorkspace />} />
+        <Route path="faculty/transport" element={<FacultyTransport />} />
+        
+        {/* ─── Universal Campus Workspace Routes ────────────── */}
+        <Route path="workspace" element={<CampusWorkspaceHome />} />
+        <Route path="workspace/docs" element={<Navigate to="/workspace?type=DOC" replace />} />
+        <Route path="workspace/docs/:id" element={<CampusDocsEditor />} />
+        <Route path="workspace/docs/:documentId" element={<CampusDocsEditor />} />
+        <Route path="workspace/sheets" element={<Navigate to="/workspace?type=SHEET" replace />} />
+        <Route path="workspace/sheets/:id" element={<CampusSheetsEditor />} />
+        <Route path="workspace/sheets/:documentId" element={<CampusSheetsEditor />} />
+        <Route path="workspace/slides" element={<Navigate to="/workspace?type=SLIDE" replace />} />
+        <Route path="workspace/slides/:id" element={<CampusSlidesEditor />} />
+        <Route path="workspace/slides/:documentId" element={<CampusSlidesEditor />} />
+        <Route path="workspace/forms" element={<Navigate to="/workspace?type=FORM" replace />} />
+        <Route path="workspace/forms/:id" element={<CampusFormsBuilder />} />
+        <Route path="workspace/forms/:documentId" element={<CampusFormsBuilder />} />
+        <Route path="workspace/quiz" element={<Navigate to="/workspace?type=QUIZ" replace />} />
+        <Route path="workspace/quiz/:id" element={<CampusQuizBuilder />} />
+        <Route path="workspace/quiz/:documentId" element={<CampusQuizBuilder />} />
+        <Route path="workspace/notes" element={<Navigate to="/workspace?type=NOTE" replace />} />
+        <Route path="workspace/notes/:id" element={<CampusNotesEditor />} />
+        <Route path="workspace/notes/:documentId" element={<CampusNotesEditor />} />
+        <Route path="workspace/pdf" element={<Navigate to="/workspace?type=PDF" replace />} />
+        <Route path="workspace/pdf/:id" element={<CampusPDFViewer />} />
+        <Route path="workspace/pdf/:documentId" element={<CampusPDFViewer />} />
+        <Route path="workspace/reports" element={<Navigate to="/workspace?type=REPORT" replace />} />
+        <Route path="workspace/reports/:id" element={<CampusReportBuilder />} />
+        <Route path="workspace/reports/:documentId" element={<CampusReportBuilder />} />
+        <Route path="workspace/report" element={<Navigate to="/workspace?type=REPORT" replace />} />
+        <Route path="workspace/report/:id" element={<CampusReportBuilder />} />
+        <Route path="workspace/report/:documentId" element={<CampusReportBuilder />} />
+        <Route path="workspace/drive" element={<CampusDrivePage />} />
+        <Route path="workspace/drive/*" element={<CampusDrivePage />} />
+        <Route path="workspace/documents" element={<Navigate to="/workspace" replace />} />
+        <Route path="workspace/files" element={<CampusDrivePage />} />
+
+        {/* Student Role Workspace Aliases */}
+        <Route path="student/workspace" element={<CampusWorkspaceHome />} />
+        <Route path="student/workspace/docs/:id" element={<CampusDocsEditor />} />
+        <Route path="student/workspace/docs/:documentId" element={<CampusDocsEditor />} />
+        <Route path="student/workspace/sheets/:id" element={<CampusSheetsEditor />} />
+        <Route path="student/workspace/sheets/:documentId" element={<CampusSheetsEditor />} />
+        <Route path="student/workspace/slides/:id" element={<CampusSlidesEditor />} />
+        <Route path="student/workspace/slides/:documentId" element={<CampusSlidesEditor />} />
+        <Route path="student/workspace/forms/:id" element={<CampusFormsBuilder />} />
+        <Route path="student/workspace/forms/:documentId" element={<CampusFormsBuilder />} />
+        <Route path="student/workspace/quiz/:id" element={<CampusQuizBuilder />} />
+        <Route path="student/workspace/quiz/:documentId" element={<CampusQuizBuilder />} />
+        <Route path="student/workspace/notes/:id" element={<CampusNotesEditor />} />
+        <Route path="student/workspace/notes/:documentId" element={<CampusNotesEditor />} />
+        <Route path="student/workspace/pdf/:id" element={<CampusPDFViewer />} />
+        <Route path="student/workspace/pdf/:documentId" element={<CampusPDFViewer />} />
+        <Route path="student/workspace/reports/:id" element={<CampusReportBuilder />} />
+        <Route path="student/workspace/reports/:documentId" element={<CampusReportBuilder />} />
+        <Route path="student/workspace/drive" element={<CampusDrivePage />} />
+        <Route path="student/workspace/drive/*" element={<CampusDrivePage />} />
+
+        <Route path="student/docs" element={<Navigate to="/workspace?type=DOC" replace />} />
+        <Route path="student/docs/:id" element={<CampusDocsEditor />} />
+        <Route path="student/docs/:documentId" element={<CampusDocsEditor />} />
+        <Route path="student/sheets" element={<Navigate to="/workspace?type=SHEET" replace />} />
+        <Route path="student/sheets/:id" element={<CampusSheetsEditor />} />
+        <Route path="student/sheets/:documentId" element={<CampusSheetsEditor />} />
+        <Route path="student/slides" element={<Navigate to="/workspace?type=SLIDE" replace />} />
+        <Route path="student/slides/:id" element={<CampusSlidesEditor />} />
+        <Route path="student/slides/:documentId" element={<CampusSlidesEditor />} />
+        <Route path="student/forms" element={<Navigate to="/workspace?type=FORM" replace />} />
+        <Route path="student/forms/:id" element={<CampusFormsBuilder />} />
+        <Route path="student/forms/:documentId" element={<CampusFormsBuilder />} />
+        <Route path="student/quiz" element={<Navigate to="/workspace?type=QUIZ" replace />} />
+        <Route path="student/quiz/:id" element={<CampusQuizBuilder />} />
+        <Route path="student/quiz/:documentId" element={<CampusQuizBuilder />} />
+        <Route path="student/notes" element={<Navigate to="/workspace?type=NOTE" replace />} />
+        <Route path="student/notes/:id" element={<CampusNotesEditor />} />
+        <Route path="student/notes/:documentId" element={<CampusNotesEditor />} />
+        <Route path="student/pdf" element={<Navigate to="/workspace?type=PDF" replace />} />
+        <Route path="student/pdf/:id" element={<CampusPDFViewer />} />
+        <Route path="student/pdf/:documentId" element={<CampusPDFViewer />} />
+        <Route path="student/reports" element={<Navigate to="/workspace?type=REPORT" replace />} />
+        <Route path="student/reports/:id" element={<CampusReportBuilder />} />
+        <Route path="student/reports/:documentId" element={<CampusReportBuilder />} />
+        <Route path="student/drive" element={<CampusDrivePage />} />
+        <Route path="student/drive/*" element={<CampusDrivePage />} />
+
+        {/* Faculty / HOD Workspace Aliases */}
+        <Route path="faculty/workspace/docs/:id" element={<CampusDocsEditor />} />
+        <Route path="faculty/workspace/docs/:documentId" element={<CampusDocsEditor />} />
+        <Route path="faculty/docs/:id" element={<CampusDocsEditor />} />
+        <Route path="faculty/docs/:documentId" element={<CampusDocsEditor />} />
+        
+        <Route path="faculty/timetable" element={<FacultyWorkspacePortal />} />
+        <Route path="faculty/subjects" element={<FacultyWorkspacePortal />} />
+        <Route path="faculty/attendance" element={<FacultyWorkspacePortal />} />
+        <Route path="faculty/assignments" element={<FacultyWorkspacePortal />} />
+        <Route path="faculty/internal-marks" element={<FacultyMarksEntry />} />
+        <Route path="faculty/marks" element={<FacultyMarksEntry />} />
+        <Route path="faculty/students" element={<StudentDirectoryPage />} />
+        <Route path="faculty/leave" element={<FacultyLeaveOdPage />} />
+        <Route path="faculty/leave-request" element={<FacultyLeaveOdPage />} />
+        <Route path="faculty/leave-od" element={<FacultyLeaveOdPage />} />
+        <Route path="faculty/leave-od/:id" element={<FacultyLeaveDetailPage />} />
+        <Route path="faculty/tasks" element={<FacultyWorkspacePortal />} />
+        <Route path="faculty/department-availability" element={<DepartmentAvailabilityPage />} />
+        <Route path="faculty/availability" element={<DepartmentAvailabilityPage />} />
+        <Route path="faculty/ai_assistant" element={<FacultyWorkspacePortal />} />
+        <Route path="faculty/profile" element={<Profile />} />
+        <Route path="faculty/reports" element={<AcademicPerformance />} />
+
+        {/* ─── Faculty Mentor Workspace Sub-Routes ─────── */}
+        <Route path="faculty/mentor" element={<Navigate to="/faculty/mentor/dashboard" replace />} />
+        <Route path="faculty/mentor/dashboard" element={<MentorDashboardPage />} />
+        <Route path="faculty/mentor/leave-od" element={<MentorApprovalsPage />} />
+        <Route path="faculty/mentor/leave-od/:requestId" element={<MentorLeaveRequestDetailPage />} />
+        <Route path="faculty/mentor/approvals" element={<MentorApprovalsPage />} />
+        <Route path="faculty/mentor/approvals/:requestId" element={<MentorLeaveRequestDetailPage />} />
+        <Route path="faculty/mentor-approvals" element={<Navigate to="/faculty/mentor/leave-od" replace />} />
+        <Route path="faculty/mentor-approvals/:requestId" element={<MentorLeaveRequestDetailPage />} />
+        <Route path="mentor/approvals" element={<Navigate to="/faculty/mentor/leave-od" replace />} />
+        <Route path="mentor/approvals/:requestId" element={<MentorLeaveRequestDetailPage />} />
+        <Route path="faculty/mentor/attendance" element={<MentorAttendanceOverviewPage />} />
+        <Route path="faculty/mentor/academics" element={<MentorAcademicsPage />} />
+        <Route path="faculty/mentor/counselling" element={<MentorCounsellingPage />} />
+        <Route path="faculty/mentor/parents" element={<MentorParentCommunicationPage />} />
+        <Route path="faculty/mentor/meetings" element={<MentorMeetingsPage />} />
+        <Route path="faculty/mentor/tasks" element={<MentorDashboardPage />} />
+        <Route path="faculty/mentor/messages" element={<MentorDashboardPage />} />
+        <Route path="faculty/mentor/reports" element={<MentorDashboardPage />} />
+        <Route path="faculty/mentor/department-availability" element={<DepartmentAvailabilityPage />} />
+
+        {/* Canonical complaint notification destination */}
+        <Route path="complaints" element={<ComplaintsPage />} />
+
+        {/* Faculty Circulars */}
+        <Route path="faculty/circulars" element={<FacultyCircularsPage />} />
+        <Route path="faculty/circulars/:id" element={<CircularDetailPage />} />
+        <Route path="faculty/notifications" element={<NotificationsPage />} />
+
+        {/* ─── Mentor Route Aliases ───────────────────────── */}
+        <Route path="mentor" element={<Navigate to="/faculty/mentor/dashboard" replace />} />
+        <Route path="mentor/dashboard" element={<MentorDashboardPage />} />
+        <Route path="mentor/students" element={<MentorStudentsPage />} />
+        <Route path="mentor/students/:studentId" element={<MentorStudentDetailPage />} />
+        <Route path="mentor/leave-od" element={<MentorApprovalsPage />} />
+        <Route path="mentor/leave-od/:requestId" element={<MentorLeaveRequestDetailPage />} />
+        <Route path="mentor/attendance" element={<MentorAttendanceOverviewPage />} />
+        <Route path="mentor/academics" element={<MentorAcademicsPage />} />
+        <Route path="mentor/counselling" element={<MentorCounsellingPage />} />
+        <Route path="mentor/parents" element={<MentorParentCommunicationPage />} />
+        <Route path="mentor/meetings" element={<MentorMeetingsPage />} />
+        <Route path="mentor/tasks" element={<MentorDashboardPage />} />
+        <Route path="mentor/messages" element={<MentorDashboardPage />} />
+        <Route path="mentor/reports" element={<MentorDashboardPage />} />
+        <Route path="mentor/circulars" element={<FacultyCircularsPage />} />
+        <Route path="mentor/notifications" element={<NotificationsPage />} />
+        <Route path="mentor/profile" element={<Profile />} />
+
+        {/* ─── Class Adviser Workspace Routes ────────────── */}
+        <Route path="class-adviser" element={<Navigate to="/class-adviser/dashboard" replace />} />
+        <Route path="class-adviser/dashboard" element={<ClassAdviserDashboardPage />} />
+        <Route path="class-adviser/students" element={<HodStudentWorkspace />} />
+        <Route path="class-adviser/attendance" element={<HodAttendanceWorkspace />} />
+        <Route path="class-adviser/academics" element={<AcademicPerformance />} />
+        <Route path="class-adviser/leave-od" element={<HodLeaveOdApprovalDesk />} />
+        <Route path="class-adviser/leave-od/:requestId" element={<HodLeaveOdApprovalDesk />} />
+        <Route path="class-adviser/approvals" element={<HodLeaveOdApprovalDesk />} />
+        <Route path="class-adviser/approvals/:requestId" element={<HodLeaveOdApprovalDesk />} />
+        <Route path="class-adviser/assignments" element={<FacultyWorkspacePortal />} />
+        <Route path="class-adviser/circulars" element={<FacultyCircularsPage />} />
+        <Route path="class-adviser/notifications" element={<NotificationsPage />} />
+        <Route path="class-adviser/profile" element={<Profile />} />
+
+        {/* ─── Principal Workspace Routes ───────────────── */}
+        <Route path="principal" element={<Navigate to="/principal/dashboard" replace />} />
+        <Route path="principal/dashboard" element={<PrincipalCommandCentrePage />} />
+        <Route path="principal/approval-center" element={<PrincipalApprovalCenter />} />
+        <Route path="principal/department-availability" element={<DepartmentAvailabilityPage />} />
+        <Route path="principal/departments" element={<PrincipalDepartmentsPage />} />
+        <Route path="principal/faculty" element={<PrincipalDepartmentsPage />} />
+        <Route path="principal/faculty/:userId" element={<UniversalProfilePage />} />
+        <Route path="principal/students" element={<StudentDirectoryPage />} />
+        <Route path="principal/students/:userId" element={<UniversalProfilePage />} />
+        <Route path="principal/academics" element={<AcademicPerformance />} />
+        <Route path="principal/tasks" element={<WorkManagementWorkspace />} />
+        <Route path="principal/circulars" element={<PrincipalCircularsPage />} />
+        <Route path="principal/circulars/:id" element={<CircularDetailPage />} />
+        <Route path="principal/complaints" element={<ComplaintsPage />} />
+        <Route path="principal/reports" element={<ReportsPanel />} />
+        <Route path="principal/placement" element={<PlacementEngine />} />
+        <Route path="principal/delegation" element={<PrincipalDelegationPage />} />
+        <Route path="principal/search" element={<InstitutionDetailsPage />} />
+        <Route path="principal/profile" element={<Profile />} />
+        <Route path="principal/notifications" element={<NotificationsPage />} />
+
+        {/* ─── Vice Principal Workspace Routes ──────────── */}
+        <Route path="vp" element={<Navigate to="/vp/dashboard" replace />} />
+        <Route path="vp/dashboard" element={<VpDashboardPage />} />
+        <Route path="vp/operations" element={<VpDashboardPage />} />
+        <Route path="vp/departments" element={<InstitutionDetailsPage />} />
+        <Route path="vp/faculty" element={<InstitutionDetailsPage />} />
+        <Route path="vp/students" element={<StudentDirectoryPage />} />
+        <Route path="vp/attendance" element={<DepartmentAvailabilityPage />} />
+        <Route path="vp/leave-approvals" element={<VpActingPrincipalApprovalPage />} />
+        <Route path="vp/examinations" element={<AcademicPerformance />} />
+        <Route path="vp/placements" element={<PlacementEngine />} />
+        <Route path="vp/complaints" element={<ComplaintsPage />} />
+        <Route path="vp/activities" element={<ReportsPanel />} />
+        <Route path="vp/reports" element={<ReportsPanel />} />
+        <Route path="vp/department-availability" element={<DepartmentAvailabilityPage />} />
+        <Route path="vp/circulars" element={<VpCircularsPage />} />
+        <Route path="vp/circulars/:id" element={<CircularDetailPage />} />
+        <Route path="vp/notifications" element={<NotificationsPage />} />
+        <Route path="vp/tasks" element={<WorkManagementWorkspace />} />
+        <Route path="vp/profile" element={<Profile />} />
+
+        {/* VP Acting Principal Delegated Approvals */}
         <Route
-          path="/"
+          path="vp/acting-principal/approvals"
           element={
-            <ProtectedRoute>
-              <MainLayout />
-            </ProtectedRoute>
+            <ActingPrincipalRouteGuard>
+              <VpActingPrincipalApprovalPage />
+            </ActingPrincipalRouteGuard>
           }
-        >
-          {/* Always enter the active role's current workspace; never mount a legacy global dashboard. */}
-          <Route index element={<Navigate to={getRoleHome(user)} replace />} />
-          <Route path="admin/dashboard" element={institutionAdminOnly(<SuperAdminControlCenter />)} />
-          <Route path="management/dashboard" element={managementOnly(<ManagementWorkspace />)} />
-          <Route path="governing-body/dashboard" element={managementOnly(<ManagementWorkspace />)} />
-          <Route path="admin/control-center" element={institutionAdminOnly(<SuperAdminControlCenter />)} />
-          <Route path="admin/people" element={institutionAdminOnly(<Users />)} />
-          <Route path="master-lists" element={institutionAdminOnly(<MasterLists />)} />
-          <Route path="academics" element={institutionAdminOnly(<AcademicPortal />)} />
-          <Route path="backups" element={superAdminOnly(<BackupCenter />)} />
-          <Route path="security-logs" element={institutionAdminOnly(<SecurityLogs />)} />
-          <Route path="settings" element={superAdminOnly(<Settings />)} />
-          <Route path="coe" element={<Navigate to="/coe/dashboard" replace />} />
-          <Route path="coe/dashboard" element={<CoeWorkspacePage />} />
-          <Route path="coe/exams" element={<Exams />} />
-          <Route path="coe/schedules" element={<Exams />} />
-          <Route path="coe/halls" element={<Exams />} />
-          <Route path="coe/invigilation" element={<Exams />} />
-          <Route path="coe/marks-results" element={<Exams />} />
-          <Route path="coe/master-timetable" element={<MasterTimetableManagement />} />
-          <Route path="profile" element={<Profile />} />
-          <Route path="profile/:userId" element={<UniversalProfilePage />} />
-          <Route path="users" element={<UniversalProfilePage />} />
-          <Route path="users/:userId" element={<UniversalProfilePage />} />
-          <Route path="students" element={<StudentDirectoryPage />} />
-          <Route path="students/directory" element={<StudentDirectoryPage />} />
-          <Route path="students/:userId" element={<UniversalProfilePage />} />
-          <Route path="student/profile/:userId" element={<UniversalProfilePage />} />
-          <Route path="faculty/profile/:userId" element={<UniversalProfilePage />} />
-          <Route path="hod/students/:userId" element={<UniversalProfilePage />} />
-          <Route path="hod/faculty/:userId" element={<UniversalProfilePage />} />
-          <Route path="principal/students/:userId" element={<UniversalProfilePage />} />
-          <Route path="principal/faculty/:userId" element={<UniversalProfilePage />} />
-          <Route path="vp/students/:userId" element={<UniversalProfilePage />} />
-          <Route path="vp/faculty/:userId" element={<UniversalProfilePage />} />
-          <Route path="rbac" element={institutionAdminOnly(<IAMMasterControlConsole />)} />
-          <Route path="admin/rbac" element={institutionAdminOnly(<IAMMasterControlConsole />)} />
-          <Route path="iam" element={institutionAdminOnly(<IAMMasterControlConsole />)} />
-          <Route path="admin/iam" element={institutionAdminOnly(<IAMMasterControlConsole />)} />
-          <Route path="roles" element={institutionAdminOnly(<IAMMasterControlConsole />)} />
+        />
+        <Route
+          path="vp/acting-principal/approval-center"
+          element={
+            <ActingPrincipalRouteGuard>
+              <VpActingPrincipalApprovalPage />
+            </ActingPrincipalRouteGuard>
+          }
+        />
+        <Route
+          path="vp/acting-principal/approvals/:requestId"
+          element={
+            <ActingPrincipalRouteGuard>
+              <VpDelegatedRequestDetailsPage />
+            </ActingPrincipalRouteGuard>
+          }
+        />
 
-          <Route path="institution" element={<InstitutionDetailsPage />} />
-          <Route path="institution/details" element={<InstitutionDetailsPage />} />
-          <Route path="principal/institution" element={<InstitutionDetailsPage />} />
-          <Route path="hod/institution" element={<InstitutionDetailsPage />} />
-          <Route path="faculty/institution" element={<InstitutionDetailsPage />} />
-          <Route path="student/institution" element={<InstitutionDetailsPage />} />
-          <Route path="work-management" element={<WorkManagementWorkspace />} />
-          <Route path="tasks" element={<WorkManagementWorkspace />} />
-          <Route path="governance-suite" element={<GovernanceSuite />} />
-          <Route path="governance" element={<GovernanceSuite />} />
-          <Route path="approval-center" element={<PrincipalApprovalCenter />} />
+        {/* ─── Executive Availability Routes ────────────────── */}
+        <Route path="institution/availability" element={<InstitutionAvailabilityDashboard />} />
+        <Route path="vp/department-availability" element={<InstitutionAvailabilityDashboard />} />
 
-          {/* ─── Global Notifications & Circulars ────────── */}
-          <Route path="notifications" element={<NotificationsPage />} />
-          <Route path="admin/notifications" element={<NotificationCenter />} />
-          <Route path="admin/notifications/control-center" element={superAdminOnly(<NotificationCenter />)} />
-          <Route path="circulars" element={<CircularCenter />} />
-          <Route path="circulars/:id" element={<CircularDetailPage />} />
+        {/* ─── Academic Dean Routes ─────────────────────── */}
+        <Route path="academic-dean" element={<Navigate to="/academic-dean/dashboard" replace />} />
+        <Route path="academic-dean/dashboard" element={<AcademicDeanPortal user={user} />} />
+        <Route path="academic-dean/academics" element={<AcademicDeanPortal user={user} />} />
+        <Route path="academic-dean/tasks" element={<AcademicDeanPortal user={user} />} />
+        <Route path="academic-dean/approvals" element={<AcademicDeanPortal user={user} />} />
+        <Route path="academic-dean/department-availability" element={<InstitutionAvailabilityDashboard />} />
+        <Route path="academic-dean/circulars" element={<DeanCircularsPage />} />
+        <Route path="academic-dean/circulars/:id" element={<CircularDetailPage />} />
+        <Route path="academic-dean/reports" element={<AcademicDeanPortal user={user} />} />
+        <Route path="academic-dean/notifications" element={<NotificationsPage />} />
+        <Route path="academic-dean/profile" element={<UniversalProfilePage />} />
 
-          {/* ─── Faculty Routes ───────────────────────────── */}
-          <Route path="faculty" element={<Navigate to="/faculty/dashboard" replace />} />
-          <Route path="faculty/dashboard" element={<FacultyWorkspacePortal />} />
-          <Route path="faculty/hub" element={<FacultyWorkspaceHub />} />
-          <Route path="faculty/workspace" element={<FacultyWorkspaceHub />} />
-          <Route path="faculty/office" element={<CampusOfficeWorkspace />} />
-          <Route path="office" element={<CampusOfficeWorkspace />} />
+        {/* ─── Admission Dean Routes ────────────────────── */}
+        <Route path="admission-dean" element={<Navigate to="/admission-dean/dashboard" replace />} />
+        <Route path="admission-dean/dashboard" element={<AdministrationDeanCommandCentrePage />} />
+        <Route path="admission-dean/admissions" element={<AdmissionDeanPortal user={user} />} />
+        <Route path="admission-dean/approvals" element={<AdmissionDeanPortal user={user} />} />
+        <Route path="admission-dean/tasks" element={<WorkManagementWorkspace />} />
+        <Route path="admission-dean/coordination" element={<AdmissionDeanPortal user={user} />} />
+        <Route path="admission-dean/students" element={<StudentDirectoryPage />} />
+        <Route path="admission-dean/complaints" element={<ComplaintsPage />} />
+        <Route path="admission-dean/hostel" element={<AdministrationDeanCommandCentrePage />} />
+        <Route path="admission-dean/services" element={<AdministrationDeanCommandCentrePage />} />
+        <Route path="admission-dean/department-availability" element={<DepartmentAvailabilityPage />} />
+        <Route path="admission-dean/circulars" element={<DeanCircularsPage />} />
+        <Route path="admission-dean/circulars/:id" element={<CircularDetailPage />} />
+        <Route path="admission-dean/reports" element={<AdministrationDeanCommandCentrePage />} />
+        <Route path="admission-dean/notifications" element={<NotificationsPage />} />
+        <Route path="admission-dean/profile" element={<UniversalProfilePage />} />
 
-          {/* ─── Campus Workspace Routes ─────────────────────── */}
-          <Route path="workspace" element={<CampusWorkspaceHome />} />
-          <Route path="workspace/docs/:id" element={<CampusDocsEditor />} />
-          <Route path="workspace/sheets/:id" element={<CampusSheetsEditor />} />
-          <Route path="workspace/slides/:id" element={<CampusSlidesEditor />} />
-          <Route path="workspace/forms/:id" element={<CampusFormsBuilder />} />
-          <Route path="workspace/quiz/:id" element={<CampusQuizBuilder />} />
-          <Route path="workspace/notes/:id" element={<CampusNotesEditor />} />
-          <Route path="workspace/pdf/:id" element={<CampusPDFViewer />} />
-          <Route path="workspace/reports/:id" element={<CampusReportBuilder />} />
-          <Route path="workspace/report/:id" element={<CampusReportBuilder />} />
-          <Route path="workspace/drive" element={<CampusDrivePage />} />
-          <Route path="faculty/timetable" element={<FacultyWorkspacePortal />} />
-          <Route path="faculty/subjects" element={<FacultyWorkspacePortal />} />
-          <Route path="faculty/attendance" element={<FacultyWorkspacePortal />} />
-          <Route path="faculty/assignments" element={<FacultyWorkspacePortal />} />
-          <Route path="faculty/internal-marks" element={<FacultyMarksEntry />} />
-          <Route path="faculty/marks" element={<FacultyMarksEntry />} />
-          <Route path="faculty/students" element={<StudentDirectoryPage />} />
-          <Route path="faculty/leave" element={<FacultyLeaveOdPage />} />
-          <Route path="faculty/leave-request" element={<FacultyLeaveOdPage />} />
-          <Route path="faculty/leave-od" element={<FacultyLeaveOdPage />} />
-          <Route path="faculty/leave-od/:id" element={<FacultyLeaveDetailPage />} />
-          <Route path="faculty/tasks" element={<FacultyWorkspacePortal />} />
-          <Route path="faculty/department-availability" element={<DepartmentAvailabilityPage />} />
-          <Route path="faculty/availability" element={<DepartmentAvailabilityPage />} />
-          <Route path="faculty/ai_assistant" element={<FacultyWorkspacePortal />} />
-          <Route path="faculty/profile" element={<Profile />} />
-          <Route path="faculty/reports" element={<AcademicPerformance />} />
+        {/* ─── IQAC Dean Routes ─────────────────────────── */}
+        <Route path="iqac-dean" element={<IQACDeanPortal user={user} />} />
+        <Route path="iqac-executive" element={<IQACExecutivePortal user={user} />} />
+        <Route path="iqac-documentation" element={<IQACDocumentationPortal user={user} />} />
+        <Route path="iqac" element={<Navigate to="/iqac/dashboard" replace />} />
+        <Route path="iqac/dashboard" element={<IQACDeanPortal user={user} />} />
+        <Route path="iqac/accreditation" element={<IQACDeanPortal user={user} />} />
+        <Route path="iqac/approvals" element={<IQACDeanPortal user={user} />} />
+        <Route path="iqac/tasks" element={<WorkManagementWorkspace />} />
+        <Route path="iqac/evidence" element={<IQACDeanPortal user={user} />} />
+        <Route path="iqac/department-availability" element={<DepartmentAvailabilityPage />} />
+        <Route path="iqac/circulars" element={<DeanCircularsPage />} />
+        <Route path="iqac/circulars/:id" element={<CircularDetailPage />} />
+        <Route path="iqac/reports" element={<IQACDeanPortal user={user} />} />
+        <Route path="iqac/notifications" element={<NotificationsPage />} />
+        <Route path="iqac/profile" element={<Profile />} />
 
-          {/* ─── Faculty Mentor Workspace Sub-Routes ─────── */}
-          <Route path="faculty/mentor" element={<Navigate to="/faculty/mentor/dashboard" replace />} />
-          <Route path="faculty/mentor/dashboard" element={<MentorDashboardPage />} />
-          <Route path="faculty/mentor/leave-od" element={<MentorApprovalsPage />} />
-          {/* Detail route — previously missing, caused 404 on notification click */}
-          <Route path="faculty/mentor/leave-od/:requestId" element={<MentorLeaveRequestDetailPage />} />
-          <Route path="faculty/mentor/approvals" element={<MentorApprovalsPage />} />
-          <Route path="faculty/mentor/approvals/:requestId" element={<MentorLeaveRequestDetailPage />} />
-          {/* Backward compatibility aliases for mentor approval links */}
-          <Route path="faculty/mentor-approvals" element={<Navigate to="/faculty/mentor/leave-od" replace />} />
-          <Route path="faculty/mentor-approvals/:requestId" element={<MentorLeaveRequestDetailPage />} />
-          <Route path="mentor/approvals" element={<Navigate to="/faculty/mentor/leave-od" replace />} />
-          <Route path="mentor/approvals/:requestId" element={<MentorLeaveRequestDetailPage />} />
-          <Route path="faculty/mentor/attendance" element={<MentorAttendanceOverviewPage />} />
-          <Route path="faculty/mentor/academics" element={<MentorAcademicsPage />} />
-          <Route path="faculty/mentor/counselling" element={<MentorCounsellingPage />} />
-          <Route path="faculty/mentor/parents" element={<MentorParentCommunicationPage />} />
-          <Route path="faculty/mentor/meetings" element={<MentorMeetingsPage />} />
-          <Route path="faculty/mentor/tasks" element={<MentorDashboardPage />} />
-          <Route path="faculty/mentor/messages" element={<MentorDashboardPage />} />
-          <Route path="faculty/mentor/reports" element={<MentorDashboardPage />} />
-          <Route path="faculty/mentor/department-availability" element={<DepartmentAvailabilityPage />} />
+        {/* ─── HOD Portal Direct Routes ─────────────────── */}
+        <Route path="hod" element={<Navigate to="/hod/dashboard" replace />} />
+        <Route path="hod/dashboard" element={<HodDashboardWorkspace />} />
+        <Route path="hod/approvals" element={<HodLeaveOdApprovalDesk />} />
+        <Route path="hod/approvals/:requestId" element={<HodLeaveOdApprovalDesk />} />
+        <Route path="hod/leave-approvals" element={<HodLeaveOdApprovalDesk />} />
+        <Route path="hod/leave-approvals/:requestId" element={<HodLeaveOdApprovalDesk />} />
+        <Route path="hod/leave-od" element={<HodLeaveOdApprovalDesk />} />
+        <Route path="hod/leave-od/:requestId" element={<HodLeaveOdApprovalDesk />} />
+        <Route path="hod/faculty-requests" element={<HodFacultyRequestsPage />} />
+        <Route path="hod/faculty-requests/:id" element={<FacultyLeaveDetailPage />} />
+        <Route path="hod/students" element={<HodStudentWorkspace />} />
+        <Route path="hod/faculty" element={<HodFacultyWorkspace />} />
+        <Route path="hod/mentors" element={<HodMentorsWorkspace />} />
+        <Route path="hod/academics" element={<AcademicPerformance />} />
+        <Route path="hod/academic-performance" element={<AcademicPerformance />} />
+        <Route path="hod/department-overview" element={<DepartmentOverview />} />
+        <Route path="hod/department-results" element={<DepartmentResults />} />
+        <Route path="hod/faculty-performance" element={<FacultyPerformance />} />
+        <Route path="hod/subjects" element={<DepartmentSubjects />} />
+        <Route path="hod/attendance" element={<HodAttendanceWorkspace />} />
+        <Route path="hod/timetable" element={<HodTimetableControlCenter />} />
+        <Route path="hod/timetable-control" element={<HodTimetableControlCenter />} />
+        <Route path="hod/tasks" element={<HodTasksPage />} />
+        <Route path="hod/tasks/:id" element={<HodTasksPage />} />
+        <Route path="hod/circulars" element={<HodCircularPage />} />
+        <Route path="hod/circulars/:id" element={<CircularDetailPage />} />
+        <Route path="hod/department-availability" element={<DepartmentAvailabilityPage />} />
+        <Route path="hod/board" element={<DepartmentAvailabilityPage />} />
+        <Route path="hod/complaints" element={<ComplaintsPage />} />
+        <Route path="hod/activities" element={<HodReportsWorkspace />} />
+        <Route path="hod/reports" element={<HodReportsWorkspace />} />
+        <Route path="hod/profile" element={<HODProfile />} />
+        <Route path="hod/notifications" element={<NotificationsPage />} />
+        <Route path="hod/allocation" element={<HodFacultyAllocationPage />} />
 
-          {/* Faculty Circulars — registered */}
-          <Route path="faculty/circulars" element={<FacultyCircularsPage />} />
-          <Route path="faculty/circulars/:id" element={<CircularDetailPage />} />
-          <Route path="faculty/notifications" element={<NotificationsPage />} />
+        {/* ─── Faculty Portal Direct Routes ─────────────────── */}
+        <Route path="faculty/leave-od" element={<FacultyLeaveOdPage />} />
+        <Route path="faculty/leave-od/:id" element={<FacultyLeaveDetailPage />} />
+        <Route path="faculty/leave" element={<FacultyLeaveOdPage />} />
 
-          {/* ─── Mentor Route Aliases ───────────────────────── */}
-          <Route path="mentor" element={<Navigate to="/faculty/mentor/dashboard" replace />} />
-          <Route path="mentor/dashboard" element={<MentorDashboardPage />} />
-          <Route path="mentor/students" element={<MentorStudentsPage />} />
-          <Route path="mentor/students/:studentId" element={<MentorStudentDetailPage />} />
-          <Route path="mentor/leave-od" element={<MentorApprovalsPage />} />
-          <Route path="mentor/leave-od/:requestId" element={<MentorLeaveRequestDetailPage />} />
-          <Route path="mentor/approvals" element={<MentorApprovalsPage />} />
-          <Route path="mentor/approvals/:requestId" element={<MentorLeaveRequestDetailPage />} />
-          <Route path="mentor/attendance" element={<MentorAttendanceOverviewPage />} />
-          <Route path="mentor/academics" element={<MentorAcademicsPage />} />
-          <Route path="mentor/counselling" element={<MentorCounsellingPage />} />
-          <Route path="mentor/parents" element={<MentorParentCommunicationPage />} />
-          <Route path="mentor/meetings" element={<MentorMeetingsPage />} />
-          <Route path="mentor/tasks" element={<MentorDashboardPage />} />
-          <Route path="mentor/messages" element={<MentorDashboardPage />} />
-          <Route path="mentor/reports" element={<MentorDashboardPage />} />
-          <Route path="mentor/circulars" element={<FacultyCircularsPage />} />
-          <Route path="mentor/notifications" element={<NotificationsPage />} />
-          <Route path="mentor/profile" element={<Profile />} />
+        {/* ─── Student Direct Routes ───────────────────────── */}
+        <Route path="student" element={<Navigate to="/student/dashboard" replace />} />
+        <Route path="student/dashboard" element={<React.Suspense fallback={<div className="p-6">Loading...</div>}><StudentDashboard /></React.Suspense>} />
+        <Route path="student/profile" element={<React.Suspense fallback={<div className="p-6">Loading...</div>}><StudentProfile /></React.Suspense>} />
+        <Route path="student/id-card" element={<React.Suspense fallback={<div className="p-6">Loading...</div>}><StudentIdCard /></React.Suspense>} />
+        <Route path="student/syllabus" element={<React.Suspense fallback={<div className="p-6">Loading...</div>}><StudentSyllabus /></React.Suspense>} />
+        <Route path="student/timetable" element={<React.Suspense fallback={<div className="p-6">Loading...</div>}><StudentTimetable /></React.Suspense>} />
+        <Route path="student/attendance" element={<React.Suspense fallback={<div className="p-6">Loading...</div>}><StudentAttendance /></React.Suspense>} />
+        <Route path="student/calendar" element={<React.Suspense fallback={<div className="p-6">Loading...</div>}><StudentCalendar /></React.Suspense>} />
+        <Route path="student/assignments" element={<React.Suspense fallback={<div className="p-6">Loading...</div>}><StudentAssignments /></React.Suspense>} />
+        <Route path="student/results" element={<React.Suspense fallback={<div className="p-6">Loading...</div>}><StudentResults /></React.Suspense>} />
+        <Route path="student/examinations" element={<React.Suspense fallback={<div className="p-6">Loading...</div>}><StudentExaminations /></React.Suspense>} />
+        <Route path="student/leave-od" element={<React.Suspense fallback={<div className="p-6">Loading...</div>}><StudentLeaveOd /></React.Suspense>} />
+        <Route path="student/leave-od/:id" element={<React.Suspense fallback={<div className="p-6">Loading...</div>}><StudentLeaveOd /></React.Suspense>} />
+        <Route path="student/fees" element={<FeeLedgerPage />} />
+        <Route path="student/academics" element={<React.Suspense fallback={<div className="p-6">Loading...</div>}><StudentAttendance /></React.Suspense>} />
 
-          {/* ─── Class Adviser Workspace Routes ────────────── */}
-          <Route path="class-adviser" element={<Navigate to="/class-adviser/dashboard" replace />} />
-          <Route path="class-adviser/dashboard" element={<ClassAdviserDashboardPage />} />
-          <Route path="class-adviser/students" element={<HodStudentWorkspace />} />
-          <Route path="class-adviser/attendance" element={<HodAttendanceWorkspace />} />
-          <Route path="class-adviser/academics" element={<AcademicPerformance />} />
-          <Route path="class-adviser/leave-od" element={<HodLeaveOdApprovalDesk />} />
-          <Route path="class-adviser/leave-od/:requestId" element={<HodLeaveOdApprovalDesk />} />
-          <Route path="class-adviser/approvals" element={<HodLeaveOdApprovalDesk />} />
-          <Route path="class-adviser/approvals/:requestId" element={<HodLeaveOdApprovalDesk />} />
-          <Route path="class-adviser/assignments" element={<FacultyWorkspacePortal />} />
-          <Route path="class-adviser/circulars" element={<FacultyCircularsPage />} />
-          <Route path="class-adviser/notifications" element={<NotificationsPage />} />
-          <Route path="class-adviser/profile" element={<Profile />} />
+        {/* ─── Accountant / Finance Routes ─────────────────────── */}
+        <Route path="accountant" element={<Navigate to="/accountant/dashboard" replace />} />
+        <Route path="accountant/dashboard" element={<SuspenseWrap><FinanceWorkspaceLazy /></SuspenseWrap>} />
+        <Route path="accountant/*" element={<SuspenseWrap><FinanceWorkspaceLazy /></SuspenseWrap>} />
+        <Route path="ao" element={<Navigate to="/ao/dashboard" replace />} />
+        <Route path="ao/dashboard" element={<SuspenseWrap><FinanceWorkspaceLazy /></SuspenseWrap>} />
+        <Route path="ao/*" element={<SuspenseWrap><FinanceWorkspaceLazy /></SuspenseWrap>} />
+        <Route path="principal/finance" element={<SuspenseWrap><FinanceWorkspaceLazy /></SuspenseWrap>} />
+        <Route path="student/circulars" element={<React.Suspense fallback={<div className="p-6">Loading...</div>}><StudentCirculars /></React.Suspense>} />
+        <Route path="student/circulars/:id" element={<CircularDetailPage />} />
+        <Route path="student/messages" element={<React.Suspense fallback={<div className="p-6">Loading...</div>}><StudentAdvisorChat /></React.Suspense>} />
+        <Route path="student/placements" element={<React.Suspense fallback={<div className="p-6">Loading...</div>}><StudentPlacements /></React.Suspense>} />
+        <Route path="student/certificates" element={<React.Suspense fallback={<div className="p-6">Loading...</div>}><StudentCertificates /></React.Suspense>} />
+        <Route path="student/documents" element={<Navigate to="/student/certificates" replace />} />
+        <Route path="student/achievements" element={<React.Suspense fallback={<div className="p-6">Loading...</div>}><StudentAchievements /></React.Suspense>} />
+        <Route path="student/hostel" element={<React.Suspense fallback={<div className="p-6">Loading...</div>}><StudentHostel /></React.Suspense>} />
+        <Route path="student/transport" element={<React.Suspense fallback={<div className="p-6">Loading...</div>}><StudentTransport /></React.Suspense>} />
+        <Route path="student/complaints" element={<ComplaintsPage />} />
+        <Route path="student/notifications" element={<NotificationsPage />} />
 
-          {/* ─── Principal Workspace Routes ───────────────── */}
-          <Route path="principal" element={<Navigate to="/principal/dashboard" replace />} />
-          <Route path="principal/dashboard" element={<PrincipalCommandCentrePage />} />
-          <Route path="principal/approval-center" element={<PrincipalApprovalCenter />} />
-          <Route path="principal/department-availability" element={<DepartmentAvailabilityPage />} />
-          <Route path="principal/departments" element={<PrincipalDepartmentsPage />} />
-          <Route path="principal/faculty" element={<PrincipalDepartmentsPage />} />
-          <Route path="principal/faculty/:userId" element={<UniversalProfilePage />} />
-          <Route path="principal/students" element={<StudentDirectoryPage />} />
-          <Route path="principal/students/:userId" element={<UniversalProfilePage />} />
-          <Route path="principal/academics" element={<AcademicPerformance />} />
-          <Route path="principal/tasks" element={<WorkManagementWorkspace />} />
-          <Route path="principal/circulars" element={<PrincipalCircularsPage />} />
-          <Route path="principal/circulars/:id" element={<CircularDetailPage />} />
-          <Route path="principal/complaints" element={<ComplaintsPage />} />
-          <Route path="principal/reports" element={<ReportsPanel />} />
-          <Route path="principal/placement" element={<PlacementEngine />} />
-          <Route path="principal/delegation" element={<PrincipalDelegationPage />} />
-          <Route path="principal/search" element={<InstitutionDetailsPage />} />
-          <Route path="principal/profile" element={<Profile />} />
-          <Route path="principal/notifications" element={<NotificationsPage />} />
+        {/* ─── Stub Role Workspaces (Library / Hostel / Transport / Placement) ─── */}
+        <Route path="library" element={<SuspenseWrap><LibrarianWorkspace /></SuspenseWrap>} />
+        <Route path="library/*" element={<SuspenseWrap><LibrarianWorkspace /></SuspenseWrap>} />
+        <Route path="hostel" element={<SuspenseWrap><HostelWardenWorkspace /></SuspenseWrap>} />
+        <Route path="hostel/*" element={<SuspenseWrap><HostelWardenWorkspace /></SuspenseWrap>} />
+        <Route path="transport" element={<SuspenseWrap><TransportManagerWorkspace /></SuspenseWrap>} />
+        <Route path="transport/my-bus" element={<FacultyTransport />} />
+        <Route path="transport/my-bus/:tripId" element={<FacultyTransport />} />
+        <Route path="transport/*" element={<SuspenseWrap><TransportManagerWorkspace /></SuspenseWrap>} />
+        <Route path="placement" element={<SuspenseWrap><PlacementOfficerWorkspace /></SuspenseWrap>} />
+        <Route path="placement/*" element={<SuspenseWrap><PlacementOfficerWorkspace /></SuspenseWrap>} />
+        <Route path="placements" element={<SuspenseWrap><PlacementOfficerWorkspace /></SuspenseWrap>} />
+        <Route path="placements/*" element={<SuspenseWrap><PlacementOfficerWorkspace /></SuspenseWrap>} />
 
-          {/* ─── Vice Principal Workspace Routes ──────────── */}
-          <Route path="vp" element={<Navigate to="/vp/dashboard" replace />} />
-          <Route path="vp/dashboard" element={<VpDashboardPage />} />
-          <Route path="vp/operations" element={<VpDashboardPage />} />
-          <Route path="vp/departments" element={<InstitutionDetailsPage />} />
-          <Route path="vp/faculty" element={<InstitutionDetailsPage />} />
-          <Route path="vp/students" element={<StudentDirectoryPage />} />
-          <Route path="vp/attendance" element={<DepartmentAvailabilityPage />} />
-          <Route path="vp/leave-approvals" element={<VpActingPrincipalApprovalPage />} />
-          <Route path="vp/examinations" element={<AcademicPerformance />} />
-          <Route path="vp/placements" element={<PlacementEngine />} />
-          <Route path="vp/complaints" element={<ComplaintsPage />} />
-          <Route path="vp/activities" element={<ReportsPanel />} />
-          <Route path="vp/reports" element={<ReportsPanel />} />
-          <Route path="vp/department-availability" element={<DepartmentAvailabilityPage />} />
-          <Route path="vp/circulars" element={<VpCircularsPage />} />
-          <Route path="vp/circulars/:id" element={<CircularDetailPage />} />
-          <Route path="vp/notifications" element={<NotificationsPage />} />
-          <Route path="vp/tasks" element={<WorkManagementWorkspace />} />
-          <Route path="vp/profile" element={<Profile />} />
+        {/* ─── Parent Direct Routes ────────────────────────── */}
+        <Route path="parent" element={<Navigate to="/parent/dashboard" replace />} />
+        <Route path="parent/dashboard" element={<ParentWorkspacePortal />} />
+        <Route path="parent/attendance" element={<ParentWorkspacePortal />} />
+        <Route path="parent/marks" element={<ParentWorkspacePortal />} />
+        <Route path="parent/timetable" element={<ParentWorkspacePortal />} />
+        <Route path="parent/fees" element={<ParentWorkspacePortal />} />
+        <Route path="parent/leave" element={<ParentWorkspacePortal />} />
+        <Route path="parent/receipts" element={<ParentWorkspacePortal />} />
+        <Route path="parent/transport" element={<ParentWorkspacePortal />} />
+        <Route path="parent/mentor" element={<ParentWorkspacePortal />} />
+        <Route path="parent/preferences" element={<ParentWorkspacePortal />} />
+        <Route path="parent/messages" element={<ParentWorkspacePortal />} />
+        <Route path="parent/circulars" element={<ParentWorkspacePortal />} />
+        <Route path="parent/notifications" element={<NotificationsPage />} />
+        <Route path="parent/profile" element={<ParentWorkspacePortal />} />
 
-          {/* VP Acting Principal Delegated Approvals */}
-          <Route
-            path="vp/acting-principal/approvals"
-            element={
-              <ActingPrincipalRouteGuard>
-                <VpActingPrincipalApprovalPage />
-              </ActingPrincipalRouteGuard>
-            }
-          />
-          <Route
-            path="vp/acting-principal/approval-center"
-            element={
-              <ActingPrincipalRouteGuard>
-                <VpActingPrincipalApprovalPage />
-              </ActingPrincipalRouteGuard>
-            }
-          />
-          <Route
-            path="vp/acting-principal/approvals/:requestId"
-            element={
-              <ActingPrincipalRouteGuard>
-                <VpDelegatedRequestDetailsPage />
-              </ActingPrincipalRouteGuard>
-            }
-          />
+        {/* Access Denied */}
+        <Route path="access-denied" element={<AccessDenied />} />
 
-          {/* ─── Executive Availability Routes ────────────────── */}
-          <Route path="institution/availability" element={<InstitutionAvailabilityDashboard />} />
-          <Route path="vp/department-availability" element={<InstitutionAvailabilityDashboard />} />
+        {/* Dynamic Admin & Role Mappings */}
+        {user?.menus?.filter((m: any) =>
+          m.componentKey !== 'dashboard' &&
+          m.componentKey !== 'profile' &&
+          !m.path?.startsWith('/hod') &&
+          !m.path?.startsWith('hod') &&
+          !m.path?.startsWith('/faculty') &&
+          !m.path?.startsWith('faculty') &&
+          !m.path?.startsWith('/principal') &&
+          !m.path?.startsWith('principal') &&
+          !m.path?.startsWith('/vp') &&
+          !m.path?.startsWith('vp') &&
+          !m.path?.startsWith('/academic-dean') &&
+          !m.path?.startsWith('academic-dean') &&
+          !m.path?.startsWith('/admission-dean') &&
+          !m.path?.startsWith('admission-dean') &&
+          !m.path?.startsWith('/iqac') &&
+          !m.path?.startsWith('iqac')
+        ).map((m: any) => {
+          const PageComp = COMPONENT_MAP[m.componentKey];
+          if (!PageComp) return null;
+          const cleanPath = m.path.startsWith('/') ? m.path.slice(1) : m.path;
+          const isStudentRoute = m.componentKey.startsWith('student_');
 
-          {/* ─── Academic Dean Routes ─────────────────────── */}
-          <Route path="academic-dean" element={<Navigate to="/academic-dean/dashboard" replace />} />
-          <Route path="academic-dean/dashboard" element={<AcademicDeanPortal user={user} />} />
-          <Route path="academic-dean/academics" element={<AcademicDeanPortal user={user} />} />
-          <Route path="academic-dean/tasks" element={<AcademicDeanPortal user={user} />} />
-          <Route path="academic-dean/approvals" element={<AcademicDeanPortal user={user} />} />
-          <Route path="academic-dean/department-availability" element={<InstitutionAvailabilityDashboard />} />
-          <Route path="academic-dean/circulars" element={<DeanCircularsPage />} />
-          <Route path="academic-dean/circulars/:id" element={<CircularDetailPage />} />
-          <Route path="academic-dean/reports" element={<AcademicDeanPortal user={user} />} />
-          <Route path="academic-dean/notifications" element={<NotificationsPage />} />
-          <Route path="academic-dean/profile" element={<UniversalProfilePage />} />
-
-          {/* ─── Admission Dean Routes ────────────────────── */}
-          <Route path="admission-dean" element={<Navigate to="/admission-dean/dashboard" replace />} />
-          <Route path="admission-dean/dashboard" element={<AdministrationDeanCommandCentrePage />} />
-          <Route path="admission-dean/admissions" element={<AdmissionDeanPortal user={user} />} />
-          <Route path="admission-dean/approvals" element={<AdmissionDeanPortal user={user} />} />
-          <Route path="admission-dean/tasks" element={<WorkManagementWorkspace />} />
-          <Route path="admission-dean/coordination" element={<AdmissionDeanPortal user={user} />} />
-          <Route path="admission-dean/students" element={<StudentDirectoryPage />} />
-          <Route path="admission-dean/complaints" element={<ComplaintsPage />} />
-          <Route path="admission-dean/hostel" element={<AdministrationDeanCommandCentrePage />} />
-          <Route path="admission-dean/services" element={<AdministrationDeanCommandCentrePage />} />
-          <Route path="admission-dean/department-availability" element={<DepartmentAvailabilityPage />} />
-          <Route path="admission-dean/circulars" element={<DeanCircularsPage />} />
-          <Route path="admission-dean/circulars/:id" element={<CircularDetailPage />} />
-          <Route path="admission-dean/reports" element={<AdministrationDeanCommandCentrePage />} />
-          <Route path="admission-dean/notifications" element={<NotificationsPage />} />
-          <Route path="admission-dean/profile" element={<UniversalProfilePage />} />
-
-          {/* ─── IQAC Dean Routes ─────────────────────────── */}
-          <Route path="iqac-dean" element={<IQACDeanPortal user={user} />} />
-          <Route path="iqac-executive" element={<IQACExecutivePortal user={user} />} />
-          <Route path="iqac-documentation" element={<IQACDocumentationPortal user={user} />} />
-          <Route path="iqac" element={<Navigate to="/iqac/dashboard" replace />} />
-          <Route path="iqac/dashboard" element={<IQACDeanPortal user={user} />} />
-          <Route path="iqac/accreditation" element={<IQACDeanPortal user={user} />} />
-          <Route path="iqac/approvals" element={<IQACDeanPortal user={user} />} />
-          <Route path="iqac/tasks" element={<WorkManagementWorkspace />} />
-          <Route path="iqac/evidence" element={<IQACDeanPortal user={user} />} />
-          <Route path="iqac/department-availability" element={<DepartmentAvailabilityPage />} />
-          <Route path="iqac/circulars" element={<DeanCircularsPage />} />
-          <Route path="iqac/circulars/:id" element={<CircularDetailPage />} />
-          <Route path="iqac/reports" element={<IQACDeanPortal user={user} />} />
-          <Route path="iqac/notifications" element={<NotificationsPage />} />
-          <Route path="iqac/profile" element={<Profile />} />
-
-          {/* ─── HOD Portal Direct Routes ─────────────────── */}
-          <Route path="hod" element={<Navigate to="/hod/dashboard" replace />} />
-          <Route path="hod/dashboard" element={<HodDashboardWorkspace />} />
-          <Route path="hod/approvals" element={<HodLeaveOdApprovalDesk />} />
-          <Route path="hod/approvals/:requestId" element={<HodLeaveOdApprovalDesk />} />
-          <Route path="hod/leave-approvals" element={<HodLeaveOdApprovalDesk />} />
-          <Route path="hod/leave-approvals/:requestId" element={<HodLeaveOdApprovalDesk />} />
-          <Route path="hod/leave-od" element={<HodLeaveOdApprovalDesk />} />
-          <Route path="hod/leave-od/:requestId" element={<HodLeaveOdApprovalDesk />} />
-          <Route path="hod/faculty-requests" element={<HodFacultyRequestsPage />} />
-          <Route path="hod/faculty-requests/:id" element={<FacultyLeaveDetailPage />} />
-          <Route path="hod/students" element={<HodStudentWorkspace />} />
-          <Route path="hod/faculty" element={<HodFacultyWorkspace />} />
-          <Route path="hod/mentors" element={<HodMentorsWorkspace />} />
-          <Route path="hod/academics" element={<AcademicPerformance />} />
-          <Route path="hod/academic-performance" element={<AcademicPerformance />} />
-          <Route path="hod/department-overview" element={<DepartmentOverview />} />
-          <Route path="hod/department-results" element={<DepartmentResults />} />
-          <Route path="hod/faculty-performance" element={<FacultyPerformance />} />
-          <Route path="hod/subjects" element={<DepartmentSubjects />} />
-          <Route path="hod/attendance" element={<HodAttendanceWorkspace />} />
-          <Route path="hod/timetable" element={<HodTimetableControlCenter />} />
-          <Route path="hod/timetable-control" element={<HodTimetableControlCenter />} />
-          <Route path="hod/tasks" element={<HodTasksPage />} />
-          <Route path="hod/tasks/:id" element={<HodTasksPage />} />
-          <Route path="hod/circulars" element={<HodCircularPage />} />
-          <Route path="hod/circulars/:id" element={<CircularDetailPage />} />
-          <Route path="hod/department-availability" element={<DepartmentAvailabilityPage />} />
-          <Route path="hod/board" element={<DepartmentAvailabilityPage />} />
-          <Route path="hod/complaints" element={<ComplaintsPage />} />
-          <Route path="hod/activities" element={<HodReportsWorkspace />} />
-          <Route path="hod/reports" element={<HodReportsWorkspace />} />
-          <Route path="hod/profile" element={<HODProfile />} />
-          {/* HOD Notifications — was MISSING */}
-          <Route path="hod/notifications" element={<NotificationsPage />} />
-          {/* HOD Faculty Allocation — PREVIOUSLY MISSING */}
-          <Route path="hod/allocation" element={<HodFacultyAllocationPage />} />
-
-          {/* ─── Faculty Portal Direct Routes ─────────────────── */}
-          <Route path="faculty/leave-od" element={<FacultyLeaveOdPage />} />
-          <Route path="faculty/leave-od/:id" element={<FacultyLeaveDetailPage />} />
-          <Route path="faculty/leave" element={<FacultyLeaveOdPage />} />
-
-          {/* ─── Student Direct Routes (Prevent 404 on Direct Links) ─── */}
-          <Route path="student" element={<Navigate to="/student/dashboard" replace />} />
-          <Route path="student/dashboard" element={<React.Suspense fallback={<div className="p-6">Loading...</div>}><StudentDashboard /></React.Suspense>} />
-          <Route path="student/profile" element={<React.Suspense fallback={<div className="p-6">Loading...</div>}><StudentProfile /></React.Suspense>} />
-          <Route path="student/id-card" element={<React.Suspense fallback={<div className="p-6">Loading...</div>}><StudentIdCard /></React.Suspense>} />
-          <Route path="student/syllabus" element={<React.Suspense fallback={<div className="p-6">Loading...</div>}><StudentSyllabus /></React.Suspense>} />
-          <Route path="student/timetable" element={<React.Suspense fallback={<div className="p-6">Loading...</div>}><StudentTimetable /></React.Suspense>} />
-          <Route path="student/attendance" element={<React.Suspense fallback={<div className="p-6">Loading...</div>}><StudentAttendance /></React.Suspense>} />
-          <Route path="student/assignments" element={<React.Suspense fallback={<div className="p-6">Loading...</div>}><StudentAssignments /></React.Suspense>} />
-          <Route path="student/results" element={<React.Suspense fallback={<div className="p-6">Loading...</div>}><StudentResults /></React.Suspense>} />
-          <Route path="student/examinations" element={<React.Suspense fallback={<div className="p-6">Loading...</div>}><StudentExaminations /></React.Suspense>} />
-          <Route path="student/leave-od" element={<React.Suspense fallback={<div className="p-6">Loading...</div>}><StudentLeaveOd /></React.Suspense>} />
-          <Route path="student/leave-od/:id" element={<React.Suspense fallback={<div className="p-6">Loading...</div>}><StudentLeaveOd /></React.Suspense>} />
-          <Route path="student/fees" element={<FeeLedgerPage />} />
-          {/* Student Academics — overview page redirecting to key academic modules */}
-          <Route path="student/academics" element={<React.Suspense fallback={<div className="p-6">Loading...</div>}><StudentAttendance /></React.Suspense>} />
-
-          {/* ─── Accountant / Finance Routes ─────────────────────── */}
-          <Route path="accountant" element={<Navigate to="/accountant/dashboard" replace />} />
-          <Route path="accountant/dashboard" element={<SuspenseWrap><FinanceWorkspaceLazy /></SuspenseWrap>} />
-          <Route path="accountant/*" element={<SuspenseWrap><FinanceWorkspaceLazy /></SuspenseWrap>} />
-          {/* AO routes */}
-          <Route path="ao" element={<Navigate to="/ao/dashboard" replace />} />
-          <Route path="ao/dashboard" element={<SuspenseWrap><FinanceWorkspaceLazy /></SuspenseWrap>} />
-          <Route path="ao/*" element={<SuspenseWrap><FinanceWorkspaceLazy /></SuspenseWrap>} />
-          <Route path="principal/finance" element={<SuspenseWrap><FinanceWorkspaceLazy /></SuspenseWrap>} />
-          <Route path="student/circulars" element={<React.Suspense fallback={<div className="p-6">Loading...</div>}><StudentCirculars /></React.Suspense>} />
-          <Route path="student/circulars/:id" element={<CircularDetailPage />} />
-          <Route path="student/messages" element={<React.Suspense fallback={<div className="p-6">Loading...</div>}><StudentAdvisorChat /></React.Suspense>} />
-          <Route path="student/placements" element={<React.Suspense fallback={<div className="p-6">Loading...</div>}><StudentPlacements /></React.Suspense>} />
-          <Route path="student/certificates" element={<React.Suspense fallback={<div className="p-6">Loading...</div>}><StudentCertificates /></React.Suspense>} />
-          <Route path="student/documents" element={<Navigate to="/student/certificates" replace />} />
-          <Route path="student/achievements" element={<React.Suspense fallback={<div className="p-6">Loading...</div>}><StudentAchievements /></React.Suspense>} />
-          <Route path="student/hostel" element={<React.Suspense fallback={<div className="p-6">Loading...</div>}><StudentHostel /></React.Suspense>} />
-          <Route path="student/transport" element={<React.Suspense fallback={<div className="p-6">Loading...</div>}><StudentTransport /></React.Suspense>} />
-          <Route path="student/complaints" element={<ComplaintsPage />} />
-          <Route path="student/notifications" element={<NotificationsPage />} />
-
-          {/* ─── Stub Role Workspaces (Library / Hostel / Transport / Placement) ─── */}
-          <Route path="library" element={<SuspenseWrap><LibrarianWorkspace /></SuspenseWrap>} />
-          <Route path="library/*" element={<SuspenseWrap><LibrarianWorkspace /></SuspenseWrap>} />
-          <Route path="hostel" element={<SuspenseWrap><HostelWardenWorkspace /></SuspenseWrap>} />
-          <Route path="hostel/*" element={<SuspenseWrap><HostelWardenWorkspace /></SuspenseWrap>} />
-          <Route path="transport" element={<SuspenseWrap><TransportManagerWorkspace /></SuspenseWrap>} />
-          <Route path="transport/*" element={<SuspenseWrap><TransportManagerWorkspace /></SuspenseWrap>} />
-          <Route path="placement" element={<SuspenseWrap><PlacementOfficerWorkspace /></SuspenseWrap>} />
-          <Route path="placement/*" element={<SuspenseWrap><PlacementOfficerWorkspace /></SuspenseWrap>} />
-          <Route path="placements" element={<SuspenseWrap><PlacementOfficerWorkspace /></SuspenseWrap>} />
-          <Route path="placements/*" element={<SuspenseWrap><PlacementOfficerWorkspace /></SuspenseWrap>} />
-
-          {/* ─── Parent Direct Routes (Prevent 404 on Direct Links) ─── */}
-          <Route path="parent" element={<Navigate to="/parent/dashboard" replace />} />
-          <Route path="parent/dashboard" element={<ParentWorkspacePortal />} />
-          <Route path="parent/attendance" element={<ParentWorkspacePortal />} />
-          <Route path="parent/marks" element={<ParentWorkspacePortal />} />
-          <Route path="parent/timetable" element={<ParentWorkspacePortal />} />
-          <Route path="parent/fees" element={<ParentWorkspacePortal />} />
-          <Route path="parent/leave" element={<ParentWorkspacePortal />} />
-          <Route path="parent/receipts" element={<ParentWorkspacePortal />} />
-          <Route path="parent/transport" element={<ParentWorkspacePortal />} />
-          <Route path="parent/mentor" element={<ParentWorkspacePortal />} />
-          <Route path="parent/preferences" element={<ParentWorkspacePortal />} />
-          <Route path="parent/messages" element={<ParentWorkspacePortal />} />
-          <Route path="parent/circulars" element={<ParentWorkspacePortal />} />
-          <Route path="parent/notifications" element={<NotificationsPage />} />
-          <Route path="parent/profile" element={<ParentWorkspacePortal />} />
-
-          {/* Access Denied — shown for unauthorized routes, not 404 */}
-          <Route path="access-denied" element={<AccessDenied />} />
-
-          {/* Dynamically register other admin routes if permitted
-              (excluding HOD and Faculty paths to prevent blank screen overrides) */}
-          {user?.menus?.filter((m: any) =>
-            m.componentKey !== 'dashboard' &&
-            m.componentKey !== 'profile' &&
-            !m.path?.startsWith('/hod') &&
-            !m.path?.startsWith('hod') &&
-            !m.path?.startsWith('/faculty') &&
-            !m.path?.startsWith('faculty') &&
-            !m.path?.startsWith('/principal') &&
-            !m.path?.startsWith('principal') &&
-            !m.path?.startsWith('/vp') &&
-            !m.path?.startsWith('vp') &&
-            !m.path?.startsWith('/academic-dean') &&
-            !m.path?.startsWith('academic-dean') &&
-            !m.path?.startsWith('/admission-dean') &&
-            !m.path?.startsWith('admission-dean') &&
-            !m.path?.startsWith('/iqac') &&
-            !m.path?.startsWith('iqac')
-          ).map((m: any) => {
-            const PageComp = COMPONENT_MAP[m.componentKey];
-            if (!PageComp) return null;
-            // Clean leading slashes for sub-routes
-            const cleanPath = m.path.startsWith('/') ? m.path.slice(1) : m.path;
-
-            // Check if this is a student route
-            const isStudentRoute = m.componentKey.startsWith('student_');
-
-            const element = isStudentRoute ? (
-              <StudentRouteGuard>
-                <React.Suspense fallback={
-                  <div className="p-6 space-y-4 animate-pulse">
-                    <div className="h-8 bg-muted rounded w-1/4"></div>
-                    <div className="h-4 bg-muted rounded w-1/2"></div>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <div className="h-32 bg-muted rounded-xl"></div>
-                      <div className="h-32 bg-muted rounded-xl"></div>
-                      <div className="h-32 bg-muted rounded-xl"></div>
-                    </div>
+          const element = isStudentRoute ? (
+            <StudentRouteGuard>
+              <React.Suspense fallback={
+                <div className="p-6 space-y-4 animate-pulse">
+                  <div className="h-8 bg-muted rounded w-1/4"></div>
+                  <div className="h-4 bg-muted rounded w-1/2"></div>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="h-32 bg-muted rounded-xl"></div>
+                    <div className="h-32 bg-muted rounded-xl"></div>
+                    <div className="h-32 bg-muted rounded-xl"></div>
                   </div>
-                }>
-                  <PageComp />
-                </React.Suspense>
-              </StudentRouteGuard>
-            ) : (
-              <PageComp />
-            );
+                </div>
+              }>
+                <PageComp />
+              </React.Suspense>
+            </StudentRouteGuard>
+          ) : (
+            <PageComp />
+          );
 
-            return <Route key={m.componentKey} path={cleanPath} element={element} />;
-          })}
+          return <Route key={m.componentKey} path={cleanPath} element={element} />;
+        })}
 
-          <Route path="*" element={<NotFoundPage />} />
-        </Route>
-
-        {/* Fallback */}
-        <Route path="/404" element={<NotFoundPage />} />
         <Route path="*" element={<NotFoundPage />} />
+      </Route>
+
+      {/* Fallback */}
+      <Route path="/404" element={<NotFoundPage />} />
+      <Route path="*" element={<NotFoundPage />} />
     </Routes>
   );
 };
+
+export { Router as AppRouter };
+export default Router;
+

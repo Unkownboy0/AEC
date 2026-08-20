@@ -50,6 +50,7 @@ export class UsersRepository {
         },
         include: {
           role: true,
+          profileImageFile: true,
         },
       }),
       prisma.user.count({ where }),
@@ -69,6 +70,8 @@ export class UsersRepository {
     lastName: string;
     departmentId?: string;
     status: string;
+    phone?: string;
+    gender?: string;
     forcePasswordChange?: boolean;
     roleId: string;
   }) {
@@ -88,6 +91,7 @@ export class UsersRepository {
     status?: string;
     roleId?: string;
     phone?: string;
+    gender?: string;
   }) {
     return prisma.user.update({
       where: { id },

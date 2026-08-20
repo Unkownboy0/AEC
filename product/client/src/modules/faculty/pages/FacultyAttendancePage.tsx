@@ -4,6 +4,7 @@ import { UserCheck, Check, X, Calendar, Save } from 'lucide-react';
 import { DataTable, Column } from '../../../design-system/components/DataTable';
 import { ErrorState } from '../../../design-system/components/ErrorState';
 import { pageVariants } from '../../../design-system/tokens/motion';
+import { AnimatedStatusChip } from '../../../design-system/motion/AnimatedStatusChip';
 import api from '../../../lib/axios';
 import { toast } from '../../../components/ui/Toast';
 
@@ -52,6 +53,12 @@ export const FacultyAttendancePage: React.FC = () => {
     }
   };
 
+  const markAllPresent = () => {
+    const nextMap: Record<string, boolean> = {};
+    students.forEach((s) => { nextMap[s.id] = true; });
+    setAttendanceMap(nextMap);
+  };
+
   const columns: Column<any>[] = [
     { key: 'registerNo', header: 'Roll No', sortable: true, render: (item) => <span className="font-mono font-bold text-primary">{item.registerNo || item.rollNo || 'N/A'}</span> },
     { key: 'name', header: 'Student Name', sortable: true, render: (item) => <span className="font-bold text-foreground">{item.name || `${item.user?.firstName} ${item.user?.lastName}`}</span> },
@@ -61,17 +68,14 @@ export const FacultyAttendancePage: React.FC = () => {
       render: (item) => {
         const isPresent = attendanceMap[item.id] !== false;
         return (
-          <button
-            onClick={() => toggleStatus(item.id)}
-            className={`px-3 py-1 rounded-full text-xs font-bold transition-colors flex items-center gap-1 ${
-              isPresent
-                ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
-                : 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20'
-            }`}
-          >
-            {isPresent ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}
-            {isPresent ? 'PRESENT' : 'ABSENT'}
-          </button>
+          <div onClick={() => toggleStatus(item.id)} className="cursor-pointer inline-block">
+            <AnimatedStatusChip
+              statusKey={`${item.id}-${isPresent}`}
+              label={isPresent ? 'PRESENT' : 'ABSENT'}
+              variant={isPresent ? 'emerald' : 'rose'}
+              icon={isPresent ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}
+            />
+          </div>
         );
       },
     },
@@ -87,14 +91,22 @@ export const FacultyAttendancePage: React.FC = () => {
           </h1>
           <p className="text-xs text-muted-foreground">Mark student presence for the current session.</p>
         </div>
-        <button
-          onClick={handleSaveAttendance}
-          disabled={isSubmitting || students.length === 0}
-          className="flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 transition-all shadow-sm disabled:opacity-50"
-        >
-          <Save className="h-4 w-4" />
-          Submit Attendance
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={markAllPresent}
+            className="px-3 py-2 text-xs font-semibold rounded-xl border border-neutral-300 dark:border-neutral-700 bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 hover:bg-neutral-200 transition-colors"
+          >
+            Mark All Present
+          </button>
+          <button
+            onClick={handleSaveAttendance}
+            disabled={isSubmitting || students.length === 0}
+            className="flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 transition-all shadow-sm disabled:opacity-50"
+          >
+            <Save className="h-4 w-4" />
+            {isSubmitting ? 'Submitting...' : 'Submit Attendance'}
+          </button>
+        </div>
       </div>
 
       {error ? (

@@ -1,6 +1,8 @@
 import React from 'react';
 import { ApprovalAttachmentItem } from '../api/approvalRequests.api';
 import { Paperclip, Eye, Download, FileText } from 'lucide-react';
+import { toast } from '../../../components/ui/Toast';
+import { downloadFile } from '../../../platform/download';
 
 interface SupportingFilesSectionProps {
   attachments: ApprovalAttachmentItem[];
@@ -52,26 +54,44 @@ export const SupportingFilesSection: React.FC<SupportingFilesSectionProps> = ({
 
               <div className="flex items-center gap-2 shrink-0">
                 {file.canPreview && (
-                  <a
-                    href={file.downloadUrl || '#'}
-                    target="_blank"
-                    rel="noreferrer"
+                  <button
+                    onClick={async () => {
+                      if (file.downloadUrl) {
+                        toast.show(`Opening ${file.fileName}...`, 'info');
+                        const res = await downloadFile({ endpoint: file.downloadUrl, filename: file.fileName });
+                        if (res.success) {
+                          toast.success(`Opened ${file.fileName}`);
+                        } else {
+                          toast.error(res.error || 'Failed to open file');
+                        }
+                      }
+                    }}
                     className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-amber-400 transition-colors flex items-center gap-1 text-[11px] font-bold"
                     title="View Document"
                   >
                     <Eye className="w-3.5 h-3.5" />
                     <span>View</span>
-                  </a>
+                  </button>
                 )}
 
-                <a
-                  href={file.downloadUrl || '#'}
-                  download={file.fileName}
+                <button
+                  onClick={async () => {
+                    if (file.downloadUrl) {
+                      toast.show(`Saving ${file.fileName} to device...`, 'info');
+                      const res = await downloadFile({ endpoint: file.downloadUrl, filename: file.fileName, action: 'save' });
+                      if (res.success) {
+                        toast.success(`Saved ${file.fileName} to device successfully`);
+                      } else {
+                        toast.error(res.error || 'Failed to save file');
+                      }
+                    }
+                  }}
                   className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors flex items-center gap-1 text-[11px] font-bold"
-                  title="Download File"
+                  title="Save to Device"
                 >
                   <Download className="w-3.5 h-3.5" />
-                </a>
+                  <span>Save</span>
+                </button>
               </div>
             </div>
           ))}

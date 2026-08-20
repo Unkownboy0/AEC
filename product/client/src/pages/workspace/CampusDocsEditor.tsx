@@ -26,7 +26,7 @@ import {
   ChevronDown, Save, Send, Share2, Clock, MessageSquare,
   Eye, ArrowLeft, Loader2, CheckCircle2, AlertCircle,
   Subscript as SubIcon, Superscript as SupIcon,
-  Highlighter, Type, Palette
+  Highlighter, Type, Palette, MoreVertical, X
 } from 'lucide-react';
 import { workspaceApi, WorkspaceDocumentDetail, downloadBlob } from '../../services/workspace.api';
 import { useAuth } from '../../context/AuthContext';
@@ -51,25 +51,27 @@ interface ToolbarButtonProps {
 
 const ToolbarButton: React.FC<ToolbarButtonProps> = ({ onClick, active, disabled, title, children }) => (
   <button
+    type="button"
     onClick={onClick}
     disabled={disabled}
     title={title}
-    className={`w-7 h-7 flex items-center justify-center rounded-md text-sm transition-all ${
+    className={`w-7 h-7 flex items-center justify-center rounded-md text-sm transition-all shrink-0 ${
       active
-        ? 'bg-blue-100 text-blue-700'
-        : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+        ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
+        : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100'
     } ${disabled ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}`}
   >
     {children}
   </button>
 );
 
-const Divider: React.FC = () => <div className="w-px h-5 bg-gray-200 mx-0.5" />;
+const Divider: React.FC = () => <div className="w-px h-5 bg-slate-200 dark:bg-slate-700 mx-0.5 shrink-0" />;
 
 // ─── Main Editor ─────────────────────────────────────────────────────────────
 
 const CampusDocsEditor: React.FC = () => {
-  const { id } = useParams<{ id: string }>();
+  const params = useParams<{ id?: string; documentId?: string }>();
+  const id = params.id || params.documentId;
   const { user } = useAuth();
   const navigate = useNavigate();
 
@@ -81,6 +83,7 @@ const CampusDocsEditor: React.FC = () => {
   const [showVersions, setShowVersions] = useState(false);
   const [showShare, setShowShare] = useState(false);
   const [showDataPicker, setShowDataPicker] = useState(false);
+  const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hasUnsavedChanges = useRef(false);
@@ -269,72 +272,95 @@ const CampusDocsEditor: React.FC = () => {
   const canReview = doc?.permissions.canReview ?? false;
 
   return (
-    <div className="flex flex-col h-screen bg-gray-50 overflow-hidden">
+    <div className="flex flex-col h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 overflow-hidden">
 
       {/* ─── Top Bar ───────────────────────────────────────────────── */}
-      <div className="bg-white border-b border-gray-200 flex items-center gap-3 px-4 py-2.5 flex-shrink-0">
-        <button onClick={() => navigate(-1)} className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors">
-          <ArrowLeft size={16} className="text-gray-600" />
-        </button>
+      <div className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between gap-2 sm:gap-3 px-3 sm:px-4 py-2 sm:py-2.5 flex-shrink-0 z-20">
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+          <button
+            type="button"
+            onClick={() => navigate(-1)}
+            className="p-2 sm:p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl sm:rounded-lg text-slate-600 dark:text-slate-300 transition-colors shrink-0 cursor-pointer"
+            aria-label="Back"
+          >
+            <ArrowLeft size={18} />
+          </button>
 
-        {/* Title */}
-        <input
-          type="text"
-          value={title}
-          onChange={(e) => handleTitleChange(e.target.value)}
-          disabled={!canEdit}
-          className="flex-1 text-base font-semibold text-gray-900 bg-transparent outline-none border-b border-transparent focus:border-blue-400 transition-colors disabled:cursor-default truncate max-w-md"
-          placeholder="Document title"
-        />
+          {/* Title Input */}
+          <input
+            type="text"
+            value={title}
+            onChange={(e) => handleTitleChange(e.target.value)}
+            disabled={!canEdit}
+            className="flex-1 text-sm sm:text-base font-semibold text-slate-900 dark:text-slate-50 bg-transparent outline-none border-b border-transparent focus:border-blue-500 transition-colors disabled:cursor-default truncate max-w-xs sm:max-w-md"
+            placeholder="Document title"
+          />
 
-        {/* Save state */}
-        <div className="flex items-center gap-1.5 text-xs text-gray-500 flex-shrink-0">
-          {saveState === 'saving' && <><Loader2 size={12} className="animate-spin" /> Saving…</>}
-          {saveState === 'saved' && <><CheckCircle2 size={12} className="text-green-500" /> Saved</>}
-          {saveState === 'unsaved' && <><AlertCircle size={12} className="text-amber-500" /> Unsaved</>}
-          {saveState === 'error' && <><AlertCircle size={12} className="text-red-500" /> Save failed</>}
+          {/* Save state */}
+          <div className="hidden min-[480px]:flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400 flex-shrink-0">
+            {saveState === 'saving' && <><Loader2 size={12} className="animate-spin text-blue-500" /> <span className="hidden sm:inline">Saving…</span></>}
+            {saveState === 'saved' && <><CheckCircle2 size={12} className="text-green-500" /> <span className="hidden sm:inline">Saved</span></>}
+            {saveState === 'unsaved' && <><AlertCircle size={12} className="text-amber-500" /> <span className="hidden sm:inline">Unsaved</span></>}
+            {saveState === 'error' && <><AlertCircle size={12} className="text-red-500" /> <span className="hidden sm:inline">Save failed</span></>}
+          </div>
+
+          {/* Status badge */}
+          {doc && (
+            <span className="hidden sm:inline-flex text-[10px] sm:text-xs px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-medium shrink-0">
+              {doc.status}
+            </span>
+          )}
         </div>
 
-        {/* Status badge */}
-        {doc && (
-          <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 font-medium flex-shrink-0">
-            {doc.status}
-          </span>
-        )}
-
-        {/* Actions */}
-        <div className="flex items-center gap-1 flex-shrink-0">
-          <button onClick={() => setShowComments(!showComments)} title="Comments" className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors relative">
-            <MessageSquare size={16} className="text-gray-600" />
-            {doc && doc.commentsCount > 0 && (
-              <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-blue-500 text-white text-[9px] rounded-full flex items-center justify-center">{doc.commentsCount}</span>
+        {/* Desktop Actions */}
+        <div className="hidden md:flex items-center gap-1 flex-shrink-0">
+          <button
+            type="button"
+            onClick={() => setShowComments(!showComments)}
+            title="Comments"
+            className={`p-1.5 rounded-lg transition-colors relative ${showComments ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : 'hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300'}`}
+          >
+            <MessageSquare size={16} />
+            {doc && ((doc.commentsCount ?? 0) > 0) && (
+              <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-blue-600 text-white text-[9px] font-bold rounded-full flex items-center justify-center">{doc.commentsCount}</span>
             )}
           </button>
-          <button onClick={() => setShowVersions(!showVersions)} title="Version History" className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors">
-            <Clock size={16} className="text-gray-600" />
+          <button
+            type="button"
+            onClick={() => setShowVersions(!showVersions)}
+            title="Version History"
+            className={`p-1.5 rounded-lg transition-colors ${showVersions ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : 'hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300'}`}
+          >
+            <Clock size={16} />
           </button>
-          <button onClick={() => setShowShare(true)} title="Share" className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors">
-            <Share2 size={16} className="text-gray-600" />
+          <button
+            type="button"
+            onClick={() => setShowShare(true)}
+            title="Share"
+            className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-600 dark:text-slate-300 transition-colors"
+          >
+            <Share2 size={16} />
           </button>
 
           {/* Export */}
           <div className="relative group">
-            <button className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors flex items-center gap-1 text-xs text-gray-600">
+            <button type="button" className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors flex items-center gap-1 text-xs text-slate-600 dark:text-slate-300 cursor-pointer">
               <Eye size={16} />
-              Export <ChevronDown size={10} />
+              <span>Export</span> <ChevronDown size={10} />
             </button>
-            <div className="absolute right-0 top-full mt-1 bg-white shadow-xl border border-gray-200 rounded-xl z-50 py-1 min-w-[130px] hidden group-hover:block">
-              <button onClick={() => handleExport('pdf')} className="w-full text-left px-3 py-2 text-xs hover:bg-gray-50 transition-colors">Export as PDF</button>
-              <button onClick={() => handleExport('docx')} className="w-full text-left px-3 py-2 text-xs hover:bg-gray-50 transition-colors">Export as DOCX</button>
+            <div className="absolute right-0 top-full mt-1 bg-white dark:bg-slate-850 shadow-xl border border-slate-200 dark:border-slate-750 rounded-xl z-50 py-1 min-w-[130px] hidden group-hover:block">
+              <button type="button" onClick={() => handleExport('pdf')} className="w-full text-left px-3 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">Export as PDF</button>
+              <button type="button" onClick={() => handleExport('docx')} className="w-full text-left px-3 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">Export as DOCX</button>
             </div>
           </div>
 
           {/* Workflow buttons */}
           {canSubmit && doc?.status === 'DRAFT' && (
             <button
+              type="button"
               onClick={handleSubmitForReview}
               disabled={submitting}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs rounded-lg font-medium transition-colors disabled:opacity-50"
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs rounded-lg font-medium transition-colors disabled:opacity-50 cursor-pointer shadow-xs"
             >
               {submitting ? <Loader2 size={12} className="animate-spin" /> : <Send size={12} />}
               Submit for Review
@@ -342,9 +368,10 @@ const CampusDocsEditor: React.FC = () => {
           )}
           {canSubmit && doc?.status === 'RETURNED' && (
             <button
+              type="button"
               onClick={handleSubmitForReview}
               disabled={submitting}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-xs rounded-lg font-medium transition-colors disabled:opacity-50"
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-xs rounded-lg font-medium transition-colors disabled:opacity-50 cursor-pointer shadow-xs"
             >
               <Send size={12} />
               Resubmit
@@ -352,16 +379,107 @@ const CampusDocsEditor: React.FC = () => {
           )}
           {canReview && doc?.status === 'SUBMITTED' && (
             <div className="flex gap-1">
-              <button onClick={() => handleReview('APPROVE')} className="px-2.5 py-1.5 bg-green-600 text-white text-xs rounded-lg hover:bg-green-700 transition-colors">Approve</button>
-              <button onClick={() => handleReview('RETURN', 'Please revise.')} className="px-2.5 py-1.5 bg-amber-500 text-white text-xs rounded-lg hover:bg-amber-600 transition-colors">Return</button>
+              <button type="button" onClick={() => handleReview('APPROVE')} className="px-2.5 py-1.5 bg-green-600 text-white text-xs rounded-lg hover:bg-green-700 transition-colors font-medium cursor-pointer">Approve</button>
+              <button type="button" onClick={() => handleReview('RETURN', 'Please revise.')} className="px-2.5 py-1.5 bg-amber-500 text-white text-xs rounded-lg hover:bg-amber-600 transition-colors font-medium cursor-pointer">Return</button>
             </div>
           )}
         </div>
+
+        {/* Mobile Actions Menu Trigger */}
+        <div className="flex md:hidden items-center gap-1 shrink-0">
+          <button
+            type="button"
+            onClick={() => setShowMobileMenu(!showMobileMenu)}
+            className="p-2 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors cursor-pointer"
+            aria-label="More actions"
+          >
+            {showMobileMenu ? <X size={20} /> : <MoreVertical size={20} />}
+          </button>
+        </div>
       </div>
 
-      {/* ─── Toolbar ───────────────────────────────────────────────────── */}
+      {/* ─── Mobile Action Drawer ────────────────────────────────────────── */}
+      {showMobileMenu && (
+        <div className="md:hidden bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-4 py-3 space-y-2.5 z-20 shadow-md animate-in slide-in-from-top-2 duration-150">
+          <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
+            <span>Status: <strong className="text-slate-800 dark:text-slate-200">{doc?.status || 'DRAFT'}</strong></span>
+            <span>
+              {saveState === 'saving' && 'Saving changes…'}
+              {saveState === 'saved' && 'All changes saved'}
+              {saveState === 'unsaved' && 'Unsaved edits'}
+              {saveState === 'error' && 'Failed to save'}
+            </span>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2 pt-1">
+            <button
+              type="button"
+              onClick={() => { setShowComments(!showComments); setShowMobileMenu(false); }}
+              className="flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-200"
+            >
+              <MessageSquare size={15} />
+              <span>Comments ({doc?.commentsCount ?? 0})</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => { setShowVersions(!showVersions); setShowMobileMenu(false); }}
+              className="flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-200"
+            >
+              <Clock size={15} />
+              <span>Version History</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => { setShowShare(true); setShowMobileMenu(false); }}
+              className="flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-200"
+            >
+              <Share2 size={15} />
+              <span>Share Doc</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => { setShowDataPicker(true); setShowMobileMenu(false); }}
+              className="flex items-center gap-2 px-3 py-2 rounded-xl bg-blue-50 dark:bg-blue-900/30 text-xs font-semibold text-blue-600 dark:text-blue-300"
+            >
+              <Type size={15} />
+              <span>Campus Data</span>
+            </button>
+          </div>
+
+          <div className="flex gap-2 pt-1 border-t border-slate-100 dark:border-slate-800">
+            <button
+              type="button"
+              onClick={() => { handleExport('pdf'); setShowMobileMenu(false); }}
+              className="flex-1 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-200 text-center"
+            >
+              Export PDF
+            </button>
+            <button
+              type="button"
+              onClick={() => { handleExport('docx'); setShowMobileMenu(false); }}
+              className="flex-1 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-200 text-center"
+            >
+              Export DOCX
+            </button>
+          </div>
+
+          {canSubmit && (doc?.status === 'DRAFT' || doc?.status === 'RETURNED') && (
+            <button
+              type="button"
+              onClick={() => { handleSubmitForReview(); setShowMobileMenu(false); }}
+              disabled={submitting}
+              className="w-full py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold text-center shadow-xs transition-colors flex items-center justify-center gap-1.5"
+            >
+              {submitting ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
+              {doc?.status === 'RETURNED' ? 'Resubmit for Review' : 'Submit for Review'}
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* ─── Toolbar (Horizontally Scrollable) ────────────────────────── */}
       {canEdit && editor && (
-        <div className="bg-white border-b border-gray-200 flex items-center gap-0.5 px-4 py-1.5 flex-wrap flex-shrink-0 overflow-x-auto">
+        <div className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 flex items-center gap-0.5 px-3 sm:px-4 py-1.5 flex-nowrap overflow-x-auto no-scrollbar touch-pan-x flex-shrink-0 z-10">
 
           {/* Undo/Redo */}
           <ToolbarButton onClick={() => editor.chain().focus().undo().run()} disabled={!editor.can().undo()} title="Undo (Ctrl+Z)">
@@ -379,7 +497,7 @@ const CampusDocsEditor: React.FC = () => {
               if (val === 'p') editor.chain().focus().setParagraph().run();
               else editor.chain().focus().toggleHeading({ level: parseInt(val) as 1 | 2 | 3 | 4 }).run();
             }}
-            className="text-xs border border-gray-200 rounded-md px-1.5 py-1 bg-white outline-none cursor-pointer h-7"
+            className="text-xs border border-slate-200 dark:border-slate-700 rounded-md px-1.5 py-1 bg-white dark:bg-slate-850 text-slate-800 dark:text-slate-200 outline-none cursor-pointer h-7 shrink-0"
             defaultValue="p"
           >
             <option value="p">Normal</option>
@@ -412,31 +530,33 @@ const CampusDocsEditor: React.FC = () => {
           <Divider />
 
           {/* Colors */}
-          <div className="relative group">
+          <div className="relative group shrink-0">
             <ToolbarButton onClick={() => {}} title="Text color">
               <Palette size={13} />
             </ToolbarButton>
-            <div className="absolute left-0 top-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-50 p-2 hidden group-hover:grid grid-cols-6 gap-1">
+            <div className="absolute left-0 top-full mt-1 bg-white dark:bg-slate-850 border border-slate-200 dark:border-slate-700 rounded-xl shadow-lg z-50 p-2 hidden group-hover:grid grid-cols-6 gap-1">
               {['#000000', '#dc2626', '#d97706', '#16a34a', '#2563eb', '#7c3aed', '#db2777', '#6b7280', '#9ca3af'].map((color) => (
                 <button
                   key={color}
+                  type="button"
                   onClick={() => editor.chain().focus().setColor(color).run()}
-                  className="w-5 h-5 rounded-md border border-gray-200 hover:scale-110 transition-transform"
+                  className="w-5 h-5 rounded-md border border-slate-200 dark:border-slate-700 hover:scale-110 transition-transform cursor-pointer"
                   style={{ background: color }}
                 />
               ))}
             </div>
           </div>
-          <div className="relative group">
+          <div className="relative group shrink-0">
             <ToolbarButton onClick={() => {}} title="Highlight">
               <Highlighter size={13} />
             </ToolbarButton>
-            <div className="absolute left-0 top-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-50 p-2 hidden group-hover:grid grid-cols-5 gap-1">
+            <div className="absolute left-0 top-full mt-1 bg-white dark:bg-slate-850 border border-slate-200 dark:border-slate-700 rounded-xl shadow-lg z-50 p-2 hidden group-hover:grid grid-cols-5 gap-1">
               {['#fef08a', '#bbf7d0', '#bfdbfe', '#fecaca', '#e9d5ff'].map((color) => (
                 <button
                   key={color}
+                  type="button"
                   onClick={() => editor.chain().focus().toggleHighlight({ color }).run()}
-                  className="w-5 h-5 rounded-md border border-gray-200 hover:scale-110 transition-transform"
+                  className="w-5 h-5 rounded-md border border-slate-200 dark:border-slate-700 hover:scale-110 transition-transform cursor-pointer"
                   style={{ background: color }}
                 />
               ))}
@@ -517,8 +637,9 @@ const CampusDocsEditor: React.FC = () => {
 
           {/* Campus Data Field Picker */}
           <button
+            type="button"
             onClick={() => setShowDataPicker(!showDataPicker)}
-            className="flex items-center gap-1 px-2 py-1 text-xs font-medium text-blue-600 hover:bg-blue-50 rounded-md transition-colors border border-blue-200"
+            className="flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 hover:bg-blue-100 rounded-md transition-colors border border-blue-200 dark:border-blue-800 shrink-0 cursor-pointer"
           >
             <Type size={12} />
             Campus Data
@@ -527,15 +648,15 @@ const CampusDocsEditor: React.FC = () => {
       )}
 
       {/* ─── Editor Area ───────────────────────────────────────────────── */}
-      <div className="flex flex-1 overflow-hidden">
-        {/* Page Canvas */}
-        <div className="flex-1 overflow-y-auto bg-gray-100 p-4 sm:p-8">
-          <div className="max-w-[210mm] mx-auto bg-white shadow-sm rounded-sm">
-            {/* A4 page with proper margins */}
-            <div className="px-[25.4mm] py-[25.4mm] min-h-[297mm]">
+      <div className="flex flex-1 overflow-hidden relative">
+        {/* Page Canvas with responsive padding */}
+        <div className="flex-1 overflow-y-auto bg-slate-100 dark:bg-slate-950 p-2 min-[440px]:p-4 sm:p-8">
+          <div className="max-w-[210mm] mx-auto bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm rounded-xl sm:rounded-sm">
+            {/* Responsive page padding: Comfortable margins on mobile, A4 margins on desktop */}
+            <div className="px-4 py-6 min-[480px]:px-8 min-[480px]:py-8 sm:px-[25.4mm] sm:py-[25.4mm] min-h-[360px] sm:min-h-[297mm]">
               <EditorContent
                 editor={editor}
-                className="prose prose-sm max-w-none focus:outline-none min-h-[200px]"
+                className="prose prose-sm dark:prose-invert max-w-none focus:outline-none min-h-[240px]"
               />
             </div>
           </div>
@@ -543,7 +664,7 @@ const CampusDocsEditor: React.FC = () => {
 
         {/* Side Panels */}
         {showComments && (
-          <div className="w-72 border-l border-gray-200 bg-white overflow-y-auto flex-shrink-0">
+          <div className="fixed inset-y-0 right-0 w-full max-w-xs sm:static sm:w-72 sm:max-w-none border-l border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xl sm:shadow-none overflow-y-auto flex-shrink-0 z-30">
             <WorkspaceCommentsPanel
               documentId={id!}
               userRole={user?.role || ''}
@@ -552,7 +673,7 @@ const CampusDocsEditor: React.FC = () => {
           </div>
         )}
         {showVersions && (
-          <div className="w-72 border-l border-gray-200 bg-white overflow-y-auto flex-shrink-0">
+          <div className="fixed inset-y-0 right-0 w-full max-w-xs sm:static sm:w-72 sm:max-w-none border-l border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xl sm:shadow-none overflow-y-auto flex-shrink-0 z-30">
             <WorkspaceVersionsPanel
               documentId={id!}
               currentVersion={doc?.currentVersion || 1}

@@ -17,6 +17,9 @@ import {
   Trash2,
   RefreshCw,
   ShieldAlert,
+  Building2,
+  FileBox,
+  MessageSquare,
 } from 'lucide-react';
 import api from '../../lib/axios';
 import { toast } from '../ui/Toast';
@@ -24,6 +27,7 @@ import { Button } from '../ui/Button';
 import { resolveNotificationRoute } from '../../notifications/notification-router';
 import { useAuth } from '../../context/AuthContext';
 import { useNotifications } from '../../notifications/NotificationProvider';
+import { ProfileAvatar } from '../profile/ProfileAvatar';
 
 interface NotificationItem {
   id: string;
@@ -37,6 +41,21 @@ interface NotificationItem {
   readAt?: string;
   deliveryChannel: string;
   createdAt: string;
+  actorUserId?: string;
+  actorDisplayName?: string;
+  actorProfileImage?: string;
+  actorRole?: string;
+  actorGender?: string;
+  actorType?: 'HUMAN' | 'SYSTEM';
+  senderName?: string;
+  senderAvatar?: string;
+  senderRole?: string;
+  senderGender?: string;
+  actorName?: string;
+  actorAvatar?: string;
+  subjectName?: string;
+  subjectRole?: string;
+  subjectAvatar?: string;
 }
 
 type TabKey = 'ALL' | 'UNREAD' | 'APPROVALS' | 'TASKS' | 'ACADEMIC' | 'FEES' | 'EXAMS' | 'CRITICAL';
@@ -44,7 +63,7 @@ type TabKey = 'ALL' | 'UNREAD' | 'APPROVALS' | 'TASKS' | 'ACADEMIC' | 'FEES' | '
 export const UnifiedNotificationInbox: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { triggerTestNotification } = useNotifications();
+  const { triggerTestNotification, refetchBadges } = useNotifications();
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [unreadCount, setUnreadCount] = useState<number>(0);
   const [activeTab, setActiveTab] = useState<TabKey>('ALL');
@@ -88,49 +107,94 @@ export const UnifiedNotificationInbox: React.FC = () => {
 
   const handleMarkAsRead = async (id: string, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
+    const target = notifications.find((n) => n.id === id);
+    if (!target || target.isRead) return;
+
+    // Optimistic state update
+    setNotifications((prev) =>
+      prev.map((n) => (n.id === id ? { ...n, isRead: true, readAt: new Date().toISOString() } : n))
+    );
+    setUnreadCount((c) => Math.max(0, c - 1));
+
     try {
       await api.patch(`/notifications/${id}/read`);
-      setNotifications((prev) =>
-        prev.map((n) => (n.id === id ? { ...n, isRead: true, readAt: new Date().toISOString() } : n))
-      );
-      setUnreadCount((c) => Math.max(0, c - 1));
+      refetchBadges?.();
     } catch {
+      // Rollback on failure
+      setNotifications((prev) =>
+        prev.map((n) => (n.id === id ? { ...n, isRead: false, readAt: undefined } : n))
+      );
+      setUnreadCount((c) => c + 1);
       toast.error('Failed to mark notification as read');
     }
   };
 
   const handleAcknowledge = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
+    const target = notifications.find((n) => n.id === id);
+    if (!target) return;
+
+    // Optimistic state update
+    setNotifications((prev) =>
+      prev.map((n) => (n.id === id ? { ...n, isRead: true, readAt: new Date().toISOString() } : n))
+    );
+    if (!target.isRead) {
+      setUnreadCount((c) => Math.max(0, c - 1));
+    }
+
     try {
       await api.post(`/notifications/${id}/acknowledge`);
       toast.success('Notification acknowledged.');
-      setNotifications((prev) =>
-        prev.map((n) => (n.id === id ? { ...n, isRead: true, readAt: new Date().toISOString() } : n))
-      );
-      setUnreadCount((c) => Math.max(0, c - 1));
+      refetchBadges?.();
     } catch {
+      // Rollback on failure
+      if (!target.isRead) {
+        setNotifications((prev) =>
+          prev.map((n) => (n.id === id ? { ...n, isRead: false, readAt: undefined } : n))
+        );
+        setUnreadCount((c) => c + 1);
+      }
       toast.error('Failed to acknowledge notification');
     }
   };
 
   const handleMarkAllRead = async () => {
+    const prevList = [...notifications];
+    const prevCount = unreadCount;
+
+    setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
+    setUnreadCount(0);
+
     try {
       await api.post('/notifications/read-all');
       toast.success('All notifications marked as read.');
-      setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
-      setUnreadCount(0);
+      refetchBadges?.();
     } catch {
+      setNotifications(prevList);
+      setUnreadCount(prevCount);
       toast.error('Failed to mark all as read');
     }
   };
 
   const handleClearOne = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
+    const prevList = [...notifications];
+    const item = notifications.find((n) => n.id === id);
+
+    setNotifications((prev) => prev.filter((n) => n.id !== id));
+    if (item && !item.isRead) {
+      setUnreadCount((c) => Math.max(0, c - 1));
+    }
+
     try {
       await api.delete(`/notifications/${id}`);
-      setNotifications((prev) => prev.filter((n) => n.id !== id));
       toast.success('Notification cleared.');
+      refetchBadges?.();
     } catch {
+      setNotifications(prevList);
+      if (item && !item.isRead) {
+        setUnreadCount((c) => c + 1);
+      }
       toast.error('Failed to clear notification');
     }
   };
@@ -198,74 +262,123 @@ export const UnifiedNotificationInbox: React.FC = () => {
       <div className="space-y-3">
         <h4 className="text-xs font-black uppercase text-muted-foreground tracking-wider px-1">{title}</h4>
         <div className="space-y-2">
-          {items.map((item) => (
-            <div
-              key={item.id}
-              onClick={() => handleNotificationClick(item)}
-              className={`p-4 rounded-2xl border transition-all cursor-pointer flex items-start gap-4 ${
-                item.isRead
-                  ? 'bg-card/60 border-border hover:bg-card hover:shadow-sm'
-                  : 'bg-primary/5 border-primary/20 shadow-sm hover:border-primary/40'
-              }`}
-            >
-              <div className="p-2.5 rounded-xl bg-background border shadow-xs shrink-0 mt-0.5">
-                {getEventIcon(item.eventType)}
-              </div>
+          {items.map((item) => {
+            const hasHumanActor = item.actorType === 'HUMAN' || (item.actorType !== 'SYSTEM' && Boolean(item.actorDisplayName || item.senderName || item.actorProfileImage || item.senderAvatar));
+            const actorName = item.actorDisplayName || item.actorName || item.senderName || (hasHumanActor ? 'Campus User' : 'CampusOS System');
+            const actorRole = item.actorRole || item.senderRole;
+            const actorAvatar = item.actorProfileImage || item.actorAvatar || item.senderAvatar;
+            const actorGender = item.actorGender || item.senderGender;
 
-              <div className="flex-1 min-w-0 space-y-1">
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    <h5 className={`text-sm font-bold truncate ${item.isRead ? 'text-foreground' : 'text-primary'}`}>
-                      {item.title}
-                    </h5>
-                    {!item.isRead && (
-                      <span className="h-2 w-2 rounded-full bg-primary shrink-0 animate-pulse" />
-                    )}
-                  </div>
-                  <span className="text-[10px] text-muted-foreground font-semibold shrink-0">
-                    {new Date(item.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                  </span>
+            return (
+              <div
+                key={item.id}
+                onClick={() => handleNotificationClick(item)}
+                className={`p-3.5 sm:p-4 rounded-2xl border transition-all cursor-pointer flex items-start gap-3 sm:gap-4 ${
+                  item.isRead
+                    ? 'bg-card/60 border-border hover:bg-card hover:shadow-xs'
+                    : 'bg-primary/5 border-primary/25 shadow-xs hover:border-primary/40'
+                }`}
+              >
+                {/* Profile Avatar (Human) or System Module Icon (System) */}
+                <div className="relative shrink-0 mt-0.5">
+                  {hasHumanActor ? (
+                    <ProfileAvatar
+                      gender={actorGender}
+                      name={actorName}
+                      src={actorAvatar}
+                      size="md"
+                      shape="circle"
+                      className="w-10 h-10 ring-2 ring-border/60 shadow-xs"
+                    />
+                  ) : (
+                    <div className="w-10 h-10 rounded-full bg-primary/10 border border-primary/20 shadow-xs flex items-center justify-center text-primary">
+                      {getEventIcon(item.eventType)}
+                    </div>
+                  )}
+                  {hasHumanActor && (
+                    <span className="absolute -bottom-1 -right-1 p-0.5 rounded-full bg-surface border border-border shadow-xs text-primary">
+                      {getEventIcon(item.eventType)}
+                    </span>
+                  )}
                 </div>
 
-                <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2">
-                  {item.message}
-                </p>
-
-                <div className="flex items-center justify-between pt-2 border-t border-border/50 text-[11px]">
-                  <div className="flex items-center gap-2">
-                    <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-md bg-muted text-muted-foreground">
-                      {item.eventType.replace(/_/g, ' ')}
+                <div className="flex-1 min-w-0 space-y-1">
+                  <div className="flex items-start sm:items-center justify-between gap-2">
+                    <div className="flex items-center gap-1.5 flex-wrap min-w-0">
+                      <h5 className={`text-xs sm:text-sm font-bold truncate ${item.isRead ? 'text-foreground' : 'text-primary'}`}>
+                        {item.title}
+                      </h5>
+                      {hasHumanActor ? (
+                        <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-primary/10 text-primary border border-primary/20 shrink-0">
+                          {actorRole ? `${actorName} (${actorRole})` : actorName}
+                        </span>
+                      ) : (
+                        <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-muted text-muted-foreground border border-border shrink-0">
+                          System Alert
+                        </span>
+                      )}
+                      {!item.isRead && (
+                        <span className="h-2 w-2 rounded-full bg-primary shrink-0 animate-pulse" />
+                      )}
+                    </div>
+                    <span className="text-[10px] text-muted-foreground font-semibold shrink-0">
+                      {new Date(item.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </span>
-                    {item.deepLinkRoute && (
-                      <span className="text-[10px] text-primary font-bold flex items-center gap-1 hover:underline">
-                        View Detail <ExternalLink className="h-2.5 w-2.5" />
-                      </span>
-                    )}
                   </div>
 
-                  <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
-                    {!item.isRead && (
+                  {item.subjectName && item.subjectName !== actorName && (
+                    <p className="text-[11px] font-semibold text-primary/80">
+                      Regarding: {item.subjectName} {item.subjectRole ? `(${item.subjectRole})` : ''}
+                    </p>
+                  )}
+
+                  <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2">
+                    {item.message}
+                  </p>
+
+                  <div className="flex items-center justify-between pt-2 border-t border-border/50 text-[11px] flex-wrap gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-md bg-muted text-muted-foreground">
+                        {item.eventType.replace(/_/g, ' ')}
+                      </span>
+                      {item.deepLinkRoute && (
+                        <span className="text-[10px] text-primary font-bold flex items-center gap-1 hover:underline">
+                          View Detail <ExternalLink className="h-2.5 w-2.5" />
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+                      {!item.isRead && (
+                        <button
+                          type="button"
+                          onClick={(e) => handleMarkAsRead(item.id, e)}
+                          className="px-2 py-1 rounded-lg text-[10px] font-semibold bg-muted hover:bg-muted/80 text-foreground cursor-pointer transition-colors"
+                        >
+                          Mark Read
+                        </button>
+                      )}
                       <button
                         type="button"
                         onClick={(e) => handleAcknowledge(item.id, e)}
-                        className="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-primary text-primary-foreground hover:opacity-90 cursor-pointer"
+                        className="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-primary text-primary-foreground hover:opacity-90 cursor-pointer shadow-xs transition-opacity"
                       >
                         Acknowledge
                       </button>
-                    )}
-                    <button
-                      type="button"
-                      onClick={(e) => handleClearOne(item.id, e)}
-                      className="p-1 rounded-lg text-muted-foreground hover:text-destructive cursor-pointer"
-                      title="Clear Notification"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
+                      <button
+                        type="button"
+                        onClick={(e) => handleClearOne(item.id, e)}
+                        className="p-1 rounded-lg text-muted-foreground hover:text-destructive cursor-pointer transition-colors"
+                        title="Clear Notification"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     );

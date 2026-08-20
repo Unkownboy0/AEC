@@ -22,7 +22,8 @@ const EXAMINATION_CELL_ROUTES: NavEntry[] = [
   { id: 'coe-exams', label: 'Exam management', description: 'Create examinations and manage exam terms', icon: 'NotebookTabs', path: '/coe/exams', roles: examinationCellRoles, group: 'management', mobilePlacement: 'tab', order: 1 },
   { id: 'coe-schedules', label: 'Schedules', description: 'Build, validate and publish exam schedules', icon: 'CalendarRange', path: '/coe/schedules', roles: examinationCellRoles, group: 'management', mobilePlacement: 'tab', order: 2 },
   { id: 'coe-halls', label: 'Hall & seat allocation', description: 'Assign rooms and publish student seats', icon: 'Armchair', path: '/coe/halls', roles: examinationCellRoles, group: 'management', mobilePlacement: 'more', order: 3 },
-  { id: 'coe-invigilation', label: 'Invigilation', description: 'Assign and monitor invigilation duties', icon: 'UsersRound', path: '/coe/invigilation', roles: examinationCellRoles, group: 'management', mobilePlacement: 'more', order: 4 },
+  { id: 'coe-hall-tickets', label: 'Hall Tickets', description: 'Search, view and download published student hall tickets', icon: 'FileCheck', path: '/coe/hall-tickets', roles: examinationCellRoles, group: 'management', mobilePlacement: 'more', order: 4 },
+  { id: 'coe-invigilation', label: 'Invigilation', description: 'Assign and monitor invigilation duties', icon: 'UsersRound', path: '/coe/invigilation', roles: examinationCellRoles, group: 'management', mobilePlacement: 'more', order: 5 },
   { id: 'coe-marks', label: 'Marks & results', description: 'Enter marks and manage result publication', icon: 'ChartNoAxesColumnIncreasing', path: '/coe/marks-results', roles: examinationCellRoles, group: 'academics', mobilePlacement: 'tab', order: 1 },
   { id: 'coe-timetable', label: 'Master timetable', description: 'Manage the authoritative institutional timetable', icon: 'CalendarDays', path: '/coe/master-timetable', roles: examinationCellRoles, group: 'academics', mobilePlacement: 'more', order: 2 },
   { id: 'coe-notifications', label: 'Notifications', description: 'Exam alerts and workflow updates', icon: 'Bell', path: '/notifications', roles: examinationCellRoles, group: 'communication', mobilePlacement: 'more', order: 1, badgeKey: 'unreadNotifications' },
@@ -32,6 +33,7 @@ const EXAMINATION_CELL_ROUTES: NavEntry[] = [
 const superAdminRoles = ['SUPER_ADMIN', 'Super Admin'];
 const SUPER_ADMIN_ROUTES: NavEntry[] = [
   { id: 'super-admin-dashboard', label: 'Control Centre', description: 'Institution configuration and live health', icon: 'LayoutDashboard', path: '/admin/dashboard', roles: superAdminRoles, group: 'overview', mobilePlacement: 'tab', order: 1 },
+  { id: 'super-admin-workspace', label: 'Campus Workspace', description: 'Docs, Sheets, Slides and Forms', icon: 'Sparkles', path: '/workspace', roles: superAdminRoles, group: 'overview', mobilePlacement: 'more', order: 2 },
   { id: 'super-admin-users', label: 'All Users', description: 'Search and manage institution identities', icon: 'Users', path: '/admin/people', roles: superAdminRoles, group: 'management', mobilePlacement: 'tab', order: 1 },
   { id: 'super-admin-students', label: 'Students', description: 'Student identities and lifecycle', icon: 'GraduationCap', path: '/students', roles: superAdminRoles, group: 'management', mobilePlacement: 'more', order: 2 },
   { id: 'super-admin-institution', label: 'Institution', description: 'Institution profile and configuration', icon: 'Building2', path: '/institution', roles: superAdminRoles, group: 'academics', mobilePlacement: 'more', order: 1 },
@@ -43,7 +45,7 @@ const SUPER_ADMIN_ROUTES: NavEntry[] = [
   { id: 'super-admin-approvals', label: 'Approval Centre', description: 'Institution approval queues', icon: 'FileCheck2', path: '/approval-center', roles: superAdminRoles, group: 'requests', mobilePlacement: 'more', order: 2 },
   { id: 'super-admin-governance', label: 'Governance Suite', description: 'Policies and administrative governance', icon: 'GitBranch', path: '/governance', roles: superAdminRoles, group: 'requests', mobilePlacement: 'more', order: 3 },
   { id: 'super-admin-notifications', label: 'Notifications', description: 'Administrative alerts and updates', icon: 'Bell', path: '/notifications', roles: superAdminRoles, group: 'communication', mobilePlacement: 'more', order: 1 },
-  { id: 'super-admin-settings', label: 'System Settings', description: 'Modules, features and integrations', icon: 'Settings2', path: '/settings', roles: superAdminRoles, group: 'system', mobilePlacement: 'more', order: 1 },
+  { id: 'super-admin-settings', label: 'System Settings', description: 'Modules, features and integrations', icon: 'Settings2', path: '/admin/settings', roles: superAdminRoles, group: 'system', mobilePlacement: 'more', order: 1 },
   { id: 'super-admin-backups', label: 'Backup Centre', description: 'Backup status and recovery controls', icon: 'HardDriveDownload', path: '/backups', roles: superAdminRoles, group: 'system', mobilePlacement: 'more', order: 2 },
   { id: 'super-admin-security', label: 'Audit & Security', description: 'Security events and administration history', icon: 'ScrollText', path: '/security-logs', roles: superAdminRoles, group: 'system', mobilePlacement: 'more', order: 3 },
 ];
@@ -121,11 +123,11 @@ export const ROUTE_REGISTRY: NavEntry[] = [
   {id:'class-adviser-profile',label:'My Profile',icon:'UserRound',description:'View and edit your profile',path:'/class-adviser/profile',roles:['CLASS_ADVISER','Class Adviser','CLASS_ADVISOR'],group:'account',mobilePlacement:'tab',order:4},
 
   // Notification and sub-tab routes
-  {id:'student-notifications',label:'Notifications',icon:'Bell',description:'Student alerts and updates',path:'/student/notifications',roles:['STUDENT','student'],group:'communication',mobilePlacement:'tab',order:3,badgeKey:'unreadNotifications'},
-  {id:'faculty-notifications',label:'Notifications',icon:'Bell',description:'Faculty alerts and notices',path:'/faculty/notifications',roles:['FACULTY','faculty','FACULTY_MEMBER'],group:'communication',mobilePlacement:'tab',order:4,badgeKey:'unreadNotifications'},
-  {id:'hod-department-overview',label:'Department',icon:'Building2',description:'Department profile and structure',path:'/hod/department-overview',roles:['HOD','HEAD_OF_DEPARTMENT'],group:'management',mobilePlacement:'tab',order:2},
-  {id:'hod-notifications',label:'Notifications',icon:'Bell',description:'Department notifications',path:'/hod/notifications',roles:['HOD','HEAD_OF_DEPARTMENT'],group:'communication',mobilePlacement:'tab',order:4,badgeKey:'unreadNotifications'},
-  {id:'principal-notifications',label:'Notifications',icon:'Bell',description:'Executive alerts and notices',path:'/principal/notifications',roles:['PRINCIPAL','Principal'],group:'communication',mobilePlacement:'tab',order:4,badgeKey:'unreadNotifications'},
+  {id:'student-notifications',label:'Notifications',shortLabel:'Alerts',icon:'Bell',description:'Student alerts and updates',path:'/student/notifications',roles:['STUDENT','student'],group:'communication',mobilePlacement:'tab',order:3,badgeKey:'unreadNotifications'},
+  {id:'faculty-notifications',label:'Notifications',shortLabel:'Alerts',icon:'Bell',description:'Faculty alerts and notices',path:'/faculty/notifications',roles:['FACULTY','faculty','FACULTY_MEMBER'],group:'communication',mobilePlacement:'tab',order:4,badgeKey:'unreadNotifications'},
+  {id:'hod-department-overview',label:'Department',shortLabel:'Department',icon:'Building2',description:'Department profile and structure',path:'/hod/department-overview',roles:['HOD','HEAD_OF_DEPARTMENT'],group:'management',mobilePlacement:'tab',order:2},
+  {id:'hod-notifications',label:'Notifications',shortLabel:'Alerts',icon:'Bell',description:'Department notifications',path:'/hod/notifications',roles:['HOD','HEAD_OF_DEPARTMENT'],group:'communication',mobilePlacement:'tab',order:4,badgeKey:'unreadNotifications'},
+  {id:'principal-notifications',label:'Notifications',shortLabel:'Alerts',icon:'Bell',description:'Executive alerts and notices',path:'/principal/notifications',roles:['PRINCIPAL','Principal'],group:'communication',mobilePlacement:'tab',order:4,badgeKey:'unreadNotifications'},
 
   // ====================================================
   // STUDENT ROUTES
@@ -140,6 +142,18 @@ export const ROUTE_REGISTRY: NavEntry[] = [
     group: 'overview',
     mobilePlacement: 'tab',
     order: 1,
+  },
+  {
+    id: 'student-workspace',
+    label: 'Campus Workspace',
+    shortLabel: 'Workspace',
+    description: 'Docs, Sheets, Slides, Forms and Productivity Tools',
+    icon: 'Sparkles',
+    path: '/workspace',
+    roles: ['STUDENT', 'student'],
+    group: 'overview',
+    mobilePlacement: 'more',
+    order: 2,
   },
   {
     id: 'student-timetable',
@@ -328,6 +342,18 @@ export const ROUTE_REGISTRY: NavEntry[] = [
     order: 1,
   },
   {
+    id: 'faculty-workspace',
+    label: 'Campus Workspace',
+    shortLabel: 'Workspace',
+    description: 'Docs, Sheets, Slides, Forms and Productivity Tools',
+    icon: 'Sparkles',
+    path: '/workspace',
+    roles: ['FACULTY', 'faculty', 'FACULTY_MEMBER'],
+    group: 'overview',
+    mobilePlacement: 'more',
+    order: 2,
+  },
+  {
     id: 'faculty-timetable',
     label: 'Timetable',
     description: 'Your teaching schedule for the week',
@@ -464,6 +490,18 @@ export const ROUTE_REGISTRY: NavEntry[] = [
     group: 'overview',
     mobilePlacement: 'tab',
     order: 1,
+  },
+  {
+    id: 'hod-workspace',
+    label: 'Campus Workspace',
+    shortLabel: 'Workspace',
+    description: 'Docs, Sheets, Slides, Forms and Productivity Tools',
+    icon: 'Sparkles',
+    path: '/workspace',
+    roles: ['HOD', 'HEAD_OF_DEPARTMENT'],
+    group: 'overview',
+    mobilePlacement: 'more',
+    order: 2,
   },
   {
     id: 'hod-approvals',
@@ -614,6 +652,18 @@ export const ROUTE_REGISTRY: NavEntry[] = [
     group: 'overview',
     mobilePlacement: 'tab',
     order: 1,
+  },
+  {
+    id: 'principal-workspace',
+    label: 'Campus Workspace',
+    shortLabel: 'Workspace',
+    description: 'Docs, Sheets, Slides, Forms and Productivity Tools',
+    icon: 'Sparkles',
+    path: '/workspace',
+    roles: ['PRINCIPAL'],
+    group: 'overview',
+    mobilePlacement: 'more',
+    order: 2,
   },
   {
     id: 'principal-approvals',

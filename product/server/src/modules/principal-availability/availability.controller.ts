@@ -1,5 +1,5 @@
 import { Response } from 'express';
-import { AuthenticatedRequest, authorizeDelegatedAssignmentAction, authorizeDirectPrincipalAction, DelegatedAction } from './delegation.guard';
+import { AuthenticatedRequest, authorizeDelegatedAssignmentAction, authorizeDirectPrincipalAction, DelegatedAction, permissionForRequestAction } from './delegation.guard';
 import { PrincipalAvailabilityResolver } from './availability.resolver';
 import { PrincipalAvailabilityService } from './availability.service';
 import { PrincipalRequestRoutingService } from './request-routing.service';
@@ -110,7 +110,7 @@ export class PrincipalAvailabilityController {
    */
   private static async authorizeDelegatedAction(
     res: Response,
-    assignment: { id: string; assignedUserId: string; assignedRole: string; requestType: string; status: string; delegationId?: string | null; departmentId?: string | null; workflowStage?: string | null; financialAmount?: number | null },
+    assignment: { id: string; requestId?: string; assignedUserId: string; assignedRole: string; requestType: string; status: string; delegationId?: string | null; departmentId?: string | null; workflowStage?: string | null; financialAmount?: number | null },
     vpUserId: string,
     action: DelegatedAction
   ): Promise<boolean> {
@@ -128,7 +128,7 @@ export class PrincipalAvailabilityController {
             performedByUserId: vpUserId,
             performedByRole: 'VICE_PRINCIPAL',
             performedAsRole: 'ACTING_PRINCIPAL',
-            remarks: `${result.code}: ${result.error}`,
+            remarks: JSON.stringify({ decision: 'DENIED', code: result.code, reason: result.error, actorUserId: vpUserId, actingFor: context.delegation?.principalUserId, requiredPermission: permissionForRequestAction(assignment.requestType, action), resourceId: assignment.requestId || assignment.id, workflowStage: assignment.workflowStage, timestamp: new Date().toISOString() }),
           },
         });
       } catch (err) {}
@@ -556,7 +556,7 @@ export class PrincipalAvailabilityController {
         fromStatus: 'PENDING',
         toStatus: 'APPROVED',
         actorUserId: vpUserId,
-        actorNameSnapshot: 'Dr. Meenakshi Sundaram',
+        actorNameSnapshot: vpUser,
         actorRole: 'VICE_PRINCIPAL',
         actorDisplayRole: 'Vice Principal — Acting Principal',
         performedAsRole: 'ACTING_PRINCIPAL',
@@ -575,7 +575,7 @@ export class PrincipalAvailabilityController {
           performedByUserId: vpUserId,
           performedByRole: 'VICE_PRINCIPAL',
           performedAsRole: 'ACTING_PRINCIPAL',
-          remarks,
+          remarks: JSON.stringify({ remarks, actorUserId: vpUserId, actingFor: (await PrincipalAvailabilityResolver.resolveContext()).delegation?.principalUserId, requiredPermission: permissionForRequestAction(assignment.requestType, 'approve'), resourceId: assignment.requestId, workflowStage: assignment.workflowStage, timestamp: new Date().toISOString() }),
         },
       });
 
@@ -655,7 +655,7 @@ export class PrincipalAvailabilityController {
         fromStatus: 'PENDING',
         toStatus: 'REJECTED',
         actorUserId: vpUserId,
-        actorNameSnapshot: 'Dr. Meenakshi Sundaram',
+        actorNameSnapshot: req.user?.email || 'Vice Principal',
         actorRole: 'VICE_PRINCIPAL',
         actorDisplayRole: 'Vice Principal — Acting Principal',
         performedAsRole: 'ACTING_PRINCIPAL',
@@ -673,7 +673,7 @@ export class PrincipalAvailabilityController {
           performedByUserId: vpUserId,
           performedByRole: 'VICE_PRINCIPAL',
           performedAsRole: 'ACTING_PRINCIPAL',
-          remarks,
+          remarks: JSON.stringify({ remarks, actorUserId: vpUserId, actingFor: (await PrincipalAvailabilityResolver.resolveContext()).delegation?.principalUserId, requiredPermission: permissionForRequestAction(assignment.requestType, 'reject'), resourceId: assignment.requestId, workflowStage: assignment.workflowStage, timestamp: new Date().toISOString() }),
         },
       });
 

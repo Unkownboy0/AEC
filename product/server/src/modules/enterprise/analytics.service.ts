@@ -246,11 +246,23 @@ export class AnalyticsService {
       'APPROVED_VICE_PRINCIPAL', 'HOD_APPROVED', 'FINAL_APPROVED'
     ];
 
+    // Seed identities are useful in explicit demo installations but must never
+    // leak into an operational availability board. This is a read filter only;
+    // it preserves historical approval/audit records.
+    const includeDemoData = String(process.env.CAMPUSOS_INCLUDE_DEMO_DATA || '').toLowerCase() === 'true';
+    const seededIdentityEmails = [
+      'ada.lovelace@geetorus.com',
+      'cse.head@geetorus.com',
+      'student002.cse@geetorus.com',
+      'arun.test.faculty@campusos.internal',
+    ];
+
     const studentWhere: any = {
       status: { in: approvedStudentStatuses },
       startDate: { lte: todayEnd },
       endDate: { gte: todayStart },
     };
+    if (!includeDemoData) studentWhere.AND = [{ student: { user: { email: { notIn: seededIdentityEmails } } } }];
     if (departmentId && departmentId !== 'ALL') {
       studentWhere.OR = [
         { departmentId: departmentId },
@@ -263,6 +275,7 @@ export class AnalyticsService {
       startDate: { lte: todayEnd },
       endDate: { gte: todayStart },
     };
+    if (!includeDemoData) facultyWhere.AND = [{ faculty: { user: { email: { notIn: seededIdentityEmails } } } }];
     if (departmentId && departmentId !== 'ALL') {
       facultyWhere.OR = [
         { departmentId: departmentId },
@@ -277,8 +290,17 @@ export class AnalyticsService {
         { startDate: null, createdAt: { lte: todayEnd, gte: todayStart } }
       ]
     };
+    if (!includeDemoData) {
+      wfWhere.AND = [{
+        OR: [
+          { student: { user: { email: { notIn: seededIdentityEmails } } } },
+          { facultyRequester: { user: { email: { notIn: seededIdentityEmails } } } },
+        ],
+      }];
+    }
     if (departmentId && departmentId !== 'ALL') {
       wfWhere.AND = [
+        ...(wfWhere.AND || []),
         {
           OR: [
             { departmentId: departmentId },
@@ -293,10 +315,12 @@ export class AnalyticsService {
       prisma.studentLeaveRequest.findMany({
         where: studentWhere,
         include: { student: { select: { firstName: true, lastName: true, admissionNo: true } } },
+        orderBy: { updatedAt: 'desc' },
       }),
       prisma.facultyLeaveRequest.findMany({
         where: facultyWhere,
         include: { faculty: { select: { firstName: true, lastName: true, employeeId: true } } },
+        orderBy: { updatedAt: 'desc' },
       }),
       prisma.workflowRequest.findMany({
         where: wfWhere,
@@ -311,6 +335,8 @@ export class AnalyticsService {
     const studentsOnOdMap = new Map<string, any>();
     const facultyOnLeaveMap = new Map<string, any>();
     const facultyOnOdMap = new Map<string, any>();
+    const canonicalStudentIdentities = new Set(studentRequests.map((request) => request.student?.admissionNo).filter(Boolean));
+    const canonicalFacultyIdentities = new Set(facultyRequests.map((request) => request.faculty?.employeeId).filter(Boolean));
 
     // Process direct StudentLeaveRequests
     studentRequests.forEach((r) => {
@@ -326,9 +352,9 @@ export class AnalyticsService {
         status: r.status,
         reasonPublic: r.type === 'ON_DUTY' ? (r.eventName || r.reason || 'Approved On Duty') : (r.reason ? (r.reason.length > 30 ? `${r.reason.slice(0, 30)}...` : r.reason) : 'Approved Leave'),
       };
-      const key = `${item.registerOrEmpId}-${item.startDate.slice(0,10)}`;
-      if (item.type === 'ON_DUTY') studentsOnOdMap.set(key, item);
-      else studentsOnLeaveMap.set(key, item);
+      const key = item.registerOrEmpId;
+      if (item.type === 'ON_DUTY' && !studentsOnOdMap.has(key)) studentsOnOdMap.set(key, item);
+      else if (item.type !== 'ON_DUTY' && !studentsOnLeaveMap.has(key)) studentsOnLeaveMap.set(key, item);
     });
 
     // Process direct FacultyLeaveRequests
@@ -346,9 +372,9 @@ export class AnalyticsService {
         status: r.status,
         reasonPublic: isOd ? 'Approved Academic Duty' : 'Approved Faculty Leave',
       };
-      const key = `${item.registerOrEmpId}-${item.startDate.slice(0,10)}`;
-      if (isOd) facultyOnOdMap.set(key, item);
-      else facultyOnLeaveMap.set(key, item);
+      const key = item.registerOrEmpId;
+      if (isOd && !facultyOnOdMap.has(key)) facultyOnOdMap.set(key, item);
+      else if (!isOd && !facultyOnLeaveMap.has(key)) facultyOnLeaveMap.set(key, item);
     });
 
     // Process WorkflowRequests
@@ -359,7 +385,8 @@ export class AnalyticsService {
 
       if (wf.student || wf.studentId) {
         const regId = wf.student?.admissionNo || '-';
-        const key = `${regId}-${startDateIso.slice(0,10)}`;
+        if (canonicalStudentIdentities.has(regId)) return;
+        const key = regId;
         const item = {
           id: wf.id,
           name: wf.student ? `${wf.student.firstName} ${wf.student.lastName}`.trim() : 'Student',
@@ -376,7 +403,8 @@ export class AnalyticsService {
         else if (!isOd && !studentsOnLeaveMap.has(key)) studentsOnLeaveMap.set(key, item);
       } else if (wf.facultyRequester || wf.facultyRequesterId) {
         const empId = wf.facultyRequester?.employeeId || '-';
-        const key = `${empId}-${startDateIso.slice(0,10)}`;
+        if (canonicalFacultyIdentities.has(empId)) return;
+        const key = empId;
         const item = {
           id: wf.id,
           name: wf.facultyRequester ? `${wf.facultyRequester.firstName} ${wf.facultyRequester.lastName}`.trim() : 'Faculty Member',
@@ -394,11 +422,19 @@ export class AnalyticsService {
       }
     });
 
+    // A person cannot be simultaneously represented twice on a presence board.
+    // When conflicting approved records overlap, OD is the operationally more
+    // specific state and takes precedence over ordinary leave.
+    studentsOnOdMap.forEach((_item, identity) => studentsOnLeaveMap.delete(identity));
+    facultyOnOdMap.forEach((_item, identity) => facultyOnLeaveMap.delete(identity));
+
     return {
       studentsOnLeaveToday: Array.from(studentsOnLeaveMap.values()),
       studentsOnOdToday: Array.from(studentsOnOdMap.values()),
       facultyOnLeaveToday: Array.from(facultyOnLeaveMap.values()),
       facultyOnOdToday: Array.from(facultyOnOdMap.values()),
+      updatedAt: new Date().toISOString(),
+      scope: departmentId || 'INSTITUTION',
     };
   }
 }

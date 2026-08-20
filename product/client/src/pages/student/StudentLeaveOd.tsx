@@ -260,25 +260,25 @@ export const StudentLeaveOd: React.FC = () => {
     <div className="mx-auto max-w-[1320px] space-y-5 pb-6 text-left sm:space-y-7 sm:pb-12">
       
       {/* Page Header */}
-      <header className="relative overflow-hidden rounded-[1.75rem] bg-[#111722] px-5 py-6 text-white shadow-[0_28px_80px_-44px_rgba(15,23,42,0.9)] sm:px-8 sm:py-8">
-        <div className="absolute -right-14 -top-20 h-52 w-52 rounded-full border border-indigo-400/20" aria-hidden="true" />
+      <header className="relative overflow-hidden rounded-3xl border border-border bg-card p-6 sm:p-8 shadow-sm">
+        <div className="absolute -right-14 -top-20 h-52 w-52 rounded-full border border-primary/10 bg-primary/5 blur-2xl" aria-hidden="true" />
         <div className="relative flex items-start gap-4">
-          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-indigo-400/15 text-indigo-200">
-            <CalendarDays className="h-5 w-5" />
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+            <CalendarDays className="h-6 w-6" />
           </div>
           <div>
-            <p className="text-[10px] font-semibold uppercase tracking-[0.17em] text-indigo-300">Student requests</p>
-            <h1 className="mt-1 text-2xl font-bold tracking-[-0.035em] sm:text-3xl">Leave & OD workspace</h1>
-            <p className="mt-2 max-w-xl text-sm leading-6 text-slate-300">Apply, follow Mentor and HOD decisions, and keep every request in one place.</p>
+            <p className="text-xs font-bold uppercase tracking-wider text-primary">Student requests</p>
+            <h1 className="mt-1 text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground">Leave & OD workspace</h1>
+            <p className="mt-1.5 max-w-xl text-xs sm:text-sm text-muted-foreground">Apply, follow Mentor and HOD decisions, and keep every request in one place.</p>
           </div>
         </div>
       </header>
 
-      <nav aria-label="Leave and OD views" className="grid grid-cols-2 rounded-2xl bg-slate-100 p-1 lg:hidden dark:bg-slate-900">
-        <button type="button" onClick={() => { setMobileView('apply'); setSelectedRequest(null); }} className={`min-h-11 rounded-xl px-4 text-sm font-semibold transition focus:outline-none focus:ring-2 focus:ring-indigo-500 ${mobileView === 'apply' ? 'bg-white text-slate-950 shadow-sm dark:bg-slate-800 dark:text-white' : 'text-slate-500'}`}>
+      <nav aria-label="Leave and OD views" className="grid grid-cols-2 rounded-2xl bg-muted/60 p-1 lg:hidden">
+        <button type="button" onClick={() => { setMobileView('apply'); setSelectedRequest(null); }} className={`min-h-11 rounded-xl px-4 text-sm font-semibold transition focus:outline-none focus:ring-2 focus:ring-primary ${mobileView === 'apply' ? 'bg-card text-foreground shadow-xs font-bold' : 'text-muted-foreground'}`}>
           Apply
         </button>
-        <button type="button" onClick={() => setMobileView('history')} className={`min-h-11 rounded-xl px-4 text-sm font-semibold transition focus:outline-none focus:ring-2 focus:ring-indigo-500 ${mobileView === 'history' ? 'bg-white text-slate-950 shadow-sm dark:bg-slate-800 dark:text-white' : 'text-slate-500'}`}>
+        <button type="button" onClick={() => setMobileView('history')} className={`min-h-11 rounded-xl px-4 text-sm font-semibold transition focus:outline-none focus:ring-2 focus:ring-primary ${mobileView === 'history' ? 'bg-card text-foreground shadow-xs font-bold' : 'text-muted-foreground'}`}>
           History <span className="ml-1 font-mono text-xs tabular-nums">{requests.length}</span>
         </button>
       </nav>
@@ -287,16 +287,16 @@ export const StudentLeaveOd: React.FC = () => {
         
         {/* ==================== LEFT COLUMN: REQUESTS LIST ==================== */}
         <div className={`${mobileView === 'history' ? 'block' : 'hidden'} space-y-4 lg:col-span-7 lg:block`}>
-          <section className="space-y-5 rounded-[1.5rem] border border-slate-200/70 bg-white p-4 shadow-[0_20px_60px_-42px_rgba(15,23,42,0.45)] sm:p-6 dark:border-slate-800 dark:bg-[#10141d]">
-            <h2 className="text-base font-semibold tracking-tight text-slate-900 dark:text-white">
+          <section className="space-y-5 rounded-3xl border border-border bg-card p-5 sm:p-6 shadow-xs">
+            <h2 className="text-base font-extrabold tracking-tight text-foreground">
               Request history
             </h2>
 
             {requests.length === 0 ? (
-              <div className="rounded-2xl bg-slate-50 px-5 py-12 text-center dark:bg-slate-900/70">
-                <FileText className="mx-auto h-7 w-7 text-slate-300" />
-                <p className="mt-3 text-sm font-semibold text-slate-700 dark:text-slate-200">No requests yet</p>
-                <p className="mt-1 text-xs text-slate-500">Your submitted Leave and OD requests will appear here.</p>
+              <div className="rounded-2xl bg-muted/30 border border-border/50 px-5 py-12 text-center">
+                <FileText className="mx-auto h-8 w-8 text-muted-foreground/50" />
+                <p className="mt-3 text-sm font-bold text-foreground">No requests yet</p>
+                <p className="mt-1 text-xs text-muted-foreground">Your submitted Leave and OD requests will appear here.</p>
               </div>
             ) : (
               <div className="space-y-3 lg:max-h-[650px] lg:overflow-y-auto lg:pr-1">
@@ -306,27 +306,27 @@ export const StudentLeaveOd: React.FC = () => {
                     <button
                       key={r.id}
                       onClick={() => { setSelectedRequest(r); setMobileView('apply'); }}
-                      className={`flex min-h-20 w-full items-center justify-between rounded-2xl border p-4 text-left transition duration-200 hover:-translate-y-0.5 hover:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
-                        isSelected ? 'border-indigo-500 bg-indigo-50/50 dark:bg-indigo-500/10' : 'border-slate-200/80 bg-slate-50/70 dark:border-slate-800 dark:bg-slate-900/60'
+                      className={`flex min-h-20 w-full items-center justify-between rounded-2xl border p-4 text-left transition duration-200 hover:-translate-y-0.5 hover:border-primary/40 focus:outline-none focus:ring-2 focus:ring-primary ${
+                        isSelected ? 'border-primary bg-primary-soft/40' : 'border-border bg-surface'
                       }`}
                     >
-                      <div className="space-y-1 pr-4 min-w-0">
+                      <div className="space-y-1.5 pr-4 min-w-0">
                         <div className="flex items-center gap-2">
-                          <span className={`text-[9px] font-black px-1.5 py-0.5 rounded uppercase ${
-                            r.type === 'OD' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'
+                          <span className={`text-[9px] font-black px-2 py-0.5 rounded uppercase tracking-wider ${
+                            r.type === 'OD' ? 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20' : 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20'
                           }`}>
                             {r.type}
                           </span>
-                          <h5 className="font-extrabold text-xs text-slate-800 truncate">{r.title}</h5>
+                          <h5 className="font-extrabold text-xs text-foreground truncate">{r.title}</h5>
                         </div>
-                        <p className="text-[10px] text-slate-500 font-medium line-clamp-1">{r.reason}</p>
-                        <p className="text-[9px] text-slate-400 font-semibold">
-                          Duration: {r.startDate ? new Date(r.startDate).toLocaleDateString() : ''} - {r.endDate ? new Date(r.endDate).toLocaleDateString() : ''}
+                        <p className="text-[10px] text-muted-foreground font-medium line-clamp-1">{r.reason}</p>
+                        <p className="text-[9px] text-muted-foreground/80 font-semibold">
+                          Duration: {r.startDate ? new Date(r.startDate).toLocaleDateString('en-IN') : ''} - {r.endDate ? new Date(r.endDate).toLocaleDateString('en-IN') : ''}
                         </p>
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
                         {getStatusBadge(r.status)}
-                        <ChevronRight className="h-4 w-4 text-slate-400" />
+                        <ChevronRight className="h-4 w-4 text-muted-foreground" />
                       </div>
                     </button>
                   );
@@ -341,23 +341,23 @@ export const StudentLeaveOd: React.FC = () => {
           
           {selectedRequest ? (
             /* ==================== REQUEST DETAILS & WORKFLOW TIMELINE ==================== */
-            <section className="space-y-5 rounded-[1.5rem] border border-slate-200/70 bg-white p-4 shadow-[0_20px_60px_-42px_rgba(15,23,42,0.45)] sm:p-6 dark:border-slate-800 dark:bg-[#10141d]">
-              <div className="flex justify-between items-center border-b pb-3">
+            <section className="space-y-5 rounded-3xl border border-border bg-card p-5 sm:p-6 shadow-xs">
+              <div className="flex justify-between items-center border-b border-border pb-3">
                 <button
                   onClick={() => { setSelectedRequest(null); if (routeId) navigate('/student/leave-od'); }}
-                  className="flex items-center gap-1 text-[10px] font-extrabold text-indigo-600 hover:text-indigo-700 transition-colors uppercase tracking-wider"
+                  className="flex items-center gap-1 text-[10px] font-extrabold text-primary hover:text-primary-hover transition-colors uppercase tracking-wider"
                 >
                   <ArrowLeft className="h-3.5 w-3.5" /> Back to Apply
                 </button>
                 {getStatusBadge(selectedRequest.status)}
                 <div className="ml-auto flex items-center gap-2">
                   {selectedRequest.status === 'RETURNED_TO_STUDENT' && (
-                    <button type="button" onClick={() => startResubmit(selectedRequest)} className="inline-flex items-center gap-1.5 rounded-lg border border-indigo-200 px-3 py-1.5 text-xs font-semibold text-indigo-600 hover:bg-indigo-50">
+                    <button type="button" onClick={() => startResubmit(selectedRequest)} className="inline-flex items-center gap-1.5 rounded-xl border border-primary/30 bg-primary-soft/50 px-3 py-1.5 text-xs font-semibold text-primary hover:bg-primary-soft">
                       <RotateCcw className="h-3.5 w-3.5" /> Edit & resubmit
                     </button>
                   )}
                   {(selectedRequest.status === 'DRAFT' || selectedRequest.status.startsWith('PENDING') || selectedRequest.status === 'MENTOR_APPROVED' || selectedRequest.status === 'RETURNED_TO_STUDENT') && (
-                    <button type="button" onClick={() => cancelRequest(selectedRequest.id)} className="inline-flex items-center gap-1.5 rounded-lg border border-rose-200 px-3 py-1.5 text-xs font-semibold text-rose-600 hover:bg-rose-50">
+                    <button type="button" onClick={() => cancelRequest(selectedRequest.id)} className="inline-flex items-center gap-1.5 rounded-xl border border-rose-500/30 px-3 py-1.5 text-xs font-semibold text-rose-600 hover:bg-rose-500/10">
                       <Ban className="h-3.5 w-3.5" /> Cancel request
                     </button>
                   )}
@@ -365,29 +365,41 @@ export const StudentLeaveOd: React.FC = () => {
               </div>
 
               <div className="space-y-2.5">
-                <span className="text-[9px] font-black px-2 py-0.5 bg-indigo-50 text-indigo-700 rounded-full uppercase tracking-wider">
+                <span className="text-[9px] font-black px-2 py-0.5 bg-primary-soft text-primary rounded-md uppercase tracking-wider border border-primary/20">
                   {selectedRequest.type} Request
                 </span>
-                <h3 className="font-black text-sm text-slate-800 leading-tight">{selectedRequest.title}</h3>
+                <h3 className="font-extrabold text-sm text-foreground leading-tight">{selectedRequest.title}</h3>
                 
-                <div className="text-xs space-y-1.5 bg-slate-50/50 dark:bg-muted/10 p-3 rounded-xl border border-slate-100">
-                  <p className="text-[11px]"><span className="font-bold text-slate-400">Duration:</span> <span className="font-semibold text-slate-700">{selectedRequest.startDate ? new Date(selectedRequest.startDate).toLocaleDateString() : ''} to {selectedRequest.endDate ? new Date(selectedRequest.endDate).toLocaleDateString() : ''}</span></p>
-                  <p className="text-[11px]"><span className="font-bold text-slate-400">Reason:</span> <span className="font-semibold text-slate-700">{selectedRequest.reason}</span></p>
+                <div className="text-xs space-y-1.5 bg-surface-soft p-4 rounded-2xl border border-border">
+                  <p className="text-[11px]">
+                    <span className="font-bold text-muted-foreground">Duration: </span>
+                    <span className="font-semibold text-foreground">
+                      {selectedRequest.startDate ? new Date(selectedRequest.startDate).toLocaleDateString() : ''}
+                      {selectedRequest.endDate ? ` to ${new Date(selectedRequest.endDate).toLocaleDateString()}` : ''}
+                    </span>
+                  </p>
+                  <p className="text-[11px]">
+                    <span className="font-bold text-muted-foreground">Reason: </span>
+                    <span className="font-semibold text-foreground">{selectedRequest.reason}</span>
+                  </p>
                   {selectedRequest.attachments && selectedRequest.attachments !== '[]' && (
-                    <p className="text-[11px]"><span className="font-bold text-slate-400">Attachments:</span> <span className="font-semibold text-indigo-600 underline truncate block">{selectedRequest.attachments}</span></p>
+                    <p className="text-[11px]">
+                      <span className="font-bold text-muted-foreground">Attachments: </span>
+                      <span className="font-semibold text-primary underline truncate block">{selectedRequest.attachments}</span>
+                    </p>
                   )}
                 </div>
               </div>
 
               {/* TIMELINE PROGRESSION */}
               <div className="space-y-3 pt-2">
-                <h4 className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest border-b pb-1.5">
+                <h4 className="text-[10px] font-extrabold text-muted-foreground uppercase tracking-widest border-b border-border pb-2">
                   Approval Timeline
                 </h4>
                 
                 <div className="relative pl-6 space-y-4">
                   {/* Vertical Line */}
-                  <div className="absolute left-2 top-2 bottom-2 w-0.5 bg-slate-200" />
+                  <div className="absolute left-2 top-2 bottom-2 w-0.5 bg-border" />
 
                   {/* Step 1: Student Submitted */}
                   <div className="relative">
@@ -395,8 +407,8 @@ export const StudentLeaveOd: React.FC = () => {
                       <CheckCircle className="h-2.5 w-2.5" />
                     </span>
                     <div className="text-xs">
-                      <h5 className="font-extrabold text-slate-800">Request Submitted</h5>
-                      <p className="text-[10px] text-slate-400 mt-0.5">
+                      <h5 className="font-extrabold text-foreground">Request Submitted</h5>
+                      <p className="text-[10px] text-muted-foreground mt-0.5">
                         {selectedRequest.createdAt ? new Date(selectedRequest.createdAt).toLocaleString() : ''}
                       </p>
                     </div>

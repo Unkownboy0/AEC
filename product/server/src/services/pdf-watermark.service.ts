@@ -24,10 +24,13 @@ export class PdfWatermarkService {
 
     const candidates = [
       path.resolve(process.cwd(), 'assets/branding/institution-logo.png'),
+      path.resolve(process.cwd(), '../client/public/branding/official-logo.png'),
+      path.resolve(process.cwd(), 'public/branding/official-logo.png'),
       path.resolve(process.cwd(), '../client/public/branding/institution-logo.png'),
       path.resolve(process.cwd(), 'public/branding/institution-logo.png'),
       path.resolve(__dirname, '../../assets/branding/institution-logo.png'),
       path.resolve(__dirname, '../../../../client/public/branding/institution-logo.png'),
+      path.resolve(__dirname, '../../../../client/public/branding/official-logo.png'),
       // Legacy path support — will be removed in a future cleanup
       path.resolve(process.cwd(), 'assets/branding/al-ameen-logo.png'),
       path.resolve(process.cwd(), '../client/public/branding/al-ameen-logo.png'),

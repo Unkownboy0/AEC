@@ -30,7 +30,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
   const allItems = [
     { name: 'Go to Dashboard', path: '/', icon: LayoutDashboard },
     { name: 'Manage Users', path: '/users', icon: Users, perm: 'users:read' },
-    { name: 'System Settings', path: '/settings', icon: Settings, perm: 'settings:write' },
+    { name: 'System Settings', path: '/admin/settings', icon: Settings, perm: 'settings:write' },
     { name: 'Academic Configuration', path: '/academics', icon: GraduationCap, perm: 'academics:read' },
     { name: 'Master Data Lists', path: '/masters', icon: Database, perm: 'masters:read' },
     { name: 'Database Backups', path: '/backups', icon: Database, perm: 'backups:read' },

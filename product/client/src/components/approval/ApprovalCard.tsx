@@ -2,6 +2,8 @@ import React from 'react';
 import { ApprovalViewModel, ApprovalActionDef } from './ApprovalTypes';
 import { ApprovalStatusBadge, ApprovalPriorityBadge } from './ApprovalStatusBadge';
 import { Calendar, User, Clock, ChevronRight, Building2 } from 'lucide-react';
+import { Avatar } from '../../design-system/primitives/Avatar/Avatar';
+import { resolveAssetUrl } from '../../utils/assets';
 
 interface ApprovalCardProps {
   request: ApprovalViewModel;
@@ -25,43 +27,53 @@ export const ApprovalCard: React.FC<ApprovalCardProps> = ({
     sky: 'bg-sky-50 text-sky-700 dark:bg-sky-950 dark:text-sky-300',
   }[request.typeVariant || 'purple'];
 
+  const avatarUrl = request.requester.avatarUrl ? resolveAssetUrl(request.requester.avatarUrl) : undefined;
+
   return (
     <div
       onClick={onClick}
       className={`bg-white dark:bg-gray-900 p-5 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm hover:shadow-md transition-all cursor-pointer space-y-3.5 group ${className}`}
     >
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-        <div className="space-y-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className={`px-2.5 py-0.5 rounded text-[11px] font-black uppercase ${typeVariantClasses}`}>
-              {request.typeBadgeLabel || request.requestType}
-            </span>
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3.5">
+        <div className="flex items-start gap-3 min-w-0">
+          <Avatar
+            src={avatarUrl}
+            name={request.requester.name}
+            size="md"
+            className="w-10 h-10 ring-2 ring-gray-100 dark:ring-gray-800 shadow-xs shrink-0 mt-0.5"
+          />
 
-            <span className="font-bold text-sm text-gray-900 dark:text-white group-hover:text-blue-600 transition-colors">
-              {request.requester.name}
-            </span>
-
-            <span className="text-xs text-gray-400 font-mono">
-              #{request.requestNumber || request.id.slice(0, 8)}
-            </span>
-
-            <ApprovalPriorityBadge priority={request.priority} isEmergency={request.isEmergency} />
-          </div>
-
-          <p className="text-xs text-gray-600 dark:text-gray-300 font-medium line-clamp-1">
-            {request.title} {request.reason ? `• ${request.reason}` : ''}
-          </p>
-
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-400">
-            {request.requester.departmentName && (
-              <span className="inline-flex items-center gap-1">
-                <Building2 className="w-3.5 h-3.5" />
-                {request.requester.departmentName}
+          <div className="space-y-1 min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className={`px-2.5 py-0.5 rounded text-[11px] font-black uppercase ${typeVariantClasses}`}>
+                {request.typeBadgeLabel || request.requestType}
               </span>
-            )}
-            {request.requester.classSection && (
-              <span>• {request.requester.classSection}</span>
-            )}
+
+              <span className="font-bold text-sm text-gray-900 dark:text-white group-hover:text-blue-600 transition-colors">
+                {request.requester.name}
+              </span>
+
+              <span className="text-xs text-gray-400 font-mono">
+                #{request.requestNumber || request.id.slice(0, 8)}
+              </span>
+
+              <ApprovalPriorityBadge priority={request.priority} isEmergency={request.isEmergency} />
+            </div>
+
+            <p className="text-xs text-gray-600 dark:text-gray-300 font-medium line-clamp-1">
+              {request.title} {request.reason ? `• ${request.reason}` : ''}
+            </p>
+
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-400">
+              {request.requester.departmentName && (
+                <span className="inline-flex items-center gap-1">
+                  <Building2 className="w-3.5 h-3.5" />
+                  {request.requester.departmentName}
+                </span>
+              )}
+              {request.requester.classSection && (
+                <span>• {request.requester.classSection}</span>
+              )}
             <span>
               • Submitted {new Date(request.submittedAt).toLocaleDateString('en-IN', {
                 day: 'numeric',
@@ -70,6 +82,7 @@ export const ApprovalCard: React.FC<ApprovalCardProps> = ({
             </span>
           </div>
         </div>
+      </div>
 
         <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-end border-t sm:border-t-0 pt-3 sm:pt-0 border-gray-100 dark:border-gray-800">
           <ApprovalStatusBadge status={request.status} label={request.statusLabel} size="sm" />

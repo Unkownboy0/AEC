@@ -7,6 +7,7 @@ import { ErrorState } from '../../../design-system/components/ErrorState';
 import { Drawer } from '../../../design-system/components/Modal';
 import { WorkflowTimeline } from '../../../shared/components/WorkflowTimeline';
 import { pageVariants } from '../../../design-system/tokens/motion';
+import { AnimatedCounter } from '../../../design-system/motion/AnimatedCounter';
 import api from '../../../lib/axios';
 import { toast } from '../../../components/ui/Toast';
 
@@ -88,6 +89,8 @@ export const HodApprovalsPage: React.FC = () => {
     },
   ];
 
+  const pendingCount = requests.filter((r) => r.status?.includes('PENDING')).length;
+
   return (
     <motion.div variants={pageVariants} initial="initial" animate="animate" exit="exit" className="space-y-6">
       <div className="flex justify-between items-center">
@@ -95,6 +98,9 @@ export const HodApprovalsPage: React.FC = () => {
           <h1 className="text-xl font-bold text-foreground flex items-center gap-2">
             <CheckSquare className="h-5 w-5 text-primary" />
             HOD Approval Desk
+            <span className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary font-mono">
+              <AnimatedCounter value={pendingCount} /> Pending
+            </span>
           </h1>
           <p className="text-xs text-muted-foreground">Review and endorse student & faculty leave, OD, and academic requests.</p>
         </div>

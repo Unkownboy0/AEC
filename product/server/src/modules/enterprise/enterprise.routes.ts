@@ -82,7 +82,6 @@ router.post('/fees/bills', requirePermission('fees:write'), controller.createFee
 router.post('/fees/bills/:id/pay', requirePermission('fees:write'), controller.recordPayment);
 router.get('/fees/student/portal', StudentFeeController.portal);
 router.get('/parent/child/:studentId/fees', StudentFeeController.parentPortal);
-router.post('/fees/webhook', StudentFeeController.webhook);
 router.post('/fees/student/bills/:id/online-order', StudentFeeController.createOrder);
 router.post('/fees/student/online-payment/verify', StudentFeeController.verifyOnline);
 router.post('/fees/student/bills/:id/external-payment', StudentFeeController.submitExternal);
@@ -214,8 +213,8 @@ router.get('/admission/payments', admissionOperationsGuard, admissionController.
 // Certificate Request Engine
 import { CertificateController } from './certificate.controller';
 const certController = new CertificateController();
-router.post('/certificates/apply', certController.apply);
-router.get('/certificates/my-list', certController.listMyCertificates);
+router.post('/certificates/apply', requireRole(['Student']), certController.apply);
+router.get('/certificates/my-list', requireRole(['Student']), certController.listMyCertificates);
 router.get('/certificates/verify/:hash', certController.verify);
 router.get('/certificates/download/:hash', certController.download);
 

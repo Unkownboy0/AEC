@@ -211,6 +211,113 @@ export class CoeService {
     });
   }
 
+  async studentHallTicket(userId: string, examId?: string) {
+    const student = await db.student.findFirst({ where: { userId, deleted: false, status: 'ACTIVE' }, select: { id: true } });
+    if (!student) throw new ForbiddenException('Student profile not found');
+    return this.hallTicketForStudent(student.id, examId);
+  }
+
+  async hallTicketForStudent(studentId: string, examId?: string) {
+    const student = await db.student.findFirst({
+      where: { id: studentId, deleted: false, status: 'ACTIVE' },
+      include: {
+        department: true, program: true, semester: true,
+        user: { select: { id: true, profileImageFileId: true, profilePhoto: true } },
+      },
+    });
+    if (!student) throw new NotFoundException('Active student record not found');
+    const allocations = await db.examSeatAllocation.findMany({
+      where: { studentId, status: 'PUBLISHED', ...(examId ? { examId } : {}) },
+      orderBy: [{ createdAt: 'desc' }],
+    });
+    if (!allocations.length) throw new NotFoundException('No published hall ticket is available for this student');
+    const scheduleIds = allocations.map((item: any) => item.scheduleEntryId);
+    const schedules = await db.examScheduleEntry.findMany({
+      where: { id: { in: scheduleIds }, status: 'PUBLISHED', publishedAt: { not: null } },
+      orderBy: [{ examDate: 'asc' }, { startTime: 'asc' }],
+    });
+    if (!schedules.length) throw new NotFoundException('No published examination schedule is available');
+    const publishedScheduleIds = new Set(schedules.map((item: any) => item.id));
+    const eligibleAllocations = allocations.filter((item: any) => publishedScheduleIds.has(item.scheduleEntryId));
+    if (!eligibleAllocations.length) throw new NotFoundException('No eligible published hall ticket is available');
+    const [subjects, exams, rooms, branding] = await Promise.all([
+      db.subject.findMany({ where: { id: { in: schedules.map((item: any) => item.subjectId) }, deleted: false }, select: { id: true, name: true, code: true } }),
+      db.exam.findMany({ where: { id: { in: eligibleAllocations.map((item: any) => item.examId) }, deleted: false }, select: { id: true, name: true, type: true } }),
+      db.examRoom.findMany({ where: { id: { in: eligibleAllocations.map((item: any) => item.roomId) }, active: true } }),
+      db.systemSetting.findMany({ where: { key: { in: ['COLLEGE_NAME'] } } }),
+    ]);
+    const selectedExam = examId ? exams.find((item: any) => item.id === examId) : exams[0];
+    if (!selectedExam) throw new NotFoundException('Published examination record not found');
+    const rows = eligibleAllocations.filter((item: any) => item.examId === selectedExam.id).map((allocation: any) => {
+      const schedule = schedules.find((item: any) => item.id === allocation.scheduleEntryId);
+      const room = rooms.find((item: any) => item.id === allocation.roomId);
+      const subject = subjects.find((item: any) => item.id === schedule?.subjectId);
+      return { allocation, schedule, room, subject };
+    }).filter((item: any) => item.schedule && item.subject);
+    if (!rows.length) throw new NotFoundException('Published hall ticket subjects are unavailable');
+    const settings = Object.fromEntries(branding.map((item: any) => [item.key, item.value]));
+    return {
+      student: {
+        id: student.id, userId: student.userId, name: `${student.firstName} ${student.lastName}`.trim(),
+        registerNumber: student.admissionNo, programme: student.program?.name || 'Not available',
+        department: student.department?.name || 'Not available', semester: student.semester?.name || 'Not available',
+        profileImageFileId: student.user?.profileImageFileId || null, legacyProfilePhoto: student.user?.profilePhoto || null,
+      },
+      institutionName: settings.COLLEGE_NAME || 'CampusOS Institution',
+      exam: selectedExam,
+      subjects: rows.map(({ allocation, schedule, room, subject }: any) => ({
+        code: subject.code, name: subject.name, examDate: schedule.examDate, session: schedule.session,
+        startTime: schedule.startTime, endTime: schedule.endTime, instructions: schedule.instructions,
+        room: [room?.building, room?.name || room?.code].filter(Boolean).join(' - ') || null, seatNumber: allocation.seatNumber,
+      })),
+    };
+  }
+
+  async searchHallTickets(input: any) {
+    const page = Math.max(1, Number(input.page) || 1);
+    const pageSize = Math.min(50, Math.max(1, Number(input.pageSize) || 20));
+    const query = clean(input.q);
+    const students = await db.student.findMany({
+      where: {
+        deleted: false, status: 'ACTIVE',
+        ...(query ? { OR: [
+          { admissionNo: { contains: query, mode: 'insensitive' } },
+          { firstName: { contains: query, mode: 'insensitive' } },
+          { lastName: { contains: query, mode: 'insensitive' } },
+        ] } : {}),
+        ...(clean(input.departmentId) ? { departmentId: clean(input.departmentId) } : {}),
+        ...(clean(input.programId) ? { programId: clean(input.programId) } : {}),
+        ...(clean(input.semesterId) ? { semesterId: clean(input.semesterId) } : {}),
+        ...(clean(input.sectionId) ? { sectionId: clean(input.sectionId) } : {}),
+      },
+      include: { department: true, program: true, semester: true, section: true, user: { select: { id: true, profileImageFileId: true, profilePhoto: true } } },
+      orderBy: [{ admissionNo: 'asc' }], take: 500,
+    });
+    if (!students.length) return { items: [], page, pageSize, total: 0, summary: { available: 0, unavailable: 0 } };
+    const allocations = await db.examSeatAllocation.findMany({
+      where: { studentId: { in: students.map((item: any) => item.id) }, status: 'PUBLISHED', ...(clean(input.examId) ? { examId: clean(input.examId) } : {}) },
+      orderBy: { publishedAt: 'desc' },
+    });
+    const schedules = await db.examScheduleEntry.findMany({
+      where: { id: { in: allocations.map((item: any) => item.scheduleEntryId) }, status: 'PUBLISHED', publishedAt: { not: null } },
+      select: { id: true },
+    });
+    const publishedIds = new Set(schedules.map((item: any) => item.id));
+    const eligible = allocations.filter((item: any) => publishedIds.has(item.scheduleEntryId));
+    const exams = await db.exam.findMany({ where: { id: { in: Array.from(new Set(eligible.map((item: any) => item.examId))) }, deleted: false }, select: { id: true, name: true, type: true } });
+    const byStudent = new Map<string, any[]>();
+    eligible.forEach((allocation: any) => byStudent.set(allocation.studentId, [...(byStudent.get(allocation.studentId) || []), allocation]));
+    const rows = students.map((student: any) => {
+      const studentAllocations = byStudent.get(student.id) || [];
+      return {
+        student: { id: student.id, userId: student.userId, name: `${student.firstName} ${student.lastName}`.trim(), registerNumber: student.admissionNo, department: student.department?.name, programme: student.program?.name, semester: student.semester?.name, section: student.section?.name, profilePhoto: student.user?.profileImageFileId ? `/users/${student.userId}/avatar` : student.user?.profilePhoto || null },
+        exam: exams.find((item: any) => item.id === studentAllocations[0]?.examId) || null,
+        status: studentAllocations.length ? 'AVAILABLE' : 'NOT_AVAILABLE', subjectCount: studentAllocations.length,
+      };
+    });
+    return { items: rows.slice((page - 1) * pageSize, page * pageSize), page, pageSize, total: rows.length, summary: { available: rows.filter((item: any) => item.status === 'AVAILABLE').length, unavailable: rows.filter((item: any) => item.status !== 'AVAILABLE').length } };
+  }
+
   async publishResults(examId: string, actorId: string, req?: any) {
     if (!examId || examId.trim() === '') {
       throw new BadRequestException('Exam ID is required for result publication');

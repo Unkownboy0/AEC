@@ -1,6 +1,6 @@
 import { NextFunction, Request, Response } from 'express';
 import { BadRequestException } from '../../utils/exceptions';
-import { createFeeReceipt } from './fee-receipt';
+import { createFeeReceipt, generateFeeReceiptBuffer } from './fee-receipt';
 import { StudentFeeService } from './student-fee.service';
 
 const userId = (req: Request) => (req as any).user.id as string;
@@ -15,6 +15,7 @@ export class StudentFeeController {
   static webhook = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const sig = req.headers['x-razorpay-signature'] as string;
+      if (!Buffer.isBuffer(req.body)) throw new BadRequestException('Razorpay webhook raw body is unavailable');
       res.json({ status: 'success', data: await StudentFeeService.handleWebhook(req.body, sig) });
     } catch (error) { next(error); }
   };
@@ -43,9 +44,14 @@ export class StudentFeeController {
   static receipt = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const payment: any = await StudentFeeService.receiptForUser(userId(req), req.params.id);
+      const buffer = await generateFeeReceiptBuffer(payment);
+      const filename = `Fee_Receipt_${payment.receiptNumber || payment.id}.pdf`;
       res.setHeader('Content-Type', 'application/pdf');
-      res.setHeader('Content-Disposition', `inline; filename="${payment.receiptNumber}.pdf"`);
-      createFeeReceipt(payment).pipe(res).on('finish', () => undefined);
+      res.setHeader('Content-Length', buffer.length.toString());
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+      res.setHeader('X-Content-Type-Options', 'nosniff');
+      res.setHeader('Cache-Control', 'private, no-store, max-age=0, must-revalidate');
+      res.status(200).send(buffer);
     } catch (error) { next(error); }
   };
 }

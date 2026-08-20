@@ -84,9 +84,21 @@ export const StudentProfile: React.FC = () => {
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = (event) => {
-      setPhotoBase64(event.target?.result as string);
-      toast.success('Selected profile photo ready for upload.');
+    reader.onload = async (event) => {
+      const base64Url = event.target?.result as string;
+      setPhotoBase64(base64Url);
+      const base64Data = base64Url.split(';base64,').pop() || '';
+      try {
+        await api.put('/users/profile/avatar', {
+          name: file.name || 'avatar.jpg',
+          mimeType: file.type || 'image/jpeg',
+          base64: base64Data,
+        });
+        toast.success('Profile photo updated successfully.');
+        await refreshUser();
+      } catch (err: any) {
+        toast.error(err.response?.data?.message || 'Failed to update profile photo.');
+      }
     };
     reader.readAsDataURL(file);
   };
@@ -96,17 +108,15 @@ export const StudentProfile: React.FC = () => {
     setSavingProfile(true);
     try {
       const payload = { ...formData };
-      if (photoBase64) {
-        payload.profilePhoto = photoBase64;
-      }
+      delete (payload as any).profilePhoto;
       const res = await api.put('/users/profile', payload);
-      if (res.data?.status === 'success') {
+      if (res.data?.status === 'success' || res.data?.success) {
         toast.success('Profile saved permanently.');
         setIsEditing(false);
         await refreshUser();
       }
-    } catch (err) {
-      toast.error('Failed to save profile changes.');
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Failed to save profile changes.');
     } finally {
       setSavingProfile(false);
     }

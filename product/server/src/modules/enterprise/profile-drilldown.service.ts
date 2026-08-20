@@ -1,6 +1,7 @@
 import { prisma } from '../../lib/prisma';
 import { BadRequestException, NotFoundException } from '../../utils/exceptions';
 import { RequesterIdentity, StudentAccessService } from '../security/student-access.service';
+import { profileImageDescriptor } from '../users/profile-media.service';
 
 export class ProfileDrilldownService {
   /**
@@ -26,6 +27,7 @@ export class ProfileDrilldownService {
               },
             },
           },
+          profileImageFile: true,
         },
       });
     } catch (e) {
@@ -235,13 +237,16 @@ export class ProfileDrilldownService {
       } : null,
     ].filter(Boolean);
 
+    const profileImage = user ? profileImageDescriptor(user) : null;
     return {
       user: {
         id: userId || targetId,
         email: user?.email || studentRecord?.email || facultyRecord?.email || null,
         firstName: user?.firstName || studentRecord?.firstName || facultyRecord?.firstName || null,
         lastName: user?.lastName || studentRecord?.lastName || facultyRecord?.lastName || null,
-        profilePhoto: user?.profilePhoto || null,
+        profilePhoto: profileImage?.url || null,
+        profileImage,
+        gender: user?.gender || studentRecord?.gender || facultyRecord?.gender || 'UNSPECIFIED',
         role: roleName,
         status: user?.status || studentRecord?.status || facultyRecord?.status || null,
         onlineStatus: user?.loginStatus || null,

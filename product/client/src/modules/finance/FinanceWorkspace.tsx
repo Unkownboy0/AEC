@@ -95,7 +95,22 @@ export default function FinanceWorkspace() {
 
   useEffect(() => {
     load();
+
+    const handleFinanceUpdate = (e: any) => {
+      const type = e?.detail?.type || e?.data?.type;
+      if (!type || type.startsWith('FINANCE_')) {
+        load();
+      }
+    };
+
+    window.addEventListener('campusos:finance_sync', handleFinanceUpdate);
+    window.addEventListener('rbac:change', handleFinanceUpdate);
+    return () => {
+      window.removeEventListener('campusos:finance_sync', handleFinanceUpdate);
+      window.removeEventListener('rbac:change', handleFinanceUpdate);
+    };
   }, [endpoint]);
+
 
   const search = async () => {
     if (!query.trim()) return;

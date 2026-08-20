@@ -1,6 +1,4 @@
-/*
-  CAMPUSOS REALTIME CLIENT — Universal WebSocket / SSE client
-*/
+/* CampusOS authenticated Server-Sent Events invalidation client. */
 
 import type { RealtimeConnectionStatus, RealtimeEventPayload } from './realtime.types';
 import { env } from '../shared/config/environment';
@@ -9,106 +7,101 @@ type Listener = (event: RealtimeEventPayload) => void;
 type StatusListener = (status: RealtimeConnectionStatus) => void;
 
 export class RealtimeClient {
-  private socket: WebSocket | null = null;
+  private controller: AbortController | null = null;
   private status: RealtimeConnectionStatus = 'disconnected';
-  private eventListeners: Set<Listener> = new Set();
-  private statusListeners: Set<StatusListener> = new Set();
+  private eventListeners = new Set<Listener>();
+  private statusListeners = new Set<StatusListener>();
   private token: string | null = null;
+  private activeRole: string | null = null;
   private reconnectTimer: number | null = null;
+  private reconnectAttempt = 0;
+  private intentionallyDisconnected = true;
+  private lastEventId = '';
 
-  public connect(token: string) {
-    if (!token) return;
+  public connect(token: string, activeRole?: string) {
+    if (!token || this.controller) return;
     this.token = token;
-    if (this.socket && (this.socket.readyState === WebSocket.OPEN || this.socket.readyState === WebSocket.CONNECTING)) {
-      return;
-    }
+    this.activeRole = activeRole || null;
+    this.intentionallyDisconnected = false;
+    void this.openStream();
+  }
 
-    this.setStatus('connecting');
+  private async openStream() {
+    this.setStatus(this.reconnectAttempt > 0 ? 'reconnecting' : 'connecting');
+    this.controller = new AbortController();
     try {
-      let baseOrigin = env.socketUrl;
-      let wsProtocol = 'ws:';
-
-      if (baseOrigin.startsWith('https://')) {
-        wsProtocol = 'wss:';
-        baseOrigin = baseOrigin.replace('https://', '');
-      } else if (baseOrigin.startsWith('http://')) {
-        wsProtocol = 'ws:';
-        baseOrigin = baseOrigin.replace('http://', '');
+      const response = await fetch(`${env.apiUrl.replace(/\/$/, '')}/rbac/stream`, {
+        method: 'GET',
+        headers: {
+          Accept: 'text/event-stream',
+          Authorization: `Bearer ${this.token}`,
+          ...(this.activeRole ? { 'X-Active-Role': this.activeRole } : {}),
+          ...(this.lastEventId ? { 'Last-Event-ID': this.lastEventId } : {}),
+        },
+        cache: 'no-store',
+        signal: this.controller.signal,
+      });
+      if (!response.ok || !response.body) throw new Error(`SSE connection rejected (${response.status})`);
+      this.reconnectAttempt = 0;
+      this.setStatus('connected');
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      while (!this.intentionallyDisconnected) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const frames = buffer.split(/\r?\n\r?\n/);
+        buffer = frames.pop() || '';
+        for (const frame of frames) this.handleFrame(frame);
       }
+    } catch (error) {
+      if (!this.intentionallyDisconnected && (error as Error)?.name !== 'AbortError') this.setStatus('error');
+    } finally {
+      this.controller = null;
+      if (!this.intentionallyDisconnected) this.scheduleReconnect();
+    }
+  }
 
-      const wsUrl = `${wsProtocol}//${baseOrigin}/api/v1/realtime/ws?token=${encodeURIComponent(token)}`;
-
-      this.socket = new WebSocket(wsUrl);
-
-      this.socket.onopen = () => {
-        this.setStatus('connected');
-      };
-
-      this.socket.onmessage = (event) => {
-        try {
-          const data: RealtimeEventPayload = JSON.parse(event.data);
-          this.eventListeners.forEach((fn) => fn(data));
-        } catch {
-          // ignore non-json ping/pong frames
-        }
-      };
-
-      this.socket.onerror = () => {
-        this.setStatus('error');
-      };
-
-      this.socket.onclose = () => {
-        this.setStatus('disconnected');
-        this.scheduleReconnect();
-      };
+  private handleFrame(frame: string) {
+    if (!frame || frame.startsWith(':')) return;
+    const dataLines: string[] = [];
+    for (const line of frame.split(/\r?\n/)) {
+      if (line.startsWith('id:')) this.lastEventId = line.slice(3).trim();
+      if (line.startsWith('data:')) dataLines.push(line.slice(5).trimStart());
+    }
+    if (dataLines.length === 0) return;
+    try {
+      const raw = JSON.parse(dataLines.join('\n'));
+      if (raw.type === 'CONNECTED') return;
+      const event: RealtimeEventPayload = { ...raw, eventId: raw.eventId || this.lastEventId || undefined, eventType: raw.eventType || raw.type };
+      this.eventListeners.forEach((listener) => listener(event));
     } catch {
-      this.setStatus('error');
-      this.scheduleReconnect();
+      // Invalid frames are ignored; the authenticated stream remains connected.
     }
   }
 
   private scheduleReconnect() {
-    if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
-    this.reconnectTimer = window.setTimeout(() => {
-      if (this.token) {
-        this.setStatus('reconnecting');
-        this.connect(this.token);
-      }
-    }, 5000);
+    if (this.reconnectTimer) window.clearTimeout(this.reconnectTimer);
+    this.reconnectAttempt += 1;
+    const delay = Math.min(60_000, 1_000 * 2 ** Math.min(this.reconnectAttempt, 6)) + Math.floor(Math.random() * 500);
+    this.setStatus('reconnecting');
+    this.reconnectTimer = window.setTimeout(() => void this.openStream(), delay);
   }
 
   public disconnect() {
-    if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
-    if (this.socket) {
-      this.socket.close();
-      this.socket = null;
-    }
+    this.intentionallyDisconnected = true;
+    if (this.reconnectTimer) window.clearTimeout(this.reconnectTimer);
+    this.reconnectTimer = null;
+    this.controller?.abort();
+    this.controller = null;
     this.setStatus('disconnected');
   }
 
-  public subscribe(fn: Listener) {
-    this.eventListeners.add(fn);
-    return () => {
-      this.eventListeners.delete(fn);
-    };
-  }
-
-  public onStatusChange(fn: StatusListener) {
-    this.statusListeners.add(fn);
-    fn(this.status);
-    return () => {
-      this.statusListeners.delete(fn);
-    };
-  }
-
-  private setStatus(status: RealtimeConnectionStatus) {
-    this.status = status;
-    this.statusListeners.forEach((fn) => fn(status));
-  }
-
-  public getStatus() {
-    return this.status;
-  }
+  public subscribe(fn: Listener) { this.eventListeners.add(fn); return () => { this.eventListeners.delete(fn); }; }
+  public onStatusChange(fn: StatusListener) { this.statusListeners.add(fn); fn(this.status); return () => { this.statusListeners.delete(fn); }; }
+  private setStatus(status: RealtimeConnectionStatus) { this.status = status; this.statusListeners.forEach((fn) => fn(status)); }
+  public getStatus() { return this.status; }
 }
 
 export const realtimeClient = new RealtimeClient();

@@ -598,26 +598,51 @@ export const ParentWorkspacePortal: React.FC = () => {
           {/* TAB 7: TRANSPORT */}
           {activeTab === 'transport' && (
             <div className="bg-card border rounded-2xl p-5 shadow-xs space-y-4">
-              <h3 className="text-sm font-extrabold">Bus Transport & Route Allocation</h3>
-              {!transportData?.isAssigned ? (
-                <p className="text-xs text-muted-foreground py-4">No bus transport assigned for this student.</p>
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-extrabold flex items-center gap-2">
+                  <Bus className="h-4 w-4 text-indigo-600" /> Bus Transport & Live Commute
+                </h3>
+                {transportData?.isEligible && (
+                  <span className="text-[11px] font-extrabold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400 border border-emerald-200">
+                    {transportData.liveLocation?.statusText || 'Tracking Active'}
+                  </span>
+                )}
+              </div>
+
+              {!transportData?.isEligible ? (
+                <div className="p-4 rounded-xl bg-muted/10 border text-xs text-muted-foreground space-y-1">
+                  <p className="font-bold text-foreground">
+                    {transportData?.studentType === 'HOSTELLER'
+                      ? 'Student is a Hosteller Resident'
+                      : transportData?.reason === 'ALLOCATION_PENDING'
+                      ? 'Bus Allocation Pending'
+                      : 'Independent Commute Profile'}
+                  </p>
+                  <p>{transportData?.message || 'No campus bus transport assigned for this student.'}</p>
+                </div>
               ) : (
                 <div className="space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                     <div className="p-3.5 border rounded-xl bg-muted/10">
-                      <span className="text-[10px] uppercase font-bold text-muted-foreground">Route & Bus</span>
-                      <p className="text-xs font-extrabold">{transportData.routeName} ({transportData.routeNumber})</p>
-                      <p className="text-[10px] text-muted-foreground">Bus: {transportData.busNumber} • Reg: {transportData.vehicleReg}</p>
+                      <span className="text-[10px] uppercase font-bold text-muted-foreground">Route & Vehicle</span>
+                      <p className="text-xs font-extrabold">{transportData.route?.name} ({transportData.route?.code})</p>
+                      <p className="text-[10px] text-muted-foreground">Bus: {transportData.vehicle?.number} • Reg: {transportData.vehicle?.registrationNo}</p>
                     </div>
                     <div className="p-3.5 border rounded-xl bg-muted/10">
                       <span className="text-[10px] uppercase font-bold text-muted-foreground">Assigned Pickup Stop</span>
-                      <p className="text-xs font-extrabold text-indigo-600">{transportData.pickupStop}</p>
+                      <p className="text-xs font-extrabold text-indigo-600">{transportData.assignedStop?.name}</p>
+                      <p className="text-[10px] text-muted-foreground">Pickup: {transportData.assignedStop?.pickupTime} • Drop: {transportData.assignedStop?.dropTime}</p>
                     </div>
                     <div className="p-3.5 border rounded-xl bg-muted/10">
-                      <span className="text-[10px] uppercase font-bold text-muted-foreground">Driver Work Contact</span>
-                      <p className="text-xs font-extrabold">{transportData.driverName || 'Campus Driver'}</p>
-                      <p className="text-[10px] text-muted-foreground">{transportData.driverPhone || 'Contact transport office'}</p>
+                      <span className="text-[10px] uppercase font-bold text-muted-foreground">Driver Contact</span>
+                      <p className="text-xs font-extrabold">{transportData.driver?.name || 'Campus Crew'}</p>
+                      <p className="text-[10px] text-muted-foreground">{transportData.driver?.phone || 'Contact transport office'}</p>
                     </div>
+                  </div>
+
+                  <div className="p-3.5 rounded-xl bg-indigo-50/50 dark:bg-indigo-950/30 border border-indigo-200 dark:border-indigo-800 text-xs flex items-center justify-between">
+                    <span>Estimated Arrival at Pickup Stop: <strong className="text-indigo-700 dark:text-indigo-300">~{transportData.etaMinutes || 12} mins</strong></span>
+                    <span className="text-[10px] text-muted-foreground">GPS: {transportData.liveLocation?.latitude?.toFixed(4)}, {transportData.liveLocation?.longitude?.toFixed(4)}</span>
                   </div>
                 </div>
               )}

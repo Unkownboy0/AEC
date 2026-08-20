@@ -39,7 +39,8 @@ interface ReportContent {
 // ─── Campus Report Builder Component ─────────────────────────────────────────
 
 const CampusReportBuilder: React.FC = () => {
-  const { id } = useParams<{ id: string }>();
+  const params = useParams<{ id?: string; documentId?: string }>();
+  const id = params.id || params.documentId;
   const { user } = useAuth();
   const navigate = useNavigate();
 
@@ -158,19 +159,36 @@ const CampusReportBuilder: React.FC = () => {
     }
   };
 
+  const handleMoveToTrash = async () => {
+    if (!window.confirm('Move this report to Trash?')) return;
+    try {
+      await workspaceApi.deleteDocument(id!);
+      toast.success('Report moved to Trash.');
+      navigate('/workspace');
+    } catch {
+      toast.error('Failed to move report to Trash.');
+    }
+  };
+
+  const handleDeleteSection = (secId: string) => {
+    if (window.confirm('Delete this section from the report?')) {
+      deleteSection(secId);
+    }
+  };
+
   if (loading) {
-    return <div className="flex items-center justify-center min-h-screen bg-gray-50"><Loader2 size={32} className="animate-spin text-teal-600" /></div>;
+    return <div className="flex items-center justify-center min-h-screen bg-slate-50"><Loader2 size={32} className="animate-spin text-teal-600" /></div>;
   }
 
   const canEdit = doc?.permissions.canEdit ?? false;
 
   return (
-    <div className="flex flex-col h-screen bg-gray-50 overflow-hidden font-sans">
+    <div className="flex flex-col h-screen bg-slate-100 dark:bg-[#0B0F19] overflow-hidden font-sans">
       {/* ─── Top Bar ──────────────────────────────────────────────────────── */}
-      <div className="bg-white border-b border-gray-200 flex items-center justify-between px-6 py-3 flex-shrink-0">
+      <div className="bg-white dark:bg-[#111625] border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-6 py-3 shrink-0">
         <div className="flex items-center gap-3">
-          <button onClick={() => navigate(-1)} className="p-1.5 hover:bg-gray-100 rounded-xl transition-colors">
-            <ArrowLeft size={16} className="text-gray-600" />
+          <button onClick={() => navigate(-1)} className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors">
+            <ArrowLeft size={16} className="text-slate-600 dark:text-slate-300" />
           </button>
           <div>
             <input
@@ -178,11 +196,11 @@ const CampusReportBuilder: React.FC = () => {
               value={title}
               onChange={(e) => { setTitle(e.target.value); hasUnsaved.current = true; setSaveState('unsaved'); scheduleAutosave(report, e.target.value); }}
               disabled={!canEdit}
-              className="text-base font-bold text-gray-900 bg-transparent outline-none border-b border-transparent focus:border-teal-500 max-w-sm"
+              className="text-base font-bold text-slate-900 dark:text-white bg-transparent outline-none border-b border-transparent focus:border-teal-500 max-w-sm placeholder:text-slate-400"
               placeholder="Institutional Report Title"
             />
-            <div className="flex items-center gap-2 text-xs text-gray-500 mt-0.5">
-              <span className="font-semibold text-teal-700 bg-teal-50 px-2 py-0.5 rounded-full">
+            <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+              <span className="font-semibold text-teal-700 bg-teal-50 dark:bg-teal-950/60 dark:text-teal-300 px-2 py-0.5 rounded-full border border-teal-200 dark:border-teal-800/60">
                 {report.metadata.accreditationType || 'IQAC'} Standard
               </span>
               <span>•</span>
@@ -192,33 +210,43 @@ const CampusReportBuilder: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1 text-xs text-gray-500 mr-2">
+          <div className="flex items-center gap-1 text-xs text-slate-500 mr-2">
             {saveState === 'saving' && <Loader2 size={12} className="animate-spin" />}
-            {saveState === 'saved' && <CheckCircle2 size={12} className="text-green-500" />}
+            {saveState === 'saved' && <CheckCircle2 size={12} className="text-emerald-500" />}
             {saveState === 'unsaved' && <AlertCircle size={12} className="text-amber-500" />}
           </div>
 
           <button
             onClick={handleExportPDF}
             disabled={exporting}
-            className="flex items-center gap-1.5 px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white text-xs font-semibold rounded-xl shadow-sm transition-colors disabled:opacity-50"
+            className="flex items-center gap-1.5 px-4 py-2 bg-teal-600 hover:bg-teal-700 active:scale-[0.98] text-white text-xs font-semibold rounded-xl shadow-sm transition-all disabled:opacity-50"
           >
             {exporting ? <Loader2 size={13} className="animate-spin" /> : <Download size={13} />}
             Export Official Watermarked PDF
           </button>
+
+          {canEdit && (
+            <button
+              onClick={handleMoveToTrash}
+              title="Move to Trash"
+              className="p-2 text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-xl transition-colors"
+            >
+              <Trash2 size={15} />
+            </button>
+          )}
         </div>
       </div>
 
       {/* ─── Main Editor View ─────────────────────────────────────────────── */}
-      <div className="flex-1 overflow-y-auto p-6">
+      <div className="flex-1 overflow-y-auto p-4 sm:p-8">
         <div className="max-w-4xl mx-auto space-y-6">
 
-          {/* Accreditation Header Card */}
-          <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm space-y-4">
-            <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+          {/* Accreditation Header Card (White official document sheet) */}
+          <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div className="flex items-center gap-2">
                 <Building2 size={18} className="text-teal-600" />
-                <h2 className="text-sm font-bold text-gray-900">Accreditation & Compliance Context</h2>
+                <h2 className="text-sm font-bold text-slate-900">Accreditation & Compliance Context</h2>
               </div>
               <select
                 value={report.metadata.accreditationType}
@@ -233,22 +261,23 @@ const CampusReportBuilder: React.FC = () => {
               </select>
             </div>
 
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
-                <label className="text-[11px] font-semibold text-gray-500 block mb-1">Academic Year</label>
+                <label className="text-[11px] font-semibold text-slate-600 block mb-1">Academic Year</label>
                 <input
                   type="text"
                   value={report.metadata.academicYear || ''}
                   onChange={(e) => updateReport((r) => ({ ...r, metadata: { ...r.metadata, academicYear: e.target.value } }))}
-                  className="w-full text-xs border border-gray-200 rounded-xl px-3 py-2 outline-none font-medium"
+                  className="w-full text-xs bg-white text-slate-900 border border-slate-200 rounded-xl px-3 py-2 outline-none font-medium focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 placeholder:text-slate-400"
+                  placeholder="e.g. 2025-2026"
                 />
               </div>
               <div>
-                <label className="text-[11px] font-semibold text-gray-500 block mb-1">Semester Cycle</label>
+                <label className="text-[11px] font-semibold text-slate-600 block mb-1">Semester Cycle</label>
                 <select
                   value={report.metadata.semester || 'Odd'}
                   onChange={(e) => updateReport((r) => ({ ...r, metadata: { ...r.metadata, semester: e.target.value } }))}
-                  className="w-full text-xs border border-gray-200 rounded-xl px-3 py-2 outline-none font-medium bg-white"
+                  className="w-full text-xs bg-white text-slate-900 border border-slate-200 rounded-xl px-3 py-2 outline-none font-medium focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500"
                 >
                   <option value="Odd">Odd Semester</option>
                   <option value="Even">Even Semester</option>
@@ -256,32 +285,34 @@ const CampusReportBuilder: React.FC = () => {
                 </select>
               </div>
               <div>
-                <label className="text-[11px] font-semibold text-gray-500 block mb-1">Department</label>
+                <label className="text-[11px] font-semibold text-slate-600 block mb-1">Department</label>
                 <input
                   type="text"
                   value={report.metadata.departmentName || (typeof user?.department === 'string' ? user.department : (user?.department as any)?.name) || 'All Engineering Departments'}
                   onChange={(e) => updateReport((r) => ({ ...r, metadata: { ...r.metadata, departmentName: e.target.value } }))}
-                  className="w-full text-xs border border-gray-200 rounded-xl px-3 py-2 outline-none font-medium"
+                  className="w-full text-xs bg-white text-slate-900 border border-slate-200 rounded-xl px-3 py-2 outline-none font-medium focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 placeholder:text-slate-400"
+                  placeholder="e.g. Computer Science and Engineering"
                 />
               </div>
             </div>
           </div>
 
           {/* Dynamic Report Sections */}
-          {report.sections.map((sec, index) => (
-            <div key={sec.id} className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm space-y-4 hover:border-teal-300 transition-colors">
-              <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+          {report.sections.map((sec) => (
+            <div key={sec.id} className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-4 hover:border-teal-300 transition-colors">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                 <input
                   type="text"
                   value={sec.title}
                   onChange={(e) => updateSection(sec.id, { title: e.target.value })}
-                  className="text-sm font-bold text-gray-900 outline-none flex-1"
+                  className="text-sm font-bold text-slate-900 bg-white border-b border-transparent focus:border-teal-500 outline-none flex-1 px-1 py-0.5 placeholder:text-slate-400"
+                  placeholder="Section title"
                 />
                 <div className="flex items-center gap-2">
-                  <span className="text-[10px] uppercase font-bold text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
+                  <span className="text-[10px] uppercase font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">
                     {sec.type.replace('_', ' ')}
                   </span>
-                  <button onClick={() => deleteSection(sec.id)} className="text-gray-400 hover:text-red-500 transition-colors">
+                  <button onClick={() => handleDeleteSection(sec.id)} className="text-slate-400 hover:text-rose-500 p-1 transition-colors">
                     <Trash2 size={14} />
                   </button>
                 </div>
@@ -291,11 +322,11 @@ const CampusReportBuilder: React.FC = () => {
               {sec.type === 'METRICS_TABLE' && sec.metrics && (
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                   {sec.metrics.map((m, mIdx) => (
-                    <div key={mIdx} className="bg-teal-50/50 border border-teal-100 rounded-xl p-3.5 space-y-1">
-                      <p className="text-[11px] font-semibold text-gray-600 truncate">{m.label}</p>
+                    <div key={mIdx} className="bg-teal-50/60 border border-teal-100 rounded-xl p-3.5 space-y-1">
+                      <p className="text-[11px] font-semibold text-slate-600 truncate">{m.label}</p>
                       <p className="text-xl font-black text-teal-800">{m.value}</p>
                       {m.change && (
-                        <p className="text-[10px] font-bold text-green-600 flex items-center gap-0.5">
+                        <p className="text-[10px] font-bold text-emerald-600 flex items-center gap-0.5">
                           <TrendingUp size={10} /> {m.change} vs prev cycle
                         </p>
                       )}
@@ -310,8 +341,8 @@ const CampusReportBuilder: React.FC = () => {
                   value={sec.content || ''}
                   onChange={(e) => updateSection(sec.id, { content: e.target.value })}
                   rows={4}
-                  className="w-full text-xs text-gray-700 leading-relaxed outline-none border border-gray-200 rounded-xl p-3 bg-gray-50/50 resize-none focus:bg-white focus:border-teal-400"
-                  placeholder="Enter content for this section…"
+                  className="w-full text-xs text-slate-800 leading-relaxed outline-none border border-slate-200 rounded-xl p-3 bg-slate-50/60 resize-none focus:bg-white focus:border-teal-400 focus:ring-2 focus:ring-teal-500/20 placeholder:text-slate-400"
+                  placeholder="Enter detailed narrative or analysis for this section…"
                 />
               )}
             </div>

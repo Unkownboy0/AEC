@@ -85,7 +85,7 @@ export const HodMentorsWorkspace: React.FC = () => {
   if (error && mentors.length === 0) {
     return (
       <div className="p-6 max-w-7xl mx-auto">
-        <ErrorState title="Mentor Allocation List Offline" description={error} onRetry={fetchDepartmentMentors} />
+        <ErrorState title="Unable to Load Mentor Allocations" description={error} onRetry={fetchDepartmentMentors} />
       </div>
     );
   }

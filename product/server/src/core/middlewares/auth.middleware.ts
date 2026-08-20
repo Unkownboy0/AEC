@@ -137,29 +137,9 @@ export const requireRole = (allowedRoles: string[]) => {
       }
     }
 
-    // 4. Active Principal delegation check for VP
-    const routeAcceptsDelegatedPrincipal = normalizedAllowed.some(
-      (role) => role === 'PRINCIPAL' || role === 'ACTINGPRINCIPAL'
-    );
-    if (!hasRole && routeAcceptsDelegatedPrincipal && (userRoleNorm === 'VICEPRINCIPAL' || userRoleNorm === 'VP')) {
-      try {
-        const activeDelegation = await (prisma as any).principalDelegation.findFirst({
-          where: {
-            actingUserId: req.user.id,
-            status: 'ACTIVE',
-            startDate: { lte: new Date() },
-            endDate: { gt: new Date() }
-          }
-        });
-        let delegatedScope: any = {};
-        try { delegatedScope = activeDelegation ? JSON.parse(activeDelegation.delegatedScope || '{}') : {}; } catch { delegatedScope = {}; }
-        if (activeDelegation && delegatedScope.tenantId === env.CAMPUS_TENANT_ID) {
-          hasRole = true;
-        }
-      } catch {
-        // Fallback
-      }
-    }
+    // Principal delegation is deliberately NOT a generic role alias. A VP may
+    // exercise Principal authority only through a write boundary that invokes
+    // the fine-grained delegation authorization helper for the concrete action.
 
     if (!hasRole) {
       return next(new ForbiddenException('Your role does not allow access to this resource'));

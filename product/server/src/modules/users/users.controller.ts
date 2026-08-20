@@ -2,6 +2,8 @@ import { Request, Response, NextFunction } from 'express';
 import { UsersService } from './users.service';
 import { ProvisioningService } from './provisioning.service';
 import { provisioningFileRequestSchema, provisioningRequestSchema } from './provisioning.validator';
+import { ProfileMediaService } from './profile-media.service';
+import { getUserPreferences, updateUserPreferences } from './preferences';
 
 export class UsersController {
   private service = new UsersService();
@@ -165,6 +167,40 @@ export class UsersController {
     } catch (error) {
       next(error);
     }
+  };
+
+  uploadProfileAvatar = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const data = await ProfileMediaService.upload(req.user!.id, req.body, req);
+      res.status(200).json({ status: 'success', data });
+    } catch (error) { next(error); }
+  };
+
+  removeProfileAvatar = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const data = await ProfileMediaService.remove(req.user!.id, req);
+      res.status(200).json({ status: 'success', data });
+    } catch (error) { next(error); }
+  };
+
+  getPreferences = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const data = await getUserPreferences(req.user!.id);
+      res.status(200).json({ status: 'success', data });
+    } catch (error) { next(error); }
+  };
+
+  updatePreferences = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const data = await updateUserPreferences(req.user!.id, req.body);
+      res.status(200).json({ status: 'success', data });
+    } catch (error) { next(error); }
+  };
+
+  getProfileAvatar = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      await ProfileMediaService.stream(req.user!.id, req.params.id, res);
+    } catch (error) { next(error); }
   };
 
   getDirectoryStats = async (req: Request, res: Response, next: NextFunction) => {

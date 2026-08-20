@@ -8,7 +8,12 @@ const coeOnly = requireRole(['Examination Cell', 'COE']);
 
 router.use(requireAuth);
 router.get('/student/hall-allotments', requireRole(['Student']), controller.studentHall);
+router.get('/student/hall-ticket', requireRole(['Student']), controller.studentHallTicket);
+router.get('/student/hall-ticket.pdf', requireRole(['Student']), controller.studentHallTicketPdf);
 router.get('/dashboard', coeOnly, controller.dashboard);
+router.get('/hall-tickets', coeOnly, controller.searchHallTickets);
+router.get('/students/:studentId/hall-ticket', coeOnly, controller.coeHallTicket);
+router.get('/students/:studentId/hall-ticket.pdf', coeOnly, controller.coeHallTicketPdf);
 router.get('/exams/:examId/schedule', coeOnly, controller.schedule);
 router.post('/schedules', coeOnly, controller.createSchedule);
 router.get('/exams/:examId/validate', coeOnly, controller.validateSchedule);

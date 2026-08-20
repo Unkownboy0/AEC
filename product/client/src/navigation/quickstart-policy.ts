@@ -25,6 +25,10 @@ export interface QuickStartPolicyContext {
  * because the screen has its own primary action, message composer, or full editor.
  */
 const BLOCKED_ROUTE_PATTERNS: RegExp[] = [
+  // Dashboards have no universal create action. Workspace owns its own create sheet.
+  /\/dashboard\/?$/i,
+  /^\/workspace\/?$/i,
+  /^\/workspace\/drive(\/.*)?$/i,
   // ── Messages & Chat Screens ──────────────────────────────────
   /\/messages(\/.*)?$/i,
   /\/chat(\/.*)?$/i,
@@ -67,11 +71,32 @@ const BLOCKED_ROUTE_PATTERNS: RegExp[] = [
   /\/faculty\/marks(\/.*)?$/i,
   /\/student\/complaints(\/.*)?$/i,
   /\/student\/fees(\/.*)?$/i,
+  /\/student\/id-card(\/.*)?$/i,
+  /\/student\/certificates(\/.*)?$/i,
+  /\/student\/placements(\/.*)?$/i,
+  /\/student\/career(\/.*)?$/i,
+  /\/student\/results(\/.*)?$/i,
+  /\/student\/examinations(\/.*)?$/i,
+  /\/student\/exams(\/.*)?$/i,
+  /\/student\/timetable(\/.*)?$/i,
+  /\/student\/attendance(\/.*)?$/i,
+  /\/student\/hostel(\/.*)?$/i,
+  /\/student\/transport(\/.*)?$/i,
+  /\/student\/library(\/.*)?$/i,
+  /\/profile(\/.*)?$/i,
+  /\/student\/profile(\/.*)?$/i,
+  /\/faculty\/profile(\/.*)?$/i,
+  /\/hod\/profile(\/.*)?$/i,
+  /\/settings(\/.*)?$/i,
   /\/admin\/settings(\/.*)?$/i,
   /\/admin\/users(\/.*)?$/i,
   /\/roles(\/.*)?$/i,
   /\/rbac(\/.*)?$/i,
   /\/iam(\/.*)?$/i,
+  /\/404(\/.*)?$/i,
+  /\/not-found(\/.*)?$/i,
+  /\/hod\/allocation(\/.*)?$/i,
+  /\/hod\/mentors(\/.*)?$/i,
 ];
 
 export function shouldShowQuickStart(context: QuickStartPolicyContext): boolean {
@@ -85,6 +110,13 @@ export function shouldShowQuickStart(context: QuickStartPolicyContext): boolean 
   // 2. Never show when modal or drawer with primary action is open
   if (isModalOpen) {
     return false;
+  }
+
+  // 2b. Never show if current page is NotFoundPage or AccessDenied
+  if (typeof window !== 'undefined') {
+    if ((window as any).__campusos_is_404__ || (window as any).__campusos_is_access_denied__) {
+      return false;
+    }
   }
 
   // 3. Must have available contextual actions for current role

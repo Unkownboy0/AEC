@@ -90,21 +90,21 @@ export const PrincipalExecutivePortal: React.FC<PrincipalExecutivePortalProps> =
   };
 
   return (
-    <div className="p-6 space-y-6 bg-slate-900 text-slate-100 min-h-screen">
-      {/* Header Banner */}
-      <div className="bg-gradient-to-r from-violet-950 via-indigo-950 to-slate-900 p-6 rounded-2xl border border-violet-500/30 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 shadow-2xl">
+    <div className="p-6 space-y-6 bg-background text-foreground min-h-screen">
+      {/* Header Banner - Principal Executive Governance Palette (Deep Navy + Gold/Amber) */}
+      <div className="bg-gradient-to-r from-slate-950 via-[#0C1527] to-[#14233D] p-6 rounded-2xl border border-amber-500/30 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 shadow-2xl">
         <div className="space-y-1">
-          <div className="flex items-center gap-2 text-xs font-bold text-violet-400 uppercase tracking-wider">
-            <Sparkles className="w-4 h-4" /> Principal Executive Command Suite
+          <div className="flex items-center gap-2 text-xs font-bold text-amber-400 uppercase tracking-wider">
+            <Sparkles className="w-4 h-4 text-amber-400" /> Principal Executive Command Suite
           </div>
           <h1 className="text-2xl font-extrabold text-white">Welcome, Principal {user?.firstName}</h1>
-          <p className="text-xs text-slate-400">Institutional Governance, Academic Audit & Decision Center</p>
+          <p className="text-xs text-slate-300">Institutional Governance, Academic Audit & Strategic Decision Center</p>
         </div>
         <div className="flex flex-wrap gap-2 text-xs font-bold">
           <span className="px-3.5 py-1.5 bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 rounded-xl flex items-center gap-1.5">
             <CheckCircle className="w-4 h-4" /> Academic Status: Accredited
           </span>
-          <span className="px-3.5 py-1.5 bg-indigo-500/20 text-indigo-300 border border-indigo-500/40 rounded-xl flex items-center gap-1.5">
+          <span className="px-3.5 py-1.5 bg-amber-500/20 text-amber-300 border border-amber-500/40 rounded-xl flex items-center gap-1.5">
             <Users className="w-4 h-4" /> {metrics.totalStudents} Enrolled
           </span>
         </div>

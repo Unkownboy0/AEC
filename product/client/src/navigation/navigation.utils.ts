@@ -99,7 +99,7 @@ export function getMobileTabsForRole(role?: string): NavEntry[] {
  * Get More page entries grouped by section
  */
 export interface MoreSection {
-  group: NavGroup;
+  group: string;
   label: string;
   items: NavEntry[];
 }
@@ -109,24 +109,52 @@ export function getMorePageSectionsForRole(role?: string): MoreSection[] {
     (e) => e.mobilePlacement === 'more'
   );
 
-  const grouped: Map<NavGroup, NavEntry[]> = new Map();
+  const categoryMap: Record<string, { label: string; groups: NavGroup[]; items: NavEntry[] }> = {
+    academics: {
+      label: 'ACADEMICS',
+      groups: ['academics', 'teaching', 'monitoring', 'insights', 'overview'],
+      items: [],
+    },
+    services: {
+      label: 'STUDENT SERVICES',
+      groups: ['requests', 'career', 'communication'],
+      items: [],
+    },
+    operations: {
+      label: 'OPERATIONS',
+      groups: ['management', 'responsibilities', 'system'],
+      items: [],
+    },
+    personal: {
+      label: 'PERSONAL',
+      groups: ['account'],
+      items: [],
+    },
+  };
+
   for (const entry of entries) {
-    if (!grouped.has(entry.group)) grouped.set(entry.group, []);
-    grouped.get(entry.group)!.push(entry);
+    let placed = false;
+    for (const catKey of ['academics', 'services', 'operations', 'personal']) {
+      if (categoryMap[catKey].groups.includes(entry.group)) {
+        categoryMap[catKey].items.push(entry);
+        placed = true;
+        break;
+      }
+    }
+    if (!placed) {
+      categoryMap.operations.items.push(entry);
+    }
   }
 
-  const groupLabelMap: Record<NavGroup, string> = Object.fromEntries(
-    NAV_GROUP_CONFIGS.map((g) => [g.id, g.label])
-  ) as Record<NavGroup, string>;
-
-  return GROUP_ORDER
-    .filter((g) => grouped.has(g))
-    .map((g) => ({
-      group: g,
-      label: groupLabelMap[g] ?? g,
-      items: (grouped.get(g) ?? []).sort((a, b) => a.order - b.order),
+  return ['academics', 'services', 'operations', 'personal']
+    .filter((k) => categoryMap[k].items.length > 0)
+    .map((k) => ({
+      group: k,
+      label: categoryMap[k].label,
+      items: categoryMap[k].items.sort((a, b) => a.order - b.order),
     }));
 }
+
 
 /**
  * Get a single entry by ID

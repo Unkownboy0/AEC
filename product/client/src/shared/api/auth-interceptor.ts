@@ -1,5 +1,5 @@
 import { AxiosInstance, AxiosError, InternalAxiosRequestConfig } from 'axios';
-import { getStoredAccessToken, getStoredRefreshToken, setStoredTokens, clearStoredTokens } from '../../auth/token-storage';
+import { getStoredAccessToken, getStoredRefreshToken, getStoredActiveRole, setStoredTokens, clearStoredTokens } from '../../auth/token-storage';
 import { API_BASE_URL } from '../../config/api-config';
 import axios from 'axios';
 
@@ -27,6 +27,8 @@ export function setupAuthInterceptors(axiosInstance: AxiosInstance): void {
       if (token && config.headers) {
         config.headers.Authorization = `Bearer ${token}`;
       }
+      const activeRole = await getStoredActiveRole();
+      if (activeRole && config.headers) config.headers['X-Active-Role'] = activeRole;
 
       return config;
     },
@@ -78,11 +80,15 @@ export function setupAuthInterceptors(axiosInstance: AxiosInstance): void {
               processQueue(null, accessToken);
               return axiosInstance(originalRequest);
             }
-          } catch (refreshErr) {
+          } catch (refreshErr: any) {
             processQueue(refreshErr, null);
-            await clearStoredTokens();
-            if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/login')) {
-              window.dispatchEvent(new CustomEvent('campusos_auth_expired'));
+            const refreshStatus = refreshErr?.response?.status;
+            // Only clear session on explicit 401/403 (revoked/expired/invalid)
+            if (refreshStatus === 401 || refreshStatus === 403) {
+              await clearStoredTokens();
+              if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/login')) {
+                window.dispatchEvent(new CustomEvent('campusos_auth_expired'));
+              }
             }
             return Promise.reject(refreshErr);
           } finally {

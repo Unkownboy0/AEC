@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useInstitution } from '../../context/InstitutionContext';
-import { WatermarkService, type WatermarkPolicy } from '../../services/watermarkService';
+import { WatermarkService } from '../../services/watermarkService';
 import { watermarkPresets, type WatermarkPreset } from '../../config/watermark.config';
 
 export interface InstitutionalWatermarkProps {
@@ -15,7 +15,19 @@ export interface InstitutionalWatermarkProps {
   className?: string;
 }
 
-export const InstitutionalWatermark: React.FC<InstitutionalWatermarkProps> = ({
+/**
+ * ═════════════════════════════════════════════════════════════════════
+ * INSTITUTION BACKGROUND WATERMARK — CampusOS
+ * 
+ * Global subtle background institutional emblem rendered at the app shell level:
+ * - Stacking: APP BACKGROUND → WATERMARK → PAGE CONTENT → CARDS / MODALS / NAV
+ * - Light Theme: Calibrated ~4.8% opacity with subtle grayscale contrast
+ * - Dark Theme: Calibrated ~5.8% opacity with clean monochrome mask
+ * - Fixed Viewport: Centered horizontally, top 54% (avoids fighting headers)
+ * - Safe Fallback: Graceful failure without broken image icons
+ * ═════════════════════════════════════════════════════════════════════
+ */
+export const InstitutionBackgroundWatermark: React.FC<InstitutionalWatermarkProps> = ({
   logoSrc,
   preset = 'standard',
   opacity: customOpacity,
@@ -27,40 +39,50 @@ export const InstitutionalWatermark: React.FC<InstitutionalWatermarkProps> = ({
 }) => {
   const location = useLocation();
   const institution = useInstitution();
+  const [hasError, setHasError] = useState(false);
 
-  // Hide watermark on exempt routes (login, biometric, scanner, etc.)
+  // Hide watermark on exempt routes (login, onboarding, biometric, scanner, etc.)
   const isExempt = WatermarkService.shouldHideWatermarkOnRoute(location.pathname);
   const isEnabled = institution.watermark?.enabled ?? true;
 
-  if (!isEnabled || isExempt) {
+  if (!isEnabled || isExempt || hasError) {
     return null;
   }
 
-  const effectiveLogo = logoSrc || institution.watermarkLogo || institution.officialLogo || WatermarkService.getInstitutionLogo();
-  const presetValues = watermarkPresets[preset] || watermarkPresets.standard;
-  const lightOpacity = customOpacity ?? (institution.watermark?.opacity ? institution.watermark.opacity / 100 : presetValues.light);
-  const darkOpacity = customOpacity ? customOpacity * 0.65 : presetValues.dark;
+  const effectiveLogo =
+    logoSrc ||
+    institution.watermarkLogo ||
+    institution.officialLogo ||
+    WatermarkService.getInstitutionLogo() ||
+    '/branding/official-logo.png';
 
-  // Responsive size constraints
+  const presetValues = watermarkPresets[preset] || watermarkPresets.standard;
+  const configuredLight = customOpacity ?? (institution.watermark?.opacity ? institution.watermark.opacity / 100 : presetValues.light);
+  
+  // Calibrated opacities (Light ~4.8%, Dark ~5.8%)
+  const lightOpacity = customOpacity ?? Math.min(0.06, Math.max(0.038, configuredLight || 0.048));
+  const darkOpacity = customOpacity ? customOpacity * 1.1 : Math.min(0.07, Math.max(0.045, presetValues.dark || 0.058));
+
+  // Responsive size constraints across viewport breakpoints
   const sizeClassMap = {
     small:
-      'w-[50vw] min-w-[160px] max-w-[260px] md:w-[36vw] md:max-w-[380px] xl:w-[25vw] xl:max-w-[460px]',
+      'w-[50vw] min-w-[180px] max-w-[280px] md:w-[34vw] md:max-w-[380px] lg:w-[26vw] lg:max-w-[420px]',
     medium:
-      'w-[68vw] min-w-[200px] max-w-[340px] md:w-[48vw] md:max-w-[480px] xl:w-[34vw] xl:min-w-[400px] xl:max-w-[620px]',
+      'w-[65vw] min-w-[220px] max-w-[340px] md:w-[45vw] md:max-w-[440px] lg:w-[36vw] lg:max-w-[540px]',
     large:
-      'w-[82vw] min-w-[240px] max-w-[400px] md:w-[58vw] md:max-w-[560px] xl:w-[42vw] xl:max-w-[720px]',
+      'w-[80vw] min-w-[260px] max-w-[400px] md:w-[58vw] md:max-w-[560px] lg:w-[46vw] lg:max-w-[680px]',
   };
 
   const positionClass =
     position === 'top-center'
-      ? 'items-start pt-20 sm:pt-28'
-      : 'items-center';
+      ? 'top-[42%]'
+      : 'top-[54%]';
 
   const sidebarPaddingClass = sidebarOffset
     ? isSidebarCollapsed
-      ? 'lg:pl-20'
-      : 'lg:pl-64'
-    : '';
+      ? 'lg:left-[calc(50%+2.5rem)]'
+      : 'lg:left-[calc(50%+8rem)]'
+    : 'left-1/2';
 
   return (
     <div
@@ -70,40 +92,55 @@ export const InstitutionalWatermark: React.FC<InstitutionalWatermarkProps> = ({
         fixed
         inset-0
         z-0
-        flex
-        justify-center
         overflow-hidden
         select-none
-        transition-all
-        duration-300
-        ${positionClass}
-        ${sidebarPaddingClass}
         ${className}
       `}
     >
-      <img
-        src={effectiveLogo}
-        alt=""
-        draggable={false}
-        loading="eager"
-        decoding="async"
+      <div
         className={`
-          watermark-img
-          h-auto
-          object-contain
+          absolute
+          -translate-x-1/2
+          -translate-y-1/2
+          flex
+          items-center
+          justify-center
           transition-all
           duration-300
-          ${sizeClassMap[size]}
+          ${positionClass}
+          ${sidebarPaddingClass}
         `}
-        style={
-          {
-            '--watermark-opacity-light': lightOpacity,
-            '--watermark-opacity-dark': darkOpacity,
-          } as React.CSSProperties
-        }
-      />
+      >
+        <img
+          src={effectiveLogo}
+          alt=""
+          draggable={false}
+          loading="eager"
+          decoding="async"
+          onError={() => setHasError(true)}
+          className={`
+            watermark-img
+            aspect-square
+            h-auto
+            object-contain
+            transition-all
+            duration-300
+            ${sizeClassMap[size]}
+          `}
+          style={
+            {
+              '--campus-watermark-opacity-light': lightOpacity,
+              '--campus-watermark-opacity-dark': darkOpacity,
+              '--watermark-opacity-light': lightOpacity,
+              '--watermark-opacity-dark': darkOpacity,
+            } as React.CSSProperties
+          }
+        />
+      </div>
     </div>
   );
 };
 
-export default InstitutionalWatermark;
+// Aliases for seamless backward compatibility across layout templates
+export const InstitutionalWatermark = InstitutionBackgroundWatermark;
+export default InstitutionBackgroundWatermark;

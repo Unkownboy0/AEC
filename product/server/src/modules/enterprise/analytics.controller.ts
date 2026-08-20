@@ -78,14 +78,19 @@ export class AnalyticsController {
       let { departmentId } = req.query;
       const user = (req as any).user;
 
-      if (!departmentId && user && (user.role === 'HOD' || user.role?.name === 'HOD')) {
+      if (user && (user.role === 'HOD' || user.role?.name === 'HOD')) {
+        // A HOD must always be scoped from canonical assignments. Never trust an
+        // arbitrary query-string department and never fall back to campus-wide.
         const hodUser = await prisma.user.findUnique({
           where: { id: user.id },
-          select: { departmentId: true }
+          select: {
+            departmentId: true,
+            faculty: { select: { departmentId: true } },
+            departmentMemberships: { select: { departmentId: true }, take: 1 },
+          }
         });
-        if (hodUser?.departmentId) {
-          departmentId = hodUser.departmentId;
-        }
+        departmentId = hodUser?.departmentId || hodUser?.faculty?.departmentId || hodUser?.departmentMemberships?.[0]?.departmentId;
+        if (!departmentId) return res.status(200).json({ status: 'success', data: { studentsOnLeaveToday: [], studentsOnOdToday: [], facultyOnLeaveToday: [], facultyOnOdToday: [], updatedAt: new Date().toISOString(), scope: 'UNASSIGNED' } });
       }
 
       const data = await analyticsService.getDepartmentAvailability(departmentId as string | undefined);

@@ -144,6 +144,11 @@ export const NOTIFICATION_ROUTE_MAP: Partial<Record<NotificationEventType, Notif
   FACULTY_LEAVE:               { pattern: '/faculty/leave-od',                idField: undefined },
   ON_DUTY:                     { pattern: '/faculty/leave-od',                idField: undefined },
 
+  // Workspace & Files
+  FILE_SHARED:                { pattern: '/workspace/drive?scope=SHARED',   idField: undefined },
+  DOCUMENT_SHARED:            { pattern: '/workspace/docs/:id',             idField: 'relatedEntityId' },
+  DOCUMENT_REVIEW_REQUESTED:  { pattern: '/workspace/docs/:id',             idField: 'relatedEntityId' },
+
   // Announcements & General
   CAMPUS_ANNOUNCEMENT:         { pattern: '/circulars',                       idField: undefined },
   ANNOUNCEMENT:                { pattern: '/circulars',                       idField: undefined },

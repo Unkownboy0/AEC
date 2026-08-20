@@ -2,17 +2,8 @@ import React from 'react';
 import { clsx } from 'clsx';
 import { DashboardKpiIcon } from '../icons/DashboardKpiIcon';
 import { ArrowUpRight, ArrowDownRight, ChevronRight } from 'lucide-react';
-
-/* ═══════════════════════════════════════════════════════════════════
-   QUICK CARDS / METRIC CARDS — CampusOS Enterprise ERP
-   
-   Premium SaaS Dashboard Quick Cards:
-   - Semi-3D Soft Gradient Icon
-   - Metric Count
-   - Label & Subtitle
-   - Trend Indicator & Status Color
-   - Optional Action Trigger
-   ═══════════════════════════════════════════════════════════════════ */
+import { PressableCard } from '../motion/PressableCard';
+import { AnimatedCounter } from '../motion/AnimatedCounter';
 
 export interface MetricCardProps {
   title: string;
@@ -47,14 +38,15 @@ export const MetricCard: React.FC<MetricCardProps> = ({
   className,
 }) => {
   const IconComponent = typeof icon === 'function' ? (icon as React.ComponentType<{ className?: string }>) : null;
+  const isNumericValue = typeof value === 'number';
 
   return (
-    <div
+    <PressableCard
       onClick={onClick}
       className={clsx(
-        'relative bg-white p-5 rounded-2xl border border-slate-200/90 shadow-xs hover:shadow-md',
-        'transition-all duration-200 flex flex-col justify-between group overflow-hidden',
-        onClick && 'cursor-pointer hover:border-purple-300 active:scale-[0.99]',
+        'relative bg-white dark:bg-[#0c0c0e] p-5 rounded-2xl border border-slate-200/90 dark:border-neutral-800 shadow-xs hover:shadow-md',
+        'transition-colors duration-150 flex flex-col justify-between group overflow-hidden',
+        onClick && 'cursor-pointer hover:border-purple-300 dark:hover:border-purple-800',
         className
       )}
     >
@@ -64,21 +56,21 @@ export const MetricCard: React.FC<MetricCardProps> = ({
       {/* Header with Title & Semi-3D Gradient Icon */}
       <div className="flex items-start justify-between gap-3">
         <div className="space-y-1 min-w-0">
-          <span className="text-[11px] uppercase font-bold tracking-wider text-slate-400 block truncate">
+          <span className="text-[11px] uppercase font-bold tracking-wider text-slate-400 dark:text-neutral-400 block truncate">
             {title}
           </span>
-          <span className="text-3xl font-extrabold tracking-tight text-slate-900 block font-mono">
-            {value}
+          <span className="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-neutral-50 block font-mono">
+            {isNumericValue ? <AnimatedCounter value={value as number} /> : value}
           </span>
         </div>
 
         {/* Semi-3D Soft Gradient KPI Icon or Custom Component */}
         {React.isValidElement(icon) ? (
-          <div className={clsx('p-3 rounded-2xl shadow-sm shrink-0', colorClass || 'bg-purple-100 text-purple-600')}>
+          <div className={clsx('p-3 rounded-2xl shadow-sm shrink-0', colorClass || 'bg-purple-100 text-purple-600 dark:bg-purple-950/50 dark:text-purple-400')}>
             {icon}
           </div>
         ) : IconComponent ? (
-          <div className={clsx('p-3 rounded-2xl shadow-sm shrink-0', colorClass || 'bg-purple-100 text-purple-600')}>
+          <div className={clsx('p-3 rounded-2xl shadow-sm shrink-0', colorClass || 'bg-purple-100 text-purple-600 dark:bg-purple-950/50 dark:text-purple-400')}>
             <IconComponent className="w-6 h-6 stroke-[2]" />
           </div>
         ) : (
@@ -87,42 +79,43 @@ export const MetricCard: React.FC<MetricCardProps> = ({
       </div>
 
       {/* Footer Details: Subtitle, Trend, Action */}
-      <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between gap-2 text-xs">
+      <div className="mt-4 pt-3 border-t border-slate-100 dark:border-neutral-800/80 flex items-center justify-between gap-2 text-xs">
         <div className="flex items-center gap-1.5 min-w-0">
           {trend && (
             <span
               className={clsx(
                 'inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[11px] font-bold shrink-0',
                 isPositive
-                  ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                  : 'bg-rose-50 text-rose-700 border border-rose-200'
+                  ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
+                  : 'bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300 border border-rose-200 dark:border-rose-800'
               )}
             >
               {isPositive ? (
-                <ArrowUpRight className="w-3 h-3 text-emerald-600" />
+                <ArrowUpRight className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
               ) : (
-                <ArrowDownRight className="w-3 h-3 text-rose-600" />
+                <ArrowDownRight className="w-3 h-3 text-rose-600 dark:text-rose-400" />
               )}
               {trend}
             </span>
           )}
           {(subtitle || comparison) && (
-            <span className="text-slate-500 text-[11px] font-medium truncate">
+            <span className="text-slate-500 dark:text-neutral-400 text-[11px] font-medium truncate">
               {subtitle || comparison}
             </span>
           )}
         </div>
 
         {actionLabel && (
-          <span className="text-purple-600 font-semibold text-[11px] inline-flex items-center gap-0.5 group-hover:translate-x-0.5 transition-transform shrink-0">
+          <span className="text-purple-600 dark:text-purple-400 font-semibold text-[11px] inline-flex items-center gap-0.5 group-hover:translate-x-0.5 transition-transform shrink-0">
             {actionLabel}
             <ChevronRight className="w-3.5 h-3.5" />
           </span>
         )}
       </div>
-    </div>
+    </PressableCard>
   );
 };
 
 MetricCard.displayName = 'MetricCard';
 export default MetricCard;
+

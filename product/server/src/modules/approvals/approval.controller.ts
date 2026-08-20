@@ -1,4 +1,4 @@
-import { Response } from 'express';
+import { NextFunction, Response } from 'express';
 import { AuthenticatedRequest } from '../principal-availability/delegation.guard';
 import { ApprovalTimelineService } from './approval-timeline.service';
 import { ApprovalAttachmentService } from './approval-attachment.service';
@@ -9,9 +9,9 @@ export class ApprovalController {
   /**
    * GET /api/approval-requests/:requestId/timeline
    */
-  static async getTimeline(req: AuthenticatedRequest, res: Response) {
+  static async getTimeline(req: AuthenticatedRequest, res: Response, next: NextFunction) {
     try {
-      const { requestId } = req.params;
+      const requestId = req.approvalAccess?.canonicalRequestId || req.params.requestId;
       const events = await ApprovalTimelineService.getTimelineForRequest(requestId);
 
       return res.status(200).json({
@@ -20,20 +20,16 @@ export class ApprovalController {
         events,
       });
     } catch (error: any) {
-      logger.error('Error fetching approval timeline:', error);
-      return res.status(500).json({
-        success: false,
-        error: error.message || 'Failed to fetch approval workflow timeline',
-      });
+      next(error);
     }
   }
 
   /**
    * GET /api/approval-requests/:requestId/attachments
    */
-  static async getAttachments(req: AuthenticatedRequest, res: Response) {
+  static async getAttachments(req: AuthenticatedRequest, res: Response, next: NextFunction) {
     try {
-      const { requestId } = req.params;
+      const requestId = req.approvalAccess?.canonicalRequestId || req.params.requestId;
       const attachments = await ApprovalAttachmentService.getAttachmentsForRequest(requestId);
 
       return res.status(200).json({
@@ -42,18 +38,14 @@ export class ApprovalController {
         attachments,
       });
     } catch (error: any) {
-      logger.error('Error fetching approval attachments:', error);
-      return res.status(500).json({
-        success: false,
-        error: error.message || 'Failed to fetch approval attachments',
-      });
+      next(error);
     }
   }
 
   /**
    * GET /api/approval-requests/:requestId/attachments/:attachmentId/download
    */
-  static async downloadAttachment(req: AuthenticatedRequest, res: Response) {
+  static async downloadAttachment(req: AuthenticatedRequest, res: Response, next: NextFunction) {
     try {
       const { attachmentId } = req.params;
       const attachment = await (prisma as any).approvalAttachment.findUnique({
@@ -62,6 +54,9 @@ export class ApprovalController {
 
       if (!attachment || attachment.status === 'DELETED') {
         return res.status(404).json({ success: false, error: 'Attachment not found or deleted' });
+      }
+      if (!req.approvalAccess?.allowedRequestIds.includes(attachment.requestId)) {
+        return res.status(403).json({ success: false, error: 'This attachment does not belong to the authorized approval request' });
       }
 
       // Return metadata & stream/download
@@ -76,7 +71,7 @@ export class ApprovalController {
         },
       });
     } catch (error: any) {
-      return res.status(500).json({ success: false, error: error.message });
+      next(error);
     }
   }
 
@@ -84,9 +79,10 @@ export class ApprovalController {
    * GET /api/approval-requests/:requestId/details
    * Authoritative real-world details for the drawer with role consistency checks
    */
-  static async getRequestDetails(req: AuthenticatedRequest, res: Response) {
+  static async getRequestDetails(req: AuthenticatedRequest, res: Response, next: NextFunction) {
     try {
-      const { requestId } = req.params;
+      const requestedRequestId = req.params.requestId;
+      const requestId = req.approvalAccess?.canonicalRequestId || requestedRequestId;
 
       // 1. Check ApprovalAssignment
       const assignment = await (prisma as any).approvalAssignment.findFirst({
@@ -236,11 +232,7 @@ export class ApprovalController {
         data: details,
       });
     } catch (error: any) {
-      logger.error('Error fetching request details:', error);
-      return res.status(500).json({
-        success: false,
-        error: error.message || 'Failed to fetch request details',
-      });
+      next(error);
     }
   }
 }

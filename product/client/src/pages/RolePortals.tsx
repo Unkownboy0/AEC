@@ -10,7 +10,7 @@ import {
 import { toast } from '../components/ui/Toast';
 import api from '../lib/axios';
 import { useDevice } from '../context/DeviceContext';
-import { downloadAndOpen } from '../platform/download';
+import { downloadAndOpen, downloadFile } from '../platform/download';
 import { PlacementDashboard } from '../components/placement/PlacementDashboard';
 import { ComplaintMonitoringCenter } from '../components/complaint/ComplaintMonitoringCenter';
 import { CampusActivitiesMonitoring } from '../components/activity/CampusActivitiesMonitoring';
@@ -27,12 +27,14 @@ export { IQACDeanPortalComponent as IQACDeanPortal };
 export { IQACExecutivePortalComponent as IQACExecutivePortal };
 export { IQACDocumentationPortalComponent as IQACDocumentationPortal };
 
-// Helper for actual report exports (PDF & EXCEL)
+// Helper for actual report exports (PDF, EXCEL & CSV)
 const handleExport = async (reportType: string, format: 'PDF' | 'EXCEL' | 'CSV') => {
   try {
+    const ext = format === 'EXCEL' ? 'xlsx' : format === 'CSV' ? 'csv' : 'pdf';
+    const dateStr = new Date().toISOString().split('T')[0];
     const res = await downloadAndOpen(
       `/reports/export?type=${encodeURIComponent(reportType)}&format=${format}`,
-      `CampusOS_Report_${new Date().toISOString().split('T')[0]}.${format === 'EXCEL' ? 'xlsx' : 'pdf'}`
+      `CampusOS_${reportType.replace(/[^A-Za-z0-9_]+/g, '_')}_${dateStr}.${ext}`
     );
     if (res.success) {
       toast.success(`${format} Report downloaded successfully.`);
@@ -166,8 +168,8 @@ const AdmissionDeanPortalLegacy: React.FC<AdmissionDeanPortalProps> = ({ user })
             <div className="inline-flex flex-wrap items-center gap-1.5 bg-white/20 px-3 py-1 rounded-full text-xs font-bold backdrop-blur-md uppercase tracking-wider">
               <Key className="h-3.5 w-3.5" /> Admissions & Seat Intake Management
             </div>
-            <h2 className="text-2xl md:text-3xl font-extrabold">Welcome back, Dean {user.firstName}</h2>
-            <p className="text-sm opacity-90 font-medium">Automatic Account Provisioning Status · Seat allocations · Verification queues</p>
+            <h2 className="text-xl sm:text-2xl md:text-3xl font-extrabold">Admissions & Seat Allocations</h2>
+            <p className="text-xs sm:text-sm opacity-90 font-medium">Automatic Account Provisioning Status · Seat allocations · Verification queues</p>
           </div>
           <button onClick={fetchStudents} className="p-2 bg-white/10 hover:bg-white/20 border border-white/20 rounded-lg">
             <RefreshCw className="h-4 w-4" />
@@ -904,8 +906,8 @@ export const MentorPortal: React.FC<MentorPortalProps> = ({ user }) => {
             <div className="inline-flex flex-wrap items-center gap-1.5 bg-white/20 px-3 py-1 rounded-full text-xs font-bold backdrop-blur-md uppercase tracking-wider">
               <Sparkles className="h-3.5 w-3.5" /> Student Success Command
             </div>
-            <h2 className="text-2xl md:text-3xl font-extrabold">Welcome back, Mentor {user.firstName}</h2>
-            <p className="text-sm opacity-90 font-medium">Monitoring assigned class sections, counseling registers, and attendance thresholds</p>
+            <h2 className="text-xl sm:text-2xl md:text-3xl font-extrabold">Student Mentorship Command</h2>
+            <p className="text-xs sm:text-sm opacity-90 font-medium">Monitoring assigned class sections, counseling registers, and attendance thresholds</p>
           </div>
           <button onClick={fetchData} disabled={loading} className="p-2 bg-white/10 hover:bg-white/20 border border-white/20 rounded-lg">
             <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
@@ -1319,14 +1321,23 @@ export const MentorPortal: React.FC<MentorPortalProps> = ({ user }) => {
                         {attachments.map((url: string, aIdx: number) => {
                           const filename = url.split('/').pop() || `File ${aIdx + 1}`;
                           return (
-                            <a
+                            <button
                               key={aIdx}
-                              href={url.startsWith('/uploads') ? url : `/uploads${url}`}
-                              download={filename}
+                              type="button"
+                              onClick={async () => {
+                                const endpoint = url.startsWith('/uploads') ? `/api/files/content?path=${encodeURIComponent(url)}` : url;
+                                toast.show(`Opening ${filename}...`, 'info');
+                                const res = await downloadFile({ endpoint, filename, action: 'open' });
+                                if (res.success) {
+                                  toast.success(`Opened ${filename}`);
+                                } else {
+                                  toast.error(res.error || 'Failed to open file');
+                                }
+                              }}
                               className="text-[9px] font-bold text-indigo-650 bg-indigo-50 border border-indigo-100 hover:bg-indigo-100/50 rounded px-1.5 py-0.5"
                             >
                               📎 {filename}
-                            </a>
+                            </button>
                           );
                         })}
                       </div>

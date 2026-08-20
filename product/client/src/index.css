@@ -95,6 +95,42 @@
     --sidebar-collapsed-width: 68px;
 
     /*
+      VP EXECUTIVE ACCENT — Indigo / Deep Blue-Violet
+      Used exclusively in VP dashboard components.
+      Does NOT affect global primary or other roles.
+    */
+    --vp-accent: 243 75% 59%;       /* #4F46E5 indigo-600 */
+    --vp-accent-hover: 243 75% 50%;
+    --vp-accent-soft: 243 100% 96%; /* light surface tint */
+    --vp-accent-foreground: 0 0% 100%;
+    --vp-accent-muted: 243 60% 90%;
+
+    /*
+      PRINCIPAL EXECUTIVE ACCENT — Deep Navy + Restrained Amber/Gold
+      Used exclusively in Principal dashboard components.
+      Governance / final-authority visual language.
+    */
+    --principal-accent: 222 65% 22%;         /* deep navy #1E3A6E */
+    --principal-accent-gold: 35 80% 48%;     /* amber/gold #C97D1A */
+    --principal-accent-gold-soft: 43 100% 93%; /* amber tint */
+    --principal-accent-foreground: 0 0% 100%;
+    --principal-surface: 222 50% 12%;        /* dark navy surface */
+    --principal-border: 222 40% 28%;         /* navy border */
+
+    /*
+      RESPONSIVE FONT TOKENS
+      Use these instead of hardcoded font sizes on major headings.
+      clamp(min, preferred-vw, max)
+    */
+    --font-page-title: clamp(20px, 2vw, 28px);
+    --font-section-title: clamp(16px, 1.5vw, 18px);
+    --font-card-title: clamp(14px, 1.2vw, 16px);
+    --font-body: clamp(14px, 1vw, 16px);
+    --font-secondary: clamp(12px, 0.9vw, 14px);
+    --font-caption: clamp(11px, 0.8vw, 12px);
+    --font-metric: clamp(22px, 2.5vw, 30px);
+
+    /*
       Safe Area
       Capacitor >=8.3 (SystemBars, insetsHandling:"css") injects its own
       --safe-area-inset-* custom properties computed natively from
@@ -198,6 +234,19 @@
     --info: 214 92% 62%;
     --info-foreground: 0 0% 100%;
     --info-light: 214 50% 10%;
+
+    /* VP Accent — dark mode variant (same hue, lighter for dark bg) */
+    --vp-accent: 243 75% 65%;
+    --vp-accent-hover: 243 75% 72%;
+    --vp-accent-soft: 243 60% 14%;
+    --vp-accent-muted: 243 40% 20%;
+
+    /* Principal Accent — dark mode variant */
+    --principal-accent: 222 65% 35%;
+    --principal-accent-gold: 35 80% 58%;
+    --principal-accent-gold-soft: 33 50% 12%;
+    --principal-surface: 222 50% 8%;
+    --principal-border: 222 40% 22%;
   }
 }
 
@@ -216,6 +265,49 @@
     text-rendering: optimizeLegibility;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
     scroll-behavior: smooth;
+    /*
+      THEME TRANSITION — 200ms crossfade for background, text, borders, icons.
+      Applies to all elements via the * selector below so switching
+      Light / Dark / System feels instant but not jarring.
+      Reduced-motion is respected via the @media block later in this file.
+    */
+  }
+
+  /* Font Scale Presets */
+  :root {
+    --font-scale: 1;
+  }
+  :root[data-font-size="compact"] {
+    --font-scale: 0.92;
+    font-size: 14.5px;
+  }
+  :root[data-font-size="default"] {
+    --font-scale: 1.0;
+    font-size: 16px;
+  }
+  :root[data-font-size="comfortable"] {
+    --font-scale: 1.08;
+    font-size: 17.25px;
+  }
+  :root[data-font-size="large"] {
+    --font-scale: 1.16;
+    font-size: 18.5px;
+  }
+
+  *,
+  *::before,
+  *::after {
+    transition-property: background-color, border-color, color, fill, stroke, box-shadow;
+    transition-duration: 200ms;
+    transition-timing-function: ease;
+  }
+
+  /* Do not apply theme transitions to elements that have their own animation timing */
+  .no-theme-transition,
+  .no-theme-transition *,
+  [data-animated],
+  [data-animated] * {
+    transition: none !important;
   }
 
   body {
@@ -306,6 +398,19 @@
 /* UTILITY CLASSES */
 
 @layer utilities {
+  .campus-page {
+    padding: 16px;
+    padding-bottom: calc(var(--mobile-bottom-nav-height) + var(--safe-area-bottom) + 24px);
+  }
+
+  .campus-page-keyboard-open {
+    padding-bottom: calc(var(--safe-area-bottom) + 16px);
+  }
+
+  .text-pretty {
+    text-wrap: pretty;
+  }
+
   /* Text Hierarchy */
   .text-primary-color {
     color: hsl(var(--text-primary));
@@ -374,14 +479,22 @@
   .pt-safe {
     padding-top: max(var(--safe-area-top), 0px);
   }
+  .campus-app-header.pt-safe {
+    /* Native insets remain authoritative; this small optical gutter separates
+       header controls from the system-bar boundary when an OEM reports zero. */
+    padding-top: max(var(--safe-area-top), 6px);
+  }
+  @media (min-width: 1024px) {
+    .campus-app-header.pt-safe { padding-top: 0; }
+  }
   .pb-keyboard {
     padding-bottom: max(var(--safe-area-bottom), var(--keyboard-height, 0px));
   }
 
-  /* Mobile Touch Target (44px minimum per WCAG) */
+  /* Mobile touch target: use the project-wide 48px baseline. */
   .touch-target {
-    min-height: 44px;
-    min-width: 44px;
+    min-height: 48px;
+    min-width: 48px;
   }
 
   /* Hide Scrollbar */
@@ -481,88 +594,223 @@
     background-size: 200% 100%;
     animation: shimmer 2s infinite ease-in-out;
   }
+
+  /* ─── VP Executive Accent Utilities ──────────────────────────────────── */
+  .vp-accent-bg {
+    background-color: hsl(var(--vp-accent));
+    color: hsl(var(--vp-accent-foreground));
+  }
+  .vp-accent-soft-bg {
+    background-color: hsl(var(--vp-accent-soft));
+    color: hsl(var(--vp-accent));
+  }
+  .vp-accent-text {
+    color: hsl(var(--vp-accent));
+  }
+  .vp-accent-border {
+    border-color: hsl(var(--vp-accent) / 0.3);
+  }
+
+  /* ─── Principal Executive Accent Utilities ───────────────────────────── */
+  .principal-surface-bg {
+    background-color: hsl(var(--principal-surface));
+    color: hsl(var(--principal-accent-foreground));
+  }
+  .principal-accent-bg {
+    background-color: hsl(var(--principal-accent));
+    color: hsl(var(--principal-accent-foreground));
+  }
+  .principal-gold-text {
+    color: hsl(var(--principal-accent-gold));
+  }
+  .principal-gold-soft-bg {
+    background-color: hsl(var(--principal-accent-gold-soft));
+    color: hsl(var(--principal-accent-gold));
+  }
+  .principal-border {
+    border-color: hsl(var(--principal-border));
+  }
+
+  /* ─── Responsive Typography Utilities ────────────────────────────────── */
+  .text-page-title {
+    font-size: var(--font-page-title);
+    font-weight: 700;
+    letter-spacing: -0.025em;
+    line-height: 1.25;
+  }
+  .text-section-title {
+    font-size: var(--font-section-title);
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    line-height: 1.3;
+  }
+  .text-card-title {
+    font-size: var(--font-card-title);
+    font-weight: 600;
+    line-height: 1.4;
+  }
+  .text-metric {
+    font-size: var(--font-metric);
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* ─── Admin Edit Mode Banner Utilities ──────────────────────────────── */
+  .admin-edit-banner {
+    background: linear-gradient(135deg, hsl(33 91% 44% / 0.12), hsl(33 91% 44% / 0.06));
+    border: 1px solid hsl(33 91% 44% / 0.3);
+    border-radius: var(--radius-card);
+    color: hsl(33 91% 30%);
+  }
+  .dark .admin-edit-banner {
+    background: linear-gradient(135deg, hsl(33 91% 44% / 0.10), hsl(33 91% 44% / 0.05));
+    color: hsl(33 91% 65%);
+  }
 }
 
-/* INSTITUTIONAL WATERMARK THEME STYLING (IMAGE 2) */
+@media (max-width: 359px) {
+  .campus-page {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+
+  .page-header-action {
+    width: 100%;
+  }
+
+  .page-header-action > * {
+    flex: 1 1 auto;
+  }
+}
+
+@media (min-width: 640px) {
+  .campus-page {
+    padding: 24px;
+    padding-bottom: calc(var(--mobile-bottom-nav-height) + var(--safe-area-bottom) + 24px);
+  }
+}
+
+@media (min-width: 1024px) {
+  .campus-page {
+    padding: 32px;
+    padding-bottom: 48px;
+  }
+
+  .campus-page-keyboard-open {
+    padding-bottom: 48px;
+  }
+}
+
+/* INSTITUTIONAL WATERMARK THEME STYLING — CALIBRATED FOR CRISP SUBTLETY */
+:root {
+  --campus-watermark-opacity-light: 0.048;
+  --campus-watermark-opacity-dark: 0.058;
+}
+
 .watermark-img,
-img[src*="official-logo"],
-img[src*="watermark-logo"],
-img[src*="al-ameen-logo"],
-img[src*="institution-logo"] {
-  opacity: var(--watermark-opacity-light, 0.04) !important;
-  filter: grayscale(100%) sepia(15%) hue-rotate(210deg) saturate(110%) contrast(105%);
+.institutional-watermark-overlay img {
+  opacity: var(--campus-watermark-opacity-light, var(--watermark-opacity-light, 0.048)) !important;
+  filter: grayscale(100%) contrast(105%);
 }
 
 .dark .watermark-img,
-.dark img[src*="official-logo"],
-.dark img[src*="watermark-logo"],
-.dark img[src*="al-ameen-logo"],
-.dark img[src*="institution-logo"] {
-  opacity: var(--watermark-opacity-dark, 0.025) !important;
-  filter: brightness(0) invert(1) opacity(0.6) contrast(110%) !important;
+.dark .institutional-watermark-overlay img {
+  opacity: var(--campus-watermark-opacity-dark, var(--watermark-opacity-dark, 0.058)) !important;
+  filter: brightness(0) invert(1) contrast(110%) !important;
 }
 
-/* GLOBAL PRINT WATERMARK & DOCUMENT EXPORT STYLES */
-@media print {
-  body {
-    background-color: #ffffff !important;
-    color: #0f172a !important;
-    -webkit-print-color-adjust: exact !important;
-    print-color-adjust: exact !important;
-  }
-
-  .print-watermark-overlay,
-  .print-watermark-bg {
-    position: fixed !important;
-    top: 0 !important;
-    left: 0 !important;
-    right: 0 !important;
-    bottom: 0 !important;
-    width: 100vw !important;
-    height: 100vh !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    pointer-events: none !important;
-    z-index: -1 !important;
-  }
-
-  .print-watermark-overlay img,
-  .print-watermark-bg img {
-    opacity: 0.045 !important;
-    width: 48% !important;
-    max-width: 420px !important;
-    object-fit: contain !important;
-    filter: grayscale(100%) !important;
-    -webkit-print-color-adjust: exact !important;
-    print-color-adjust: exact !important;
-  }
-
-  .print\\:hidden,
-  button:not(.print-include),
-  nav:not(.print-include),
-  aside:not(.print-include),
-  header:not(.print-include) {
-    display: none !important;
-  }
-
-  table {
-    page-break-inside: auto;
-  }
-
-  tr {
-    page-break-inside: avoid;
-    page-break-after: auto;
-  }
-
-  thead {
-    display: table-header-group;
-  }
-
-  tfoot {
-    display: table-footer-group;
-  }
+/* ─── Campus Workspace — TipTap Editor Styles ─────────────────────────────── */
+.ProseMirror {
+  outline: none;
+  min-height: 200px;
 }
+
+.ProseMirror p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  color: #9ca3af;
+  pointer-events: none;
+  float: left;
+  height: 0;
+}
+
+.ProseMirror h1 { font-size: 2em; font-weight: 700; margin: 0.8em 0 0.4em; line-height: 1.2; }
+.ProseMirror h2 { font-size: 1.5em; font-weight: 600; margin: 0.7em 0 0.35em; }
+.ProseMirror h3 { font-size: 1.25em; font-weight: 600; margin: 0.6em 0 0.3em; }
+.ProseMirror h4 { font-size: 1.1em; font-weight: 600; margin: 0.5em 0 0.25em; }
+.ProseMirror p { margin: 0.5em 0; line-height: 1.7; }
+.ProseMirror ul, .ProseMirror ol { padding-left: 1.5em; margin: 0.5em 0; }
+.ProseMirror li { margin: 0.2em 0; line-height: 1.6; }
+.ProseMirror blockquote {
+  border-left: 3px solid #d1d5db;
+  padding-left: 1em;
+  margin: 0.75em 0;
+  color: #6b7280;
+  font-style: italic;
+}
+.ProseMirror code {
+  background: #f1f5f9;
+  border-radius: 4px;
+  padding: 0.15em 0.4em;
+  font-size: 0.875em;
+  font-family: 'Courier New', monospace;
+}
+.ProseMirror pre {
+  background: #1e293b;
+  color: #e2e8f0;
+  border-radius: 8px;
+  padding: 1em;
+  margin: 0.75em 0;
+  overflow-x: auto;
+  font-family: 'Courier New', monospace;
+  font-size: 0.875em;
+}
+.ProseMirror pre code {
+  background: none;
+  padding: 0;
+  color: inherit;
+}
+.ProseMirror hr { border: none; border-top: 2px solid #e5e7eb; margin: 1.5em 0; }
+.ProseMirror a { color: #2563eb; text-decoration: underline; cursor: pointer; }
+.ProseMirror img { max-width: 100%; height: auto; border-radius: 8px; margin: 0.5em 0; }
+
+/* TipTap Table */
+.ProseMirror table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 0.75em 0;
+  table-layout: fixed;
+}
+.ProseMirror table td,
+.ProseMirror table th {
+  border: 1px solid #d1d5db;
+  padding: 8px 12px;
+  min-width: 100px;
+  vertical-align: top;
+  position: relative;
+}
+.ProseMirror table th {
+  background: #f9fafb;
+  font-weight: 600;
+  text-align: left;
+}
+.ProseMirror table .selectedCell:after {
+  content: '';
+  position: absolute;
+  left: 0; right: 0; top: 0; bottom: 0;
+  background: rgba(37, 99, 235, 0.08);
+  pointer-events: none;
+}
+
+/* Task list */
+.ProseMirror ul[data-type="taskList"] { list-style: none; padding-left: 0; }
+.ProseMirror ul[data-type="taskList"] > li { display: flex; align-items: flex-start; gap: 8px; margin: 0.25em 0; }
+.ProseMirror ul[data-type="taskList"] > li > label { flex-shrink: 0; margin-top: 2px; }
+.ProseMirror ul[data-type="taskList"] > li[data-checked="true"] > div { color: #9ca3af; text-decoration: line-through; }
+
+/* ─── DUPLICATE WATERMARK/PRINT BLOCK REMOVED ───────────────────────────────── */
+/* The canonical definitions appear earlier in this file (lines 532–611). */
 
 /* ─── Campus Workspace — TipTap Editor Styles ─────────────────────────────── */
 .ProseMirror {
@@ -656,8 +904,89 @@ img[src*="institution-logo"] {
 .note-editor .ProseMirror { min-height: 400px; font-size: 15px; line-height: 1.8; }
 
 /* ─── Workspace Misc ────────────────────────────────────────────────────────── */
+/* ─── Notification Animations & Transitions ───────────────────────────────── */
+@keyframes notificationSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes badgePop {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.25); }
+  100% { transform: scale(1); }
+}
+
+.notification-item-enter {
+  animation: notificationSlideIn 0.24s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.notification-badge-pop {
+  animation: badgePop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.notification-read-transition {
+  transition: background-color 0.35s ease, opacity 0.35s ease;
+}
+
+.notification-card-collapse {
+  transition: max-height 0.3s ease, opacity 0.25s ease, margin 0.3s ease, padding 0.3s ease;
+  overflow: hidden;
+}
+
 /* Scrollbar styling for workspace panels */
 .workspace-panel::-webkit-scrollbar { width: 4px; }
 .workspace-panel::-webkit-scrollbar-track { background: transparent; }
 .workspace-panel::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 4px; }
 .workspace-panel::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
+
+/* Locale and bidi engineering. Application chrome follows the identity locale;
+   user-authored workspace content remains in its document direction. */
+html[lang="ta"], html[lang="ml"], html[lang="te"], html[lang="kn"],
+html[lang="bn"], html[lang="gu"], html[lang="pa"], html[lang="ur"], html[lang="ar"] {
+  font-family: system-ui, -apple-system, "Segoe UI", "Noto Sans Tamil", "Noto Sans Devanagari",
+    "Noto Sans Malayalam", "Noto Sans Telugu", "Noto Sans Kannada", "Noto Sans Bengali",
+    "Noto Sans Gujarati", "Noto Sans Gurmukhi", "Noto Sans Arabic", sans-serif;
+}
+
+html[dir="rtl"] body { text-align: start; }
+html[dir="rtl"] aside[class*="border-r"] { border-right-width: 0; border-left-width: 1px; }
+html[dir="rtl"] input[type="email"], html[dir="rtl"] input[type="tel"],
+html[dir="rtl"] input[type="number"], html[dir="rtl"] input[data-bidi="ltr"] {
+  direction: ltr;
+  text-align: start;
+  unicode-bidi: isolate;
+}
+html[dir="rtl"] bdi, html[dir="rtl"] code, html[dir="rtl"] .font-mono { unicode-bidi: isolate; }
+html[dir="rtl"] .rtl-mirror { transform: scaleX(-1); }
+html[dir="rtl"] .ProseMirror { direction: ltr; text-align: left; }
+
+/* ─── Institutional Watermark Layer ───────────────────────────────────────── */
+:root {
+  --campus-watermark-opacity-light: 0.055;
+  --campus-watermark-opacity-dark: 0.085;
+}
+
+.dark {
+  --campus-watermark-opacity-light: 0.055;
+  --campus-watermark-opacity-dark: 0.085;
+}
+
+.watermark-img {
+  opacity: var(--campus-watermark-opacity-light, 0.055);
+  filter: grayscale(10%) contrast(1.05);
+  transition: opacity 0.3s ease, filter 0.3s ease;
+  pointer-events: none;
+  user-select: none;
+}
+
+.dark .watermark-img {
+  opacity: var(--campus-watermark-opacity-dark, 0.085);
+  filter: brightness(2.2) contrast(1.15) drop-shadow(0 0 32px rgba(99, 102, 241, 0.25));
+}
+

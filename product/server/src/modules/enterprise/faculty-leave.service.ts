@@ -3,6 +3,7 @@ import { BadRequestException, NotFoundException, ForbiddenException } from '../.
 import { logger } from '../../utils/logger';
 import { PrincipalRequestRoutingService } from '../principal-availability/request-routing.service';
 import { validateRequestDate } from '../../utils/leavePolicy';
+import { broadcastRBACUpdate } from '../../lib/socket';
 
 export interface ClassSubstitutionItem {
   subjectId?: string;
@@ -283,6 +284,7 @@ export class FacultyLeaveService {
         hodRemarks: remarks || (decision === 'APPROVE' ? 'HOD Endorsed' : 'Rejected by HOD'),
       },
     });
+    broadcastRBACUpdate({ type: 'DEPARTMENT_AVAILABILITY_UPDATED', payload: { departmentId: request.departmentId, requestId: request.id, source: 'FACULTY_LEAVE' } });
 
     // Notify Faculty Applicant
     if (request.faculty.userId) {
@@ -368,6 +370,7 @@ export class FacultyLeaveService {
         isActingPrincipal: isActing,
       },
     });
+    broadcastRBACUpdate({ type: 'DEPARTMENT_AVAILABILITY_UPDATED', payload: { departmentId: request.departmentId, requestId: request.id, source: 'FACULTY_LEAVE' } });
 
     // Cross-sync matching WorkflowRequest if exists
     await prisma.workflowRequest.updateMany({

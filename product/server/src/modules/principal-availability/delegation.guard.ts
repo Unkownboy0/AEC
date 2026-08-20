@@ -51,6 +51,8 @@ export function permissionForRequestAction(requestType: string, action: Delegate
 export function authorizeDelegatedAssignmentAction(
   context: PrincipalAvailabilityContext,
   assignment: {
+    id?: string;
+    requestId?: string;
     assignedUserId: string;
     assignedRole: string;
     requestType: string;
@@ -64,7 +66,7 @@ export function authorizeDelegatedAssignmentAction(
   action: DelegatedAction = 'approve',
   tenantId: string = env.CAMPUS_TENANT_ID,
 ): AssignmentAuthorizationResult {
-  if (!context.canVpActAsPrincipal || !context.actingPrincipal || context.principalStatus === 'AVAILABLE' || !context.delegation) {
+  if (!context.canVpActAsPrincipal || context.delegationStatus !== 'ACTIVE' || !context.actingPrincipal || context.principalStatus === 'AVAILABLE' || !context.delegation) {
     return { ok: false, status: 403, code: 'DELEGATION_INACTIVE', error: 'Principal is currently Available. Vice Principal Acting Mode is inactive.' };
   }
 
@@ -96,6 +98,9 @@ export function authorizeDelegatedAssignmentAction(
   }
 
   const requiredPermission = permissionForRequestAction(assignment.requestType, action);
+  if ((context.delegation.scope?.excludedPermissions || []).includes(requiredPermission)) {
+    return { ok: false, status: 403, code: 'ACTION_EXPLICITLY_EXCLUDED', error: `The "${requiredPermission}" action is explicitly excluded from this delegation.` };
+  }
   if (!(context.delegation.permissions || []).includes(requiredPermission)) {
     return { ok: false, status: 403, code: 'PERMISSION_NOT_DELEGATED', error: `The Principal did not delegate the "${requiredPermission}" action to you.` };
   }
@@ -112,6 +117,10 @@ export function authorizeDelegatedAssignmentAction(
   }
   if (scope.workflowStages?.length && (!assignment.workflowStage || !scope.workflowStages.includes(assignment.workflowStage))) {
     return { ok: false, status: 403, code: 'WORKFLOW_STAGE_NOT_DELEGATED', error: 'This workflow stage is not eligible for delegation.' };
+  }
+  const resourceId = assignment.requestId || assignment.id;
+  if (scope.resourceIds?.length && (!resourceId || !scope.resourceIds.includes(resourceId))) {
+    return { ok: false, status: 403, code: 'RESOURCE_OUT_OF_SCOPE', error: 'This resource is outside the delegated scope.' };
   }
 
   if (requiredPermission === 'finance.approve' && assignment.financialAmount != null) {
@@ -141,6 +150,9 @@ export function authorizeDirectPrincipalAction(
   assignment: { assignedUserId: string; status: string } | null
 ): AssignmentAuthorizationResult {
   const roleNorm = (userRoleName || '').toUpperCase();
+  if (roleNorm === 'VP' || roleNorm === 'VICE PRINCIPAL' || roleNorm === 'VICE_PRINCIPAL') {
+    return { ok: false, status: 403, code: 'DELEGATED_BOUNDARY_REQUIRED', error: 'Vice Principal actions must use the scoped delegated-action endpoint.' };
+  }
   const isExecutive = roleNorm === 'PRINCIPAL' || roleNorm === 'SUPER ADMIN' || roleNorm === 'SUPERADMIN' || roleNorm === 'ADMIN';
 
   if (!isExecutive && (!assignment || assignment.assignedUserId !== principalUserId)) {

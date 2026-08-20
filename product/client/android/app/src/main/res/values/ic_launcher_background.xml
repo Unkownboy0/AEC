@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- CampusOS launcher icon background — matches the app's dark launch theme -->
-    <color name="ic_launcher_background">#020617</color>
+    <!-- Al-Ameen Engineering College launcher icon background -->
+    <color name="ic_launcher_background">#FFFFFF</color>
 </resources>

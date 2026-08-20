@@ -1,6 +1,8 @@
-import React, { useState, useEffect } from 'react';
-import { Calendar, UserX, UserCheck, ShieldAlert, Award, Clock, FileText, CheckCircle2 } from 'lucide-react';
+import React, { useCallback, useEffect, useState } from 'react';
+import { Calendar, RefreshCw, UserX, Wifi, WifiOff } from 'lucide-react';
 import api from '../../lib/axios';
+import { realtimeClient } from '../../realtime/realtime-client';
+import { useRealtime } from '../../realtime/RealtimeProvider';
 
 interface LeaveOdItem {
   id: string;
@@ -18,7 +20,11 @@ interface LeaveOdItem {
 }
 
 export const DepartmentAvailabilityBoard: React.FC<{ departmentId?: string }> = ({ departmentId }) => {
+  const { status: realtimeStatus, reconnect } = useRealtime();
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [data, setData] = useState<{
     studentsOnLeaveToday: LeaveOdItem[];
     studentsOnOdToday: LeaveOdItem[];
@@ -31,25 +37,49 @@ export const DepartmentAvailabilityBoard: React.FC<{ departmentId?: string }> = 
     facultyOnOdToday: [],
   });
 
-  const fetchAvailability = async () => {
+  const fetchAvailability = useCallback(async (background = false) => {
     try {
-      setLoading(true);
+      if (background) setRefreshing(true);
+      else setLoading(true);
       const res = await api.get('/enterprise/analytics/department-availability', {
         params: { departmentId },
       });
       if (res.data?.status === 'success' && res.data.data) {
         setData(res.data.data);
+        setLastUpdated(new Date(res.data.data.updatedAt || Date.now()));
+        setError(null);
       }
-    } catch (err) {
-      console.error('Failed to fetch department availability board:', err);
+    } catch (err: any) {
+      setError(err?.response?.data?.message || 'Availability data could not be synchronized.');
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
-  };
+  }, [departmentId]);
 
   useEffect(() => {
-    fetchAvailability();
-  }, [departmentId]);
+    void fetchAvailability(false);
+    const interval = window.setInterval(() => {
+      if (document.visibilityState === 'visible' && navigator.onLine) void fetchAvailability(true);
+    }, 10_000);
+    const syncOnResume = () => { if (document.visibilityState === 'visible') void fetchAvailability(true); };
+    const syncOnOnline = () => void fetchAvailability(true);
+    document.addEventListener('visibilitychange', syncOnResume);
+    window.addEventListener('online', syncOnOnline);
+    return () => {
+      window.clearInterval(interval);
+      document.removeEventListener('visibilitychange', syncOnResume);
+      window.removeEventListener('online', syncOnOnline);
+    };
+  }, [fetchAvailability]);
+
+  useEffect(() => realtimeClient.subscribe((event: any) => {
+    const type = String(event?.eventType || event?.type || '').toUpperCase();
+    const domainType = String(event?.payload?.eventType || '').toUpperCase();
+    if (type === 'DEPARTMENT_AVAILABILITY_UPDATED' || type === 'APPROVAL_UPDATED' || type === 'DASHBOARD_UPDATED' || ((type === 'NOTIFICATION:SENT' || type === 'NOTIFICATION_SENT') && /LEAVE|ON_DUTY|\bOD\b/.test(domainType))) {
+      void fetchAvailability(true);
+    }
+  }), [fetchAvailability]);
 
   const totalStudentsAbsent = data.studentsOnLeaveToday.length + data.studentsOnOdToday.length;
   const totalFacultyAbsent = data.facultyOnLeaveToday.length + data.facultyOnOdToday.length;
@@ -62,17 +92,33 @@ export const DepartmentAvailabilityBoard: React.FC<{ departmentId?: string }> = 
             <Calendar className="h-5 w-5" />
           </div>
           <div>
-            <h3 className="text-sm font-extrabold tracking-tight">Department Daily Availability Board</h3>
-            <p className="text-[11px] text-muted-foreground">Realtime tracker of approved Leave & OD for today</p>
+            <h3 className="text-sm font-extrabold tracking-tight">Department daily availability</h3>
+            <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-muted-foreground">
+              <span>Approved leave and OD active today</span>
+              <span className={`inline-flex items-center gap-1 font-medium ${realtimeStatus === 'connected' ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'}`}>
+                {realtimeStatus === 'connected' ? <Wifi className="h-3 w-3" /> : <WifiOff className="h-3 w-3" />}
+                {realtimeStatus === 'connected' ? 'Live sync connected' : realtimeStatus === 'reconnecting' || realtimeStatus === 'connecting' ? 'Reconnecting' : '10-second sync'}
+              </span>
+              {lastUpdated && <span>Updated {lastUpdated.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>}
+            </div>
           </div>
         </div>
         <button
-          onClick={fetchAvailability}
-          className="text-xs font-bold text-primary hover:underline flex items-center gap-1"
+          onClick={() => realtimeStatus === 'error' ? reconnect() : void fetchAvailability(true)}
+          disabled={refreshing}
+          className="inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-2 text-xs font-semibold text-primary transition hover:bg-primary/5 active:scale-[0.98] disabled:opacity-60"
         >
-          Refresh Live Status
+          <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? 'animate-spin' : ''}`} />
+          {realtimeStatus === 'error' ? 'Reconnect' : 'Sync now'}
         </button>
       </div>
+
+      {error && (
+        <div className="flex items-center justify-between gap-3 rounded-xl border border-rose-500/25 bg-rose-500/5 px-3 py-2 text-xs text-rose-700 dark:text-rose-300" role="alert">
+          <span>{error} Showing the last successfully synchronized result.</span>
+          <button onClick={() => void fetchAvailability(true)} className="shrink-0 font-semibold underline underline-offset-2">Retry</button>
+        </div>
+      )}
 
       {/* Summary KPI Pills */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -97,7 +143,7 @@ export const DepartmentAvailabilityBoard: React.FC<{ departmentId?: string }> = 
       {/* Active Listings */}
       {loading ? (
         <div className="py-6 text-center text-xs text-muted-foreground animate-pulse">
-          Loading department availability status...
+          Loading verified availability records…
         </div>
       ) : (
         <div className="space-y-4">

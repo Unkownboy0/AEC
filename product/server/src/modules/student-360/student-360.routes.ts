@@ -3,6 +3,7 @@ import { requireAuth } from '../../core/middlewares/auth.middleware';
 import { prisma } from '../../lib/prisma';
 import { Request, Response, NextFunction } from 'express';
 import crypto from 'crypto';
+import { profileImageDescriptor } from '../users/profile-media.service';
 
 const router = Router();
 router.use(requireAuth);
@@ -49,7 +50,7 @@ router.get('/:studentId', async (req: Request, res: Response, next: NextFunction
         section: true,
         semester: true,
         academicYear: true,
-        user: { select: { id: true, email: true, username: true, status: true, accountStatus: true, profilePhoto: true, createdAt: true } },
+        user: { select: { id: true, email: true, username: true, status: true, accountStatus: true, profilePhoto: true, profileImageFileId: true, profileImageFile: true, createdAt: true } },
         mentor: { select: { id: true, userId: true, firstName: true, lastName: true, email: true, phone: true, designation: true } },
       },
     });
@@ -121,7 +122,8 @@ router.get('/:studentId', async (req: Request, res: Response, next: NextFunction
         bloodGroup: student.bloodGroup,
         dateOfAdmission: student.dateOfAdmission,
         status: student.status,
-        profilePhoto: student.user?.profilePhoto || null,
+        profilePhoto: student.user ? profileImageDescriptor(student.user).url : null,
+        profileImage: student.user ? profileImageDescriptor(student.user) : null,
         degree: student.program?.degree || student.course?.code,
         program: student.program?.name,
         programCode: student.program?.code,

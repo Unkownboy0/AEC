@@ -1,14 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { 
   User, Mail, Phone, Building, GraduationCap, Shield, 
   KeyRound, Settings as SettingsIcon, LogOut, Edit3, X,
-  Clock, Briefcase
+  Clock, Briefcase, Camera, Trash2
 } from 'lucide-react';
 import { toast } from '../components/ui/Toast';
-import { Avatar } from '../components/ui/Avatar';
 import api from '../lib/axios';
+import { ProfileAvatar } from '../components/profile/ProfileAvatar';
+import { uploadProfileImage, removeProfileImage } from '../services/profile-media.api';
 
 export const Profile: React.FC = () => {
   const { user, logout, updateUser, refreshUser } = useAuth();
@@ -18,12 +19,16 @@ export const Profile: React.FC = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
+  const [selectedPhoto, setSelectedPhoto] = useState<File | null>(null);
+  const [photoState, setPhotoState] = useState<'IDLE' | 'SELECTED' | 'UPLOADING' | 'UPDATED' | 'ERROR'>('IDLE');
+  const photoInputRef = useRef<HTMLInputElement>(null);
 
   // Form states
   const [editForm, setEditForm] = useState({
     firstName: user?.firstName || '',
     lastName: user?.lastName || '',
     phone: '',
+    gender: user?.gender || 'UNSPECIFIED',
   });
 
   const [passwordForm, setPasswordForm] = useState({
@@ -33,6 +38,11 @@ export const Profile: React.FC = () => {
   });
 
   const [extendedData, setExtendedData] = useState<any>(null);
+
+  useEffect(() => {
+    if (!user) return;
+    setEditForm({ firstName: user.firstName || '', lastName: user.lastName || '', phone: user.phone || '', gender: user.gender || 'UNSPECIFIED' });
+  }, [user?.id, user?.firstName, user?.lastName, user?.phone, user?.gender]);
 
   useEffect(() => {
     // Fetch extended role details if available from canonical profile
@@ -100,6 +110,35 @@ export const Profile: React.FC = () => {
     }
   };
 
+  const handleUploadPhoto = async () => {
+    if (!selectedPhoto) return;
+    setPhotoState('UPLOADING');
+    try {
+      await uploadProfileImage(selectedPhoto);
+      await refreshUser();
+      setSelectedPhoto(null);
+      setPhotoState('UPDATED');
+      toast.success('Profile photo updated everywhere.');
+    } catch (error: any) {
+      setPhotoState('ERROR');
+      toast.error(error?.response?.data?.message || error?.message || 'Profile photo upload failed.');
+    }
+  };
+
+  const handleRemovePhoto = async () => {
+    setPhotoState('UPLOADING');
+    try {
+      await removeProfileImage();
+      await refreshUser();
+      setSelectedPhoto(null);
+      setPhotoState('UPDATED');
+      toast.success('Profile photo removed.');
+    } catch (error: any) {
+      setPhotoState('ERROR');
+      toast.error(error?.response?.data?.message || 'Unable to remove profile photo.');
+    }
+  };
+
   if (!user) return null;
 
   const getRoleBadgeColor = (role: string) => {
@@ -125,10 +164,10 @@ export const Profile: React.FC = () => {
           
           {/* Avatar */}
           <div className="relative">
-            <Avatar
-              src={user.profilePhoto}
-              name={`${user.firstName} ${user.lastName}`}
+            <ProfileAvatar
+              person={user}
               size="2xl"
+              shape="rounded"
               className="border-4 border-background"
             />
             <span className="absolute bottom-1 right-1 h-5 w-5 bg-emerald-500 border-2 border-background rounded-full" title="Active Account" />
@@ -166,7 +205,34 @@ export const Profile: React.FC = () => {
               >
                 <KeyRound className="h-3.5 w-3.5" /> Change Password
               </button>
+              <input
+                ref={photoInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                className="hidden"
+                onChange={(event) => {
+                  const file = event.target.files?.[0] || null;
+                  setSelectedPhoto(file);
+                  setPhotoState(file ? 'SELECTED' : 'IDLE');
+                }}
+              />
+              <button type="button" onClick={() => photoInputRef.current?.click()} className="px-3.5 py-1.5 rounded-xl border bg-background text-xs font-bold flex items-center gap-1.5 hover:bg-muted transition-colors">
+                <Camera className="h-3.5 w-3.5" /> Select photo
+              </button>
+              {selectedPhoto && (
+                <button type="button" onClick={handleUploadPhoto} disabled={photoState === 'UPLOADING'} className="px-3.5 py-1.5 rounded-xl bg-primary text-primary-foreground text-xs font-bold disabled:opacity-60">
+                  {photoState === 'UPLOADING' ? 'Uploading…' : 'Save photo'}
+                </button>
+              )}
+              {user.profileImage?.fileId && !selectedPhoto && (
+                <button type="button" onClick={handleRemovePhoto} disabled={photoState === 'UPLOADING'} className="px-3.5 py-1.5 rounded-xl border border-rose-200 text-rose-600 text-xs font-bold flex items-center gap-1.5 disabled:opacity-60">
+                  <Trash2 className="h-3.5 w-3.5" /> Remove photo
+                </button>
+              )}
             </div>
+            <p className="text-[11px] text-muted-foreground">
+              {photoState === 'SELECTED' && selectedPhoto ? `Selected: ${selectedPhoto.name}. Choose Save photo to upload.` : photoState === 'UPDATED' ? 'Updated across authorized CampusOS views.' : photoState === 'ERROR' ? 'Upload was not saved. Correct the file and retry.' : 'JPEG, PNG, or WebP · maximum 5 MB'}
+            </p>
           </div>
         </div>
       </div>
@@ -189,17 +255,22 @@ export const Profile: React.FC = () => {
             </div>
 
             <div className="flex justify-between items-center p-2.5 border rounded-xl bg-background">
+              <span className="text-muted-foreground">Gender</span>
+              <span className="font-semibold">{String(user.gender || 'UNSPECIFIED').replaceAll('_', ' ')}</span>
+            </div>
+
+            <div className="flex justify-between items-center p-2.5 border rounded-xl bg-background">
               <span className="text-muted-foreground flex items-center gap-1.5">
                 <Phone className="h-3.5 w-3.5" /> Phone Number
               </span>
-              <span className="font-mono">{extendedData?.phone || '+91 98765 43210'}</span>
+              <span className="font-mono">{extendedData?.phone || user.phone || 'Not provided'}</span>
             </div>
 
             <div className="flex justify-between items-center p-2.5 border rounded-xl bg-background">
               <span className="text-muted-foreground flex items-center gap-1.5">
                 <Building className="h-3.5 w-3.5" /> Department
               </span>
-              <span className="font-bold text-primary">{extendedData?.department?.name || 'Computer Science & Engineering'}</span>
+              <span className="font-bold text-primary">{extendedData?.department?.name || user.student?.department?.name || user.faculty?.department?.name || 'Not assigned'}</span>
             </div>
 
             {user.role === 'Student' && (
@@ -208,13 +279,13 @@ export const Profile: React.FC = () => {
                   <span className="text-muted-foreground flex items-center gap-1.5">
                     <GraduationCap className="h-3.5 w-3.5" /> Admission / Roll No
                   </span>
-                  <span className="font-mono font-bold">{extendedData?.admissionNo || 'ADM2026001'}</span>
+                  <span className="font-mono font-bold">{extendedData?.admissionNo || user.student?.admissionNo || 'Not assigned'}</span>
                 </div>
                 <div className="flex justify-between items-center p-2.5 border rounded-xl bg-background">
                   <span className="text-muted-foreground flex items-center gap-1.5">
                     <Clock className="h-3.5 w-3.5" /> Academic Term
                   </span>
-                  <span className="font-bold">2026-2027 (Semester 1)</span>
+                  <span className="font-bold">{extendedData?.academicYear?.name || extendedData?.academicYear || extendedData?.semester?.name || 'Not assigned'}</span>
                 </div>
               </>
             )}
@@ -224,7 +295,7 @@ export const Profile: React.FC = () => {
                 <span className="text-muted-foreground flex items-center gap-1.5">
                   <Briefcase className="h-3.5 w-3.5" /> Employee ID
                 </span>
-                <span className="font-mono font-bold">{extendedData?.employeeId || 'EMP001'}</span>
+                <span className="font-mono font-bold">{extendedData?.employeeId || user.faculty?.employeeId || user.employee?.employeeId || 'Not assigned'}</span>
               </div>
             )}
           </div>
@@ -263,13 +334,16 @@ export const Profile: React.FC = () => {
           </div>
 
           {/* Logout Trigger Card */}
-          <div className="pt-4 border-t">
+          <div className="pt-4 border-t space-y-3">
             <button
               onClick={() => setIsLogoutModalOpen(true)}
               className="w-full py-3 bg-rose-50 text-rose-600 hover:bg-rose-100 border border-rose-200 rounded-xl text-xs font-extrabold flex items-center justify-center gap-2 transition-all shadow-sm"
             >
               <LogOut className="h-4 w-4" /> Sign Out of Account
             </button>
+            <p className="text-center text-[10px] text-muted-foreground/80 font-medium">
+              CampusOS • Developed by Geetorus
+            </p>
           </div>
         </div>
 
@@ -294,6 +368,17 @@ export const Profile: React.FC = () => {
                   className="w-full p-2.5 border rounded-xl bg-background font-semibold"
                   required
                 />
+              </div>
+
+              <div>
+                <label className="font-bold text-muted-foreground block mb-1">Gender</label>
+                <select value={editForm.gender} onChange={e => setEditForm({ ...editForm, gender: e.target.value })} className="w-full p-2.5 border rounded-xl bg-background font-semibold">
+                  <option value="UNSPECIFIED">Unspecified</option>
+                  <option value="MALE">Male</option>
+                  <option value="FEMALE">Female</option>
+                  <option value="OTHER">Other</option>
+                  <option value="PREFER_NOT_TO_SAY">Prefer not to say</option>
+                </select>
               </div>
 
               <div>

@@ -460,10 +460,15 @@ export class CampusOfficeService {
   /**
    * List user's documents and shared department reports.
    */
-  static async getUserOfficeDocuments(userId: string, filterType?: string) {
+  static async getUserOfficeDocuments(userId: string, filterType?: string, status?: string) {
     const where: any = { authorId: userId };
     if (filterType && filterType !== 'ALL') {
       where.type = filterType;
+    }
+    if (status) {
+      where.status = status;
+    } else {
+      where.status = { notIn: ['ARCHIVED', 'TRASHED'] };
     }
 
     return prisma.campusOfficeDocument.findMany({

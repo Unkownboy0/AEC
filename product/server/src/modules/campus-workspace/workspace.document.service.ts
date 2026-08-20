@@ -7,6 +7,7 @@
 import { prisma } from '../../lib/prisma';
 import { WorkspacePermissionService } from './workspace.permission.service';
 import { CampusDataProvider } from './campus-data.provider';
+import { NotificationService } from '../notifications/notification.service';
 import { DocumentType, DocumentStatus, ShareEntry } from './workspace.types';
 import { BadRequestException, ForbiddenException, NotFoundException } from '../../utils/exceptions';
 
@@ -25,16 +26,32 @@ export class WorkspaceDocumentService {
       scope?: string;
     }
   ) {
+    const isTrashQuery = filters?.status === 'TRASHED' || filters?.status === 'ARCHIVED';
+    const statusFilter = filters?.status
+      ? filters.status
+      : ({ notIn: ['ARCHIVED', 'TRASHED'] } as any);
+
     // Documents the user owns OR is shared with them
     const ownedDocs = await prisma.campusOfficeDocument.findMany({
       where: {
         authorId: userId,
+        status: statusFilter,
         ...(filters?.type ? { type: filters.type } : {}),
-        ...(filters?.status ? { status: filters.status } : {}),
         ...(filters?.search ? { title: { contains: filters.search } } : {}),
       },
       include: {
-        author: { select: { id: true, email: true, faculty: { select: { firstName: true, lastName: true } } } },
+        author: {
+          select: {
+            id: true,
+            email: true,
+            firstName: true,
+            lastName: true,
+            profilePhoto: true,
+            profileImageFileId: true,
+            student: { select: { firstName: true, lastName: true } },
+            faculty: { select: { firstName: true, lastName: true } },
+          },
+        },
         _count: { select: { comments: true, versions: true } },
       },
       orderBy: { updatedAt: 'desc' },
@@ -42,47 +59,66 @@ export class WorkspaceDocumentService {
     });
 
     // Documents shared with this user's role or department
-    const sharedDocs = await prisma.campusOfficeDocument.findMany({
-      where: {
-        authorId: { not: userId },
-        OR: [
-          { targetUsers: { contains: userId } },
-          { targetRoles: { contains: userRole } },
-          ...(userDepartmentId
-            ? [{ targetScope: 'DEPARTMENT' as const, departmentId: userDepartmentId }]
-            : []),
-          { targetScope: 'ALL_CAMPUS' },
-        ],
-        ...(filters?.type ? { type: filters.type } : {}),
-        ...(filters?.status ? { status: filters.status } : {}),
-        ...(filters?.search ? { title: { contains: filters.search } } : {}),
-      },
-      include: {
-        author: { select: { id: true, email: true, faculty: { select: { firstName: true, lastName: true } } } },
-        _count: { select: { comments: true, versions: true } },
-      },
-      orderBy: { updatedAt: 'desc' },
-      take: 100,
-    });
+    const sharedDocs = isTrashQuery
+      ? []
+      : await prisma.campusOfficeDocument.findMany({
+          where: {
+            authorId: { not: userId },
+            status: statusFilter,
+            OR: [
+              { targetUsers: { contains: userId } },
+              { targetRoles: { contains: userRole } },
+              ...(userDepartmentId
+                ? [{ targetScope: 'DEPARTMENT' as const, departmentId: userDepartmentId }]
+                : []),
+              { targetScope: 'ALL_CAMPUS' },
+            ],
+            ...(filters?.type ? { type: filters.type } : {}),
+            ...(filters?.search ? { title: { contains: filters.search } } : {}),
+          },
+          include: {
+            author: {
+              select: {
+                id: true,
+                email: true,
+                firstName: true,
+                lastName: true,
+                profilePhoto: true,
+                profileImageFileId: true,
+                student: { select: { firstName: true, lastName: true } },
+                faculty: { select: { firstName: true, lastName: true } },
+              },
+            },
+            _count: { select: { comments: true, versions: true } },
+          },
+          orderBy: { updatedAt: 'desc' },
+          take: 100,
+        });
 
-    const formatDoc = (doc: any, isOwner: boolean) => ({
-      id: doc.id,
-      title: doc.title,
-      type: doc.type,
-      status: doc.status,
-      targetScope: doc.targetScope,
-      departmentId: doc.departmentId,
-      authorId: doc.authorId,
-      authorName: doc.author?.faculty
-        ? `${doc.author.faculty.firstName} ${doc.author.faculty.lastName}`
-        : doc.author?.email,
-      currentVersion: doc.currentVersion,
-      commentsCount: doc._count?.comments ?? 0,
-      versionsCount: doc._count?.versions ?? 0,
-      isOwner,
-      createdAt: doc.createdAt,
-      updatedAt: doc.updatedAt,
-    });
+    const formatDoc = (doc: any, isOwner: boolean) => {
+      const authorName = doc.author?.student
+        ? `${doc.author.student.firstName || ''} ${doc.author.student.lastName || ''}`.trim()
+        : doc.author?.faculty
+        ? `${doc.author.faculty.firstName || ''} ${doc.author.faculty.lastName || ''}`.trim()
+        : `${doc.author?.firstName || ''} ${doc.author?.lastName || ''}`.trim() || doc.author?.email?.split('@')[0] || 'User';
+
+      return {
+        id: doc.id,
+        title: doc.title,
+        type: doc.type,
+        status: doc.status,
+        targetScope: doc.targetScope,
+        departmentId: doc.departmentId,
+        authorId: doc.authorId,
+        authorName,
+        currentVersion: doc.currentVersion,
+        commentsCount: doc._count?.comments ?? 0,
+        versionsCount: doc._count?.versions ?? 0,
+        isOwner,
+        createdAt: doc.createdAt,
+        updatedAt: doc.updatedAt,
+      };
+    };
 
     return {
       owned: ownedDocs.map((d) => formatDoc(d, true)),
@@ -99,14 +135,48 @@ export class WorkspaceDocumentService {
     const doc = await prisma.campusOfficeDocument.findUnique({
       where: { id: documentId },
       include: {
-        author: { select: { id: true, email: true, faculty: { select: { firstName: true, lastName: true } } } },
+        author: {
+          select: {
+            id: true,
+            email: true,
+            firstName: true,
+            lastName: true,
+            profilePhoto: true,
+            profileImageFileId: true,
+            student: { select: { firstName: true, lastName: true } },
+            faculty: { select: { firstName: true, lastName: true } },
+          },
+        },
         department: { select: { id: true, name: true, code: true } },
-        versions: { orderBy: { versionNumber: 'desc' }, take: 10, include: { author: { select: { faculty: { select: { firstName: true, lastName: true } } } } } },
+        versions: {
+          orderBy: { versionNumber: 'desc' },
+          take: 10,
+          include: {
+            author: {
+              select: {
+                firstName: true,
+                lastName: true,
+                student: { select: { firstName: true, lastName: true } },
+                faculty: { select: { firstName: true, lastName: true } },
+              },
+            },
+          },
+        },
         comments: {
           where: { resolved: false },
           orderBy: { createdAt: 'asc' },
           take: 50,
-          include: { author: { select: { faculty: { select: { firstName: true, lastName: true } } } } },
+          include: {
+            author: {
+              select: {
+                firstName: true,
+                lastName: true,
+                profilePhoto: true,
+                student: { select: { firstName: true, lastName: true } },
+                faculty: { select: { firstName: true, lastName: true } },
+              },
+            },
+          },
         },
       },
     });
@@ -143,30 +213,44 @@ export class WorkspaceDocumentService {
   ) {
     const contentJson = data.contentJson ?? this.getDefaultContent(data.type);
 
-    const doc = await prisma.campusOfficeDocument.create({
-      data: {
-        title: data.title,
-        type: data.type,
-        category: data.category || 'GENERAL',
-        contentJson: JSON.stringify(contentJson),
-        templateKey: data.templateKey,
-        authorId: userId,
-        departmentId: userDepartmentId,
-        targetScope: data.targetScope || 'PRIVATE',
-        tags: JSON.stringify(data.tags || []),
-        status: 'DRAFT',
-      },
-    });
-
-    // Create initial version snapshot
-    await prisma.campusDocumentVersion.create({
-      data: {
-        documentId: doc.id,
-        versionNumber: 1,
-        contentSnapshot: JSON.stringify(contentJson),
-        changeSummary: 'Initial version',
-        authorId: userId,
-      },
+    const title = data.title.trim();
+    if (!title || title.length > 180) throw new BadRequestException('Document title must be between 1 and 180 characters.');
+    const doc = await prisma.$transaction(async (tx) => {
+      const created = await tx.campusOfficeDocument.create({
+        data: {
+          title,
+          type: data.type,
+          category: data.category || 'GENERAL',
+          contentJson: JSON.stringify(contentJson),
+          templateKey: data.templateKey,
+          authorId: userId,
+          departmentId: userDepartmentId,
+          targetScope: data.targetScope || 'PRIVATE',
+          tags: JSON.stringify(data.tags || []),
+          status: 'DRAFT',
+        },
+      });
+      await tx.campusDocumentVersion.create({
+        data: {
+          documentId: created.id,
+          versionNumber: 1,
+          contentSnapshot: JSON.stringify(contentJson),
+          changeSummary: 'Initial version',
+          authorId: userId,
+        },
+      });
+      await tx.campusDriveItem.create({
+        data: {
+          name: title,
+          isFolder: false,
+          documentId: created.id,
+          mimeType: `application/vnd.campusos.${String(data.type).toLowerCase()}`,
+          ownerId: userId,
+          departmentId: userDepartmentId,
+          scope: 'PERSONAL',
+        },
+      });
+      return created;
     });
 
     // Audit
@@ -195,9 +279,14 @@ export class WorkspaceDocumentService {
 
     const doc = await prisma.campusOfficeDocument.findUnique({ where: { id: documentId } });
     if (!doc) throw new NotFoundException('Document not found.');
+
     if (doc.isLocked) throw new ForbiddenException('This document is locked for editing.');
     if (['APPROVED', 'PUBLISHED'].includes(doc.status)) {
       throw new ForbiddenException('Approved/Published documents cannot be edited. Create a new draft.');
+    }
+
+    if (data.title !== undefined && (!data.title.trim() || data.title.trim().length > 180)) {
+      throw new BadRequestException('Document title must be between 1 and 180 characters.');
     }
 
     const updatedDoc = await prisma.campusOfficeDocument.update({
@@ -208,6 +297,12 @@ export class WorkspaceDocumentService {
         ...(data.contentHtml ? { contentHtml: data.contentHtml } : {}),
       },
     });
+    if (data.title !== undefined) {
+      await prisma.campusDriveItem.updateMany({
+        where: { documentId },
+        data: { name: data.title.trim() },
+      });
+    }
 
     // Create version snapshot if requested (e.g., manual save or pre-submit)
     if (data.createVersion) {
@@ -245,6 +340,11 @@ export class WorkspaceDocumentService {
     const perms = await WorkspacePermissionService.resolvePermissions(documentId, userId, userRole, userDepartmentId);
     if (!perms.canShare) throw new ForbiddenException('You do not have share access to this document.');
 
+    const doc = await prisma.campusOfficeDocument.findUnique({ where: { id: documentId } });
+    if (!doc) throw new NotFoundException('Document not found.');
+
+    if (!Array.isArray(shareEntries)) throw new BadRequestException('A recipient list is required.');
+
     const targetUsers = shareEntries.filter((e) => e.userId).map((e) => ({ userId: e.userId, permission: e.permission, canDownload: e.canDownload, canPrint: e.canPrint, canShare: e.canShare, canExport: e.canExport, expiresAt: e.expiresAt }));
     const targetRoles = shareEntries.filter((e) => e.roleName).map((e) => ({ roleName: e.roleName, permission: e.permission }));
 
@@ -256,6 +356,24 @@ export class WorkspaceDocumentService {
         ...(targetScope ? { targetScope } : {}),
       },
     });
+
+    const actor = await prisma.user.findUnique({ where: { id: userId }, select: { firstName: true, lastName: true } });
+    const actorName = `${actor?.firstName || ''} ${actor?.lastName || ''}`.trim() || 'A CampusOS user';
+
+    // Notify shared users
+    for (const entry of targetUsers) {
+      if (entry.userId && entry.userId !== userId) {
+        await NotificationService.sendNotification({
+          recipientId: entry.userId,
+          eventType: 'DOCUMENT_SHARED',
+          title: `${actorName} shared a document with you`,
+          message: `${actorName} shared "${doc.title}" with ${entry.permission.toLowerCase()} access.`,
+          relatedEntityType: 'DOCUMENT',
+          relatedEntityId: documentId,
+          deepLinkRoute: `/workspace/docs/${documentId}`,
+        }).catch(() => undefined);
+      }
+    }
 
     // Audit share action
     await this.logAudit(userId, 'SHARE', documentId, undefined, undefined, { shareEntries });
@@ -416,7 +534,7 @@ export class WorkspaceDocumentService {
     return { success: true, newVersionNumber };
   }
 
-  // ─── Delete ─────────────────────────────────────────────────────────────────
+  // ─── Delete & Trash Lifecycle ──────────────────────────────────────────────
 
   static async deleteDocument(documentId: string, userId: string, userRole: string, userDepartmentId?: string) {
     const perms = await WorkspacePermissionService.resolvePermissions(documentId, userId, userRole, userDepartmentId);
@@ -428,10 +546,54 @@ export class WorkspaceDocumentService {
       throw new ForbiddenException('Approved official documents cannot be deleted. Archive instead.');
     }
 
-    // Soft delete — move to archived
-    await prisma.campusOfficeDocument.update({ where: { id: documentId }, data: { status: 'ARCHIVED' } });
-    await this.logAudit(userId, 'DELETE', documentId, doc.type, doc.title);
+    // Soft delete — move to trash
+    await prisma.$transaction([
+      prisma.campusOfficeDocument.update({ where: { id: documentId }, data: { status: 'TRASHED' } }),
+      prisma.campusDriveItem.updateMany({ where: { documentId }, data: { isTrashed: true, trashedAt: new Date() } }),
+    ]);
+    await this.logAudit(userId, 'TRASH', documentId, doc.type, doc.title);
     return { success: true };
+  }
+
+  static async restoreDocument(documentId: string, userId: string, userRole: string, userDepartmentId?: string) {
+    const perms = await WorkspacePermissionService.resolvePermissions(documentId, userId, userRole, userDepartmentId);
+    if (!perms.canDelete) throw new ForbiddenException('Only the document owner can restore it.');
+
+    const doc = await prisma.campusOfficeDocument.findUnique({ where: { id: documentId } });
+    if (!doc) throw new NotFoundException('Document not found.');
+    if (doc.status !== 'TRASHED' && doc.status !== 'ARCHIVED') {
+      throw new BadRequestException('Document is not in trash.');
+    }
+
+    await prisma.$transaction([
+      prisma.campusOfficeDocument.update({ where: { id: documentId }, data: { status: 'DRAFT' } }),
+      prisma.campusDriveItem.updateMany({ where: { documentId }, data: { isTrashed: false, trashedAt: null } }),
+    ]);
+    await this.logAudit(userId, 'RESTORE', documentId, doc.type, doc.title);
+    return { success: true, status: 'DRAFT' };
+  }
+
+  static async permanentlyDeleteDocument(documentId: string, userId: string, userRole: string, userDepartmentId?: string) {
+    const perms = await WorkspacePermissionService.resolvePermissions(documentId, userId, userRole, userDepartmentId);
+    if (!perms.canDelete && !['Super Admin', 'College Admin'].includes(userRole)) {
+      throw new ForbiddenException('Only the document author or administrator can permanently delete.');
+    }
+
+    const doc = await prisma.campusOfficeDocument.findUnique({ where: { id: documentId } });
+    if (!doc) throw new NotFoundException('Document not found.');
+    if (doc.status !== 'TRASHED' && doc.status !== 'ARCHIVED') {
+      throw new BadRequestException('Document must be moved to Trash before permanent deletion.');
+    }
+
+    await prisma.$transaction([
+      prisma.campusDocumentComment.deleteMany({ where: { documentId } }),
+      prisma.campusDocumentVersion.deleteMany({ where: { documentId } }),
+      prisma.campusDriveItem.deleteMany({ where: { documentId } }),
+      prisma.campusOfficeDocument.delete({ where: { id: documentId } }),
+    ]);
+
+    await this.logAudit(userId, 'PERMANENT_DELETE', documentId, doc.type, doc.title);
+    return { success: true, deleted: true };
   }
 
   // ─── Helpers ────────────────────────────────────────────────────────────────

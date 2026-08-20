@@ -16,6 +16,7 @@ import { useEffect } from 'react';
 import { CapacitorNativeService } from './lib/capacitor-native';
 import { InstitutionProvider } from './context/InstitutionContext';
 import { KeyboardProvider } from './context/KeyboardContext';
+import { LanguageProvider } from './context/LanguageContext';
 
 /*
   App root.
@@ -74,6 +75,7 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
+        <LanguageProvider>
         <DeviceProvider>
           <KeyboardProvider>
             <InstitutionProvider>
@@ -103,6 +105,7 @@ function App() {
             </InstitutionProvider>
           </KeyboardProvider>
         </DeviceProvider>
+        </LanguageProvider>
       </ThemeProvider>
     </QueryClientProvider>
   );

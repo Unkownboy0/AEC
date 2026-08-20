@@ -1,4 +1,4 @@
-const CACHE_NAME = 'geetorus-campusos-cache-v2';
+const CACHE_NAME = 'geetorus-campusos-cache-v3';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -40,6 +40,23 @@ self.addEventListener('fetch', (event) => {
 
   // Bypass API requests to allow fresh DB states, using network only/fallback
   if (requestUrl.pathname.startsWith('/api') || event.request.method !== 'GET') {
+    return;
+  }
+
+  // Navigation is network-first so a newly deployed index never points at an
+  // obsolete hashed bundle. The cached shell remains the offline fallback.
+  if (event.request.mode === 'navigate' || requestUrl.pathname === '/index.html') {
+    event.respondWith(
+      fetch(event.request)
+        .then((networkResponse) => {
+          if (networkResponse.status === 200) {
+            const copy = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put('/index.html', copy));
+          }
+          return networkResponse;
+        })
+        .catch(() => caches.match('/index.html'))
+    );
     return;
   }
 

@@ -51,12 +51,8 @@ export const PrincipalDashboardPage: React.FC = () => {
   );
 
   const fallbackStats = {
-    pendingApprovals: 1,
-    institutionAttendance: '94.2%',
-    activeFaculty: 45,
-    totalStudents: 161,
-    openComplaints: 1,
-    riskCount: 12,
+    pendingApprovals: 0, institutionAttendance: 'N/A', activeFaculty: 0,
+    totalStudents: 0, openComplaints: 0, riskCount: 0,
   };
 
   const stats = syncStats?.metrics || fallbackStats;
@@ -68,14 +64,9 @@ export const PrincipalDashboardPage: React.FC = () => {
   if (isLoading) return <Skeleton variant="card" count={4} />;
   if (error) return <ErrorState title="Executive Dashboard Error" message={error} onRetry={() => refetch()} />;
 
-  const departmentsData = syncStats?.departments || [
-    { name: 'Computer Science & Engineering', hod: 'John Doe (HOD)', students: 161, faculty: 45, attendance: '96.1%', passRate: '94.5%', placement: '92.0%', complaints: 0, riskCount: 2 },
-  ];
+  const departmentsData = syncStats?.departments || [];
 
-  const complaintsData = [
-    { id: '1', title: 'Lab Equipment Maintenance Delay', category: 'Infrastructure', raisedBy: 'CSE HOD', date: '04 Aug 2026', priority: 'HIGH', status: 'IN_PROGRESS', reason: 'High-end GPU server in Lab 3 experiencing power supply fluctuations causing practical session delays.' },
-    { id: '2', title: 'Library Digital Journal Access Defect', category: 'Academic', raisedBy: 'Faculty Council', date: '03 Aug 2026', priority: 'MEDIUM', status: 'OPEN', reason: 'IEEE Xplore authentication token expiration preventing research paper downloads.' },
-  ];
+  const complaintsData: any[] = [];
 
   return (
     <motion.div

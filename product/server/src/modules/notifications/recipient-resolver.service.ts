@@ -48,10 +48,6 @@ export class RecipientResolverService {
         case 'LEAVE_REQUESTED':
         case 'OD_SUBMITTED':
         case 'OD_REQUESTED':
-        case 'LEAVE_SUBMITTED':
-        case 'LEAVE_REQUESTED':
-        case 'OD_SUBMITTED':
-        case 'OD_REQUESTED':
         case 'STUDENT_OD_SUBMITTED':
         case 'STUDENT_LEAVE_SUBMITTED': {
           // Mentor Review Stage: ONLY notify the assigned Mentor of this student
@@ -83,21 +79,24 @@ export class RecipientResolverService {
         case 'STUDENT_LEAVE_MENTOR_APPROVED':
         case 'STUDENT_OD_FORWARDED':
         case 'STUDENT_LEAVE_FORWARDED': {
-          // HOD Review Stage: ONLY notify the HOD of the operating department
+          // HOD Review Stage: ONLY notify the HOD of the operating department (S&H check for 1st year)
+          let studentId = event.studentId || event.metadata?.studentId;
           let deptId = event.departmentId;
+
           if (!deptId && event.entityId) {
             const studentLeave = await prisma.studentLeaveRequest.findUnique({
               where: { id: event.entityId },
-              select: { departmentId: true, student: { select: { departmentId: true } } },
+              select: { studentId: true, departmentId: true },
             }).catch(() => null);
-            deptId = studentLeave?.departmentId || studentLeave?.student?.departmentId || undefined;
+            deptId = studentLeave?.departmentId || undefined;
+            if (!studentId && studentLeave?.studentId) studentId = studentLeave.studentId;
           }
-          if (deptId) {
-            const hodUserId = await this.findDepartmentHod(deptId);
-            if (hodUserId) recipients.add(hodUserId);
-          }
+
+          const hodUserId = await this.resolveStudentOperatingHod(studentId, deptId);
+          if (hodUserId) recipients.add(hodUserId);
           break;
         }
+
 
         case 'STUDENT_OD_APPROVED':
         case 'STUDENT_LEAVE_APPROVED':
@@ -168,16 +167,9 @@ export class RecipientResolverService {
         case 'FACULTY_OD_RECOMMENDED':
         case 'FACULTY_LEAVE_FORWARDED':
         case 'FACULTY_OD_FORWARDED': {
-          // Executive Stage: Notify Principal & Vice Principal (or Acting Principal)
-          const execs = await this.findUsersByRole([
-            'PRINCIPAL',
-            'Principal',
-            'VICE_PRINCIPAL',
-            'Vice Principal',
-            'VP',
-            'ACTING_PRINCIPAL',
-          ]);
-          execs.forEach((u) => recipients.add(u));
+          // Executive Stage: Notify Principal + ONLY VPs with Active Principal Delegation
+          const execUsers = await this.resolvePrincipalOrDelegatedVp(event);
+          execUsers.forEach((u) => recipients.add(u));
           break;
         }
 
@@ -203,9 +195,9 @@ export class RecipientResolverService {
         case 'HOD_LEAVE_SUBMITTED':
         case 'DEAN_LEAVE_SUBMITTED':
         case 'VP_LEAVE_SUBMITTED': {
-          // HOD/Dean/VP own leave -> Notify Principal directly
-          const principals = await this.findUsersByRole(['PRINCIPAL', 'Principal']);
-          principals.forEach((p) => recipients.add(p));
+          // HOD/Dean/VP own leave -> Notify Principal directly (+ delegated VP if applicable)
+          const execUsers = await this.resolvePrincipalOrDelegatedVp(event);
+          execUsers.forEach((p) => recipients.add(p));
           break;
         }
 
@@ -241,20 +233,27 @@ export class RecipientResolverService {
 
         case 'ASSIGNMENT_SUBMITTED':
         case 'ASSIGNMENT_SUBMISSION_RECEIVED': {
-          // Notify the creator/evaluator faculty member
+          // Notify the creator/evaluator faculty member + Student acknowledgement
           if (event.metadata?.facultyUserId) recipients.add(event.metadata.facultyUserId);
+          if (event.actorUserId) recipients.add(event.actorUserId);
           break;
         }
 
         case 'ASSIGNMENT_GRADED': {
-          // Notify the student whose assignment was graded
-          if (event.metadata?.studentUserId) recipients.add(event.metadata.studentUserId);
+          // Notify the student whose assignment was graded (+ parent if policy allows)
+          const studentUserId = event.metadata?.studentUserId;
+          if (studentUserId) recipients.add(studentUserId);
+          if (event.studentId) {
+            const student = await prisma.student.findUnique({ where: { id: event.studentId }, select: { userId: true } });
+            if (student?.userId) recipients.add(student.userId);
+          }
           break;
         }
 
+        case 'TIMETABLE_PUBLISHED':
         case 'TIMETABLE_CHANGED':
         case 'CLASS_TIMETABLE_CHANGED': {
-          // Notify affected section students + affected faculty
+          // Notify affected section students + affected faculty + HOD operational view
           if (event.sectionId) {
             const students = await prisma.student.findMany({
               where: { sectionId: event.sectionId, status: 'ACTIVE', userId: { not: null } },
@@ -266,6 +265,10 @@ export class RecipientResolverService {
             if (classAdvisorUserId) recipients.add(classAdvisorUserId);
           }
           if (event.metadata?.facultyUserId) recipients.add(event.metadata.facultyUserId);
+          if (event.departmentId) {
+            const hodUserId = await this.findDepartmentHod(event.departmentId);
+            if (hodUserId) recipients.add(hodUserId);
+          }
           break;
         }
 
@@ -280,6 +283,18 @@ export class RecipientResolverService {
               select: { userId: true },
             });
             students.forEach((s) => s.userId && recipients.add(s.userId));
+          }
+          break;
+        }
+
+        case 'ATTENDANCE_ABSENT': {
+          // Notify Student + Linked Parent if policy enabled
+          const studentId = event.studentId || event.metadata?.studentId;
+          if (studentId) {
+            const student = await prisma.student.findUnique({ where: { id: studentId }, select: { userId: true } });
+            if (student?.userId) recipients.add(student.userId);
+            const parentUserIds = await this.resolveLinkedParents(studentId);
+            parentUserIds.forEach((pid) => recipients.add(pid));
           }
           break;
         }
@@ -350,6 +365,16 @@ export class RecipientResolverService {
             // 3. Notify Linked Parents
             const parentUserIds = await this.resolveLinkedParents(studentId);
             parentUserIds.forEach((pid) => recipients.add(pid));
+
+            // 4. Notify Class Adviser / HOD if threshold warrants (e.g. metadata.thresholdExceeded)
+            if (event.metadata?.thresholdExceeded === 'CRITICAL' && student?.sectionId) {
+              const classAdvisorUserId = await this.resolveSectionClassAdvisor(student.sectionId);
+              if (classAdvisorUserId) recipients.add(classAdvisorUserId);
+              if (student.departmentId) {
+                const hodUserId = await this.findDepartmentHod(student.departmentId);
+                if (hodUserId) recipients.add(hodUserId);
+              }
+            }
           }
           break;
         }
@@ -363,6 +388,8 @@ export class RecipientResolverService {
         // ====================================================================
         // ─── 6. EXAMINATIONS & COE (Controller of Examinations) ─────────────
         // ====================================================================
+        case 'RESULT_DRAFT':
+        case 'RESULT_PROCESSING':
         case 'EXAM_REGISTRATION_ISSUE':
         case 'EXAM_ELIGIBILITY_ISSUE':
         case 'QP_WORKFLOW_PENDING':
@@ -374,6 +401,7 @@ export class RecipientResolverService {
         case 'REVALUATION_REQUESTED':
         case 'RESULT_PROCESSING_MILESTONE':
         case 'RESULT_FINAL_REVIEW': {
+          // STRICT SECURITY: Authorized COE users ONLY. NEVER Student or Parent!
           const coeUsers = await this.findUsersByRole(['COE', 'Controller of Examinations', 'Examination Cell']);
           coeUsers.forEach((u) => recipients.add(u));
           break;
@@ -383,11 +411,18 @@ export class RecipientResolverService {
         case 'EXAM_RESULT_PUBLISHED':
         case 'MARKS_PUBLISHED':
         case 'REVALUATION_UPDATE': {
+          // Published Result: Notify Affected Students + Linked Parents ONLY
           if (event.metadata?.studentUserId) {
             recipients.add(event.metadata.studentUserId);
+            if (event.studentId) {
+              const parentUserIds = await this.resolveLinkedParents(event.studentId);
+              parentUserIds.forEach((pid) => recipients.add(pid));
+            }
           } else if (event.studentId) {
             const student = await prisma.student.findUnique({ where: { id: event.studentId }, select: { userId: true } });
             if (student?.userId) recipients.add(student.userId);
+            const parentUserIds = await this.resolveLinkedParents(event.studentId);
+            parentUserIds.forEach((pid) => recipients.add(pid));
           }
           break;
         }
@@ -396,14 +431,7 @@ export class RecipientResolverService {
         // ─── 7. FEES & FINANCE (Accounts Officer & Accountant) ──────────────
         // ====================================================================
         case 'FEE_DUE':
-        case 'FEE_PAYMENT_DUE':
-        case 'PAYMENT_SUCCESS':
-        case 'PAYMENT_FAILED':
-        case 'FEE_PAYMENT_SUCCESS':
-        case 'RECEIPT_GENERATED':
-        case 'FEE_RECEIPT_AVAILABLE':
-        case 'SCHOLARSHIP_UPDATE':
-        case 'SCHOLARSHIP_STATUS_CHANGED': {
+        case 'FEE_PAYMENT_DUE': {
           // Notify Student + Linked Parents
           const studentId = event.studentId || event.metadata?.studentId;
           if (studentId) {
@@ -417,6 +445,36 @@ export class RecipientResolverService {
           break;
         }
 
+        case 'PAYMENT_SUCCESS':
+        case 'FEE_PAYMENT_SUCCESS':
+        case 'RECEIPT_GENERATED':
+        case 'FEE_RECEIPT_AVAILABLE': {
+          // Notify Payer (Student/Parent) + Accountant
+          const studentId = event.studentId || event.metadata?.studentId;
+          if (studentId) {
+            const student = await prisma.student.findUnique({ where: { id: studentId }, select: { userId: true } });
+            if (student?.userId) recipients.add(student.userId);
+            const parentUserIds = await this.resolveLinkedParents(studentId);
+            parentUserIds.forEach((pid) => recipients.add(pid));
+          } else if (event.metadata?.studentUserId) {
+            recipients.add(event.metadata.studentUserId);
+          }
+          const accountants = await this.findUsersByRole(['ACCOUNTS_OFFICER', 'Accounts Officer', 'Accountant']);
+          accountants.forEach((a) => recipients.add(a));
+          break;
+        }
+
+        case 'PAYMENT_FAILED':
+        case 'SCHOLARSHIP_UPDATE':
+        case 'SCHOLARSHIP_STATUS_CHANGED': {
+          const studentId = event.studentId || event.metadata?.studentId;
+          if (studentId) {
+            const student = await prisma.student.findUnique({ where: { id: studentId }, select: { userId: true } });
+            if (student?.userId) recipients.add(student.userId);
+          }
+          break;
+        }
+
         case 'PAYMENT_ACTION_REQUIRED':
         case 'OFFLINE_PAYMENT_VERIFICATION':
         case 'RECEIPT_GENERATION_ISSUE':
@@ -424,9 +482,10 @@ export class RecipientResolverService {
         case 'EXPENSE_VOUCHER_TASK':
         case 'SCHOLARSHIP_FINANCIAL_POSTING':
         case 'BANK_RECONCILIATION_ISSUE': {
-          // Notify Accounts / Accountant
+          // Notify Accountant / AO according to stage + Requester
           const accountsUsers = await this.findUsersByRole(['ACCOUNTS_OFFICER', 'Accounts Officer', 'Accountant']);
           accountsUsers.forEach((u) => recipients.add(u));
+          if (event.actorUserId) recipients.add(event.actorUserId);
           break;
         }
 
@@ -439,6 +498,7 @@ export class RecipientResolverService {
           // Notify Administrative Officer (AO) / Finance Head
           const aoUsers = await this.findUsersByRole(['AO', 'Administrative Officer', 'Accounts Officer', 'PRINCIPAL']);
           aoUsers.forEach((u) => recipients.add(u));
+          if (event.actorUserId) recipients.add(event.actorUserId);
           break;
         }
 
@@ -464,7 +524,7 @@ export class RecipientResolverService {
         case 'HOSTEL_OUTING_APPROVED':
         case 'HOSTEL_OUTING_REJECTED':
         case 'HOSTEL_MESS_NOTICE': {
-          // NEGATIVE CHECK: Active Hostellers ONLY (student.hostelId !== null)
+          // Active Hostellers ONLY (student.hostelId !== null) + Parent after decision
           if (event.studentId) {
             const student = await prisma.student.findUnique({
               where: { id: event.studentId },
@@ -473,7 +533,25 @@ export class RecipientResolverService {
             if (student?.hostelId && student?.userId) {
               recipients.add(student.userId);
             }
+            const parentUserIds = await this.resolveLinkedParents(event.studentId);
+            parentUserIds.forEach((pid) => recipients.add(pid));
           }
+          break;
+        }
+
+        case 'HOSTEL_EMERGENCY': {
+          // Relevant hostellers + Parent + authorized management
+          const activeHostellerStudents = await prisma.student.findMany({
+            where: { hostelId: { not: null }, status: 'ACTIVE', userId: { not: null } },
+            select: { id: true, userId: true },
+          });
+          for (const s of activeHostellerStudents) {
+            if (s.userId) recipients.add(s.userId);
+            const parentUserIds = await this.resolveLinkedParents(s.id);
+            parentUserIds.forEach((pid) => recipients.add(pid));
+          }
+          const wardens = await this.findUsersByRole(['HOSTEL_WARDEN', 'Hostel Warden', 'Hostel Admin', 'PRINCIPAL', 'VP']);
+          wardens.forEach((w) => recipients.add(w));
           break;
         }
 
@@ -482,7 +560,6 @@ export class RecipientResolverService {
         // ====================================================================
         case 'TRANSPORT_ALLOCATION_REQUIRED':
         case 'ROUTE_STOP_CHANGE_REQUEST':
-        case 'BUS_BREAKDOWN_ALERT':
         case 'VEHICLE_MAINTENANCE_ALERT':
         case 'TRANSPORT_COMPLAINT_SUBMITTED':
         case 'ROUTE_ALLOCATION_CONFLICT': {
@@ -493,8 +570,9 @@ export class RecipientResolverService {
         }
 
         case 'TRANSPORT_ROUTE_ALLOCATED':
+        case 'TRANSPORT_ALLOCATION_CHANGED':
         case 'TRANSPORT_BUS_DELAY': {
-          // NEGATIVE CHECK: Active Transport Users ONLY (student.transportRouteId !== null)
+          // Active Transport Users ONLY (student.transportRouteId !== null) + Parent for linked student
           if (event.studentId) {
             const student = await prisma.student.findUnique({
               where: { id: event.studentId },
@@ -502,15 +580,39 @@ export class RecipientResolverService {
             });
             if (student?.transportRouteId && student?.userId) {
               recipients.add(student.userId);
+              const parentUserIds = await this.resolveLinkedParents(event.studentId);
+              parentUserIds.forEach((pid) => recipients.add(pid));
             }
           } else if (event.transportRouteId) {
-            // Notify all active students registered on this transport route
             const routeStudents = await prisma.student.findMany({
               where: { transportRouteId: event.transportRouteId, status: 'ACTIVE', userId: { not: null } },
-              select: { userId: true },
+              select: { id: true, userId: true },
             });
-            routeStudents.forEach((s) => s.userId && recipients.add(s.userId));
+            for (const s of routeStudents) {
+              if (s.userId) recipients.add(s.userId);
+              const parentUserIds = await this.resolveLinkedParents(s.id);
+              parentUserIds.forEach((pid) => recipients.add(pid));
+            }
           }
+          break;
+        }
+
+        case 'BUS_BREAKDOWN_ALERT':
+        case 'TRANSPORT_BREAKDOWN': {
+          // Affected route users + Parent / Transport Admin
+          if (event.transportRouteId) {
+            const routeStudents = await prisma.student.findMany({
+              where: { transportRouteId: event.transportRouteId, status: 'ACTIVE', userId: { not: null } },
+              select: { id: true, userId: true },
+            });
+            for (const s of routeStudents) {
+              if (s.userId) recipients.add(s.userId);
+              const parentUserIds = await this.resolveLinkedParents(s.id);
+              parentUserIds.forEach((pid) => recipients.add(pid));
+            }
+          }
+          const transportAdmins = await this.findUsersByRole(['TRANSPORT_MANAGER', 'Transport Manager', 'Transport Admin']);
+          transportAdmins.forEach((t) => recipients.add(t));
           break;
         }
 
@@ -528,26 +630,33 @@ export class RecipientResolverService {
         case 'LIBRARY_BOOK_ISSUED':
         case 'LIBRARY_BOOK_RETURNED':
         case 'LIBRARY_BOOK_OVERDUE':
+        case 'LIBRARY_OVERDUE':
         case 'LIBRARY_FINE_GENERATED': {
-          // Specific borrower only
+          // Specific borrower + Librarian for overdue
           if (event.metadata?.borrowerUserId) recipients.add(event.metadata.borrowerUserId);
           if (event.metadata?.studentUserId) recipients.add(event.metadata.studentUserId);
+          if (event.eventType.includes('OVERDUE')) {
+            const librarians = await this.findUsersByRole(['LIBRARIAN', 'Librarian']);
+            librarians.forEach((l) => recipients.add(l));
+          }
           break;
         }
 
         // ====================================================================
         // ─── 11. PLACEMENTS & CAREERS (Eligible Students Only) ──────────────
         // ====================================================================
-        case 'STUDENT_JOB_APPLIED': {
+        case 'STUDENT_JOB_APPLIED':
+        case 'PLACEMENT_APPLICATION_UPDATE': {
           const placementOfficers = await this.findUsersByRole(['PLACEMENT_OFFICER', 'Placement Officer']);
           placementOfficers.forEach((p) => recipients.add(p));
+          if (event.metadata?.studentUserId) recipients.add(event.metadata.studentUserId);
           break;
         }
 
         case 'PLACEMENT_JOB_POSTED':
         case 'COMPANY_JOB_POSTED':
         case 'PLACEMENT_DRIVE_SCHEDULED': {
-          // Eligible students in matching department
+          // Eligible students in matching department + Placement team
           if (event.departmentId) {
             const students = await prisma.student.findMany({
               where: { departmentId: event.departmentId, status: 'ACTIVE', userId: { not: null } },
@@ -555,6 +664,8 @@ export class RecipientResolverService {
             });
             students.forEach((s) => s.userId && recipients.add(s.userId));
           }
+          const placementOfficers = await this.findUsersByRole(['PLACEMENT_OFFICER', 'Placement Officer']);
+          placementOfficers.forEach((p) => recipients.add(p));
           break;
         }
 
@@ -568,27 +679,41 @@ export class RecipientResolverService {
         // ====================================================================
         // ─── 12. COMPLAINT ROUTING (Domain-Specific Owners) ─────────────────
         // ====================================================================
-        case 'ACADEMIC_COMPLAINT_SUBMITTED': {
+        case 'ACADEMIC_COMPLAINT_SUBMITTED':
+        case 'COMPLAINT_ACADEMIC': {
           // 1. Current Operating Department HOD (Primary Owner)
           if (event.departmentId) {
             const hodUserId = await this.findDepartmentHod(event.departmentId);
             if (hodUserId) recipients.add(hodUserId);
           }
-          // 2. A&A Dean (Oversight / Escalation)
-          const aaDeans = await this.findUsersByRole(['ADMISSION_DEAN', 'Admission Dean', 'A&A Dean']);
-          aaDeans.forEach((d) => recipients.add(d));
+          // 2. A&A Dean (Only if escalation configured)
+          if (event.priority === 'HIGH' || event.priority === 'CRITICAL' || event.metadata?.escalated) {
+            const aaDeans = await this.findUsersByRole(['ADMISSION_DEAN', 'Admission Dean', 'A&A Dean']);
+            aaDeans.forEach((d) => recipients.add(d));
+          }
           break;
         }
 
+        case 'COMPLAINT_HOSTEL': {
+          // Warden primary, A&A escalation if configured
+          const wardens = await this.findUsersByRole(['HOSTEL_WARDEN', 'Hostel Warden']);
+          wardens.forEach((w) => recipients.add(w));
+          if (event.priority === 'HIGH' || event.priority === 'CRITICAL') {
+            const aaDeans = await this.findUsersByRole(['ADMISSION_DEAN', 'Admission Dean', 'A&A Dean']);
+            aaDeans.forEach((d) => recipients.add(d));
+          }
+          break;
+        }
+
+        case 'COMPLAINT_IT':
         case 'ADMINISTRATIVE_COMPLAINT':
         case 'ADMINISTRATIVE_GRIEVANCE':
         case 'GRIEVANCE_CREATED':
-        case 'ADMISSION_VERIFICATION_REQUIRED':
-        case 'APPLICATION_STATUS_ESCALATED':
-        case 'BONAFIDE_CERTIFICATE_ESCALATED':
         case 'STUDENT_SERVICE_REQUEST': {
-          const aaDeans = await this.findUsersByRole(['ADMISSION_DEAN', 'Admission Dean', 'A&A Dean']);
-          aaDeans.forEach((d) => recipients.add(d));
+          // College Admin + Requester
+          const collegeAdmins = await this.findUsersByRole(['COLLEGE_ADMIN', 'College Admin', 'Super Admin']);
+          collegeAdmins.forEach((a) => recipients.add(a));
+          if (event.actorUserId) recipients.add(event.actorUserId);
           break;
         }
 
@@ -605,6 +730,7 @@ export class RecipientResolverService {
         case 'STAFF_EXIT_IT_CLEARANCE': {
           const collegeAdmins = await this.findUsersByRole(['COLLEGE_ADMIN', 'College Admin', 'Super Admin']);
           collegeAdmins.forEach((a) => recipients.add(a));
+          if (event.actorUserId) recipients.add(event.actorUserId);
           break;
         }
 
@@ -612,6 +738,7 @@ export class RecipientResolverService {
         // ─── 14. IQAC QUALITY & COMPLIANCE ──────────────────────────────────
         // ====================================================================
         case 'EVIDENCE_SUBMITTED':
+        case 'IQAC_EVIDENCE_SUBMITTED':
         case 'EVIDENCE_RETURNED':
         case 'EVIDENCE_MISSING':
         case 'APPRAISAL_SUBMITTED':
@@ -621,6 +748,7 @@ export class RecipientResolverService {
         case 'RESEARCH_PUBLICATION_VERIFIED':
         case 'DEPARTMENT_QUALITY_ISSUE':
         case 'STAFF_EXIT_IQAC_CLEARANCE': {
+          // Responsible IQAC reviewer + Contributor after action
           const iqacUsers = await this.findUsersByRole([
             'IQAC_DEAN',
             'IQAC Dean',
@@ -630,12 +758,40 @@ export class RecipientResolverService {
             'IQAC Documentation Officer',
           ]);
           iqacUsers.forEach((u) => recipients.add(u));
+          if (event.actorUserId) recipients.add(event.actorUserId);
           break;
         }
 
         // ====================================================================
-        // ─── 15. VP & PRINCIPAL ESCALATIONS ─────────────────────────────────
+        // ─── 15. VP & PRINCIPAL ESCALATIONS & DELEGATIONS ───────────────────
         // ====================================================================
+        case 'PRINCIPAL_DELEGATION_CREATED':
+        case 'PRINCIPAL_DELEGATION_ACTIVATED': {
+          // Selected VP + Principal
+          if (event.metadata?.actingUserId) recipients.add(event.metadata.actingUserId);
+          const principals = await this.findUsersByRole(['PRINCIPAL', 'Principal']);
+          principals.forEach((p) => recipients.add(p));
+          break;
+        }
+
+        case 'DELEGATED_REQUEST_PENDING': {
+          // VP only if inside delegated scope + Principal depending on policy
+          const execs = await this.resolvePrincipalOrDelegatedVp(event);
+          execs.forEach((e) => recipients.add(e));
+          break;
+        }
+
+        case 'DELEGATION_EXPIRY':
+        case 'PRINCIPAL_DELEGATION_EXPIRED':
+        case 'PRINCIPAL_DELEGATION_REVOKED':
+        case 'DELEGATION_REVOKED': {
+          // VP + Principal
+          if (event.metadata?.actingUserId) recipients.add(event.metadata.actingUserId);
+          const principals = await this.findUsersByRole(['PRINCIPAL', 'Principal']);
+          principals.forEach((p) => recipients.add(p));
+          break;
+        }
+
         case 'ESCALATED_APPROVAL':
         case 'ACADEMIC_RISK_ESCALATION':
         case 'TIMETABLE_DISRUPTION':
@@ -644,8 +800,8 @@ export class RecipientResolverService {
         case 'GRIEVANCE_ESCALATION':
         case 'MAINTENANCE_SLA_BREACH':
         case 'OVERDUE_HIGH_PRIORITY_TASK': {
-          const vps = await this.findUsersByRole(['VICE_PRINCIPAL', 'Vice Principal', 'VP', 'ACTING_PRINCIPAL']);
-          vps.forEach((v) => recipients.add(v));
+          const execUsers = await this.resolvePrincipalOrDelegatedVp(event);
+          execUsers.forEach((v) => recipients.add(v));
           break;
         }
 
@@ -654,9 +810,7 @@ export class RecipientResolverService {
         case 'GOVERNANCE_APPROVAL_REQUIRED':
         case 'MAJOR_INCIDENT_ALERT':
         case 'PRINCIPAL_TASK_UPDATED':
-        case 'CIRCULAR_DELIVERY_SUMMARY':
-        case 'PRINCIPAL_DELEGATION_ACTIVATED':
-        case 'PRINCIPAL_DELEGATION_EXPIRED': {
+        case 'CIRCULAR_DELIVERY_SUMMARY': {
           const principals = await this.findUsersByRole(['PRINCIPAL', 'Principal']);
           principals.forEach((p) => recipients.add(p));
           break;
@@ -665,6 +819,8 @@ export class RecipientResolverService {
         // ====================================================================
         // ─── 16. TASKS ──────────────────────────────────────────────────────
         // ====================================================================
+        case 'HOD_TASK_ASSIGNED':
+        case 'DEAN_TASK_ASSIGNED':
         case 'TASK_ASSIGNED':
         case 'TASK_UPDATED':
         case 'TASK_COMMENTED':
@@ -677,6 +833,38 @@ export class RecipientResolverService {
           if (event.metadata?.creatorId) recipients.add(event.metadata.creatorId);
           if (event.metadata?.assigneeIds && Array.isArray(event.metadata.assigneeIds)) {
             event.metadata.assigneeIds.forEach((id: string) => recipients.add(id));
+          }
+          const taskId = event.metadata?.taskId || (event.entityType === 'TASK' ? event.entityId : null);
+          if (taskId) {
+            const task = await prisma.task.findUnique({
+              where: { id: taskId },
+              select: { createdById: true, assignees: { select: { assigneeId: true } } },
+            });
+            if (task?.createdById) recipients.add(task.createdById);
+            task?.assignees.forEach((assignee) => recipients.add(assignee.assigneeId));
+          }
+          break;
+        }
+
+        case 'FILE_SHARED':
+        case 'DOCUMENT_SHARED': {
+          const principalType = String(event.metadata?.principalType || '').toUpperCase();
+          const principalId = event.metadata?.principalId;
+          if (principalType === 'ALL_INSTITUTION') {
+            const users = await prisma.user.findMany({ where: { status: 'ACTIVE' }, select: { id: true } });
+            users.forEach((user) => recipients.add(user.id));
+          } else if ((principalType === 'ROLE' || principalType === 'WORKSPACE') && principalId) {
+            const users = await prisma.user.findMany({
+              where: { status: 'ACTIVE', OR: [{ role: { name: principalId } }, { userWorkspaces: { some: { status: 'ACTIVE', OR: [{ roleName: principalId }, { workspaceCode: principalId }] } } }] },
+              select: { id: true },
+            });
+            users.forEach((user) => recipients.add(user.id));
+          } else if (principalType === 'DEPARTMENT' && principalId) {
+            const users = await prisma.user.findMany({ where: { status: 'ACTIVE', OR: [{ departmentId: principalId }, { student: { departmentId: principalId } }, { faculty: { departmentId: principalId } }] }, select: { id: true } });
+            users.forEach((user) => recipients.add(user.id));
+          } else if (principalType === 'SECTION' && principalId) {
+            const students = await prisma.student.findMany({ where: { sectionId: principalId, status: 'ACTIVE', userId: { not: null } }, select: { userId: true } });
+            students.forEach((student) => student.userId && recipients.add(student.userId));
           }
           break;
         }
@@ -954,6 +1142,68 @@ export class RecipientResolverService {
   }
 
   /**
+   * Helper to resolve Operating Department HOD for a student.
+   * Hardened rule: For Year-1 students, route to S&H (Science & Humanities) HOD if configured.
+   * For Year 2+, route to the student's actual department HOD.
+   */
+  public static async resolveStudentOperatingHod(
+    studentId?: string | null,
+    fallbackDepartmentId?: string | null
+  ): Promise<string | null> {
+    try {
+      if (studentId) {
+        const student = await prisma.student.findUnique({
+          where: { id: studentId },
+          select: {
+            departmentId: true,
+            operatingDepartmentId: true,
+            semester: { select: { number: true } },
+          },
+        });
+
+        if (student?.operatingDepartmentId) {
+          const opHod = await this.findDepartmentHod(student.operatingDepartmentId);
+          if (opHod) return opHod;
+        }
+
+        // 1st-Year S&H Routing Rule (Semester 1 or 2)
+        const isFirstYear = student?.semester?.number ? student.semester.number <= 2 : false;
+        if (isFirstYear) {
+          // Look for Science & Humanities (S&H) department
+          const shDept = await prisma.department.findFirst({
+            where: {
+              OR: [
+                { code: { in: ['S&H', 'SH', 'S_H'] } },
+                { name: { contains: 'Science', mode: 'insensitive' } },
+                { name: { contains: 'Humanities', mode: 'insensitive' } },
+              ],
+            },
+            select: { id: true },
+          });
+          if (shDept?.id) {
+            const shHod = await this.findDepartmentHod(shDept.id);
+            if (shHod) return shHod;
+          }
+        }
+
+        // Standard Home Department HOD
+        const deptId = student?.departmentId || fallbackDepartmentId;
+        if (deptId) {
+          return await this.findDepartmentHod(deptId);
+        }
+      }
+
+      if (fallbackDepartmentId) {
+        return await this.findDepartmentHod(fallbackDepartmentId);
+      }
+
+      return null;
+    } catch {
+      return fallbackDepartmentId ? await this.findDepartmentHod(fallbackDepartmentId) : null;
+    }
+  }
+
+  /**
    * Helper to find users matching any of the specified role codes or names.
    */
   public static async findUsersByRole(roleCodesOrNames: string[]): Promise<string[]> {
@@ -968,9 +1218,66 @@ export class RecipientResolverService {
         },
         select: { id: true },
       });
-      return users.map((u) => u.id);
+      return users.map((u: { id: string }) => u.id);
     } catch {
       return [];
     }
   }
+
+  /**
+   * Helper to resolve Principal or VP with valid Active Delegation.
+   * VP is included ONLY IF an active non-expired Principal delegation exists
+   * matching the requested action, scope, and permissions.
+   */
+  public static async resolvePrincipalOrDelegatedVp(event: DomainEvent): Promise<string[]> {
+    const recipients = new Set<string>();
+
+    // 1. Principal always receives executive notifications
+    const principals = await this.findUsersByRole(['PRINCIPAL', 'Principal']);
+    principals.forEach((p: string) => recipients.add(p));
+
+    // 2. VP with active delegation check
+    try {
+      const now = new Date();
+      const activeDelegations = await (prisma as any).principalDelegation.findMany({
+        where: {
+          status: 'ACTIVE',
+          startDate: { lte: now },
+          endDate: { gte: now },
+        },
+      });
+
+      for (const del of activeDelegations) {
+        if (!del?.actingUserId) continue;
+
+        let isScopeValid = true;
+        if (del.delegatedCategories && del.delegatedCategories !== '[]') {
+          try {
+            const categories: string[] = typeof del.delegatedCategories === 'string'
+              ? JSON.parse(del.delegatedCategories)
+              : del.delegatedCategories;
+
+            if (categories.length > 0) {
+              const matches = categories.some(
+                (cat: string) =>
+                  event.eventType.toLowerCase().includes(cat.toLowerCase()) ||
+                  (event.entityType && event.entityType.toLowerCase().includes(cat.toLowerCase()))
+              );
+              if (!matches) isScopeValid = false;
+            }
+          } catch (_) {}
+        }
+
+        if (isScopeValid) {
+          recipients.add(del.actingUserId);
+        }
+      }
+    } catch (err) {
+      logger.warn('[RecipientResolver] Delegation query error:', err);
+    }
+
+    return Array.from(recipients);
+  }
 }
+
+

@@ -1,5 +1,6 @@
 import { prisma } from '../../lib/prisma';
-import { BadRequestException, NotFoundException, ForbiddenException } from '../../utils/exceptions';
+import { BadRequestException, NotFoundException, ForbiddenException, ConflictException } from '../../utils/exceptions';
+import crypto from 'crypto';
 import { logger } from '../../utils/logger';
 import { NotificationService } from '../notifications/notification.service';
 import { broadcastRBACUpdate } from '../../lib/socket';
@@ -24,6 +25,21 @@ export interface SubmitLeaveInput {
 }
 
 export class StudentLeaveService {
+  private assertResolvedWorkflowStudent(workflow: { id: string; studentId?: string | null; student?: any }): void {
+    if (workflow.studentId && workflow.student) return;
+    const correlationId = crypto.randomUUID();
+    logger.error({
+      correlationId,
+      workflowRequestId: workflow.id,
+      studentId: workflow.studentId || null,
+      issue: 'STUDENT_RELATION_UNRESOLVED',
+    });
+    throw new ConflictException(
+      'This leave request references a student record that could not be resolved. Action has been blocked.',
+      { code: 'STUDENT_RELATION_UNRESOLVED', correlationId },
+    );
+  }
+
   /**
    * Resolve active HOD User ID for a given Department ID
    */
@@ -173,6 +189,19 @@ export class StudentLeaveService {
     // Resolve assigned HOD
     const hodInfo = student.departmentId ? await this.resolveDepartmentHodUser(student.departmentId) : null;
 
+    // Determine if request should bypass Level 1 Mentor review and auto-promote to HOD
+    const isInstitutionalOd = input.type === 'ON_DUTY' && [
+      'SPORTS', 'CULTURAL', 'PLACEMENT', 'WORKSHOP',
+      'INDUSTRIAL_VISIT', 'COMPETITION', 'INTERNSHIP'
+    ].includes(input.requestCategory?.toUpperCase() || '');
+
+    const shouldBypassMentor = !!input.isEmergency || isInstitutionalOd || !mentorFacultyId;
+    const bypassReason = input.isEmergency
+      ? 'Auto-promoted to HOD (Emergency request)'
+      : isInstitutionalOd
+      ? 'Auto-promoted to HOD (Institutional On-Duty)'
+      : 'Auto-promoted to HOD (No active mentor assigned)';
+
     // Generate Request Number (e.g. SL-2026-1002)
     const count = await prisma.studentLeaveRequest.count();
     const requestNumber = `SL-${new Date().getFullYear()}-${(count + 1).toString().padStart(4, '0')}`;
@@ -197,16 +226,19 @@ export class StudentLeaveService {
           eventLocation: input.eventLocation,
           emergencyContact: input.emergencyContact || student.parentPhone || student.phone,
           attachmentUrl: input.attachmentUrl,
-          status: 'PENDING_MENTOR',
-          workflowStatus: 'PENDING_MENTOR',
+          status: shouldBypassMentor ? 'PENDING_HOD' : 'PENDING_MENTOR',
+          workflowStatus: shouldBypassMentor ? 'PENDING_HOD' : 'PENDING_MENTOR',
           studentStatus: 'SUBMITTED',
-          mentorStatus: 'PENDING',
+          mentorStatus: shouldBypassMentor ? 'AUTO_APPROVED' : 'PENDING',
+          mentorApprovedAt: shouldBypassMentor ? new Date() : null,
+          mentorRemarks: shouldBypassMentor ? bypassReason : null,
           hodStatus: 'PENDING',
           finalStatus: 'PENDING',
           priority: input.isEmergency ? 'URGENT' : 'NORMAL',
           isEmergency: !!input.isEmergency,
           mentorId: mentorFacultyId || student.mentorId,
           hodId: hodInfo?.hodFacultyId,
+          forwardedToHodAt: shouldBypassMentor ? new Date() : null,
         },
         include: {
           student: { select: { id: true, firstName: true, lastName: true, admissionNo: true, departmentId: true } },
@@ -222,10 +254,24 @@ export class StudentLeaveService {
           performedBy: userId,
           performedRole: 'STUDENT',
           fromStatus: 'DRAFT',
-          toStatus: 'PENDING_MENTOR',
-          remarks: input.reason,
+          toStatus: shouldBypassMentor ? 'PENDING_HOD' : 'PENDING_MENTOR',
+          remarks: shouldBypassMentor ? `Auto-promoted: ${bypassReason}` : input.reason,
         }
       });
+
+      if (shouldBypassMentor) {
+        await tx.requestWorkflowHistory.create({
+          data: {
+            requestId: created.id,
+            action: 'AUTO_ENDORSED',
+            performedBy: userId,
+            performedRole: 'SYSTEM',
+            fromStatus: 'PENDING_MENTOR',
+            toStatus: 'PENDING_HOD',
+            remarks: bypassReason,
+          }
+        });
+      }
 
       if (input.attachmentUrl) {
         await tx.requestAttachment.create({
@@ -242,21 +288,37 @@ export class StudentLeaveService {
       return created;
     });
 
-    // Notify Mentor ONLY (Level 1 reviewer)
-    if (mentorUserId) {
+    // Notify appropriate actor (HOD Level 2 or Mentor Level 1)
+    const targetNotifyUserId = shouldBypassMentor ? hodInfo?.hodUserId : mentorUserId;
+    if (targetNotifyUserId) {
       try {
-        const eventType = input.type === 'ON_DUTY' ? 'STUDENT_OD_SUBMITTED' : 'STUDENT_LEAVE_SUBMITTED';
+        const eventType = shouldBypassMentor
+          ? (input.type === 'ON_DUTY' ? 'STUDENT_OD_FORWARDED' : 'STUDENT_LEAVE_FORWARDED')
+          : (input.type === 'ON_DUTY' ? 'STUDENT_OD_SUBMITTED' : 'STUDENT_LEAVE_SUBMITTED');
+        
+        const title = shouldBypassMentor
+          ? `Bypassed Request for HOD: ${student.firstName} ${student.lastName}`
+          : `New ${input.type === 'ON_DUTY' ? 'OD' : 'Leave'} Request: ${student.firstName} ${student.lastName}`;
+
+        const body = shouldBypassMentor
+          ? `Request (${totalDays} day(s)) by ${student.firstName} ${student.lastName} auto-promoted directly to HOD due to emergency/institutional rules.`
+          : `Student ${student.firstName} ${student.lastName} (${student.admissionNo}) submitted a ${input.type === 'ON_DUTY' ? 'On-Duty' : 'Leave'} request (${totalDays} day(s)) for your review.`;
+
+        const deepLinkRoute = shouldBypassMentor
+          ? `/hod/leave-od/${request.id}`
+          : `/faculty/mentor/leave-od/${request.id}`;
+
         await NotificationService.dispatchDomainEvent({
           eventType,
           actorUserId: userId,
           entityType: 'STUDENT_LEAVE_REQUEST',
           entityId: request.id,
-          title: `New ${input.type === 'ON_DUTY' ? 'OD' : 'Leave'} Request: ${student.firstName} ${student.lastName}`,
-          body: `Student ${student.firstName} ${student.lastName} (${student.admissionNo}) submitted a ${input.type === 'ON_DUTY' ? 'On-Duty' : 'Leave'} request (${totalDays} day(s)) for your review.`,
+          title,
+          body,
           priority: input.isEmergency ? 'CRITICAL' : 'HIGH',
           category: 'APPROVALS',
-          deepLinkRoute: `/faculty/mentor/leave-od/${request.id}`,
-          targetUserIds: [mentorUserId],
+          deepLinkRoute,
+          targetUserIds: [targetNotifyUserId],
           metadata: {
             requestId: request.id,
             requestNumber,
@@ -265,13 +327,17 @@ export class StudentLeaveService {
           },
         });
       } catch (err) {
-        logger.warn('Failed to send mentor notification:', err);
+        logger.warn('Failed to dispatch leave approval notification:', err);
       }
     }
 
-    broadcastRBACUpdate({ type: 'APPROVAL_UPDATED', userId: mentorUserId || undefined, payload: { requestId: request.id } });
+    broadcastRBACUpdate({ 
+      type: 'APPROVAL_UPDATED', 
+      userId: targetNotifyUserId || undefined, 
+      payload: { requestId: request.id } 
+    });
 
-    logger.info(`📝 Student Leave Request ${requestNumber} created by ${student.firstName} ${student.lastName}`);
+    logger.info(`📝 Student Leave Request ${requestNumber} created and routed (bypassed: ${shouldBypassMentor}) for ${student.firstName} ${student.lastName}`);
     return request;
   }
 
@@ -436,6 +502,7 @@ export class StudentLeaveService {
 
       broadcastRBACUpdate({ type: 'APPROVAL_UPDATED', userId: hodInfo.hodUserId, payload: { requestId: request.id } });
       broadcastRBACUpdate({ type: 'APPROVAL_UPDATED', userId: request.student.userId || undefined, payload: { requestId: request.id } });
+      broadcastRBACUpdate({ type: 'DEPARTMENT_AVAILABILITY_UPDATED', payload: { departmentId: request.departmentId, requestId: request.id, source: 'STUDENT_LEAVE' } });
 
       return updated;
     } else if (decision === 'REJECT') {
@@ -502,6 +569,7 @@ export class StudentLeaveService {
       }
 
       broadcastRBACUpdate({ type: 'APPROVAL_UPDATED', userId: request.student.userId || undefined, payload: { requestId: request.id } });
+      broadcastRBACUpdate({ type: 'DEPARTMENT_AVAILABILITY_UPDATED', payload: { departmentId: request.departmentId, requestId: request.id, source: 'STUDENT_LEAVE' } });
       return updated;
     } else {
       // RETURN TO STUDENT
@@ -621,6 +689,9 @@ export class StudentLeaveService {
       });
 
       if (wfReq) {
+        // The generic WorkflowRequest schema permits null studentId for other
+        // domains. A request entering the student-leave write path must not.
+        if (!wfReq.facultyRequesterId) this.assertResolvedWorkflowStudent(wfReq);
         assertDepartmentAuthority(wfReq.student?.departmentId || wfReq.facultyRequester?.departmentId);
         const normAction = (action || '').toUpperCase().replace(/-/g, '_');
         let wfNextStep = wfReq.currentStep;
@@ -894,6 +965,7 @@ export class StudentLeaveService {
     }
 
     broadcastRBACUpdate({ type: 'APPROVAL_UPDATED', userId: request.student.userId || undefined, payload: { requestId: request.id } });
+    broadcastRBACUpdate({ type: 'DEPARTMENT_AVAILABILITY_UPDATED', payload: { departmentId: request.departmentId, requestId: request.id, source: 'STUDENT_LEAVE' } });
 
     return updated;
   }
@@ -1342,6 +1414,8 @@ export class StudentLeaveService {
     });
 
     if (wfReq) {
+      this.assertResolvedWorkflowStudent(wfReq);
+      const resolvedStudent = wfReq.student!;
       await this.assertCanViewRequest(userId, wfReq.studentId, null, wfReq.student?.departmentId);
       return {
         id: wfReq.id,
@@ -1355,20 +1429,14 @@ export class StudentLeaveService {
         status: wfReq.status,
         workflowStatus: wfReq.status,
         createdAt: wfReq.createdAt.toISOString(),
-        student: wfReq.student ? {
-          id: wfReq.student.id,
-          firstName: wfReq.student.firstName,
-          lastName: wfReq.student.lastName,
-          admissionNo: wfReq.student.admissionNo,
-          department: wfReq.student.department,
-          section: wfReq.student.section,
-          semester: wfReq.student.semester,
-        } : {
-          id: 'STUDENT-MOCK',
-          firstName: 'Student',
-          lastName: 'Requester',
-          admissionNo: 'REG-2026-001',
-          department: { name: 'Computer Science and Engineering' },
+        student: {
+          id: resolvedStudent.id,
+          firstName: resolvedStudent.firstName,
+          lastName: resolvedStudent.lastName,
+          admissionNo: resolvedStudent.admissionNo,
+          department: resolvedStudent.department,
+          section: resolvedStudent.section,
+          semester: resolvedStudent.semester,
         },
         approvals: [],
         workflowHistory: [],

@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { prisma } from '../../lib/prisma';
 import { logger } from '../../utils/logger';
 import { ForbiddenException, NotFoundException } from '../../utils/exceptions';
+import { profileImageDescriptor } from '../users/profile-media.service';
 
 export class ComplaintController {
   private async resolveComplaintScope(user: any) {
@@ -198,13 +199,13 @@ export class ComplaintController {
               department: { select: { name: true, code: true } },
               program: { select: { name: true, code: true } },
               semester: { select: { name: true } },
-              user: { select: { profilePhoto: true, email: true } }
+              user: { select: { id: true, profilePhoto: true, profileImageFileId: true, profileImageFile: true, email: true } }
             }
           },
           faculty: {
             include: {
               department: { select: { name: true, code: true } },
-              user: { select: { profilePhoto: true, email: true } }
+              user: { select: { id: true, profilePhoto: true, profileImageFileId: true, profileImageFile: true, email: true } }
             }
           }
         },
@@ -230,7 +231,7 @@ export class ComplaintController {
           submittedByName = `${t.student.firstName} ${t.student.lastName}`;
           departmentName = t.student.department?.name || null;
           departmentCode = t.student.department?.code || null;
-          userPhoto = t.student.user?.profilePhoto || null;
+          userPhoto = t.student.user ? profileImageDescriptor(t.student.user).url : null;
           userEmail = t.student.user?.email || t.student.email || null;
           userPhone = t.student.phone || null;
           programName = t.student.program?.name || null;
@@ -241,7 +242,7 @@ export class ComplaintController {
           submittedByName = `${t.faculty.firstName} ${t.faculty.lastName}`;
           departmentName = t.faculty.department?.name || null;
           departmentCode = t.faculty.department?.code || null;
-          userPhoto = t.faculty.user?.profilePhoto || null;
+          userPhoto = t.faculty.user ? profileImageDescriptor(t.faculty.user).url : null;
           userEmail = t.faculty.user?.email || t.faculty.email || null;
           userPhone = t.faculty.phone || null;
           employeeId = t.faculty.employeeId || null;

@@ -1,6 +1,7 @@
-import React, { createContext, useContext, useEffect, useRef, useState, useCallback } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { Capacitor, SystemBars, SystemBarsStyle, SystemBarType } from '@capacitor/core';
 import { StatusBar, Style } from '@capacitor/status-bar';
+import { App } from '@capacitor/app';
 
 /*
   CAMPUSOS THEME SYSTEM v2
@@ -39,24 +40,28 @@ function resolveTheme(preference: ThemePreference): ResolvedTheme {
 // Track whether StatusBar.show() has been called this session to avoid Logcat spam
 let _statusBarShownOnce = false;
 
-async function applyNativeStatusBar(resolved: ResolvedTheme, lastApplied: string | null): Promise<void> {
+/**
+ * Universal Native System Bars Synchronization Utility
+ * Synchronizes Android and iOS status bar & navigation bar styles with the resolved theme.
+ */
+export async function syncNativeSystemBars(resolved: ResolvedTheme): Promise<void> {
   if (!Capacitor.isNativePlatform()) return;
-  // Skip if already applied the same resolved theme — avoids repeated Logcat calls
-  if (resolved === lastApplied) return;
   try {
     const isDark = resolved === 'dark';
 
-    // 1. Ensure status bar is visible — only once per session, not on every theme change
+    // 1. Ensure status bar is visible
     if (!_statusBarShownOnce) {
       try {
         await StatusBar.show();
+        await StatusBar.setOverlaysWebView({ overlay: false });
         _statusBarShownOnce = true;
       } catch (_) {}
     }
 
-    // 2. Modern SystemBars plugin API
+    // 2. Modern SystemBars plugin API (Capacitor 8+)
     try {
-      const systemBarStyle = isDark ? SystemBarsStyle.Dark : SystemBarsStyle.Light;
+      // Style describes foreground icon brightness, not the background theme.
+      const systemBarStyle = isDark ? SystemBarsStyle.Light : SystemBarsStyle.Dark;
       await SystemBars.setStyle({ bar: SystemBarType.StatusBar, style: systemBarStyle });
       await SystemBars.setStyle({ bar: SystemBarType.NavigationBar, style: systemBarStyle });
     } catch (_) {}
@@ -64,17 +69,21 @@ async function applyNativeStatusBar(resolved: ResolvedTheme, lastApplied: string
     // 3. StatusBar plugin API for native status bar styling & background color
     try {
       await StatusBar.setStyle({
-        style: isDark ? Style.Dark : Style.Light,
+        style: isDark ? Style.Light : Style.Dark,
       });
       if (Capacitor.getPlatform() === 'android') {
         await StatusBar.setBackgroundColor({
-          color: isDark ? '#020617' : '#ffffff',
+          color: isDark ? '#020617' : '#F7F8FC',
         });
       }
     } catch (_) {}
   } catch (err) {
     console.warn('[Theme] System bar style update failed:', err);
   }
+}
+
+async function applyNativeStatusBar(resolved: ResolvedTheme): Promise<void> {
+  return syncNativeSystemBars(resolved);
 }
 
 function applyDomTheme(resolved: ResolvedTheme): void {
@@ -103,14 +112,12 @@ const ThemeContext = createContext<ThemeContextProps | undefined>(undefined);
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [preference, setPreference] = useState<ThemePreference>(getStoredPreference);
   const [resolved, setResolved] = useState<ResolvedTheme>(() => resolveTheme(getStoredPreference()));
-  const lastAppliedNativeRef = useRef<string | null>(null);
 
   const applyTheme = useCallback(async (pref: ThemePreference) => {
     const res = resolveTheme(pref);
     setResolved(res);
     applyDomTheme(res);
-    await applyNativeStatusBar(res, lastAppliedNativeRef.current);
-    lastAppliedNativeRef.current = res;
+    await applyNativeStatusBar(res);
   }, []);
 
   // Initial apply
@@ -124,7 +131,21 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const mq = window.matchMedia('(prefers-color-scheme: dark)');
     const handler = () => applyTheme('system');
     mq.addEventListener('change', handler);
-    return () => mq.removeEventListener('change', handler);
+
+    return () => {
+      mq.removeEventListener('change', handler);
+    };
+  }, [preference, applyTheme]);
+
+  // Re-assert the resolved system-bar style after every native resume. OEMs may
+  // reset icon contrast even when the user selected an explicit light/dark theme.
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+    let handle: { remove: () => void } | null = null;
+    App.addListener('appStateChange', (state) => {
+      if (state.isActive) window.setTimeout(() => applyTheme(preference), 100);
+    }).then((listener) => { handle = listener; }).catch(() => {});
+    return () => { handle?.remove(); };
   }, [preference, applyTheme]);
 
   const setTheme = useCallback((pref: ThemePreference) => {

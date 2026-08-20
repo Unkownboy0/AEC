@@ -20,10 +20,17 @@ export interface LoginResult {
     lastName: string;
     role: string;
     profilePhoto?: string | null;
+    profileImage?: {
+      fileId?: string | null;
+      url?: string | null;
+      thumbnailUrl?: string | null;
+      version?: string | null;
+    } | null;
     permissions: string[];
     menus: any[];
     forcePasswordChange?: boolean;
     workspaces?: string[];
+    preferences?: object;
   };
 }
 

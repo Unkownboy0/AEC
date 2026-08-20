@@ -19,17 +19,8 @@ export const DepartmentAttendance: React.FC = () => {
         }
       } catch (err) {
         console.error(err);
-        // Use placeholder data if API fails
-        setAttendanceList([
-          { id: '1', studentName: 'Abishek M', registerNo: '717822CS101', totalClasses: 120, attended: 112, percentage: 93.3, semester: 'Semester 6', section: 'A' },
-          { id: '2', studentName: 'Archana S', registerNo: '717822CS105', totalClasses: 120, attended: 108, percentage: 90.0, semester: 'Semester 6', section: 'A' },
-          { id: '3', studentName: 'Bharath K', registerNo: '717822CS110', totalClasses: 120, attended: 88, percentage: 73.3, semester: 'Semester 6', section: 'B' },
-          { id: '4', studentName: 'Dharshini R', registerNo: '717822CS120', totalClasses: 120, attended: 92, percentage: 76.7, semester: 'Semester 6', section: 'A' },
-          { id: '5', studentName: 'Karthik V', registerNo: '717822CS135', totalClasses: 120, attended: 68, percentage: 56.7, semester: 'Semester 6', section: 'B' },
-          { id: '6', studentName: 'Lavanya P', registerNo: '717822CS142', totalClasses: 120, attended: 70, percentage: 58.3, semester: 'Semester 6', section: 'A' },
-          { id: '7', studentName: 'Prasath R', registerNo: '717822CS158', totalClasses: 120, attended: 115, percentage: 95.8, semester: 'Semester 6', section: 'B' },
-          { id: '8', studentName: 'Srimathi N', registerNo: '717822CS170', totalClasses: 120, attended: 60, percentage: 50.0, semester: 'Semester 4', section: 'A' },
-        ]);
+        setAttendanceList([]);
+        toast.error('Attendance data could not be loaded.');
       } finally {
         setIsLoading(false);
       }

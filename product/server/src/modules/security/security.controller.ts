@@ -2,7 +2,32 @@ import { Request, Response, NextFunction } from 'express';
 import { prisma } from '../../lib/prisma';
 import { NotFoundException, BadRequestException } from '../../utils/exceptions';
 
+const MOBILE_SECURITY_EVENTS = new Set([
+  'BIOMETRIC_LOCK_ENABLED',
+  'BIOMETRIC_LOCK_DISABLED',
+  'APP_UNLOCK_SUCCESS',
+  'APP_UNLOCK_FAILED',
+]);
+
 export class SecurityController {
+  recordMobileSecurityEvent = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const event = String(req.body?.event || '').toUpperCase();
+      if (!MOBILE_SECURITY_EVENTS.has(event)) throw new BadRequestException('Unsupported mobile security event');
+      await prisma.userActivityLog.create({
+        data: {
+          userId: req.user!.id,
+          action: event,
+          module: 'MOBILE_SECURITY',
+          description: event.replace(/_/g, ' ').toLowerCase(),
+          ipAddress: req.ip,
+          userAgent: req.headers['user-agent'],
+        },
+      });
+      res.status(201).json({ status: 'success' });
+    } catch (error) { next(error); }
+  };
+
   /**
    * Get activity audit logs
    */

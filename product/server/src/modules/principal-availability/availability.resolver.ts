@@ -12,8 +12,9 @@ export class PrincipalAvailabilityResolver {
   static async resolveContext(targetPrincipalUserId?: string): Promise<PrincipalAvailabilityContext> {
     const now = new Date();
 
-    // 1. Locate Principal User ID
-    let principalUserId: string | null = null;
+    try {
+      // 1. Locate Principal User ID
+      let principalUserId: string | null = null;
 
     if (targetPrincipalUserId) {
       const targetUser = await prisma.user.findFirst({
@@ -282,6 +283,7 @@ export class PrincipalAvailabilityResolver {
           },
       delegation: {
         id: activeDelegation.id,
+        principalUserId: activeDelegation.principalUserId,
         startsAt: activeDelegation.startDate.toISOString(),
         endsAt: activeDelegation.endDate.toISOString(),
         reason: activeDelegation.reason,
@@ -298,5 +300,23 @@ export class PrincipalAvailabilityResolver {
       pendingActingRequests,
       latestHandoverId: null,
     };
+  } catch (err: any) {
+    logger.warn(`Principal availability context resolution fallback: ${err?.message || err}`);
+    return {
+      principalStatus: 'AVAILABLE',
+      delegationStatus: 'INACTIVE',
+      actingPrincipal: null,
+      delegation: null,
+      canPrincipalProcessRequests: true,
+      canVpActAsPrincipal: false,
+      permissionVersion: 1,
+      serverTime: now.toISOString(),
+      pendingPrincipalRequests: 0,
+      pendingActingRequests: 0,
+      latestHandoverId: null,
+    };
   }
 }
+}
+
+

@@ -4,7 +4,7 @@ import { DigitalIdService } from './digital-id.service';
 import { auditRequest, UserPayload, SecurityHelper } from '../../utils/security';
 import { prisma } from '../../lib/prisma';
 import { CircularService } from '../circulars/circular.service';
-import { buildStudentIDCardPDF } from '../../utils/idcard.pdf';
+import { buildStudentIDCardPDF, generateStudentIDCardPdfBuffer } from '../../utils/idcard.pdf';
 import { generateAttendanceReportPdf } from '../../utils/attendance.pdf';
 import jwt from 'jsonwebtoken';
 import { env } from '../../config/env';
@@ -14,6 +14,7 @@ import {
   assertComplaintArchiveAccess,
   assertEnterpriseBulkAccess,
 } from './enterprise-authorization';
+import { profileImageDescriptor } from '../users/profile-media.service';
 
 const bulkActionSchema = z.object({
   moduleKey: z.enum(['students', 'faculty', 'exams', 'library', 'transport', 'hostel', 'tickets']),
@@ -341,7 +342,7 @@ export class EnterpriseController {
       }
 
       // 3. Fetch Full Student Data with relations
-      const student = await this.service.getStudent(studentId);
+      const student = (await this.service.getStudent(studentId)) as any;
       if (!student) {
         return res.status(404).json({
           status: 'error',
@@ -367,8 +368,8 @@ export class EnterpriseController {
       const duration = student.program?.duration || 4;
       const validUntil = `${year} - ${year + duration}`;
 
-      // 6. Generate the high-resolution PDF
-      const doc = await buildStudentIDCardPDF({
+      // 6. Generate the high-resolution PDF Buffer
+      const buffer = await generateStudentIDCardPdfBuffer({
         student,
         settings,
         registerNo,
@@ -391,10 +392,11 @@ export class EnterpriseController {
       // 8. Stream PDF to response
       const filename = `${student.firstName}_${registerNo}_IDCard.pdf`;
       res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Length', buffer.length.toString());
       res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-      
-      doc.pipe(res);
-      doc.end();
+      res.setHeader('X-Content-Type-Options', 'nosniff');
+      res.setHeader('Cache-Control', 'private, no-store, max-age=0, must-revalidate');
+      res.status(200).send(buffer);
     } catch (error) {
       next(error);
     }
@@ -425,7 +427,7 @@ export class EnterpriseController {
       }
 
       // Fetch student details
-      const student = await this.service.getStudent(studentId);
+      const student = (await this.service.getStudent(studentId)) as any;
       if (!student) {
         return res.status(404).json({ status: 'error', message: 'Student profile not found.' });
       }
@@ -477,7 +479,10 @@ export class EnterpriseController {
       // Send response
       const filename = `${student.firstName}_${registerNo}_Attendance_Report.pdf`;
       res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Length', pdfBuffer.length.toString());
       res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+      res.setHeader('X-Content-Type-Options', 'nosniff');
+      res.setHeader('Cache-Control', 'private, no-store, max-age=0, must-revalidate');
       res.status(200).send(pdfBuffer);
     } catch (error) {
       next(error);
@@ -1408,14 +1413,14 @@ export class EnterpriseController {
   getStudentIdCard = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { id } = req.params;
-      const student = await prisma.student.findUnique({
+      const student = await (prisma.student as any).findUnique({
         where: { id },
         include: {
           department: true,
           semester: true,
           section: true,
           academicYear: true,
-          user: true
+          user: { include: { profileImageFile: true } }
         }
       });
 
@@ -1455,7 +1460,8 @@ export class EnterpriseController {
         status: 'success',
         data: {
           id: student.id,
-          photo: student.user?.profilePhoto || null,
+          photo: student.user ? profileImageDescriptor(student.user).url : null,
+          profileImage: student.user ? profileImageDescriptor(student.user) : null,
           name: `${student.firstName} ${student.lastName}`,
           registerNo: student.admissionNo, // Maps to admission number as unique student reg identifier
           department: student.department?.name || 'N/A',
@@ -1478,11 +1484,11 @@ export class EnterpriseController {
   getFacultyIdCard = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { id } = req.params;
-      const faculty = await prisma.faculty.findUnique({
+      const faculty = await (prisma.faculty as any).findUnique({
         where: { id },
         include: {
           department: true,
-          user: true
+          user: { include: { profileImageFile: true } }
         }
       });
 
@@ -1522,7 +1528,8 @@ export class EnterpriseController {
         status: 'success',
         data: {
           id: faculty.id,
-          photo: faculty.user?.profilePhoto || null,
+          photo: faculty.user ? profileImageDescriptor(faculty.user).url : null,
+          profileImage: faculty.user ? profileImageDescriptor(faculty.user) : null,
           name: `${faculty.firstName} ${faculty.lastName}`,
           employeeId: faculty.employeeId,
           department: faculty.department?.name || 'N/A',
@@ -1569,13 +1576,14 @@ export class EnterpriseController {
       // Fetch latest profile info
       let profileDetails: any = null;
       if (decoded.type === 'STUDENT') {
-        const student = await prisma.student.findUnique({
+        const student = await (prisma.student as any).findUnique({
           where: { id: decoded.id },
-          include: { department: true, user: true }
+          include: { department: true, user: { include: { profileImageFile: true } } }
         });
         if (student) {
           profileDetails = {
-            photo: student.user?.profilePhoto || null,
+            photo: student.user ? profileImageDescriptor(student.user).url : null,
+            profileImage: student.user ? profileImageDescriptor(student.user) : null,
             name: `${student.firstName} ${student.lastName}`,
             code: student.admissionNo,
             department: student.department?.name || 'N/A',
@@ -1583,13 +1591,14 @@ export class EnterpriseController {
           };
         }
       } else {
-        const faculty = await prisma.faculty.findUnique({
+        const faculty = await (prisma.faculty as any).findUnique({
           where: { id: decoded.id },
-          include: { department: true, user: true }
+          include: { department: true, user: { include: { profileImageFile: true } } }
         });
         if (faculty) {
           profileDetails = {
-            photo: faculty.user?.profilePhoto || null,
+            photo: faculty.user ? profileImageDescriptor(faculty.user).url : null,
+            profileImage: faculty.user ? profileImageDescriptor(faculty.user) : null,
             name: `${faculty.firstName} ${faculty.lastName}`,
             code: faculty.employeeId,
             department: faculty.department?.name || 'N/A',
@@ -1652,10 +1661,10 @@ export class EnterpriseController {
   getStudentFullProfile = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const studentId = req.params.id;
-      const student = await prisma.student.findUnique({
+      const student = await (prisma.student as any).findUnique({
         where: { id: studentId },
         include: {
-          user: { select: { id: true, email: true, status: true, profilePhoto: true } },
+          user: { select: { id: true, email: true, status: true, profilePhoto: true, profileImageFileId: true, profileImageFile: true } },
           department: true,
           program: true,
           course: true,
@@ -1683,7 +1692,8 @@ export class EnterpriseController {
         return res.status(404).json({ status: 'error', message: 'Student profile not found.' });
       }
 
-      res.status(200).json({ status: 'success', data: student });
+      const profileImage = student.user ? profileImageDescriptor(student.user) : null;
+      res.status(200).json({ status: 'success', data: { ...student, user: student.user ? { ...student.user, profilePhoto: profileImage?.url, profileImage } : null } });
     } catch (error) {
       next(error);
     }
@@ -1692,10 +1702,10 @@ export class EnterpriseController {
   getFacultyFullProfile = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const facultyId = req.params.id;
-      const faculty = await prisma.faculty.findUnique({
+      const faculty = await (prisma.faculty as any).findUnique({
         where: { id: facultyId },
         include: {
-          user: { select: { id: true, email: true, status: true, profilePhoto: true, role: true } },
+          user: { select: { id: true, email: true, status: true, profilePhoto: true, profileImageFileId: true, profileImageFile: true, role: true } },
           department: true,
           assignedSubjects: true,
           subjectAssignments: { include: { subject: true, section: true } },
@@ -1710,7 +1720,8 @@ export class EnterpriseController {
         return res.status(404).json({ status: 'error', message: 'Faculty profile not found.' });
       }
 
-      res.status(200).json({ status: 'success', data: faculty });
+      const profileImage = faculty.user ? profileImageDescriptor(faculty.user) : null;
+      res.status(200).json({ status: 'success', data: { ...faculty, user: faculty.user ? { ...faculty.user, profilePhoto: profileImage?.url, profileImage } : null } });
     } catch (error) {
       next(error);
     }

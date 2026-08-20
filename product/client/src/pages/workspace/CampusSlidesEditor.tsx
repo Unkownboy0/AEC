@@ -104,7 +104,8 @@ const SlideThumbnail: React.FC<{ slide: Slide; index: number; isActive: boolean;
 // ─── Campus Slides Editor ─────────────────────────────────────────────────────
 
 const CampusSlidesEditor: React.FC = () => {
-  const { id } = useParams<{ id: string }>();
+  const params = useParams<{ id?: string; documentId?: string }>();
+  const id = params.id || params.documentId;
   const { user } = useAuth();
   const navigate = useNavigate();
 

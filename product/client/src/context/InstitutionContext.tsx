@@ -17,6 +17,7 @@ import React, {
   type ReactNode,
 } from 'react';
 import { BrandingService, DEFAULT_BRANDING } from '../services/brandingService';
+import { API_BASE_URL } from '../config/api-config';
 
 export interface InstitutionBranding {
   /** Official institution name — use everywhere the institution name appears */
@@ -106,7 +107,9 @@ export function InstitutionProvider({ children, apiBase = '' }: InstitutionProvi
   const load = useCallback(async () => {
     try {
       setBranding((prev) => ({ ...prev, isLoading: true, hasError: false }));
-      const res = await fetch(`${apiBase}/api/settings/branding`, {
+      const baseUrl = apiBase || API_BASE_URL || '/api';
+      const cleanUrl = baseUrl.endsWith('/api') ? `${baseUrl}/settings/branding` : `${baseUrl}/api/settings/branding`;
+      const res = await fetch(cleanUrl, {
         credentials: 'include',
         headers: { Accept: 'application/json' },
       });

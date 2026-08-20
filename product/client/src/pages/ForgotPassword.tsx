@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -8,15 +8,14 @@ import { toast } from '../components/ui/Toast';
 import { Link } from 'react-router-dom';
 import { GraduationCap, ArrowLeft } from 'lucide-react';
 import api from '../lib/axios';
+import { useLanguage } from '../context/LanguageContext';
 
-const forgotPasswordSchema = z.object({
-  email: z.string().email('Please enter a valid email address'),
-});
-
-type ForgotFormValues = z.infer<typeof forgotPasswordSchema>;
+type ForgotFormValues = { email: string };
 
 const ForgotPassword: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
+  const { t } = useLanguage();
+  const forgotPasswordSchema = useMemo(() => z.object({ email: z.string().email(t('auth.emailInvalid')) }), [t]);
 
   const {
     register,
@@ -34,64 +33,61 @@ const ForgotPassword: React.FC = () => {
       
       if (response.data?.status === 'success') {
         toast.success(
-          'If the account exists, reset instructions will be sent.',
-          'Reset Link Sent'
+          t('auth.reset.sent'),
+          t('auth.reset.sentTitle')
         );
       }
     } catch (err: any) {
       console.error(err);
-      toast.error(err.message || 'Could not send reset link', 'Error');
+      toast.error(t('auth.reset.sendError'), t('common.error'));
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#fafafa] dark:bg-[#09090b] px-4 py-12 transition-colors duration-200">
-      <div className="w-full max-w-md space-y-6">
-        
+    <div className="relative min-h-dvh flex flex-col justify-center items-center bg-surface-secondary dark:bg-[#07090E] px-4 py-6 sm:py-10 pt-safe pb-safe transition-colors duration-200 overflow-x-hidden overflow-y-auto">
+      <div className="relative z-10 w-full max-w-md my-auto space-y-4">
         {/* Card */}
-        <div className="bg-white dark:bg-[#0c0c0e] border border-neutral-200/80 dark:border-neutral-800/80 p-8 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)] animate-in fade-in-50 duration-200">
-          
+        <div className="bg-surface dark:bg-[#0E131F] border border-border dark:border-slate-800/90 p-6 sm:p-8 rounded-3xl shadow-xl dark:shadow-2xl backdrop-blur-md animate-in fade-in-50 duration-200">
           {/* Header */}
           <div className="flex flex-col items-center text-center">
-            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary text-primary-foreground mb-4 shadow-[0_4px_12px_rgba(var(--primary),0.2)]">
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary mb-3.5 shadow-sm border border-primary/20">
               <GraduationCap className="h-6 w-6" />
             </div>
-            <h2 className="text-xl font-bold tracking-tight text-neutral-900 dark:text-neutral-50">
-              Reset Password
+            <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-text-primary dark:text-slate-50">
+              {t('auth.reset.title')}
             </h2>
-            <p className="mt-1.5 text-xs text-neutral-500 dark:text-neutral-400 max-w-xs leading-relaxed">
-              Enter your registered email address and we will generate a password recovery link
+            <p className="mt-1 text-xs text-text-muted dark:text-slate-400 max-w-xs leading-relaxed">
+              {t('auth.reset.description')}
             </p>
           </div>
 
           {/* Form */}
-          <form onSubmit={handleSubmit(onSubmit)} className="mt-8 space-y-5">
+          <form onSubmit={handleSubmit(onSubmit)} className="mt-6 space-y-5">
             <Input
-              label="Email Address"
+              label={t('auth.email')}
               type="email"
               placeholder="your.email@institution.ac.in"
               error={errors.email?.message}
               {...register('email')}
             />
 
-            <Button type="submit" className="w-full h-11 text-xs" isLoading={isLoading}>
-              Send Recovery Link
+            <Button type="submit" className="w-full h-11 text-xs font-bold shadow-md" isLoading={isLoading}>
+              {t('auth.reset.send')}
             </Button>
           </form>
 
           {/* Back to Login */}
-          <div className="mt-6 border-t border-neutral-100 dark:border-neutral-800/60 pt-4 flex justify-center">
+          <div className="mt-6 border-t border-border/50 dark:border-slate-800/80 pt-4 flex justify-center">
             <Link
               to="/login"
-              className="inline-flex flex-wrap items-center gap-1.5 text-xs font-semibold text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300 transition-colors"
+              className="inline-flex items-center gap-1.5 text-xs font-semibold text-text-muted hover:text-text-primary transition-colors cursor-pointer"
             >
-              <ArrowLeft className="h-4 w-4" />
-              Back to Sign In
+              <ArrowLeft className="rtl-mirror h-4 w-4" />
+              {t('auth.backToSignIn')}
             </Link>
           </div>
-
         </div>
       </div>
     </div>

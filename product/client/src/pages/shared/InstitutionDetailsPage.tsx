@@ -127,20 +127,7 @@ export const InstitutionDetailsPage: React.FC = () => {
       setLoading(false);
     }
 
-    // Real Database Staff Accounts Sync Fallback
-    setMembers([
-      { id: 'usr-vp-01', name: 'Dr. Meenakshi Sundharam', code: 'EMP-VP-01', role: 'VP', department: 'Executive Operations', departmentCode: 'VP', email: 'vp@geetorus.com', phone: '+91 98765 10000', status: 'ACTIVE', details: 'Vice Principal & Academic Operations Director' },
-      { id: 'usr-dean-01', name: 'Dr. Rajesh Kannan', code: 'EMP-DEAN-01', role: 'DEAN', department: 'Academic Affairs', departmentCode: 'ACAD', email: 'academic.dean@geetorus.com', phone: '+91 98765 10002', status: 'ACTIVE', details: 'Academic Governance & Curriculum Council Head' },
-      { id: 'usr-iqac-01', name: 'Dr. Swaminathan Iyer', code: 'EMP-IQAC-01', role: 'DEAN', department: 'IQAC & Accreditation', departmentCode: 'IQAC', email: 'iqac.dean@geetorus.com', phone: '+91 98765 10003', status: 'ACTIVE', details: 'NAAC & NBA Accreditation Quality Council' },
-      { id: 'usr-hod-sh', name: 'Dr. S. H. Raman', code: 'EMP-HOD-SH', role: 'HOD', department: 'Science & Humanities', departmentCode: 'S&H', email: 'sh.head@geetorus.com', phone: '+91 98765 20010', status: 'ACTIVE', details: 'Head of Science & Humanities • 2 Faculty • 2 Students' },
-      { id: 'usr-hod-me-phd', name: 'Dr. K. R. Nithyanandan', code: 'EMP-HOD-ME-PHD', role: 'HOD', department: 'ME & PhD Research (Shared HOD)', departmentCode: 'ME', email: 'me_phd.head@geetorus.com', phone: '+91 98765 20011', status: 'ACTIVE', details: 'Shared Head of Department for ME (Master of Engg) & PhD Research' },
-      { id: 'usr-hod-aids', name: 'Dr. AI&DS Head', code: 'EMP-HOD-AIDS', role: 'HOD', department: 'Artificial Intelligence & Data Science', departmentCode: 'AI&DS', email: 'aids.head@geetorus.com', phone: '+91 98765 20012', status: 'ACTIVE', details: 'Head of AI & Data Science Department' },
-      { id: 'usr-hod-cse', name: 'John Doe', code: 'EMP-HOD-CSE', role: 'HOD', department: 'Computer Science & Engg', departmentCode: 'CSE', email: 'cse.head@geetorus.com', phone: '+91 98765 20001', status: 'ACTIVE', details: 'Head of Computer Science & Engineering' },
-      { id: 'usr-fac-sh1', name: 'S&H Physics Faculty 1', code: 'EMP-F1-SH', role: 'FACULTY', department: 'Science & Humanities', departmentCode: 'S&H', email: 'fac1.sh@geetorus.com', phone: '+91 98765 30001', status: 'ACTIVE', details: 'Assistant Professor • Physics' },
-      { id: 'usr-fac-sh2', name: 'S&H Chemistry Faculty 2', code: 'EMP-F2-SH', role: 'FACULTY', department: 'Science & Humanities', departmentCode: 'S&H', email: 'fac2.sh@geetorus.com', phone: '+91 98765 30002', status: 'ACTIVE', details: 'Assistant Professor • Chemistry' },
-      { id: 'usr-fac-01', name: 'Ada Lovelace', code: 'EMP-FAC-01', role: 'FACULTY', department: 'Computer Science & Engg', departmentCode: 'CSE', email: 'ada.lovelace@geetorus.com', phone: '+91 98765 20002', status: 'ACTIVE', details: 'Senior Faculty • Data Structures & Algorithms' },
-      { id: 'usr-fac-02', name: 'CSE Academic Mentor 1', code: 'EMP-MTR-01', role: 'FACULTY', department: 'Computer Science & Engg', departmentCode: 'CSE', email: 'mentor1.cse@geetorus.com', phone: '+91 98765 20003', status: 'ACTIVE', details: 'Faculty Mentor & Academic Advisor' },
-    ]);
+    setMembers([]);
   };
 
   useEffect(() => {

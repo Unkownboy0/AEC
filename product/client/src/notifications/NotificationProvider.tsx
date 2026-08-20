@@ -15,8 +15,11 @@ import { Bell, ArrowRight, X, Sparkles } from 'lucide-react';
 import api from '../lib/axios';
 import { useAuth } from '../context/AuthContext';
 import { resolveNotificationRoute } from './notification-router';
+import { env } from '../shared/config/environment';
 import { setPendingDeepLink, consumePendingDeepLink } from '../platform/pending-deep-link';
 import { initFirebaseAnalytics, requestWebFcmToken, onForegroundWebMessage } from '../lib/firebase';
+import { Avatar } from '../design-system/primitives/Avatar/Avatar';
+import { resolveAssetUrl } from '../utils/assets';
 import type {
   AppNotification,
   NotificationMeta,
@@ -76,6 +79,18 @@ function triggerHapticNotification() {
   }
 }
 
+export interface BadgeSummary {
+  unreadNotifications: number;
+  pendingApprovals: number;
+  pendingLeaveRequests: number;
+  pendingTasks: number;
+  unreadCirculars: number;
+  unreadMessages: number;
+  pendingAssignments: number;
+  pendingFees: number;
+  [key: string]: number;
+}
+
 export interface ActiveNotificationToast {
   id: string | number;
   title: string;
@@ -83,12 +98,19 @@ export interface ActiveNotificationToast {
   eventType?: string;
   entityId?: string;
   deepLinkRoute?: string;
+  senderAvatar?: string;
+  senderName?: string;
+  senderRole?: string;
   createdAt: number;
 }
 
 interface NotificationContextValue {
   notifications: AppNotification[];
   unreadCount: number;
+  badges: BadgeSummary;
+  getBadgeCount: (key?: string) => number;
+  refetchBadges: () => Promise<void>;
+  decrementBadge: (key: string, amount?: number) => void;
   meta: NotificationMeta | null;
   isLoading: boolean;
   fetchNotifications: (page?: number) => Promise<void>;
@@ -98,6 +120,9 @@ interface NotificationContextValue {
   clearAllNotifications: () => Promise<void>;
   triggerTestNotification: (title?: string, message?: string) => Promise<void>;
   deviceToken: string | null;
+  permissionStatus: string;
+  requestPushPermission: () => Promise<string>;
+  openDeviceSettings: () => Promise<void>;
 }
 
 const NotificationContext = createContext<NotificationContextValue | undefined>(undefined);
@@ -105,36 +130,29 @@ const NotificationContext = createContext<NotificationContextValue | undefined>(
 /* 3s polling for ultra real-time feel + instant focus sync */
 const UNREAD_POLL_INTERVAL_MS = 3_000;
 
+const DEFAULT_BADGES: BadgeSummary = {
+  unreadNotifications: 0,
+  pendingApprovals: 0,
+  pendingLeaveRequests: 0,
+  pendingTasks: 0,
+  unreadCirculars: 0,
+  unreadMessages: 0,
+  pendingAssignments: 0,
+  pendingFees: 0,
+};
+
 export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user } = useAuth();
   const navigate = useNavigate();
 
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [badges, setBadges] = useState<BadgeSummary>(DEFAULT_BADGES);
   const [meta, setMeta] = useState<NotificationMeta | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [deviceToken, setDeviceToken] = useState<string | null>(null);
+  const [permissionStatus, setPermissionStatus] = useState<string>('default');
   const [activeToast, setActiveToast] = useState<ActiveNotificationToast | null>(null);
-
-  const listenersAttachedRef = useRef(false);
-  const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const toastTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const prevUnreadCountRef = useRef<number | null>(null);
-  const lastRegisteredTokenRef = useRef<string | null>(null);
-  const lastRegisteredUserIdRef = useRef<string | null>(null);
-
-  // ── Auto-dismiss toast banner after 6 seconds ──────────────────────
-  useEffect(() => {
-    if (activeToast) {
-      if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
-      toastTimeoutRef.current = setTimeout(() => {
-        setActiveToast(null);
-      }, 6000);
-    }
-    return () => {
-      if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
-    };
-  }, [activeToast]);
 
   // ── Register push token with backend ──────────────────────────────
   const registerTokenWithBackend = useCallback(async (token: string, platform: 'android' | 'ios' | 'web', targetUserId?: string) => {
@@ -164,9 +182,90 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     }
   }, [user?.id]);
 
+  const openDeviceSettings = useCallback(async () => {
+    if (Capacitor.isNativePlatform()) {
+      try {
+        if (Capacitor.getPlatform() === 'ios') {
+          window.location.href = 'app-settings:';
+        } else {
+          const { App } = await import('@capacitor/app');
+          try {
+            await (App as any).openUrl?.({ url: 'package:com.geetorus.campusos' });
+          } catch {
+            window.location.href = 'app-settings:';
+          }
+        }
+      } catch (e) {
+        console.warn('[Settings] Failed to open device settings:', e);
+      }
+    }
+  }, []);
+
+  const requestPushPermission = useCallback(async (): Promise<string> => {
+    if (Capacitor.isNativePlatform()) {
+      try {
+        const res = await PushNotifications.requestPermissions();
+        setPermissionStatus(res.receive);
+        if (res.receive === 'granted') {
+          await PushNotifications.register();
+        }
+        return res.receive;
+      } catch (err) {
+        console.warn('[PUSH] Native requestPermissions failed:', err);
+        return 'denied';
+      }
+    } else {
+      if (typeof window !== 'undefined' && 'Notification' in window) {
+        try {
+          const perm = await Notification.requestPermission();
+          setPermissionStatus(perm);
+          if (perm === 'granted' && user?.id) {
+            const webToken = await requestWebFcmToken(env.vapidKey);
+            if (webToken) {
+              registerTokenWithBackend(webToken, 'web', user.id);
+            }
+          }
+          return perm;
+        } catch {
+          return 'denied';
+        }
+      }
+      return 'denied';
+    }
+  }, [user?.id, registerTokenWithBackend]);
+
+  const listenersAttachedRef = useRef(false);
+  const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const toastTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const prevUnreadCountRef = useRef<number | null>(null);
+  const lastRegisteredTokenRef = useRef<string | null>(null);
+  const lastRegisteredUserIdRef = useRef<string | null>(null);
+
+  // ── Auto-dismiss toast banner after 6 seconds ──────────────────────
+  useEffect(() => {
+    if (activeToast) {
+      if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
+      toastTimeoutRef.current = setTimeout(() => {
+        setActiveToast(null);
+      }, 6000);
+    }
+    return () => {
+      if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
+    };
+  }, [activeToast]);
+
   // ── Dispatch In-App Toast Banner & Web OS Notification Banner ───────
   const triggerNativeDeviceNotification = useCallback(
-    async (title: string, body: string, type?: string, entityId?: string, deepLink?: string) => {
+    async (
+      title: string,
+      body: string,
+      type?: string,
+      entityId?: string,
+      deepLink?: string,
+      senderAvatar?: string,
+      senderName?: string,
+      senderRole?: string
+    ) => {
       // 1. Play soft audio chime & haptic feedback
       playNotificationChime();
       triggerHapticNotification();
@@ -179,6 +278,9 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
         eventType: type,
         entityId,
         deepLinkRoute: deepLink,
+        senderAvatar,
+        senderName,
+        senderRole,
         createdAt: Date.now(),
       });
 
@@ -187,7 +289,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
         try {
           const notif = new Notification(title, {
             body,
-            icon: '/favicon.ico',
+            icon: senderAvatar ? resolveAssetUrl(senderAvatar) : '/favicon.ico',
             badge: '/favicon.ico',
             tag: `${Date.now()}`,
           });
@@ -230,7 +332,10 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
               latest.message,
               latest.eventType,
               latest.relatedEntityId || undefined,
-              latest.deepLinkRoute || undefined
+              latest.deepLinkRoute || undefined,
+              latest.senderAvatar || latest.actorAvatar,
+              latest.senderName || latest.actorName,
+              latest.senderRole || latest.actorRole
             );
           }
         }
@@ -244,24 +349,60 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     }
   }, [user, triggerNativeDeviceNotification]);
 
-  // ── Fetch unread count ─────────────────────────────────────────────
-  const fetchUnreadCount = useCallback(async () => {
+  // ── Fetch consolidated badge summary ──────────────────────────────
+  const fetchBadges = useCallback(async () => {
     if (!user) return;
     try {
-      const res = await api.get('/notifications/unread-count');
-      if (typeof res.data?.unreadCount === 'number') {
-        const newUnread = res.data.unreadCount;
+      const activeRole = user.activeWorkspace || user.role || '';
+      const res = await api.get(`/notifications/badges?role=${encodeURIComponent(typeof activeRole === 'object' && activeRole !== null ? (activeRole as any).name : activeRole)}`);
+      if (res.data?.data) {
+        const badgeData: BadgeSummary = res.data.data;
+        setBadges(badgeData);
+        const newUnread = typeof badgeData.unreadNotifications === 'number' ? badgeData.unreadNotifications : 0;
 
         if (prevUnreadCountRef.current !== null && newUnread > prevUnreadCountRef.current) {
-          // Unread count jumped — refresh list & trigger alert
+          // Unread count increased — refresh notification list
           fetchNotifications(1);
         } else {
           setUnreadCount(newUnread);
           prevUnreadCountRef.current = newUnread;
         }
       }
-    } catch {}
-  }, [user, fetchNotifications]);
+    } catch {
+      // Fallback to basic unread count endpoint
+      try {
+        const res = await api.get('/notifications/unread-count');
+        if (typeof res.data?.unreadCount === 'number') {
+          const newUnread = res.data.unreadCount;
+          setUnreadCount(newUnread);
+          setBadges((prev) => ({ ...prev, unreadNotifications: newUnread }));
+          prevUnreadCountRef.current = newUnread;
+        }
+      } catch {}
+    }
+  }, [user, user?.activeWorkspace, user?.role, fetchNotifications]);
+
+  const fetchUnreadCount = fetchBadges;
+
+  // ── Get true badge count (0 returns 0, hiding badge completely) ───
+  const getBadgeCount = useCallback((key?: string): number => {
+    if (!key) return 0;
+    const count = (badges as Record<string, number>)[key];
+    return typeof count === 'number' && count > 0 ? count : 0;
+  }, [badges]);
+
+  // ── Decrement badge locally after confirmed action ───────────────
+  const decrementBadge = useCallback((key: string, amount = 1) => {
+    setBadges((prev) => ({
+      ...prev,
+      [key]: Math.max(0, ((prev as Record<string, number>)[key] || 0) - amount),
+    }));
+  }, []);
+
+  // ── Force refetch all badge counters from server ─────────────────
+  const refetchBadges = useCallback(async () => {
+    await Promise.all([fetchNotifications(1), fetchBadges()]);
+  }, [fetchNotifications, fetchBadges]);
 
   // ── Mark as read ───────────────────────────────────────────────────
   const markAsRead = useCallback(async (id: string) => {
@@ -275,6 +416,10 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
         prevUnreadCountRef.current = updated;
         return updated;
       });
+      setBadges((prev) => ({
+        ...prev,
+        unreadNotifications: Math.max(0, (prev.unreadNotifications || 0) - 1),
+      }));
     } catch (err) {
       console.warn('[Notifications] Mark read failed:', err);
     }
@@ -286,6 +431,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
       await api.post('/notifications/read-all');
       setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
       setUnreadCount(0);
+      setBadges((prev) => ({ ...prev, unreadNotifications: 0 }));
       prevUnreadCountRef.current = 0;
     } catch (err) {
       console.warn('[Notifications] Mark all read failed:', err);
@@ -471,19 +617,23 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
         // 3. Permission Check & Request (Handles prompt, prompt-with-rationale, granted, denied)
         let permStatus = await PushNotifications.checkPermissions();
+        setPermissionStatus(permStatus.receive);
         console.log(`[PUSH] permission-check state=${permStatus.receive}`);
 
         if (permStatus.receive === 'prompt' || permStatus.receive === 'prompt-with-rationale') {
           permStatus = await PushNotifications.requestPermissions();
+          setPermissionStatus(permStatus.receive);
           console.log(`[PUSH] permission-requested result=${permStatus.receive}`);
         }
 
         if (permStatus.receive === 'granted') {
+          setPermissionStatus('granted');
           console.log('[PUSH] permission=granted');
           console.log('[PUSH] register-called');
           await PushNotifications.register();
           console.log('[PUSH] ready');
         } else {
+          setPermissionStatus(permStatus.receive);
           console.warn(`[PUSH] permission=${permStatus.receive}`);
         }
 
@@ -542,8 +692,18 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
         initFirebaseAnalytics().catch(() => {});
 
-        if (Notification.permission === 'granted') {
-          const webToken = await requestWebFcmToken();
+        let permission = Notification.permission;
+        setPermissionStatus(permission);
+        if (permission === 'default') {
+          try {
+            permission = await Notification.requestPermission();
+            setPermissionStatus(permission);
+          } catch (_) {}
+        }
+
+        if (permission === 'granted') {
+          setPermissionStatus('granted');
+          const webToken = await requestWebFcmToken(env.vapidKey);
           if (webToken) {
             registerTokenWithBackend(webToken, 'web', user.id);
           }
@@ -576,7 +736,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     };
   }, [user?.id, registerTokenWithBackend, fetchUnreadCount, fetchNotifications, triggerNativeDeviceNotification]);
 
-  // ── Real-time 3s Polling + Window Focus Sync ────────────────────────
+  // ── Real-time 3s Polling + Window Focus & App Resume Sync ──────────
   useEffect(() => {
     if (!user) {
       setNotifications([]);
@@ -597,10 +757,12 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     };
 
     window.addEventListener('focus', handleWindowFocus);
+    window.addEventListener('campusos_app_foreground', handleWindowFocus);
 
     return () => {
       if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
       window.removeEventListener('focus', handleWindowFocus);
+      window.removeEventListener('campusos_app_foreground', handleWindowFocus);
     };
   }, [user, fetchNotifications, fetchUnreadCount]);
 
@@ -608,6 +770,10 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     () => ({
       notifications,
       unreadCount,
+      badges,
+      getBadgeCount,
+      refetchBadges,
+      decrementBadge,
       meta,
       isLoading,
       fetchNotifications,
@@ -617,8 +783,30 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
       clearAllNotifications,
       triggerTestNotification,
       deviceToken,
+      permissionStatus,
+      requestPushPermission,
+      openDeviceSettings,
     }),
-    [notifications, unreadCount, meta, isLoading, fetchNotifications, markAsRead, markAllAsRead, clearNotification, clearAllNotifications, triggerTestNotification, deviceToken]
+    [
+      notifications,
+      unreadCount,
+      badges,
+      getBadgeCount,
+      refetchBadges,
+      decrementBadge,
+      meta,
+      isLoading,
+      fetchNotifications,
+      markAsRead,
+      markAllAsRead,
+      clearNotification,
+      clearAllNotifications,
+      triggerTestNotification,
+      deviceToken,
+      permissionStatus,
+      requestPushPermission,
+      openDeviceSettings,
+    ]
   );
 
   return (
@@ -629,14 +817,28 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
       {activeToast && (
         <div className="fixed top-4 left-4 right-4 sm:left-auto sm:right-6 sm:w-96 z-50 animate-in fade-in slide-in-from-top-4 duration-200">
           <div className="bg-surface/95 dark:bg-surface/95 backdrop-blur-xl border border-primary/30 shadow-2xl rounded-2xl p-4 flex items-start gap-3.5 ring-1 ring-black/5 dark:ring-white/10">
-            <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0 mt-0.5 shadow-xs">
-              <Bell className="w-5 h-5 animate-pulse text-primary" />
-            </div>
+            {activeToast.senderAvatar || activeToast.senderName ? (
+              <div className="relative shrink-0 mt-0.5">
+                <Avatar
+                  src={activeToast.senderAvatar ? resolveAssetUrl(activeToast.senderAvatar) : undefined}
+                  name={activeToast.senderName || 'User'}
+                  size="md"
+                  className="w-10 h-10 ring-2 ring-primary/20 shadow-xs"
+                />
+                <span className="absolute -bottom-1 -right-1 p-0.5 rounded-full bg-primary text-white">
+                  <Bell className="w-2.5 h-2.5" />
+                </span>
+              </div>
+            ) : (
+              <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0 mt-0.5 shadow-xs">
+                <Bell className="w-5 h-5 animate-pulse text-primary" />
+              </div>
+            )}
             <div className="flex-1 min-w-0">
               <div className="flex items-center justify-between gap-2 mb-0.5">
                 <span className="text-[11px] font-extrabold uppercase tracking-wider text-primary bg-primary/10 px-2 py-0.5 rounded-md flex items-center gap-1">
                   <Sparkles className="w-3 h-3 text-amber-500" />
-                  Campus Alert
+                  {activeToast.senderRole ? `${activeToast.senderRole} Alert` : 'Campus Alert'}
                 </span>
                 <span className="text-[10px] text-text-muted">Just now</span>
               </div>
@@ -683,4 +885,9 @@ export const useNotifications = (): NotificationContextValue => {
   const ctx = useContext(NotificationContext);
   if (!ctx) throw new Error('useNotifications must be used within NotificationProvider');
   return ctx;
+};
+
+export const useBadges = () => {
+  const { badges, getBadgeCount, refetchBadges, decrementBadge } = useNotifications();
+  return { badges, getBadgeCount, refetchBadges, decrementBadge };
 };

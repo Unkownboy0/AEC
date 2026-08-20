@@ -15,6 +15,8 @@ import api from '../../lib/axios';
 import { GlobalSearch } from './GlobalSearch';
 import { WorkspaceSwitcher } from './WorkspaceSwitcher';
 import { PrincipalStatusControl } from '../../modules/principal-availability/components/PrincipalStatusControl';
+import { useNotifications } from '../../notifications/NotificationProvider';
+import { ProfileAvatar } from '../profile/ProfileAvatar';
 
 const passwordStrengthRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
 
@@ -53,59 +55,9 @@ const Header: React.FC<HeaderProps> = ({ onOpenPalette }) => {
   const [isSavingPassword, setIsSavingPassword] = useState(false);
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [profileForm, setProfileForm] = useState({ firstName: '', lastName: '', phone: '' });
-  const [unreadCount, setUnreadCount] = useState(0);
-  const [notifications, setNotifications] = useState<any[]>([]);
+  const { notifications, unreadCount } = useNotifications();
   const location = useLocation();
   const navigate = useNavigate();
-
-  // Load and poll notifications
-  useEffect(() => {
-    fetchNotifications();
-    const interval = setInterval(fetchNotifications, 10000); // 10s auto-refresh
-    
-    // Request HTML5 Web Notification permission
-    if ('Notification' in window && Notification.permission === 'default') {
-      Notification.requestPermission();
-    }
-    
-    return () => clearInterval(interval);
-  }, []);
-
-  const fetchNotifications = async () => {
-    try {
-      const res = await api.get('/notifications');
-      if (res.data?.status === 'success') {
-        const list = res.data.data;
-        setNotifications(list);
-        
-        // Count unread system announcements
-        const unread = list.length; 
-        setUnreadCount(unread);
-        
-        // Show real-time browser/toast alerts and native OS notifications
-        const newest = list[0];
-        if (newest && newest.createdAt) {
-          const createdTime = new Date(newest.createdAt).getTime();
-          const lastSeenStr = localStorage.getItem('last_seen_notification');
-          const lastSeen = lastSeenStr ? parseInt(lastSeenStr, 10) : 0;
-          if (createdTime > lastSeen) {
-            localStorage.setItem('last_seen_notification', String(createdTime));
-            // Trigger in-app toast
-            toast.info(newest.content, newest.title);
-
-            // Trigger OS native notification popup
-            if ('Notification' in window && Notification.permission === 'granted') {
-              new Notification(newest.title, {
-                body: newest.content,
-              });
-            }
-          }
-        }
-      }
-    } catch (err) {
-      console.error('[Header notifications fetch] error:', err);
-    }
-  };
 
   const openEditProfile = () => {
     setIsDropdownOpen(false);
@@ -261,7 +213,6 @@ const Header: React.FC<HeaderProps> = ({ onOpenPalette }) => {
           <button
             onClick={() => {
               setIsNotificationsOpen(!isNotificationsOpen);
-              setUnreadCount(0);
             }}
             className="relative rounded-lg p-2 text-muted-foreground hover:bg-muted hover:text-foreground transition-all duration-150"
           >
@@ -314,13 +265,7 @@ const Header: React.FC<HeaderProps> = ({ onOpenPalette }) => {
           )}
         </div>
 
-        {/* Theme Switcher */}
-        <button
-          onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-          className="rounded-lg p-2 text-muted-foreground hover:bg-muted hover:text-foreground transition-all duration-150"
-        >
-          {theme === 'dark' ? <Sun className="h-4.5 w-4.5" /> : <Moon className="h-4.5 w-4.5" />}
-        </button>
+
 
         {/* Profile Dropdown */}
         <div className="relative">
@@ -328,13 +273,7 @@ const Header: React.FC<HeaderProps> = ({ onOpenPalette }) => {
             onClick={() => setIsDropdownOpen(!isDropdownOpen)}
             className="flex items-center gap-2 rounded-lg p-1 text-muted-foreground hover:bg-muted hover:text-foreground transition-all duration-150"
           >
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground font-bold text-xs overflow-hidden">
-              {user?.profilePhoto ? (
-                <img src={user.profilePhoto} className="h-full w-full object-cover" alt="Avatar" />
-              ) : (
-                user ? `${user.firstName[0]}${user.lastName[0]}` : 'U'
-              )}
-            </div>
+            <ProfileAvatar user={user} size="sm" shape="circle" alt="Avatar" />
             <ChevronDown className="h-4 w-4" />
           </button>
 

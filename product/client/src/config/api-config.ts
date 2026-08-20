@@ -1,7 +1,21 @@
 import { Capacitor } from '@capacitor/core';
 import { env } from '../shared/config/environment';
+import { validateApiUrlForDeployment, validateProductionApiUrl, type DeploymentMode } from './api-url-policy';
+export { validateOnPremApiUrl, validateProductionApiUrl } from './api-url-policy';
 
 export const API_BASE_URL = (() => {
+  const isProduction = (import.meta.env.VITE_APP_ENV || 'production') === 'production';
+  if (!isProduction && Capacitor.isNativePlatform() && typeof window !== 'undefined') {
+    const customLanIp = localStorage.getItem('campusos_api_lan_ip');
+    if (customLanIp && customLanIp.trim() !== '') {
+      const cleaned = customLanIp.trim();
+      if (cleaned.startsWith('http://') || cleaned.startsWith('https://')) {
+        return cleaned.endsWith('/api') ? cleaned : `${cleaned}/api`;
+      }
+      return `http://${cleaned}:5000/api`;
+    }
+  }
+
   const envUrl = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_SERVER_BASE_URL || import.meta.env.VITE_API_URL;
   if (envUrl && envUrl.trim() !== '') {
     return envUrl.endsWith('/api') ? envUrl : `${envUrl}/api`;
@@ -32,6 +46,7 @@ export function validateApiConfig(): ApiConfigValidationResult {
   const isNative = Capacitor.isNativePlatform();
   const platform = isNative ? Capacitor.getPlatform() : 'web';
   const isProduction = import.meta.env.VITE_APP_ENV === 'production';
+  const deploymentMode = (import.meta.env.VITE_DEPLOYMENT_MODE || 'INTERNET_PRODUCTION') as DeploymentMode;
 
   if (!API_BASE_URL) {
     return {
@@ -42,14 +57,13 @@ export function validateApiConfig(): ApiConfigValidationResult {
   }
 
   // Production Build Guard: Production environment MUST use public HTTPS API URL
-  const isLocalOrLan = /localhost|127\.0\.0\.1|10\.0\.2\.2|10\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+|172\.(1[6-9]|2\d|3[01])\.\d+\.\d+/i.test(API_BASE_URL);
-  const isPlainHttp = API_BASE_URL.startsWith('http://');
-
-  if (isProduction && (isLocalOrLan || isPlainHttp)) {
+  if (isProduction && !validateApiUrlForDeployment(API_BASE_URL, deploymentMode)) {
     console.error('[Production API Build Guard] Invalid API_BASE_URL for production deployment:', API_BASE_URL);
     return {
       isValid: false,
-      message: `Production Release Guard: CampusOS Production builds cannot use LAN IP or plain HTTP API URL (${API_BASE_URL}). Configure a valid public HTTPS endpoint in VITE_API_BASE_URL.`,
+      message: deploymentMode === 'LOCAL_ON_PREM'
+        ? 'Local on-premise configuration requires an explicit private-LAN IPv4 API endpoint ending in /api.'
+        : 'Internet production requires an explicit public HTTPS API endpoint ending in /api.',
       details: { apiUrl: API_BASE_URL, socketUrl: SOCKET_URL, isNative, platform },
     };
   }

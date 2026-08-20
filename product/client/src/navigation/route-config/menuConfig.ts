@@ -6,6 +6,7 @@ export function getMenuGroupsForRole(role?: string): MenuGroup[] {
   if (normRole.includes('MANAGEMENT') || normRole.includes('GOVERNING')) {
     return [{ label: 'Executive intelligence', items: [
       { id: 'mgmt-dash', path: normRole.includes('GOVERNING') ? '/governing-body/dashboard' : '/management/dashboard', label: 'Institution overview', icon: 'LayoutDashboard' },
+      { id: 'mgmt-workspace', path: '/workspace', label: 'Campus Workspace', icon: 'Sparkles' },
       { id: 'mgmt-reports', path: normRole.includes('GOVERNING') ? '/governing-body/dashboard' : '/management/dashboard', label: 'Strategic reports', icon: 'BarChart3' },
     ] }];
   }
@@ -16,6 +17,7 @@ export function getMenuGroupsForRole(role?: string): MenuGroup[] {
         label: 'Main',
         items: [
           { id: 'st-dash', path: '/student/dashboard', label: 'Dashboard', icon: 'LayoutDashboard' },
+          { id: 'st-workspace', path: '/workspace', label: 'Campus Workspace', icon: 'Sparkles' },
           { id: 'st-timetable', path: '/student/timetable', label: 'Timetable', icon: 'Calendar' },
           { id: 'st-attendance', path: '/student/attendance', label: 'Attendance', icon: 'Clock' },
           { id: 'st-assignments', path: '/student/assignments', label: 'Assignments', icon: 'FileText' },
@@ -47,6 +49,7 @@ export function getMenuGroupsForRole(role?: string): MenuGroup[] {
         label: 'Child Overview',
         items: [
           { id: 'pr-dash', path: '/parent/dashboard', label: 'Child Dashboard', icon: 'LayoutDashboard' },
+          { id: 'pr-workspace', path: '/workspace', label: 'Campus Workspace', icon: 'Sparkles' },
           { id: 'pr-attendance', path: '/parent/attendance', label: 'Attendance', icon: 'Clock' },
           { id: 'pr-marks', path: '/parent/marks', label: 'Academic Performance', icon: 'Award' },
           { id: 'pr-timetable', path: '/parent/timetable', label: 'Timetable', icon: 'Calendar' },
@@ -69,6 +72,7 @@ export function getMenuGroupsForRole(role?: string): MenuGroup[] {
         label: 'Department Workspace',
         items: [
           { id: 'hod-dash', path: '/hod/dashboard', label: 'Dashboard', icon: 'LayoutDashboard' },
+          { id: 'hod-workspace', path: '/workspace', label: 'Campus Workspace', icon: 'Sparkles' },
           { id: 'hod-approvals', path: '/hod/approvals', label: 'Pending Approvals', icon: 'ShieldCheck' },
           { id: 'hod-availability', path: '/hod/department-availability', label: 'Availability Board', icon: 'Building2' },
         ],
@@ -99,6 +103,7 @@ export function getMenuGroupsForRole(role?: string): MenuGroup[] {
         label: 'Executive Control',
         items: [
           { id: 'prn-dash', path: '/principal/dashboard', label: 'Executive Dashboard', icon: 'LayoutDashboard' },
+          { id: 'prn-workspace', path: '/workspace', label: 'Campus Workspace', icon: 'Sparkles' },
           { id: 'prn-approvals', path: '/principal/approval-center', label: 'Approval Desk', icon: 'ShieldCheck' },
           { id: 'prn-availability', path: '/principal/department-availability', label: 'Campus Availability', icon: 'Activity' },
         ],
@@ -122,6 +127,7 @@ export function getMenuGroupsForRole(role?: string): MenuGroup[] {
         label: 'Operations',
         items: [
           { id: 'vp-dash', path: '/vp/dashboard', label: 'VP Operations', icon: 'LayoutDashboard' },
+          { id: 'vp-workspace', path: '/workspace', label: 'Campus Workspace', icon: 'Sparkles' },
           { id: 'vp-approvals', path: '/vp/leave-approvals', label: 'Approvals & Workflows', icon: 'ShieldCheck' },
           { id: 'vp-availability', path: '/vp/department-availability', label: 'Availability Board', icon: 'Activity' },
         ],
@@ -144,6 +150,7 @@ export function getMenuGroupsForRole(role?: string): MenuGroup[] {
       label: 'Academics',
       items: [
         { id: 'fac-dash', path: '/faculty/dashboard', label: 'Dashboard', icon: 'LayoutDashboard' },
+        { id: 'fac-workspace', path: '/workspace', label: 'Campus Workspace', icon: 'Sparkles' },
         { id: 'fac-timetable', path: '/faculty/timetable', label: 'Timetable', icon: 'Calendar' },
         { id: 'fac-attendance', path: '/faculty/attendance', label: 'Mark Attendance', icon: 'Clock' },
         { id: 'fac-assignments', path: '/faculty/assignments', label: 'Assignments', icon: 'FileText' },

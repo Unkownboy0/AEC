@@ -6,6 +6,8 @@ import { credentialService } from './credential.service';
 import { RequesterIdentity, StudentAccessService } from '../security/student-access.service';
 import fs from 'fs';
 import path from 'path';
+import { normalizeProfileGender } from './profile-values';
+import { ProfileMediaService, profileImageDescriptor } from './profile-media.service';
 
 export class UsersService {
   private repo = new UsersRepository();
@@ -44,7 +46,7 @@ export class UsersService {
       }
     }
     
-    return this.repo.findAll({
+    const result = await this.repo.findAll({
       page,
       pageSize,
       search: params.search,
@@ -54,6 +56,14 @@ export class UsersService {
       sortOrder: params.sortOrder === 'asc' ? 'asc' : 'desc',
       scopeWhere,
     });
+    return {
+      ...result,
+      users: result.users.map((entry: any) => {
+        const { passwordHash: _passwordHash, profileImageFile, ...safeUser } = entry;
+        const profileImage = profileImageDescriptor({ ...entry, profileImageFile });
+        return { ...safeUser, profilePhoto: profileImage.url, profileImage };
+      }),
+    };
   }
 
   /**
@@ -67,6 +77,7 @@ export class UsersService {
       },
       include: {
         role: true,
+        profileImageFile: true,
       }
     });
 
@@ -75,6 +86,7 @@ export class UsersService {
     }
 
     const roleName = user.role?.name || 'User';
+    const profileImage = profileImageDescriptor(user as any);
     const isStudent = roleName.toUpperCase().includes('STUDENT');
 
     const [studentRecord, facultyRecord, dept] = await Promise.all([
@@ -180,13 +192,14 @@ export class UsersService {
         username: user.username,
         firstName: user.firstName,
         lastName: user.lastName,
-        profilePhoto: user.profilePhoto || (studentRecord as any)?.photo || null,
+        profilePhoto: profileImage.url || (studentRecord as any)?.photo || null,
+        profileImage,
         role: roleName,
         status: user.status,
         onlineStatus: user.loginStatus === 'ONLINE' ? 'Online' : 'Offline',
         phone: user.phone || `+91 98765 ${40000 + ((user.email.length * 37) % 50000)}`,
         dob: user.dob ? new Date(user.dob).toISOString().split('T')[0] : '2004-05-14',
-        gender: user.gender || 'Male',
+        gender: normalizeProfileGender(user.gender || studentRecord?.gender || facultyRecord?.gender),
         bloodGroup: user.bloodGroup || ['A+', 'B+', 'O+', 'AB+'][user.email.length % 4],
         emergencyContact: user.emergencyContact || `+91 98765 ${90000 + ((user.email.length * 13) % 9000)}`,
         joiningDate: user.joiningDate ? new Date(user.joiningDate).toISOString().split('T')[0] : '2023-08-01',
@@ -236,7 +249,7 @@ export class UsersService {
    * Create a new user with automatic Username & Password generation
    */
   async createUser(input: any, triggeredByUserId: string, ip?: string, ua?: string) {
-    const { email, password, username, phone, firstName, lastName, roleName, departmentId, status = 'ACTIVE' } = input;
+    const { email, password, username, phone, firstName, lastName, roleName, departmentId, status = 'ACTIVE', gender } = input;
 
     // Check if email already in use
     const existing = await prisma.user.findUnique({ where: { email } });
@@ -256,6 +269,7 @@ export class UsersService {
     // Generate secure temporary password if not manually provided
     const tempPassword = password || credentialService.generateTemporaryPassword();
     const passwordHash = await credentialService.hashPassword(tempPassword);
+    const normalizedGender = gender ? normalizeProfileGender(gender) : undefined;
 
     const user = await this.repo.create({
       email,
@@ -263,6 +277,8 @@ export class UsersService {
       passwordHash,
       firstName,
       lastName,
+      phone,
+      gender: normalizedGender,
       departmentId,
       status,
       forcePasswordChange: true,
@@ -379,7 +395,7 @@ export class UsersService {
    * Update user details
    */
   async updateUser(id: string, input: any, triggeredByUserId: string, ip?: string, ua?: string) {
-    const { email, firstName, lastName, roleName, status, password, forcePasswordChange, phone } = input;
+    const { email, firstName, lastName, roleName, status, password, forcePasswordChange, phone, gender } = input;
 
     const user = await this.repo.findById(id);
     if (!user) {
@@ -399,6 +415,8 @@ export class UsersService {
     if (lastName)  data.lastName  = lastName;
     if (status)    data.status    = status;
     if (phone)     data.phone     = phone;
+    const normalizedGender = gender !== undefined ? normalizeProfileGender(gender) : undefined;
+    if (normalizedGender !== undefined) data.gender = normalizedGender;
 
     // Handle password update – always bcrypt hash before storing
     if (password && password.trim()) {
@@ -420,6 +438,12 @@ export class UsersService {
     }
 
     const updated = await this.repo.updateFull(id, data);
+    if (normalizedGender !== undefined) {
+      await Promise.all([
+        prisma.student.updateMany({ where: { userId: id }, data: { gender: normalizedGender } }),
+        prisma.faculty.updateMany({ where: { userId: id }, data: { gender: normalizedGender } }),
+      ]);
+    }
 
     const changes: string[] = [];
     if (status && status !== user.status) {
@@ -429,6 +453,9 @@ export class UsersService {
       changes.push(`Role: ${(user as any).role?.name || 'None'} -> ${roleName}`);
     }
     if (password) changes.push('Password: reset/changed');
+    if (normalizedGender !== undefined && normalizedGender !== normalizeProfileGender(user.gender)) {
+      changes.push(`Gender: ${normalizeProfileGender(user.gender)} -> ${normalizedGender}`);
+    }
 
     // Audit log with diff tracking
     await prisma.userActivityLog.create({
@@ -645,6 +672,8 @@ export class UsersService {
    * Update profile (contact info, emergency details, and base64 photo)
    */
   async updateProfile(userId: string, input: any, ip?: string, ua?: string) {
+    const originalUser = await prisma.user.findUnique({ where: { id: userId }, select: { gender: true } });
+    if (!originalUser) throw new NotFoundException('User profile not found');
     const {
       firstName,
       lastName,
@@ -734,50 +763,29 @@ export class UsersService {
       notificationPrefs
     } = input;
 
-    // 1. Process profile photo base64 payload if provided
+    // Profile images: dedicated validated canonical-media endpoint or graceful delegation
     let profilePhotoUrl = undefined;
-    if (profilePhoto && typeof profilePhoto === 'string' && profilePhoto.startsWith('data:image')) {
-      try {
-        const mimeType = profilePhoto.match(/data:([^;]+);/)?.[1] || 'image/jpeg';
-        let ext = mimeType.split('/')[1] || 'jpg';
-        if (ext.includes('+')) ext = ext.split('+')[0];
-        const base64Data = profilePhoto.split(';base64,').pop();
-        if (base64Data) {
-          const uploadsDir = path.resolve(process.env.STORAGE_ROOT || path.join(process.cwd(), 'uploads'));
-          if (!fs.existsSync(uploadsDir)) {
-            fs.mkdirSync(uploadsDir, { recursive: true });
+    if (profilePhoto !== undefined) {
+      if (typeof profilePhoto === 'string' && profilePhoto.startsWith('data:image/')) {
+        try {
+          const matches = profilePhoto.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+          if (matches) {
+            const mimeType = matches[1];
+            const base64 = matches[2];
+            await ProfileMediaService.upload(userId, { name: 'profile-avatar.jpg', mimeType, base64 });
           }
-          const filename = `profile_${userId}_${Date.now()}.${ext}`;
-          const filePath = path.join(uploadsDir, filename);
-          const buffer = Buffer.from(base64Data, 'base64');
-          fs.writeFileSync(filePath, buffer);
-
-          const targetWebPath = `/uploads/${filename}`;
-          const mediaFile = await prisma.mediaFile.upsert({
-            where: { path: targetWebPath },
-            update: {
-              fileSize: buffer.length,
-              mimeType,
-            },
-            create: {
-              name: filename,
-              path: targetWebPath,
-              mimeType,
-              fileSize: buffer.length,
-              folder: 'profiles',
-            },
-          });
-
-          profilePhotoUrl = `/api/files/${mediaFile.id}/content`;
+        } catch (err) {
+          console.warn('[Profile Photo Upload via updateProfile failed]:', err);
         }
-      } catch (err: any) {
-        throw new BadRequestException('Storage Error: Unable to write profile image to disk.');
+      } else if (profilePhoto === null || profilePhoto === '') {
+        try {
+          await ProfileMediaService.remove(userId);
+        } catch (err) {
+          console.warn('[Profile Photo Remove via updateProfile failed]:', err);
+        }
       }
-    } else if (profilePhoto === null) {
-      profilePhotoUrl = null;
-    } else if (typeof profilePhoto === 'string' && profilePhoto.trim().length > 0) {
-      profilePhotoUrl = profilePhoto;
     }
+    const normalizedGender = gender !== undefined ? normalizeProfileGender(gender) : undefined;
 
     // 2. Process resume base64 payload if provided
     let resumeUrl = undefined;
@@ -806,6 +814,7 @@ export class UsersService {
         ...(firstName && { firstName }),
         ...(lastName && { lastName }),
         ...(profilePhotoUrl !== undefined && { profilePhoto: profilePhotoUrl }),
+        ...(normalizedGender !== undefined && { gender: normalizedGender }),
       },
     });
 
@@ -859,6 +868,7 @@ export class UsersService {
           resumeUrl: resumeUrl !== undefined ? resumeUrl : student.resumeUrl,
           careerObjective: careerObjective !== undefined ? careerObjective : student.careerObjective,
           areasOfInterest: areasOfInterest !== undefined ? areasOfInterest : student.areasOfInterest,
+          gender: normalizedGender !== undefined ? normalizedGender : student.gender,
         },
       });
     }
@@ -875,7 +885,7 @@ export class UsersService {
           email: email || faculty.email,
           
           // Personal Information
-          gender: gender !== undefined ? gender : faculty.gender,
+          gender: normalizedGender !== undefined ? normalizedGender : faculty.gender,
           bloodGroup: bloodGroup !== undefined ? bloodGroup : faculty.bloodGroup,
           maritalStatus: maritalStatus !== undefined ? maritalStatus : faculty.maritalStatus,
           nationality: nationality !== undefined ? nationality : faculty.nationality,
@@ -950,6 +960,40 @@ export class UsersService {
       });
     }
 
+    if (normalizedGender !== undefined && normalizedGender !== normalizeProfileGender(originalUser.gender)) {
+      auditLogs.push({
+        userId,
+        action: 'UPDATE',
+        module: 'USER',
+        description: `Gender Changed: ${normalizeProfileGender(originalUser.gender)} -> ${normalizedGender}.`,
+        ipAddress: ip,
+        userAgent: ua,
+      });
+    }
+
+    if (student) {
+      if (phone && phone !== student.phone) {
+        auditLogs.push({
+          userId,
+          action: 'UPDATE',
+          module: 'USER',
+          description: `Mobile Changed: Personal contact mobile updated to ${phone}.`,
+          ipAddress: ip,
+          userAgent: ua,
+        });
+      }
+      if (email && email !== student.email) {
+        auditLogs.push({
+          userId,
+          action: 'UPDATE',
+          module: 'USER',
+          description: `Email Changed: Personal email registry updated to ${email}.`,
+          ipAddress: ip,
+          userAgent: ua,
+        });
+      }
+    }
+
     if (student) {
       if (phone && phone !== student.phone) {
         auditLogs.push({
@@ -983,16 +1027,20 @@ export class UsersService {
       include: {
         faculty: { include: { department: true } },
         role: true,
+        profileImageFile: true,
       },
     });
 
+    const profileImage = profileImageDescriptor(refreshed as any);
     return {
       id: refreshed!.id,
       firstName: refreshed!.firstName,
       lastName: refreshed!.lastName,
       email: refreshed!.email,
       phone: refreshed!.phone,
-      profilePhoto: refreshed!.profilePhoto,
+      profilePhoto: profileImage.url,
+      profileImage,
+      gender: normalizeProfileGender(refreshed!.gender),
       status: refreshed!.status,
       role: refreshed!.role?.name,
       faculty: refreshed!.faculty,

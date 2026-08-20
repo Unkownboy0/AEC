@@ -84,7 +84,7 @@ const CampusDataFieldPicker: React.FC<Props> = ({ onInsert, onClose }) => {
       'faculty.email': context.faculty?.email || '',
       'department.name': context.department?.name || '',
       'department.code': context.department?.code || '',
-      'department.hod.name': context.department?.hod?.name || '',
+      'department.hod.name': (typeof context.department?.hod === 'object' ? context.department?.hod?.name : context.department?.hod) || context.department?.hodName || '',
       'currentDate': context.currentDate || '',
       'academicYear': context.academicYear || '',
       'semester': context.semester || '',

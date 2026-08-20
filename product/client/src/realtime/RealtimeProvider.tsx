@@ -20,7 +20,7 @@ const RealtimeContext = createContext<RealtimeContextValue>({
 
 export const RealtimeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const queryClient = useQueryClient();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const [status, setStatus] = useState<RealtimeConnectionStatus>('disconnected');
 
   useEffect(() => {
@@ -48,7 +48,7 @@ export const RealtimeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       }
 
       const eventRegistry = new EventRegistry(queryClient);
-      realtimeClient.connect(token);
+      realtimeClient.connect(token, user?.role);
 
       eventUnsub = realtimeClient.subscribe((event) => {
         eventRegistry.handleEvent(event);
@@ -56,7 +56,7 @@ export const RealtimeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
       reconnectManager = new ReconnectManager(async () => {
         const latestToken = await getStoredAccessToken();
-        if (latestToken) realtimeClient.connect(latestToken);
+        if (latestToken) realtimeClient.connect(latestToken, user?.role);
       });
       reconnectManager.init();
     }
@@ -68,13 +68,13 @@ export const RealtimeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       if (eventUnsub) eventUnsub();
       if (reconnectManager) reconnectManager.destroy();
     };
-  }, [isAuthenticated, queryClient]);
+  }, [isAuthenticated, queryClient, user?.role]);
 
   const handleManualReconnect = async () => {
     const token = await getStoredAccessToken();
     if (token) {
       realtimeClient.disconnect();
-      realtimeClient.connect(token);
+      realtimeClient.connect(token, user?.role);
     }
   };
 

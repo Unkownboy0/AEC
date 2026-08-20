@@ -331,6 +331,11 @@ export const AecCinematicLoader: React.FC<AecCinematicLoaderProps> = ({
             )}
           </AnimatePresence>
         </div>
+
+        {/* Subtle Brand Watermark */}
+        <div className="absolute bottom-6 text-[10px] text-slate-500/80 dark:text-slate-400/80 font-medium tracking-wider">
+          CampusOS • Powered by Geetorus
+        </div>
       </motion.div>
     </AnimatePresence>
   );

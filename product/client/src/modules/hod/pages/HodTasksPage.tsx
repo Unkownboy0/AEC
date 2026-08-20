@@ -10,6 +10,7 @@ import { pageVariants } from '../../../design-system/tokens/motion';
 import api from '../../../lib/axios';
 import { toast } from '../../../components/ui/Toast';
 import { VoiceNoteRecorder } from '../../../components/ui/VoiceNoteRecorder';
+import { GovernedFilePicker } from '../../../components/workspace/GovernedFilePicker';
 
 export const HodTasksPage: React.FC = () => {
   const [summary, setSummary] = useState<any>(null);
@@ -39,6 +40,7 @@ export const HodTasksPage: React.FC = () => {
   // File Attachment State
   const [attachedFile, setAttachedFile] = useState<{ url: string; name: string } | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [isDrivePickerOpen, setIsDrivePickerOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const fetchTasks = useCallback(async (isSilent = false) => {
@@ -654,15 +656,25 @@ export const HodTasksPage: React.FC = () => {
                   </button>
                 </div>
               ) : (
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={isUploading}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-border bg-muted/40 hover:bg-muted text-xs font-semibold text-foreground transition-colors cursor-pointer"
-                >
-                  <Paperclip className="h-3.5 w-3.5 text-primary" />
-                  {isUploading ? 'Uploading Attachment...' : 'Add Attachment File'}
-                </button>
+                <>
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={isUploading}
+                    className="flex min-h-10 items-center gap-1.5 px-3 py-1.5 rounded-xl border border-border bg-muted/40 hover:bg-muted text-xs font-semibold text-foreground transition-colors cursor-pointer"
+                  >
+                    <Paperclip className="h-3.5 w-3.5 text-primary" />
+                    {isUploading ? 'Uploading Attachment...' : 'Upload attachment'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setIsDrivePickerOpen(true)}
+                    className="flex min-h-10 items-center gap-1.5 px-3 py-1.5 rounded-xl border border-primary/30 bg-primary/5 hover:bg-primary/10 text-xs font-semibold text-primary transition-colors cursor-pointer"
+                  >
+                    <FileText className="h-3.5 w-3.5" />
+                    Choose from Campus Drive
+                  </button>
+                </>
               )}
             </div>
 
@@ -793,6 +805,38 @@ export const HodTasksPage: React.FC = () => {
           </div>
         </div>
       </Modal>
+
+      <GovernedFilePicker
+        open={isDrivePickerOpen}
+        onOpenChange={setIsDrivePickerOpen}
+        title="Attach a governed task file"
+        constraints={{
+          allowedMimeTypes: [
+            'application/pdf',
+            'image/png',
+            'image/jpeg',
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+          ],
+          maxSizeBytes: 25 * 1024 * 1024,
+          multiple: false,
+          requiredAction: 'DOWNLOAD',
+          purpose: 'TASK_ATTACHMENT',
+        }}
+        attachmentTarget={selectedTask ? {
+          module: 'TASKS',
+          resourceType: 'TASK',
+          resourceId: selectedTask.id,
+          authorizationMode: 'PARENT_RESOURCE',
+        } : undefined}
+        onSelect={(files) => {
+          const file = files[0];
+          if (file) {
+            setAttachedFile({ url: file.downloadUrl, name: file.name });
+            toast.success(`Attached existing Drive file "${file.name}" without copying it.`);
+          }
+        }}
+      />
     </motion.div>
   );
 };

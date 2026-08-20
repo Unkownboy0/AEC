@@ -5,6 +5,7 @@
 */
 
 export const eventToQueryKeyMap: Record<string, string[][]> = {
+  'DEPARTMENT_AVAILABILITY_UPDATED': [['hod', 'availability'], ['hod-dashboard-summary']],
   // Attendance events
   'attendance:marked': [['attendance'], ['student', 'attendance'], ['hod', 'availability']],
   'attendance:updated': [['attendance'], ['student', 'attendance'], ['hod', 'availability']],

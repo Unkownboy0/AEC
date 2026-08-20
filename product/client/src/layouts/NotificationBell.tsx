@@ -5,6 +5,8 @@ import { useNotifications } from '../notifications/NotificationProvider';
 import { resolveNotificationRoute } from '../notifications/notification-router';
 import { AppNotification } from '../notifications/notification.types';
 import { useAuth } from '../context/AuthContext';
+import { Avatar } from '../design-system/primitives/Avatar/Avatar';
+import { resolveAssetUrl } from '../utils/assets';
 
 function formatNotificationTime(dateStr?: string): string {
   if (!dateStr) return 'Recently';
@@ -81,7 +83,7 @@ export const NotificationBell: React.FC = () => {
       >
         <Bell className="w-5 h-5" />
         {unreadCount > 0 && (
-          <span className="absolute top-1.5 right-1.5 min-w-[16px] h-[16px] px-1 rounded-full bg-danger text-white text-[10px] font-extrabold flex items-center justify-center ring-2 ring-surface animate-pulse">
+          <span className="absolute top-1 right-1 min-w-[16px] h-[16px] px-1 rounded-full bg-rose-500 text-white text-[10px] font-extrabold flex items-center justify-center ring-2 ring-surface shadow-xs animate-in zoom-in-75 duration-150">
             {unreadCount > 99 ? '99+' : unreadCount}
           </span>
         )}
@@ -131,8 +133,19 @@ export const NotificationBell: React.FC = () => {
                     !n.isRead ? 'bg-primary-soft/30' : ''
                   }`}
                 >
-                  <div className="p-2 rounded-xl bg-surface-soft text-primary shrink-0 mt-0.5 border border-border/40">
-                    <MessageSquare className="w-4 h-4" />
+                  <div className="relative shrink-0 mt-0.5">
+                    {n.senderAvatar || n.actorAvatar || n.senderName || n.actorName ? (
+                      <Avatar
+                        src={n.senderAvatar || n.actorAvatar ? resolveAssetUrl(n.senderAvatar || n.actorAvatar) : undefined}
+                        name={n.senderName || n.actorName || 'User'}
+                        size="sm"
+                        className="w-8 h-8 ring-1 ring-border/60 shadow-xs"
+                      />
+                    ) : (
+                      <div className="p-2 rounded-xl bg-surface-soft text-primary border border-border/40">
+                        <MessageSquare className="w-4 h-4" />
+                      </div>
+                    )}
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center justify-between gap-2">
@@ -143,6 +156,11 @@ export const NotificationBell: React.FC = () => {
                         {formatNotificationTime(n.createdAt)}
                       </span>
                     </div>
+                    {(n.senderName || n.actorName) && (
+                      <p className="text-[10.5px] font-semibold text-primary truncate">
+                        {n.senderRole || n.actorRole ? `${n.senderName || n.actorName} • ${n.senderRole || n.actorRole}` : (n.senderName || n.actorName)}
+                      </p>
+                    )}
                     <p className="text-xs text-text-secondary line-clamp-2 mt-0.5 leading-relaxed">
                       {n.message}
                     </p>

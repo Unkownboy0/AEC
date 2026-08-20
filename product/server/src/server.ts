@@ -3,6 +3,7 @@ import { env } from './config/env';
 import { logger } from './utils/logger';
 import { prisma } from './lib/prisma';
 
+// CampusOS Server Entry Point - Updated with synced Prisma schema
 const server = app.listen(env.PORT, '0.0.0.0', () => {
   logger.info(`🚀 CampusOS API Server running in ${env.NODE_ENV} mode on port ${env.PORT}`);
 });

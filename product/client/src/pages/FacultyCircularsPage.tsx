@@ -4,6 +4,7 @@ import { toast } from '../components/ui/Toast';
 import { Loading } from '../components/ui/Loading';
 import api from '../lib/axios';
 import { useAuth } from '../context/AuthContext';
+import { downloadFile } from '../platform/download';
 
 export const FacultyCircularsPage: React.FC = () => {
   const { user } = useAuth();
@@ -325,15 +326,24 @@ export const FacultyCircularsPage: React.FC = () => {
                       >
                         Preview
                       </button>
-                      <a
-                        href={c.attachmentUrl}
-                        download={c.attachmentName || 'Attachment'}
-                        onClick={(e) => e.stopPropagation()}
+                      <button
+                        onClick={async (e) => {
+                          e.stopPropagation();
+                          if (c.attachmentUrl) {
+                            toast.show(`Saving ${c.attachmentName || 'Attachment'} to device...`, 'info');
+                            const res = await downloadFile({ endpoint: c.attachmentUrl, filename: c.attachmentName || 'Attachment', action: 'save' });
+                            if (res.success) {
+                              toast.success(`Saved ${c.attachmentName || 'Attachment'} to device successfully`);
+                            } else {
+                              toast.error(res.error || 'Failed to save attachment');
+                            }
+                          }
+                        }}
                         className="inline-flex items-center gap-1 px-3 py-1.5 bg-primary text-primary-foreground text-[9px] font-bold hover:bg-primary/95 rounded-lg transition-all shadow-sm"
                       >
                         <Download className="h-3 w-3" />
-                        Download
-                      </a>
+                        Save to Device
+                      </button>
                     </div>
                   </div>
                 )}

@@ -1,20 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- CampusOS Base Theme: standard action-bar-free theme with explicit native status bar -->
+    <!-- CampusOS Base Theme (Light Mode): Dark status bar icons on light background -->
     <style name="AppTheme" parent="Theme.AppCompat.DayNight.NoActionBar">
         <item name="colorPrimary">@color/colorPrimary</item>
         <item name="colorPrimaryDark">@color/colorPrimaryDark</item>
         <item name="colorAccent">@color/colorAccent</item>
         <item name="windowActionBar">false</item>
         <item name="windowNoTitle">true</item>
-        <item name="android:windowBackground">@color/colorSplashBackground</item>
-        <item name="android:statusBarColor">@color/colorStatusBar</item>
-        <item name="android:navigationBarColor">@color/colorSplashBackground</item>
-        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowBackground">@color/colorStatusBarLight</item>
+        <item name="android:statusBarColor">@color/colorStatusBarLight</item>
+        <item name="android:navigationBarColor">@color/colorNavigationBarLight</item>
+        <item name="android:windowLightStatusBar">true</item>
         <item name="android:windowFullscreen">false</item>
     </style>
 
-    <!-- Used by the Capacitor activity after the splash screen is dismissed -->
+    <!-- Used by the Capacitor activity after splash screen (Light Mode) -->
     <style name="AppTheme.NoActionBar" parent="Theme.AppCompat.DayNight.NoActionBar">
         <item name="colorPrimary">@color/colorPrimary</item>
         <item name="colorPrimaryDark">@color/colorPrimaryDark</item>
@@ -22,17 +22,17 @@
         <item name="windowActionBar">false</item>
         <item name="windowNoTitle">true</item>
         <item name="android:background">@null</item>
-        <item name="android:statusBarColor">@color/colorStatusBar</item>
-        <item name="android:navigationBarColor">@color/colorSplashBackground</item>
-        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:statusBarColor">@color/colorStatusBarLight</item>
+        <item name="android:navigationBarColor">@color/colorNavigationBarLight</item>
+        <item name="android:windowLightStatusBar">true</item>
         <item name="android:windowFullscreen">false</item>
     </style>
 
-    <!-- Used as the launch theme while the splash screen is visible (SplashScreen API) -->
+    <!-- Launch theme while splash screen is visible -->
     <style name="AppTheme.NoActionBarLaunch" parent="Theme.SplashScreen">
         <item name="android:background">@drawable/splash</item>
         <item name="android:windowBackground">@drawable/splash</item>
-        <item name="android:statusBarColor">@color/colorStatusBar</item>
+        <item name="android:statusBarColor">@color/colorSplashBackground</item>
         <item name="android:windowLightStatusBar">false</item>
         <item name="android:windowFullscreen">false</item>
     </style>

@@ -6,6 +6,9 @@ import { AppIcon } from '../design-system/icons/AppIcon';
 import * as LucideIcons from 'lucide-react';
 import { LogOut, ChevronDown, ChevronRight, Sparkles } from 'lucide-react';
 
+import { useNotifications } from '../notifications/NotificationProvider';
+import { useLanguage } from '../context/LanguageContext';
+
 export interface SidebarProps {
   isCollapsed: boolean;
   onToggleCollapse: () => void;
@@ -20,6 +23,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onCloseMobileDrawer,
 }) => {
   const { user, logout } = useAuth();
+  const { getBadgeCount } = useNotifications();
+  const { t } = useLanguage();
   const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
 
   if (!user) return null;
@@ -51,8 +56,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
         <div className="px-5 h-16 border-b border-border flex items-center justify-between shrink-0">
           {!isCollapsed && (
             <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-xl bg-primary text-primary-foreground flex items-center justify-center font-extrabold text-sm shadow-xs">
-                C
+              <div className="w-8 h-8 rounded-xl bg-white dark:bg-slate-900 border border-border flex items-center justify-center overflow-hidden p-0.5 shadow-xs">
+                <img src="/branding/official-logo.png" alt="AEC" className="w-full h-full object-contain" />
               </div>
               <div>
                 <span className="font-extrabold text-sm text-text-primary tracking-tight block">
@@ -101,40 +106,48 @@ export const Sidebar: React.FC<SidebarProps> = ({
               )}
 
               {!isGroupCollapsed &&
-                grp.items.map((item) => (
-                  <NavLink
-                    key={item.id}
-                    to={item.path}
-                    onClick={onCloseMobileDrawer}
-                    className={({ isActive }) =>
-                      `relative flex items-center gap-3 px-3.5 py-2.5 rounded-xl font-medium text-xs transition-all ${
-                        isActive
-                          ? 'bg-primary/10 text-primary font-bold shadow-2xs border border-primary/20 dark:bg-primary/20'
-                          : 'text-text-secondary hover:bg-surface-soft hover:text-text-primary border border-transparent'
-                      } ${isCollapsed ? 'justify-center px-2' : ''}`
-                    }
-                    title={item.label}
-                  >
-                    {({ isActive }) => (
-                      <>
-                        {isActive && (
-                          <span className="absolute left-0 top-2 bottom-2 w-1 bg-primary rounded-r-full" />
-                        )}
-                        <AppIcon
-                          name={item.icon}
-                          size="md"
-                          className={isActive ? 'text-primary font-bold' : 'text-text-secondary'}
-                        />
-                        {!isCollapsed && (
-                          <span className="truncate flex-1">{item.label}</span>
-                        )}
-                        {!isCollapsed && item.badgeKey && (
-                          <span className="w-2 h-2 rounded-full bg-danger animate-pulse" />
-                        )}
-                      </>
-                    )}
-                  </NavLink>
-                ))}
+                grp.items.map((item) => {
+                  const badgeCount = item.badgeKey ? getBadgeCount(item.badgeKey) : 0;
+                  return (
+                    <NavLink
+                      key={item.id}
+                      to={item.path}
+                      onClick={onCloseMobileDrawer}
+                      className={({ isActive }) =>
+                        `relative flex items-center gap-3 px-3.5 py-2.5 rounded-xl font-medium text-xs transition-all ${
+                          isActive
+                            ? 'bg-primary/10 text-primary font-bold shadow-2xs border border-primary/20 dark:bg-primary/20'
+                            : 'text-text-secondary hover:bg-surface-soft hover:text-text-primary border border-transparent'
+                        } ${isCollapsed ? 'justify-center px-2' : ''}`
+                      }
+                      title={item.label}
+                    >
+                      {({ isActive }) => (
+                        <>
+                          {isActive && (
+                            <span className="absolute left-0 top-2 bottom-2 w-1 bg-primary rounded-r-full" />
+                          )}
+                          <AppIcon
+                            name={item.icon}
+                            size="md"
+                            className={isActive ? 'text-primary font-bold' : 'text-text-secondary'}
+                          />
+                          {!isCollapsed && (
+                            <span className="truncate flex-1">{t(item.label)}</span>
+                          )}
+                          {!isCollapsed && badgeCount > 0 && (
+                            <span className="min-w-[18px] h-[18px] px-1.5 rounded-full bg-rose-500 text-white text-[10px] font-extrabold flex items-center justify-center shadow-xs animate-in zoom-in-75 duration-150">
+                              {badgeCount > 99 ? '99+' : badgeCount}
+                            </span>
+                          )}
+                          {isCollapsed && badgeCount > 0 && (
+                            <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-rose-500 ring-2 ring-surface" />
+                          )}
+                        </>
+                      )}
+                    </NavLink>
+                  );
+                })}
             </div>
           );
         })}
@@ -145,10 +158,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
         <button
           onClick={() => logout()}
           className="w-full flex items-center gap-3 px-3 py-2.5 text-xs font-bold text-danger hover:bg-danger-light/40 rounded-xl transition-colors"
-          title="Sign Out"
+          title={t('Sign Out')}
         >
           <LogOut className="w-4 h-4 shrink-0" />
-          {!isCollapsed && <span>Sign Out</span>}
+          {!isCollapsed && <span>{t('Sign Out')}</span>}
         </button>
       </div>
     </aside>

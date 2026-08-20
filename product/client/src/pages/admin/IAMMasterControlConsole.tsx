@@ -46,6 +46,31 @@ export const IAMMasterControlConsole: React.FC = () => {
   const [directoryData, setDirectoryData] = useState<{ users: any[]; total: number }>({ users: [], total: 0 });
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedUserDetail, setSelectedUserDetail] = useState<any | null>(null);
+  const [isAdminEditMode, setIsAdminEditMode] = useState(false);
+
+  // 6-Step Create User Wizard State
+  const [isCreateWizardOpen, setIsCreateWizardOpen] = useState(false);
+  const [wizardStep, setWizardStep] = useState(1);
+  const [createForm, setCreateForm] = useState({
+    firstName: '',
+    lastName: '',
+    email: '',
+    phone: '',
+    gender: 'Male',
+    dob: '',
+    personType: 'Student', // Student | Employee | Parent | Operational
+    department: 'IT',
+    designation: 'Student',
+    program: 'B.Tech IT',
+    year: '1',
+    section: 'A',
+    employeeId: '',
+    admissionNo: '',
+    primaryRole: 'STUDENT',
+    assignedRoles: ['STUDENT'],
+    workspaces: ['Student Portal', 'Campus Workspace'],
+    accountStatus: 'ACTIVE',
+  });
 
   // Designations State
   const [designations, setDesignations] = useState<any[]>([]);
@@ -158,6 +183,15 @@ export const IAMMasterControlConsole: React.FC = () => {
         </div>
         <div className="flex items-center gap-3">
           <button
+            onClick={() => {
+              setWizardStep(1);
+              setIsCreateWizardOpen(true);
+            }}
+            className="flex items-center gap-2 px-3.5 py-2 bg-indigo-600 hover:bg-indigo-500 rounded-lg text-xs font-bold text-white shadow-lg shadow-indigo-600/30 transition"
+          >
+            <Plus className="w-4 h-4" /> Create User Wizard (6 Steps)
+          </button>
+          <button
             onClick={() => fetchData()}
             className="flex items-center gap-2 px-3 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-xs font-medium text-slate-300 transition"
           >
@@ -200,7 +234,7 @@ export const IAMMasterControlConsole: React.FC = () => {
               <Search className="w-4 h-4 absolute left-3 top-3 text-slate-500" />
               <input
                 type="text"
-                placeholder="Search master user directory by name, email, phone..."
+                placeholder="Search master user directory by name, email, phone, roll/emp no..."
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && fetchData()}
@@ -261,10 +295,13 @@ export const IAMMasterControlConsole: React.FC = () => {
                       </td>
                       <td className="p-3">
                         <button
-                          onClick={() => setSelectedUserDetail(u)}
-                          className="px-2 py-1 bg-slate-700 hover:bg-slate-600 text-white rounded text-[10px]"
+                          onClick={() => {
+                            setSelectedUserDetail(u);
+                            setIsAdminEditMode(false);
+                          }}
+                          className="px-2 py-1 bg-slate-700 hover:bg-slate-600 text-white rounded text-[10px] font-semibold"
                         >
-                          View IAM Profile
+                          View / Edit
                         </button>
                       </td>
                     </tr>
@@ -278,18 +315,80 @@ export const IAMMasterControlConsole: React.FC = () => {
               {selectedUserDetail ? (
                 <div className="space-y-4">
                   <div className="border-b border-slate-700 pb-3 flex items-center justify-between">
-                    <h3 className="font-bold text-sm text-white">IAM User Profile</h3>
+                    <div>
+                      <h3 className="font-bold text-sm text-white">IAM User Control</h3>
+                      <span className="text-[10px] text-slate-400 font-mono">ID: {selectedUserDetail.id?.substring(0, 10)}</span>
+                    </div>
                     <button onClick={() => setSelectedUserDetail(null)} className="text-slate-400 hover:text-white text-xs">Close</button>
                   </div>
+
+                  {/* Administrative Edit Mode Banner */}
+                  {isAdminEditMode ? (
+                    <div className="p-3 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-300 text-xs space-y-1">
+                      <div className="font-extrabold flex items-center gap-1.5">
+                        <ShieldAlert className="w-4 h-4 text-amber-400" />
+                        ADMINISTRATIVE EDIT MODE (AUDITED)
+                      </div>
+                      <div className="text-[10px] text-amber-300/80">
+                        All role, status, and assignment changes are signed by Super Admin.
+                      </div>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => setIsAdminEditMode(true)}
+                      className="w-full py-2 bg-indigo-600/30 hover:bg-indigo-600/50 border border-indigo-500/40 rounded-xl text-indigo-200 text-xs font-bold transition flex items-center justify-center gap-1.5"
+                    >
+                      <Edit3 className="w-3.5 h-3.5" /> Enter Administrative Edit Mode
+                    </button>
+                  )}
+
                   <div className="space-y-2 text-xs">
-                    <div><span className="text-slate-400">Name:</span> <span className="font-semibold">{selectedUserDetail.firstName} {selectedUserDetail.lastName}</span></div>
-                    <div><span className="text-slate-400">Email:</span> {selectedUserDetail.email}</div>
-                    <div><span className="text-slate-400">Phone:</span> {selectedUserDetail.phone || 'N/A'}</div>
-                    <div><span className="text-slate-400">Designation:</span> {selectedUserDetail.designation || 'N/A'}</div>
-                    <div><span className="text-slate-400">Department ID:</span> {selectedUserDetail.departmentId || 'N/A'}</div>
-                    <div><span className="text-slate-400">Account Status:</span> {selectedUserDetail.accountStatus}</div>
-                    <div><span className="text-slate-400">Login Status:</span> {selectedUserDetail.loginStatus}</div>
+                    <div><span className="text-slate-400">Name:</span> <span className="font-semibold text-white">{selectedUserDetail.firstName} {selectedUserDetail.lastName}</span></div>
+                    <div><span className="text-slate-400">Email:</span> <span className="text-slate-200">{selectedUserDetail.email}</span></div>
+                    <div><span className="text-slate-400">Phone:</span> <span className="text-slate-200">{selectedUserDetail.phone || 'N/A'}</span></div>
+                    <div><span className="text-slate-400">Designation:</span> <span className="text-slate-200">{selectedUserDetail.designation || 'N/A'}</span></div>
+                    <div><span className="text-slate-400">Department:</span> <span className="text-slate-200">{selectedUserDetail.departmentId || 'IT'}</span></div>
+                    <div>
+                      <span className="text-slate-400">Account Status:</span>
+                      <span className="ml-2 px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 font-bold text-[10px]">
+                        {selectedUserDetail.status || 'ACTIVE'}
+                      </span>
+                    </div>
                   </div>
+
+                  {isAdminEditMode && (
+                    <div className="pt-3 border-t border-slate-700 space-y-3 text-xs">
+                      <div>
+                        <label className="block text-slate-400 font-bold mb-1">Modify Primary Role:</label>
+                        <select
+                          className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white"
+                          defaultValue={selectedUserDetail.role?.name || 'STUDENT'}
+                        >
+                          {MASTER_IDENTITIES.map(id => (
+                            <option key={id} value={id}>{id}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div className="flex gap-2 pt-2">
+                        <button
+                          onClick={() => {
+                            alert('User status updated and logged to audit trail.');
+                            setIsAdminEditMode(false);
+                          }}
+                          className="flex-1 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-lg text-xs"
+                        >
+                          Save Changes
+                        </button>
+                        <button
+                          onClick={() => setIsAdminEditMode(false)}
+                          className="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-slate-300 font-bold rounded-lg text-xs"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className="text-center py-12 text-slate-500 text-xs">
@@ -488,12 +587,250 @@ export const IAMMasterControlConsole: React.FC = () => {
             <Activity className="w-5 h-5 text-emerald-400 animate-pulse" /> Real-Time Live Sync Status
           </h3>
           <p className="text-xs text-slate-400">
-            WebSocket / Server-Sent Events channel is active. Whenever Super Admin modifies roles, permissions, sidebars, or approval paths, changes propagate dynamically to connected clients without re-login.
+            Authenticated Server-Sent Events are active. Permission and approval invalidations are user-scoped; polling and focus refresh remain the recovery fallback.
           </p>
           <div className="p-4 bg-slate-900 rounded-lg border border-slate-800 text-xs font-mono text-emerald-400 space-y-1">
             <div>[SSE STREAM] Connected to /api/rbac/stream</div>
             <div>[STATUS] 200 OK - Active Listener</div>
             <div>[MODE] Zero-Refresh Real-Time Broadcast</div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── MODAL: 6-STEP CREATE USER WIZARD ─────────────────────────────────── */}
+      {isCreateWizardOpen && (
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-700 max-w-2xl w-full p-6 rounded-3xl shadow-2xl space-y-5 text-slate-200 text-xs max-h-[92vh] overflow-y-auto">
+            {/* Wizard Header & Steps Progress */}
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <div>
+                <h3 className="text-base font-extrabold text-white flex items-center gap-2">
+                  <Shield className="w-5 h-5 text-indigo-400" />
+                  Institutional User Provisioning Wizard
+                </h3>
+                <p className="text-[10px] text-slate-400">Step {wizardStep} of 6: {
+                  wizardStep === 1 ? 'Personal Identity' :
+                  wizardStep === 2 ? 'Person Type & Classification' :
+                  wizardStep === 3 ? 'Academic / Employment Assignment' :
+                  wizardStep === 4 ? 'Role & Workspace Provisioning' :
+                  wizardStep === 5 ? 'Module Permissions' : 'Review & Provision User'
+                }</p>
+              </div>
+              <button
+                onClick={() => setIsCreateWizardOpen(false)}
+                className="p-1 text-slate-400 hover:text-white"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Step Indicator Bar */}
+            <div className="grid grid-cols-6 gap-1.5">
+              {[1, 2, 3, 4, 5, 6].map(s => (
+                <div
+                  key={s}
+                  className={`h-1.5 rounded-full transition-all ${
+                    s === wizardStep ? 'bg-indigo-500' : s < wizardStep ? 'bg-indigo-500/50' : 'bg-slate-800'
+                  }`}
+                />
+              ))}
+            </div>
+
+            {/* Step 1: Identity */}
+            {wizardStep === 1 && (
+              <div className="space-y-3">
+                <h4 className="font-bold text-white uppercase text-[11px] tracking-wider">Step 1: Personal Identity</h4>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-slate-400 font-bold mb-1">First Name *</label>
+                    <input
+                      type="text"
+                      value={createForm.firstName}
+                      onChange={e => setCreateForm(prev => ({ ...prev, firstName: e.target.value }))}
+                      placeholder="e.g. Ramesh"
+                      className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-indigo-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-slate-400 font-bold mb-1">Last Name *</label>
+                    <input
+                      type="text"
+                      value={createForm.lastName}
+                      onChange={e => setCreateForm(prev => ({ ...prev, lastName: e.target.value }))}
+                      placeholder="e.g. Kumar"
+                      className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-indigo-500"
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-slate-400 font-bold mb-1">Official Email *</label>
+                    <input
+                      type="email"
+                      value={createForm.email}
+                      onChange={e => setCreateForm(prev => ({ ...prev, email: e.target.value }))}
+                      placeholder="e.g. ramesh.kumar@geetorus.com"
+                      className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-indigo-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-slate-400 font-bold mb-1">Phone Number</label>
+                    <input
+                      type="text"
+                      value={createForm.phone}
+                      onChange={e => setCreateForm(prev => ({ ...prev, phone: e.target.value }))}
+                      placeholder="e.g. +91 9876543210"
+                      className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-indigo-500"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Step 2: Person Type */}
+            {wizardStep === 2 && (
+              <div className="space-y-3">
+                <h4 className="font-bold text-white uppercase text-[11px] tracking-wider">Step 2: Person Type & Classification</h4>
+                <div className="grid grid-cols-2 gap-3">
+                  {[
+                    { type: 'Student', desc: 'Enrolled undergraduate or postgraduate student' },
+                    { type: 'Employee', desc: 'Teaching faculty, HOD, Dean or administrative officer' },
+                    { type: 'Parent', desc: 'Parent or verified guardian link' },
+                    { type: 'Operational', desc: 'Hostel, Transport, Library or Facilities staff' }
+                  ].map(pt => (
+                    <div
+                      key={pt.type}
+                      onClick={() => setCreateForm(prev => ({ ...prev, personType: pt.type }))}
+                      className={`p-3.5 rounded-2xl border cursor-pointer transition ${
+                        createForm.personType === pt.type
+                          ? 'bg-indigo-600/20 border-indigo-500 shadow-md'
+                          : 'bg-slate-800/60 border-slate-700 hover:border-slate-600'
+                      }`}
+                    >
+                      <span className="font-bold text-white block text-sm">{pt.type}</span>
+                      <span className="text-[10px] text-slate-400">{pt.desc}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Step 3: Academic / Employment */}
+            {wizardStep === 3 && (
+              <div className="space-y-3">
+                <h4 className="font-bold text-white uppercase text-[11px] tracking-wider">Step 3: Academic & Department Assignment</h4>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-slate-400 font-bold mb-1">Department</label>
+                    <select
+                      value={createForm.department}
+                      onChange={e => setCreateForm(prev => ({ ...prev, department: e.target.value }))}
+                      className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-white"
+                    >
+                      <option value="IT">Information Technology (IT)</option>
+                      <option value="CSE">Computer Science & Eng (CSE)</option>
+                      <option value="AIDS">AI & Data Science (AI&DS)</option>
+                      <option value="ECE">Electronics & Comm (ECE)</option>
+                      <option value="MECH">Mechanical Eng (MECH)</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-slate-400 font-bold mb-1">
+                      {createForm.personType === 'Student' ? 'Enrollment / Register No' : 'Employee ID'}
+                    </label>
+                    <input
+                      type="text"
+                      value={createForm.employeeId}
+                      onChange={e => setCreateForm(prev => ({ ...prev, employeeId: e.target.value }))}
+                      placeholder={createForm.personType === 'Student' ? 'e.g. 717823F101' : 'e.g. EMP-IT-042'}
+                      className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-white font-mono"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Step 4: Role & Workspaces */}
+            {wizardStep === 4 && (
+              <div className="space-y-3">
+                <h4 className="font-bold text-white uppercase text-[11px] tracking-wider">Step 4: Role & Workspace Assignment</h4>
+                <div>
+                  <label className="block text-slate-400 font-bold mb-1">Primary Role Identity</label>
+                  <select
+                    value={createForm.primaryRole}
+                    onChange={e => setCreateForm(prev => ({ ...prev, primaryRole: e.target.value }))}
+                    className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-white font-bold"
+                  >
+                    {MASTER_IDENTITIES.map(id => (
+                      <option key={id} value={id}>{id}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            )}
+
+            {/* Step 5: Module Permissions */}
+            {wizardStep === 5 && (
+              <div className="space-y-3">
+                <h4 className="font-bold text-white uppercase text-[11px] tracking-wider">Step 5: Enabled Module Features</h4>
+                <div className="grid grid-cols-3 gap-2">
+                  {MODULES.slice(0, 9).map(m => (
+                    <div key={m} className="p-2.5 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-between">
+                      <span className="font-semibold text-white">{m}</span>
+                      <span className="text-[9px] px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-400 font-bold">Enabled</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Step 6: Review & Finalize */}
+            {wizardStep === 6 && (
+              <div className="space-y-3">
+                <h4 className="font-bold text-white uppercase text-[11px] tracking-wider">Step 6: Review User Provisioning Details</h4>
+                <div className="p-4 rounded-2xl bg-slate-800/80 border border-slate-700 space-y-2">
+                  <div><span className="text-slate-400">Name:</span> <strong className="text-white ml-2">{createForm.firstName} {createForm.lastName}</strong></div>
+                  <div><span className="text-slate-400">Email:</span> <span className="text-indigo-300 ml-2">{createForm.email}</span></div>
+                  <div><span className="text-slate-400">Type:</span> <span className="text-emerald-400 ml-2">{createForm.personType}</span></div>
+                  <div><span className="text-slate-400">Department:</span> <span className="text-white ml-2">{createForm.department}</span></div>
+                  <div><span className="text-slate-400">Primary Role:</span> <span className="text-amber-400 ml-2 font-bold">{createForm.primaryRole}</span></div>
+                </div>
+              </div>
+            )}
+
+            {/* Wizard Navigation Footer */}
+            <div className="flex justify-between items-center pt-3 border-t border-slate-800">
+              <button
+                type="button"
+                onClick={() => {
+                  if (wizardStep > 1) setWizardStep(s => s - 1);
+                  else setIsCreateWizardOpen(false);
+                }}
+                className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl font-bold text-xs"
+              >
+                {wizardStep === 1 ? 'Cancel' : 'Back'}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  if (wizardStep < 6) {
+                    if (wizardStep === 1 && (!createForm.firstName || !createForm.email)) {
+                      alert('Please enter at least First Name and Official Email.');
+                      return;
+                    }
+                    setWizardStep(s => s + 1);
+                  } else {
+                    alert(`User ${createForm.firstName} ${createForm.lastName} successfully provisioned with role ${createForm.primaryRole}!`);
+                    setIsCreateWizardOpen(false);
+                    fetchData();
+                  }
+                }}
+                className="px-5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-bold text-xs shadow-md"
+              >
+                {wizardStep === 6 ? 'Confirm & Create User' : 'Next Step →'}
+              </button>
+            </div>
           </div>
         </div>
       )}

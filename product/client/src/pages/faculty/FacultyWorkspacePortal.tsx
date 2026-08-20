@@ -4,7 +4,8 @@ import {
   BookOpen, Clock, Users, CheckSquare, Award, FileText, Send, Calendar,
   AlertTriangle, Upload, RefreshCw, Eye, Plus, CheckCircle2, ChevronRight, MessageSquare, Download,
   Sparkles, Layers, Filter, Search, Bell, Shield, ArrowUpRight, BarChart2, Heart, UserCheck, Ban, User,
-  Paperclip, X
+  Paperclip, X, Bus
+
 } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import api from '../../lib/axios';
@@ -180,12 +181,133 @@ export const FacultyWorkspacePortal: React.FC = () => {
     }
   };
 
+  // Tasks Module State & Actions
+  const [tasksLoading, setTasksLoading] = useState(false);
+  const [selectedTaskForDetails, setSelectedTaskForDetails] = useState<any | null>(null);
+  const [isTaskDetailsModalOpen, setIsTaskDetailsModalOpen] = useState(false);
+  const [taskFilter, setTaskFilter] = useState<'ALL' | 'PENDING' | 'IN_PROGRESS' | 'COMPLETED'>('ALL');
+  const [taskSearchQuery, setTaskSearchQuery] = useState('');
+  const [taskCommentInput, setTaskCommentInput] = useState('');
+  const [isSubmittingTaskAction, setIsSubmittingTaskAction] = useState(false);
+  const [taskProgressInput, setTaskProgressInput] = useState<number>(0);
+
   const fetchTasks = async () => {
     try {
+      setTasksLoading(true);
       const res = await api.get('/tasks');
-      if (res.data?.status === 'success') setTasks(res.data.data?.tasks || res.data.data || []);
-    } catch (err) {
+      const taskList = Array.isArray(res.data?.data)
+        ? res.data.data
+        : res.data?.data?.tasks || (Array.isArray(res.data) ? res.data : []);
+      setTasks(taskList);
+    } catch (err: any) {
       console.error('Tasks error:', err);
+      toast.error(err.response?.data?.message || 'Could not load assigned tasks');
+    } finally {
+      setTasksLoading(false);
+    }
+  };
+
+  const handleUpdateTaskStatus = async (taskId: string, status: string, comment?: string) => {
+    try {
+      setIsSubmittingTaskAction(true);
+      const res = await api.patch(`/tasks/${taskId}/status`, { status, comment });
+      if (res.data?.status === 'success' || res.data?.success) {
+        toast.success(`Task status updated to ${status.replace(/_/g, ' ')}`);
+        fetchTasks();
+        if (selectedTaskForDetails && selectedTaskForDetails.id === taskId) {
+          setSelectedTaskForDetails({ ...selectedTaskForDetails, status });
+        }
+      }
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Failed to update task status');
+    } finally {
+      setIsSubmittingTaskAction(false);
+    }
+  };
+
+  const handleUpdateTaskProgress = async (taskId: string, completionPercent: number, comment?: string) => {
+    try {
+      setIsSubmittingTaskAction(true);
+      const res = await api.patch(`/tasks/${taskId}/progress`, { completionPercent, comment });
+      if (res.data?.status === 'success' || res.data?.success) {
+        toast.success('Task progress updated');
+        fetchTasks();
+        if (selectedTaskForDetails && selectedTaskForDetails.id === taskId) {
+          setSelectedTaskForDetails({ ...selectedTaskForDetails, completionPercent });
+        }
+      }
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Failed to update progress');
+    } finally {
+      setIsSubmittingTaskAction(false);
+    }
+  };
+
+  const parseChecklist = (raw: any): any[] => {
+    if (!raw) return [];
+    if (Array.isArray(raw)) return raw;
+    if (typeof raw === 'string') {
+      try {
+        const parsed = JSON.parse(raw);
+        return Array.isArray(parsed) ? parsed : [];
+      } catch {
+        return [];
+      }
+    }
+    return [];
+  };
+
+  const handleToggleChecklistItem = async (taskId: string, itemIndex: number) => {
+    const currentChecklist = parseChecklist(selectedTaskForDetails?.checklist);
+    if (currentChecklist.length === 0) return;
+    const updatedChecklist = currentChecklist.map((item: any, idx: number) =>
+      idx === itemIndex ? { ...item, completed: !item.completed } : item
+    );
+    try {
+      setIsSubmittingTaskAction(true);
+      const res = await api.patch(`/tasks/${taskId}/checklist`, { checklist: updatedChecklist });
+      if (res.data?.status === 'success' || res.data?.success) {
+        setSelectedTaskForDetails({ ...selectedTaskForDetails, checklist: updatedChecklist });
+        fetchTasks();
+      }
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Failed to update checklist');
+    } finally {
+      setIsSubmittingTaskAction(false);
+    }
+  };
+
+  const handleAddTaskComment = async (taskId: string) => {
+    if (!taskCommentInput.trim()) return;
+    try {
+      setIsSubmittingTaskAction(true);
+      const res = await api.post(`/tasks/${taskId}/comments`, { comment: taskCommentInput.trim() });
+      if (res.data?.status === 'success' || res.data?.success) {
+        toast.success('Comment posted');
+        setTaskCommentInput('');
+        fetchTasks();
+        const detailRes = await api.get(`/tasks/${taskId}`);
+        if (detailRes.data?.data) setSelectedTaskForDetails(detailRes.data.data);
+      }
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Failed to add comment');
+    } finally {
+      setIsSubmittingTaskAction(false);
+    }
+  };
+
+  const handleOpenTaskDetails = async (task: any) => {
+    setSelectedTaskForDetails(task);
+    setTaskProgressInput(task.completionPercent || 0);
+    setIsTaskDetailsModalOpen(true);
+    try {
+      const res = await api.get(`/tasks/${task.id}`);
+      if (res.data?.data) {
+        setSelectedTaskForDetails(res.data.data);
+        setTaskProgressInput(res.data.data.completionPercent || 0);
+      }
+    } catch (e) {
+      // keep fallback task object
     }
   };
 
@@ -317,7 +439,15 @@ export const FacultyWorkspacePortal: React.FC = () => {
                     <Layers className="h-4 w-4 text-primary" />
                     Open Campus Office Suite (Docs / Sheets / Drive)
                   </button>
+                  <button
+                    onClick={() => navigate('/faculty/transport')}
+                    className="flex items-center gap-2.5 px-5 py-3 rounded-2xl bg-card border border-border hover:border-indigo-500 text-foreground font-bold text-sm shadow-sm transition"
+                  >
+                    <Bus className="h-4 w-4 text-indigo-500" />
+                    Campus Bus & Live Tracking
+                  </button>
                 </div>
+
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                   <MetricCard
@@ -556,18 +686,278 @@ export const FacultyWorkspacePortal: React.FC = () => {
             )}
 
             {activeTab === 'tasks' && (
-              <motion.div key="tasks" variants={pageVariants} initial="initial" animate="animate" exit="exit" className="space-y-4">
-                <h3 className="text-base font-bold text-foreground">Assigned Tasks</h3>
-                <div className="space-y-3">
-                  {tasks.map((t) => (
-                    <div key={t.id} className="p-4 bg-card border rounded-xl flex justify-between items-center">
-                      <div>
-                        <h4 className="font-bold text-xs text-foreground">{t.title}</h4>
-                        <p className="text-xs text-muted-foreground">{t.description}</p>
-                      </div>
-                      <StatusBadge status={t.status || 'ASSIGNED'} size="sm" />
+              <motion.div key="tasks" variants={pageVariants} initial="initial" animate="animate" exit="exit" className="space-y-6">
+                {/* Header & KPI Summary */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-border/60">
+                  <div>
+                    <h3 className="text-lg font-black text-foreground tracking-tight flex items-center gap-2">
+                      <CheckSquare className="h-5 w-5 text-primary" /> Assigned Tasks Workspace
+                    </h3>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Review, manage, and complete administrative and academic directives from Department HOD & Deans.
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={fetchTasks}
+                      disabled={tasksLoading}
+                      className="px-3 py-1.5 rounded-xl border border-border bg-card hover:bg-muted/50 text-foreground text-xs font-bold flex items-center gap-1.5 transition-colors disabled:opacity-50"
+                    >
+                      <RefreshCw className={`h-3.5 w-3.5 ${tasksLoading ? 'animate-spin text-primary' : ''}`} />
+                      Refresh
+                    </button>
+                  </div>
+                </div>
+
+                {/* Metric Summary Cards */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  <div className="p-3.5 rounded-xl bg-card border border-border flex items-center justify-between">
+                    <div>
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Total Directives</p>
+                      <p className="text-xl font-black text-foreground mt-0.5">{tasks.length}</p>
                     </div>
-                  ))}
+                    <div className="h-9 w-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center font-bold">
+                      <CheckSquare className="h-5 w-5" />
+                    </div>
+                  </div>
+                  <div className="p-3.5 rounded-xl bg-card border border-border flex items-center justify-between">
+                    <div>
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Pending Action</p>
+                      <p className="text-xl font-black text-amber-600 dark:text-amber-400 mt-0.5">
+                        {tasks.filter((t) => ['NOT_SEEN', 'PENDING', 'SEEN'].includes(t.status)).length}
+                      </p>
+                    </div>
+                    <div className="h-9 w-9 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center font-bold">
+                      <Clock className="h-5 w-5" />
+                    </div>
+                  </div>
+                  <div className="p-3.5 rounded-xl bg-card border border-border flex items-center justify-between">
+                    <div>
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">In Progress</p>
+                      <p className="text-xl font-black text-indigo-600 dark:text-indigo-400 mt-0.5">
+                        {tasks.filter((t) => ['ACCEPTED', 'IN_PROGRESS', 'WAITING_APPROVAL', 'SUBMITTED'].includes(t.status)).length}
+                      </p>
+                    </div>
+                    <div className="h-9 w-9 rounded-xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-bold">
+                      <Layers className="h-5 w-5" />
+                    </div>
+                  </div>
+                  <div className="p-3.5 rounded-xl bg-card border border-border flex items-center justify-between">
+                    <div>
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Completed</p>
+                      <p className="text-xl font-black text-emerald-600 dark:text-emerald-400 mt-0.5">
+                        {tasks.filter((t) => t.status === 'COMPLETED').length}
+                      </p>
+                    </div>
+                    <div className="h-9 w-9 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold">
+                      <CheckCircle2 className="h-5 w-5" />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Filter & Search Bar */}
+                <div className="flex flex-col sm:flex-row gap-2.5 items-stretch sm:items-center justify-between">
+                  <div className="flex items-center gap-1.5 p-1 bg-muted/40 border border-border rounded-xl">
+                    {(['ALL', 'PENDING', 'IN_PROGRESS', 'COMPLETED'] as const).map((filterKey) => (
+                      <button
+                        key={filterKey}
+                        onClick={() => setTaskFilter(filterKey)}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${
+                          taskFilter === filterKey
+                            ? 'bg-card text-foreground shadow-xs'
+                            : 'text-muted-foreground hover:text-foreground'
+                        }`}
+                      >
+                        {filterKey === 'ALL' && `All (${tasks.length})`}
+                        {filterKey === 'PENDING' && `Pending (${tasks.filter((t) => ['NOT_SEEN', 'PENDING', 'SEEN'].includes(t.status)).length})`}
+                        {filterKey === 'IN_PROGRESS' && `Active (${tasks.filter((t) => ['ACCEPTED', 'IN_PROGRESS', 'WAITING_APPROVAL', 'SUBMITTED'].includes(t.status)).length})`}
+                        {filterKey === 'COMPLETED' && `Done (${tasks.filter((t) => t.status === 'COMPLETED').length})`}
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="relative min-w-[220px]">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                    <input
+                      type="text"
+                      placeholder="Search tasks, ID, or department…"
+                      value={taskSearchQuery}
+                      onChange={(e) => setTaskSearchQuery(e.target.value)}
+                      className="w-full pl-9 pr-3 py-1.5 text-xs bg-card border border-border rounded-xl outline-none focus:border-primary transition-colors"
+                    />
+                  </div>
+                </div>
+
+                {/* Task Cards List */}
+                <div className="space-y-3">
+                  {tasksLoading && tasks.length === 0 ? (
+                    <div className="py-12 text-center text-xs text-muted-foreground flex flex-col items-center justify-center gap-2">
+                      <RefreshCw className="h-6 w-6 animate-spin text-primary" />
+                      Loading assigned directives…
+                    </div>
+                  ) : tasks.filter((t) => {
+                    if (taskFilter === 'PENDING' && !['NOT_SEEN', 'PENDING', 'SEEN'].includes(t.status)) return false;
+                    if (taskFilter === 'IN_PROGRESS' && !['ACCEPTED', 'IN_PROGRESS', 'WAITING_APPROVAL', 'SUBMITTED'].includes(t.status)) return false;
+                    if (taskFilter === 'COMPLETED' && t.status !== 'COMPLETED') return false;
+                    if (taskSearchQuery.trim()) {
+                      const q = taskSearchQuery.toLowerCase();
+                      const matchTitle = t.title?.toLowerCase().includes(q);
+                      const matchDesc = t.description?.toLowerCase().includes(q);
+                      const matchNum = t.taskNumber?.toLowerCase().includes(q);
+                      const matchDept = t.department?.name?.toLowerCase().includes(q);
+                      if (!matchTitle && !matchDesc && !matchNum && !matchDept) return false;
+                    }
+                    return true;
+                  }).length === 0 ? (
+                    <div className="py-14 border border-dashed border-border rounded-2xl text-center flex flex-col items-center justify-center p-6 bg-card/40">
+                      <div className="h-12 w-12 rounded-2xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center mb-3">
+                        <CheckCircle2 className="h-6 w-6" />
+                      </div>
+                      <h4 className="font-bold text-sm text-foreground">No Directives Found</h4>
+                      <p className="text-xs text-muted-foreground max-w-sm mt-1">
+                        {taskSearchQuery
+                          ? 'No assigned tasks match your current search criteria.'
+                          : 'You currently have no tasks matching this status filter. New directives from HOD or Dean will appear here.'}
+                      </p>
+                    </div>
+                  ) : (
+                    tasks
+                      .filter((t) => {
+                        if (taskFilter === 'PENDING' && !['NOT_SEEN', 'PENDING', 'SEEN'].includes(t.status)) return false;
+                        if (taskFilter === 'IN_PROGRESS' && !['ACCEPTED', 'IN_PROGRESS', 'WAITING_APPROVAL', 'SUBMITTED'].includes(t.status)) return false;
+                        if (taskFilter === 'COMPLETED' && t.status !== 'COMPLETED') return false;
+                        if (taskSearchQuery.trim()) {
+                          const q = taskSearchQuery.toLowerCase();
+                          const matchTitle = t.title?.toLowerCase().includes(q);
+                          const matchDesc = t.description?.toLowerCase().includes(q);
+                          const matchNum = t.taskNumber?.toLowerCase().includes(q);
+                          const matchDept = t.department?.name?.toLowerCase().includes(q);
+                          if (!matchTitle && !matchDesc && !matchNum && !matchDept) return false;
+                        }
+                        return true;
+                      })
+                      .map((t) => {
+                        const isOverdue = t.dueDate && new Date(t.dueDate) < new Date() && t.status !== 'COMPLETED';
+                        const checklist = parseChecklist(t.checklist);
+                        const priorityColors: Record<string, string> = {
+                          URGENT: 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20',
+                          HIGH: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20',
+                          MEDIUM: 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-indigo-500/20',
+                          LOW: 'bg-slate-500/10 text-slate-600 dark:text-slate-400 border-slate-500/20',
+                        };
+
+                        return (
+                          <div
+                            key={t.id}
+                            className="p-4 bg-card border border-border hover:border-primary/40 rounded-xl transition-all shadow-xs space-y-3"
+                          >
+                            {/* Card Top Row */}
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="px-2 py-0.5 bg-muted/60 text-muted-foreground font-mono text-[10px] font-bold rounded">
+                                  {t.taskNumber || 'TSK'}
+                                </span>
+                                {t.priority && (
+                                  <span className={`px-2 py-0.5 text-[9px] font-black uppercase rounded border ${priorityColors[t.priority] || priorityColors.MEDIUM}`}>
+                                    {t.priority}
+                                  </span>
+                                )}
+                                {t.department?.name && (
+                                  <span className="text-[10px] text-muted-foreground font-semibold flex items-center gap-1">
+                                    • {t.department.name}
+                                  </span>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-2">
+                                {t.dueDate && (
+                                  <span className={`text-[10px] font-bold flex items-center gap-1 ${
+                                    isOverdue ? 'text-rose-600 dark:text-rose-400' : 'text-muted-foreground'
+                                  }`}>
+                                    <Clock className="h-3 w-3" />
+                                    Due: {new Date(t.dueDate).toLocaleDateString('en-IN')}
+                                    {isOverdue && <span className="px-1.5 py-0.2 bg-rose-500/10 text-[9px] rounded font-black">OVERDUE</span>}
+                                  </span>
+                                )}
+                                <StatusBadge status={t.status || 'ASSIGNED'} size="sm" />
+                              </div>
+                            </div>
+
+                            {/* Title & Description */}
+                            <div>
+                              <h4 className="font-bold text-sm text-foreground">{t.title}</h4>
+                              {t.description && (
+                                <p className="text-xs text-muted-foreground mt-1 line-clamp-2 leading-relaxed">
+                                  {t.description}
+                                </p>
+                              )}
+                            </div>
+
+                            {/* Progress & Checklist Summary */}
+                            {(t.completionPercent > 0 || checklist.length > 0) && (
+                              <div className="pt-2 border-t border-border/50 grid grid-cols-1 sm:grid-cols-2 gap-2 items-center">
+                                <div>
+                                  <div className="flex justify-between text-[10px] text-muted-foreground font-bold mb-1">
+                                    <span>Progress</span>
+                                    <span>{t.completionPercent || 0}%</span>
+                                  </div>
+                                  <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                                    <div
+                                      className="h-full bg-primary rounded-full transition-all duration-300"
+                                      style={{ width: `${t.completionPercent || 0}%` }}
+                                    />
+                                  </div>
+                                </div>
+                                {checklist.length > 0 && (
+                                  <div className="text-[11px] text-muted-foreground flex items-center gap-1 sm:justify-end">
+                                    <CheckSquare className="h-3.5 w-3.5 text-primary" />
+                                    <span>
+                                      Checklist: {checklist.filter((c: any) => c.completed).length} / {checklist.length} items
+                                    </span>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+
+                            {/* Action Buttons */}
+                            <div className="pt-2 border-t border-border/60 flex flex-wrap items-center justify-between gap-2">
+                              <div className="text-[11px] text-muted-foreground">
+                                {t.createdBy && (
+                                  <span>Assigned by: <strong className="text-foreground">{t.createdBy.firstName} {t.createdBy.lastName}</strong></span>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-2">
+                                {['NOT_SEEN', 'PENDING', 'SEEN'].includes(t.status) && (
+                                  <button
+                                    onClick={() => handleUpdateTaskStatus(t.id, 'IN_PROGRESS')}
+                                    disabled={isSubmittingTaskAction}
+                                    className="px-3 py-1.5 bg-primary text-primary-foreground text-xs font-bold rounded-lg hover:bg-primary/90 transition-colors"
+                                  >
+                                    Accept & Start Task
+                                  </button>
+                                )}
+                                {['ACCEPTED', 'IN_PROGRESS'].includes(t.status) && (
+                                  <>
+                                    <button
+                                      onClick={() => handleUpdateTaskStatus(t.id, 'COMPLETED')}
+                                      disabled={isSubmittingTaskAction}
+                                      className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg transition-colors flex items-center gap-1"
+                                    >
+                                      <CheckCircle2 className="h-3.5 w-3.5" /> Mark Complete
+                                    </button>
+                                  </>
+                                )}
+                                <button
+                                  onClick={() => handleOpenTaskDetails(t)}
+                                  className="px-3 py-1.5 border border-border text-foreground hover:bg-muted text-xs font-bold rounded-lg transition-colors flex items-center gap-1"
+                                >
+                                  <Eye className="h-3.5 w-3.5" /> View Details
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })
+                  )}
                 </div>
               </motion.div>
             )}
@@ -579,6 +969,168 @@ export const FacultyWorkspacePortal: React.FC = () => {
             )}
           </AnimatePresence>
         </main>
+
+      {/* Task Details & Action Modal */}
+      <Modal
+        isOpen={isTaskDetailsModalOpen}
+        onClose={() => { setIsTaskDetailsModalOpen(false); setSelectedTaskForDetails(null); }}
+        title={selectedTaskForDetails ? `Directive: ${selectedTaskForDetails.title}` : 'Task Details'}
+        subtitle={selectedTaskForDetails?.taskNumber ? `Directive Code: ${selectedTaskForDetails.taskNumber}` : undefined}
+        maxWidth="2xl"
+      >
+        {selectedTaskForDetails && (
+          <div className="space-y-5 text-xs">
+            {/* Meta tags */}
+            <div className="flex flex-wrap items-center justify-between gap-2 p-3 bg-muted/30 border border-border rounded-xl">
+              <div className="flex items-center gap-2">
+                <StatusBadge status={selectedTaskForDetails.status || 'ASSIGNED'} size="sm" />
+                {selectedTaskForDetails.priority && (
+                  <span className="px-2 py-0.5 bg-indigo-500/10 text-indigo-600 text-[10px] font-extrabold uppercase rounded">
+                    {selectedTaskForDetails.priority} Priority
+                  </span>
+                )}
+                {selectedTaskForDetails.department?.name && (
+                  <span className="text-[11px] text-muted-foreground">
+                    {selectedTaskForDetails.department.name}
+                  </span>
+                )}
+              </div>
+              {selectedTaskForDetails.dueDate && (
+                <span className="text-muted-foreground font-bold flex items-center gap-1">
+                  <Clock className="h-3.5 w-3.5" /> Due: {new Date(selectedTaskForDetails.dueDate).toLocaleDateString('en-IN')}
+                </span>
+              )}
+            </div>
+
+            {/* Description */}
+            <div>
+              <label className="text-[10px] uppercase font-bold text-muted-foreground block mb-1">Description & Guidelines</label>
+              <div className="p-3.5 bg-card border border-border rounded-xl text-foreground text-xs whitespace-pre-wrap leading-relaxed">
+                {selectedTaskForDetails.description || 'No additional instructions provided for this task.'}
+              </div>
+            </div>
+
+            {/* Progress Slider */}
+            <div>
+              <div className="flex justify-between items-center mb-1">
+                <label className="text-[10px] uppercase font-bold text-muted-foreground">Execution Progress ({taskProgressInput}%)</label>
+                <button
+                  onClick={() => handleUpdateTaskProgress(selectedTaskForDetails.id, taskProgressInput)}
+                  disabled={isSubmittingTaskAction}
+                  className="px-3 py-1 bg-primary text-primary-foreground font-bold text-[10px] rounded-lg disabled:opacity-50"
+                >
+                  Save Progress
+                </button>
+              </div>
+              <input
+                type="range"
+                min={0}
+                max={100}
+                step={5}
+                value={taskProgressInput}
+                onChange={(e) => setTaskProgressInput(Number(e.target.value))}
+                className="w-full accent-primary h-2 bg-muted rounded-lg cursor-pointer"
+              />
+            </div>
+
+            {/* Interactive Checklist */}
+            {parseChecklist(selectedTaskForDetails.checklist).length > 0 && (
+              <div>
+                <label className="text-[10px] uppercase font-bold text-muted-foreground block mb-1.5">
+                  Checklist Items ({parseChecklist(selectedTaskForDetails.checklist).filter((c: any) => c.completed).length}/{parseChecklist(selectedTaskForDetails.checklist).length})
+                </label>
+                <div className="space-y-1.5 border border-border rounded-xl p-3 bg-card">
+                  {parseChecklist(selectedTaskForDetails.checklist).map((item: any, idx: number) => (
+                    <div
+                      key={idx}
+                      onClick={() => handleToggleChecklistItem(selectedTaskForDetails.id, idx)}
+                      className="flex items-center gap-2 p-2 hover:bg-muted/40 rounded-lg cursor-pointer transition-colors"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={Boolean(item.completed)}
+                        onChange={() => {}}
+                        className="h-4 w-4 rounded accent-primary cursor-pointer"
+                      />
+                      <span className={`text-xs ${item.completed ? 'line-through text-muted-foreground' : 'text-foreground font-medium'}`}>
+                        {item.text || item.title || item.label || `Step ${idx + 1}`}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Status Quick Transitions */}
+            <div className="flex flex-wrap items-center justify-between gap-2 pt-3 border-t border-border">
+              <span className="text-[11px] text-muted-foreground font-semibold">Change Directive Status:</span>
+              <div className="flex items-center gap-2">
+                {selectedTaskForDetails.status !== 'IN_PROGRESS' && (
+                  <button
+                    onClick={() => handleUpdateTaskStatus(selectedTaskForDetails.id, 'IN_PROGRESS')}
+                    disabled={isSubmittingTaskAction}
+                    className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-lg"
+                  >
+                    Start Task
+                  </button>
+                )}
+                {selectedTaskForDetails.status !== 'COMPLETED' && (
+                  <button
+                    onClick={() => handleUpdateTaskStatus(selectedTaskForDetails.id, 'COMPLETED')}
+                    disabled={isSubmittingTaskAction}
+                    className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-lg flex items-center gap-1"
+                  >
+                    <CheckCircle2 className="h-3.5 w-3.5" /> Mark Completed
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Comments Thread */}
+            <div className="pt-3 border-t border-border space-y-3">
+              <label className="text-[10px] uppercase font-bold text-muted-foreground block">
+                Discussion & Activity Notes ({selectedTaskForDetails.comments?.length || 0})
+              </label>
+
+              {selectedTaskForDetails.comments && selectedTaskForDetails.comments.length > 0 && (
+                <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                  {selectedTaskForDetails.comments.map((cm: any) => (
+                    <div key={cm.id} className="p-2.5 bg-muted/30 border border-border/60 rounded-xl space-y-1">
+                      <div className="flex items-center justify-between text-[10px]">
+                        <span className="font-bold text-foreground">
+                          {cm.author?.firstName ? `${cm.author.firstName} ${cm.author.lastName}` : 'Faculty/Staff'}
+                        </span>
+                        <span className="text-muted-foreground">
+                          {cm.createdAt ? new Date(cm.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
+                        </span>
+                      </div>
+                      <p className="text-xs text-muted-foreground">{cm.comment || cm.content}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  placeholder="Add a progress update note or query…"
+                  value={taskCommentInput}
+                  onChange={(e) => setTaskCommentInput(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') handleAddTaskComment(selectedTaskForDetails.id); }}
+                  className="flex-1 px-3 py-2 text-xs bg-background border border-border rounded-xl outline-none focus:border-primary"
+                />
+                <button
+                  onClick={() => handleAddTaskComment(selectedTaskForDetails.id)}
+                  disabled={isSubmittingTaskAction || !taskCommentInput.trim()}
+                  className="px-4 py-2 bg-primary text-primary-foreground font-bold text-xs rounded-xl disabled:opacity-50 flex items-center gap-1"
+                >
+                  <Send className="h-3 w-3" /> Post
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </Modal>
 
       {/* Create Assignment Modal */}
       <Modal

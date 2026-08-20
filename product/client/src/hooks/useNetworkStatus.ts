@@ -1,25 +1,19 @@
 import { useState, useEffect } from 'react';
-import { Network, ConnectionStatus } from '@capacitor/network';
-import { Capacitor } from '@capacitor/core';
+import { getNetworkStatus, listenNetworkStatus } from '../platform/network';
+import type { NetworkStatusInfo } from '../platform/platform.types';
 
 export const useNetworkStatus = () => {
-  const [status, setStatus] = useState<ConnectionStatus>({
+  const [status, setStatus] = useState<NetworkStatusInfo>({
     connected: true,
     connectionType: 'wifi',
   });
 
   useEffect(() => {
     // Initial fetch
-    Network.getStatus().then(setStatus).catch(() => {});
+    getNetworkStatus().then(setStatus).catch(() => {});
 
     // Live listener
-    const listener = Network.addListener('networkStatusChange', (newStatus) => {
-      setStatus(newStatus);
-    });
-
-    return () => {
-      listener.then((l) => l.remove());
-    };
+    return listenNetworkStatus(setStatus);
   }, []);
 
   return {

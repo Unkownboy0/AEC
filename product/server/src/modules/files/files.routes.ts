@@ -6,11 +6,11 @@ const router = Router();
 const controller = new FilesController();
 
 // Content delivery endpoints for inline media (avatars, images, viewable attachments)
-router.get('/content', controller.getContent);
-router.get('/:id/content', controller.getContent);
+router.get('/content', requireAuth, controller.getContent);
+router.get('/:id/content', requireAuth, controller.getContent);
 
 router.get('/', requireAuth, requirePermission('files:read'), controller.list);
-router.get('/:id/download', requireAuth, requirePermission('files:read'), controller.download);
+router.get('/:id/download', requireAuth, controller.download);
 router.post('/upload', requireAuth, (req, res, next) => {
   const user = (req as any).user;
   if (user && ['Student', 'HOD', 'Faculty', 'Super Admin', 'College Admin', 'Principal', 'Vice Principal'].includes(user.role)) {

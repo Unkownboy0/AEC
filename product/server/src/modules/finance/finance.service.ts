@@ -2,6 +2,7 @@ import crypto from 'crypto';
 import { prisma } from '../../lib/prisma';
 import { BadRequestException, ForbiddenException, NotFoundException } from '../../utils/exceptions';
 import { NotificationService } from '../notifications/notification.service';
+import { broadcastRBACUpdate } from '../../lib/socket';
 
 const db = prisma as any;
 const code = (prefix: string) => `${prefix}-${new Date().getFullYear()}-${crypto.randomBytes(5).toString('hex').toUpperCase()}`;
@@ -192,6 +193,20 @@ export class FinanceService {
     }, { isolationLevel: 'Serializable' });
 
     await financeAudit(actor, 'MANUAL_PAYMENT_CREATED', 'FEE_PAYMENT', result.payment.id, null, { amount, method, billId: bill.id }, request);
+
+    // Invalidate client caches and trigger realtime refresh across Accountant, AO, and Student
+    broadcastRBACUpdate({
+      type: 'FINANCE_TRANSACTION_CHANGED',
+      userId: bill.studentId,
+      payload: {
+        studentId: bill.studentId,
+        billId: bill.id,
+        paymentId: result.payment.id,
+        amount,
+        timestamp: new Date().toISOString(),
+      },
+    });
+
     return result;
   }
 
@@ -224,9 +239,36 @@ export class FinanceService {
     const existing = await db.dailyClosing.findUnique({ where: { accountantId_closingDate: { accountantId: actor.id, closingDate: date } } });
     if (existing && ['SUBMITTED_TO_AO', 'AO_APPROVED'].includes(existing.status)) throw new ForbiddenException('Submitted or approved closings cannot be edited');
     const actual = money(input.actualTotal ?? preview.actualTotal);
-    const data: any = { ...preview, transactionIds: undefined, closingNumber: existing?.closingNumber || code('CLS'), accountantId: actor.id, closingDate: date, actualTotal: actual, difference: actual - preview.expectedTotal, cashCount: input.cashCount == null ? null : money(input.cashCount), remarks: String(input.remarks || '').slice(0, 2000), supportUrl: input.supportUrl || null, snapshotJson: JSON.stringify(preview), status: submit ? 'SUBMITTED_TO_AO' : 'DRAFT', submittedAt: submit ? new Date() : null };
+    const { netTotal: _net, transactionIds: _txs, ...previewFields } = preview;
+    const data: any = {
+      ...previewFields,
+      closingNumber: existing?.closingNumber || code('CLS'),
+      accountantId: actor.id,
+      closingDate: date,
+      actualTotal: actual,
+      difference: actual - preview.expectedTotal,
+      cashCount: input.cashCount == null ? null : money(input.cashCount),
+      remarks: String(input.remarks || '').slice(0, 2000),
+      supportUrl: input.supportUrl || null,
+      snapshotJson: JSON.stringify(preview),
+      status: submit ? 'SUBMITTED_TO_AO' : 'DRAFT',
+      submittedAt: submit ? new Date() : null,
+    };
     const closing = existing ? await db.dailyClosing.update({ where: { id: existing.id }, data }) : await db.dailyClosing.create({ data });
-    if (submit) await db.dailyClosingApproval.create({ data: { closingId: closing.id, action: 'SUBMITTED', actorId: actor.id, afterJson: JSON.stringify(data), ipAddress: request?.ip || null, userAgent: request?.headers?.['user-agent'] || null } });
+
+    if (submit) {
+      await db.dailyClosingApproval.create({ data: { closingId: closing.id, action: 'SUBMITTED', actorId: actor.id, afterJson: JSON.stringify(data), ipAddress: request?.ip || null, userAgent: request?.headers?.['user-agent'] || null } });
+      
+      broadcastRBACUpdate({
+        type: 'FINANCE_CLOSING_SUBMITTED',
+        userId: actor.id,
+        payload: {
+          closingId: closing.id,
+          accountantId: actor.id,
+          timestamp: new Date().toISOString(),
+        },
+      });
+    }
     await financeAudit(actor, submit ? 'DAILY_CLOSING_SUBMITTED' : 'DAILY_CLOSING_SAVED', 'DAILY_CLOSING', closing.id, existing, data, request);
     return closing;
   }
@@ -239,6 +281,12 @@ export class FinanceService {
     if (!isAO(actor)) throw new ForbiddenException('AO permission is required');
     const closing = await db.dailyClosing.findUnique({ where: { id } });
     if (!closing || closing.status !== 'SUBMITTED_TO_AO') throw new NotFoundException('Submitted closing not found');
+    
+    // Maker-Checker enforcement: Maker cannot approve their own submission
+    if (closing.accountantId === actor.id && !['SUPER_ADMIN'].includes(roleCode(actor))) {
+      throw new ForbiddenException('Maker-Checker Violation: You cannot approve your own daily closing submission.');
+    }
+
     if (action !== 'APPROVE' && !reason.trim()) throw new BadRequestException('A reason is required');
     const status = action === 'APPROVE' ? 'AO_APPROVED' : action === 'RETURN' ? 'AO_RETURNED' : 'QUERY_RAISED';
     const updated = await db.$transaction(async (tx: any) => {
@@ -247,6 +295,16 @@ export class FinanceService {
       return row;
     });
     await financeAudit(actor, `DAILY_CLOSING_${action}`, 'DAILY_CLOSING', id, closing, updated, request);
+    
+    broadcastRBACUpdate({
+      type: 'FINANCE_CLOSING_REVIEWED',
+      payload: {
+        closingId: id,
+        status,
+        timestamp: new Date().toISOString(),
+      },
+    });
+
     return updated;
   }
 
@@ -261,6 +319,18 @@ export class FinanceService {
     }
     const row = await db.financeRequest.create({ data: { requestNumber: code(type.slice(0, 3)), requestType: type, status: 'REQUESTED', amount, originalAmount: input.originalAmount == null ? null : money(input.originalAmount), reason: String(input.reason || '').trim(), remarks: input.remarks || null, supportUrl: input.supportUrl || null, studentId: input.studentId || null, billId: input.billId || null, paymentId: input.paymentId || null, requestedById: actor.id, metadataJson: input.metadata ? JSON.stringify(input.metadata) : null } });
     await financeAudit(actor, `${type}_REQUESTED`, 'FINANCE_REQUEST', row.id, null, row, request);
+    
+    broadcastRBACUpdate({
+      type: 'FINANCE_REQUEST_CREATED',
+      userId: input.studentId,
+      payload: {
+        requestId: row.id,
+        requestType: type,
+        studentId: input.studentId,
+        timestamp: new Date().toISOString(),
+      },
+    });
+
     return row;
   }
 
@@ -272,6 +342,12 @@ export class FinanceService {
     if (!isAO(actor)) throw new ForbiddenException('AO permission is required');
     const row = await db.financeRequest.findUnique({ where: { id }, include: { bill: true, payment: true } });
     if (!row || !['REQUESTED', 'UNDER_REVIEW', 'RETURNED'].includes(row.status)) throw new NotFoundException('Reviewable request not found');
+    
+    // Maker-Checker enforcement: Requester cannot approve their own financial adjustment
+    if (row.requestedById === actor.id && !['SUPER_ADMIN'].includes(roleCode(actor))) {
+      throw new ForbiddenException('Maker-Checker Violation: You cannot approve your own financial request.');
+    }
+
     if (decision !== 'APPROVE' && !reason.trim()) throw new BadRequestException('Decision reason is required');
     const status = decision === 'APPROVE' ? 'AO_APPROVED' : decision === 'REJECT' ? 'REJECTED' : 'RETURNED';
     const updated = await db.$transaction(async (tx: any) => {
@@ -284,8 +360,22 @@ export class FinanceService {
       return tx.financeRequest.update({ where: { id }, data: { status, reviewedById: actor.id, reviewedAt: new Date(), decisionReason: reason || null } });
     });
     await financeAudit(actor, `${row.requestType}_${decision}`, 'FINANCE_REQUEST', id, row, updated, request);
+    
+    broadcastRBACUpdate({
+      type: 'FINANCE_APPROVAL_COMPLETED',
+      userId: row.studentId || row.bill?.studentId,
+      payload: {
+        requestId: id,
+        requestType: row.requestType,
+        studentId: row.studentId || row.bill?.studentId,
+        status,
+        timestamp: new Date().toISOString(),
+      },
+    });
+
     return updated;
   }
+
 
   /**
    * Expense Vouchers & Vendor Payments (Maker/Checker workflow)

@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { prisma } from '../../lib/prisma';
 import { logger } from '../../utils/logger';
+import { profileImageDescriptor } from '../users/profile-media.service';
 
 export class PlacementController {
   /**
@@ -26,7 +27,7 @@ export class PlacementController {
         where: { deleted: false, status: 'ACTIVE' },
         include: {
           department: { select: { id: true, name: true, code: true } },
-          user: { select: { profilePhoto: true } }
+          user: { select: { id: true, profilePhoto: true, profileImageFileId: true, profileImageFile: true } }
         }
       });
 
@@ -249,7 +250,7 @@ export class PlacementController {
           department: { select: { name: true, code: true } },
           program: { select: { name: true, code: true } },
           semester: { select: { name: true } },
-          user: { select: { profilePhoto: true, email: true } }
+          user: { select: { id: true, profilePhoto: true, profileImageFileId: true, profileImageFile: true, email: true } }
         }
       });
 
@@ -277,7 +278,8 @@ export class PlacementController {
           placementDate: rec.driveDate,
           internshipStatus: null,
           higherStudiesStatus: null,
-          photo: std?.user?.profilePhoto || null
+          photo: std?.user ? profileImageDescriptor(std.user).url : null,
+          profileImage: std?.user ? profileImageDescriptor(std.user) : null
         };
       });
 

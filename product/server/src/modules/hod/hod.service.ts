@@ -348,4 +348,89 @@ export class HodService {
       },
     });
   }
+
+  async getDepartmentMentors(departmentId: string, query?: any) {
+    const facultyMembers: any[] = await prisma.faculty.findMany({
+      where: {
+        departmentId,
+        status: 'ACTIVE',
+        deleted: false,
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+            profilePhoto: true,
+            gender: true,
+          },
+        },
+        mentoredStudents: {
+          where: { status: 'ACTIVE', deleted: false },
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            admissionNo: true,
+            section: true,
+          },
+        },
+        _count: {
+          select: {
+            mentoredStudents: true,
+          },
+        },
+      },
+      orderBy: { firstName: 'asc' },
+    });
+
+    const results = await Promise.all(
+      facultyMembers.map(async (f: any) => {
+        const students = f.mentoredStudents || [];
+        const studentIds = students.map((s: any) => s.id);
+        let pendingApprovals = 0;
+        if (studentIds.length > 0) {
+          try {
+            pendingApprovals = await prisma.studentLeaveRequest.count({
+              where: {
+                studentId: { in: studentIds },
+                OR: [
+                  { status: 'PENDING' },
+                  { status: 'PENDING_MENTOR' },
+                  { workflowStatus: 'PENDING_MENTOR' },
+                ],
+              },
+            });
+          } catch {
+            pendingApprovals = 0;
+          }
+        }
+        const name = `${f.firstName || ''} ${f.lastName || ''}`.trim() || f.user?.firstName || 'Faculty Mentor';
+        return {
+          id: f.id,
+          facultyId: f.id,
+          userId: f.userId,
+          employeeId: f.employeeId || f.id.slice(0, 8).toUpperCase(),
+          name,
+          firstName: f.firstName,
+          lastName: f.lastName,
+          email: f.email,
+          designation: f.designation || 'Assistant Professor',
+          profilePhoto: f.user?.profilePhoto,
+          gender: f.gender || f.user?.gender || 'UNSPECIFIED',
+          departmentId: f.departmentId,
+          menteeCount: students.length,
+          assignedStudentsCount: students.length,
+          pendingApprovals,
+          status: f.status || 'ACTIVE',
+          students,
+        };
+      })
+    );
+
+    return results;
+  }
 }
+

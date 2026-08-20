@@ -71,10 +71,11 @@ console.log('✅ D: Capacitor appName parameterized via VITE_APP_DISPLAY_NAME');
 assert.ok(configContent.includes("webDir: 'dist'"), "webDir = 'dist'");
 console.log("✅ E: Capacitor webDir = 'dist'");
 
-// F: cleartext control (must depend on scheme, not always true)
-assert.ok(configContent.includes('cleartext: androidScheme === \'http\'') || configContent.includes('cleartext: true') && configContent.includes('cleartext'), 'cleartext is controlled');
-assert.ok(!configContent.includes('cleartext: true,\n      androidScheme'), 'cleartext not unconditionally true in production path');
-console.log('✅ F: cleartext controlled by scheme env var (false in production HTTPS)');
+// F: bundled production path is fail-closed; cleartext is limited to an explicit dev-server URL.
+assert.ok(configContent.includes("if (isProduction && developmentServerUrl)"), 'production rejects a Capacitor development server URL');
+assert.ok(configContent.includes("cleartext: developmentServerUrl.startsWith('http:')"), 'development-server cleartext follows its explicit URL scheme');
+assert.ok(configContent.includes('cleartext: false'), 'bundled production path disables cleartext');
+console.log('✅ F: cleartext is disabled for bundled production and scoped to explicit development servers');
 
 // ─── G: Capacitor package version alignment ────────────────────────────────────
 const deps = clientPkg.dependencies || {};

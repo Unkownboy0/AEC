@@ -36,7 +36,7 @@ import timetableRoutes from './modules/timetable/timetable.routes';
 import aiRoutes from './modules/ai/ai.routes';
 import assignmentsRoutes from './modules/enterprise/assignments.routes';
 import chatRoutes from './modules/chat/chat.routes';
-import circularRoutes from './modules/enterprise/circular.routes';
+import circularRoutes from './modules/circulars/circular.routes';
 import curriculumRoutes from './modules/curriculum/curriculum.routes';
 import sportsRoutes from './modules/sports/sports.routes';
 import taskRoutes from './modules/enterprise/task.routes';
@@ -69,6 +69,7 @@ import hodTaskRoutes from './modules/hod-tasks/hod-task.routes';
 import campusOfficeRoutes from './modules/enterprise/campus-office.routes';
 import hodTimetableRoutes from './modules/timetable/hod-timetable.routes';
 import workspaceRoutes from './modules/campus-workspace/workspace.routes';
+import approvalRoutes from './modules/approvals/approval.routes';
 
 // Jobs & Services
 import { PrincipalDataRepairScript } from './modules/principal-availability/repair-principal-availability';
@@ -95,9 +96,12 @@ import alumniRoutes from './modules/alumni/alumni.routes';
 import calendarRoutes from './modules/calendar/calendar.routes';
 import emergencyRoutes from './modules/emergency/emergency.routes';
 import activityRoutes from './modules/activity/activity.routes';
+
 import student360Routes from './modules/student-360/student-360.routes';
 import staff360Routes from './modules/staff-360/staff-360.routes';
 import integrationRoutes from './modules/integration/integration-chain.routes';
+import razorpayWebhookRoutes from './modules/fees/razorpay-webhook.routes';
+
 
 const app = express();
 
@@ -126,21 +130,20 @@ if (env.NODE_ENV !== 'production') {
 // Enable CORS
 const allowedOrigins = [
   ...env.ALLOWED_ORIGINS.split(',').map((origin) => origin.trim()).filter(Boolean),
-  'capacitor://localhost',
-  'https://localhost',
-  'http://localhost',
-  'http://localhost:5173',
-  'http://localhost:3000',
-  'http://10.0.2.2:5000',
-  'http://10.226.116.201:5000',
-  'http://10.226.116.201:5173',
+  ...(env.NODE_ENV === 'development' ? [
+    'capacitor://localhost', 'https://localhost', 'http://localhost',
+    'http://localhost:5173', 'http://localhost:5174', 'http://localhost:5175', 'http://localhost:3000', 'http://10.0.2.2:5000',
+  ] : []),
 ];
 app.use(
   cors({
     origin: (origin, callback) => {
       // Allow requests with no origin (like mobile apps, curl, native webviews)
       if (!origin) return callback(null, true);
-      if (allowedOrigins.indexOf(origin) !== -1 || env.NODE_ENV === 'development' || origin.startsWith('capacitor://') || origin.startsWith('https://localhost') || origin.startsWith('http://localhost')) {
+      if (
+        allowedOrigins.indexOf(origin) !== -1 ||
+        (env.NODE_ENV === 'development' && /^http:\/\/(localhost|127\.0\.0\.1|10\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+|172\.(1[6-9]|2\d|3[01])\.\d+\.\d+)(:\d+)?$/.test(origin))
+      ) {
         return callback(null, true);
       }
       return callback(new Error(`Not allowed by CORS: ${origin}`));
@@ -148,6 +151,10 @@ app.use(
     credentials: true,
   })
 );
+
+// Preserve exact bytes for Razorpay HMAC verification. This must be registered
+// before the global JSON parser and is intentionally not behind CampusOS JWT auth.
+app.use('/api/payments', razorpayWebhookRoutes);
 
 // Body parser (increase limit for base64 file uploads)
 app.use(express.json({ limit: '10mb' }));
@@ -192,6 +199,9 @@ app.get('/api/health', async (req, res) => {
     checks: {
       database: { status: dbStatus, latencyMs: dbLatencyMs },
       storage: { status: 'ok' },
+      pushNotifications: {
+        status: env.FIREBASE_SERVICE_ACCOUNT_JSON || env.FIREBASE_SERVICE_ACCOUNT_PATH ? 'configured' : 'in_app_only',
+      },
     },
   });
 });
@@ -319,6 +329,7 @@ app.use('/api/parent', parentRoutes);
 app.use('/api/faculty', facultyRoutes);
 app.use('/api', principalAvailabilityRouter);
 app.use('/api', delegationRoutes);
+app.use('/api', approvalRoutes);
 
 // Modules 09–51
 app.use('/api/library', libraryRoutes);

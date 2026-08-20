@@ -83,7 +83,7 @@ export const Toaster: React.FC = () => {
   if (toasts.length === 0) return null;
 
   return createPortal(
-    <div className="fixed bottom-4 right-4 z-50 flex w-full max-w-sm flex-col gap-2 p-4">
+    <div className="fixed z-50 flex flex-col gap-2 pointer-events-none p-3 sm:p-4 max-w-sm w-full left-1/2 -translate-x-1/2 sm:left-auto sm:translate-x-0 sm:right-4 bottom-[calc(var(--mobile-bottom-nav-height,64px)+var(--safe-area-bottom,0px)+12px)] sm:bottom-4">
       {toasts.map((t) => {
         let Icon = Info;
         let iconColor = 'text-blue-500';
@@ -107,7 +107,7 @@ export const Toaster: React.FC = () => {
           <div
             key={t.id}
             className={cn(
-              'flex w-full items-start gap-3 rounded-lg border bg-card p-4 shadow-lg transition-all duration-300 animate-in slide-in-from-bottom-5',
+              'pointer-events-auto flex w-full items-start gap-3 rounded-2xl sm:rounded-lg border bg-card p-3.5 sm:p-4 shadow-xl transition-all duration-300 animate-in slide-in-from-bottom-5',
               borderColor
             )}
           >

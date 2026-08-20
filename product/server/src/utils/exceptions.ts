@@ -35,8 +35,8 @@ export class NotFoundException extends HttpException {
 }
 
 export class ConflictException extends HttpException {
-  constructor(message = 'Conflict') {
-    super(409, message);
+  constructor(message = 'Conflict', errors?: any) {
+    super(409, message, errors);
   }
 }
 

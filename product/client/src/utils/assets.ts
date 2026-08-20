@@ -20,6 +20,18 @@ export function resolveAssetUrl(path: string | null | undefined): string {
     return trimmed;
   }
 
+  // Local client assets (should remain relative/local)
+  if (
+    trimmed.startsWith('/branding/') ||
+    trimmed.startsWith('/avatars/') ||
+    trimmed.startsWith('/favicon.ico') ||
+    trimmed.startsWith('/logo.png') ||
+    trimmed.startsWith('branding/') ||
+    trimmed.startsWith('avatars/')
+  ) {
+    return trimmed;
+  }
+
   // Extract base backend origin by stripping /api and trailing slashes
   const serverOrigin = (API_BASE_URL || '')
     .replace(/\/api(\/v\d+)?\/?$/, '')

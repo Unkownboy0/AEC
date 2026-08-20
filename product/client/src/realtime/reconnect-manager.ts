@@ -2,13 +2,15 @@
   CAMPUSOS RECONNECT MANAGER — Handles socket reconnection & window focus/network recovery
 */
 
-import { App } from '@capacitor/app';
-import { Network } from '@capacitor/network';
 import { isNativePlatform } from '../platform/platform';
+import { listenAppLifecycle } from '../platform/lifecycle';
+import { listenNetworkStatus } from '../platform/network';
 
 export class ReconnectManager {
   private reconnectCallback: () => void;
   private isListening = false;
+  private removeLifecycle = () => {};
+  private removeNetwork = () => {};
 
   constructor(onReconnect: () => void) {
     this.reconnectCallback = onReconnect;
@@ -24,16 +26,9 @@ export class ReconnectManager {
 
     // Capacitor Native app state listeners
     if (isNativePlatform()) {
-      App.addListener('appStateChange', (state) => {
-        if (state.isActive) {
-          this.reconnectCallback();
-        }
-      });
-
-      Network.addListener('networkStatusChange', (status) => {
-        if (status.connected) {
-          this.reconnectCallback();
-        }
+      this.removeLifecycle = listenAppLifecycle(this.reconnectCallback);
+      this.removeNetwork = listenNetworkStatus((status) => {
+        if (status.connected) this.reconnectCallback();
       });
     }
   }
@@ -49,6 +44,10 @@ export class ReconnectManager {
   public destroy() {
     window.removeEventListener('online', this.handleNetworkOnline);
     window.removeEventListener('focus', this.handleWindowFocus);
+    this.removeLifecycle();
+    this.removeNetwork();
+    this.removeLifecycle = () => {};
+    this.removeNetwork = () => {};
     this.isListening = false;
   }
 }

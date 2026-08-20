@@ -1,4 +1,4 @@
-﻿import React, { useState } from "react";
+import React, { useState } from "react";
 import { ComplaintMonitoringCenter } from "../../components/complaint/ComplaintMonitoringCenter";
 import { MyComplaintsList } from "../../components/complaint/MyComplaintsList";
 import { PageHeader } from "../../design-system/components/PageHeader";
@@ -9,7 +9,7 @@ import { toast } from "../../components/ui/Toast";
 import api from "../../lib/axios";
 import { useAuth } from "../../context/AuthContext";
 
-const CATEGORY_ROUTING: Record<string, { label: string; destination: string; isConfidential?: boolean }> = {
+const CATEGORY_ROUTING: Record<string, { label: string; destination: string; restrictedRouting?: boolean }> = {
   ACADEMIC:           { label: "Academic / Coursework",        destination: "Operating Department HOD" },
   ATTENDANCE_ISSUE:   { label: "Attendance Discrepancy",       destination: "Department HOD / Class Adviser" },
   FACULTY_BEHAVIOR:   { label: "Faculty Conduct",              destination: "Department HOD (confidential)" },
@@ -18,7 +18,7 @@ const CATEGORY_ROUTING: Record<string, { label: string; destination: string; isC
   TRANSPORT:          { label: "Transport / Bus",              destination: "Transport Manager + A&A Dean" },
   FEES:               { label: "Fees & Finance",               destination: "Accounts Department (AO/Accountant)" },
   DISCIPLINARY:       { label: "Disciplinary Concern",         destination: "A&A Dean + Principal Visibility" },
-  ANTI_RAGGING:       { label: "Anti-Ragging / Harassment",    destination: "Anti-Ragging Cell (Confidential)", isConfidential: true },
+  ANTI_RAGGING:       { label: "Anti-Ragging / Harassment",    destination: "Configured Anti-Ragging Cell", restrictedRouting: true },
   GENERAL:            { label: "General Grievance",            destination: "Administration & A&A Dean" },
 };
 
@@ -29,7 +29,6 @@ export const ComplaintsPage: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const [selectedCategory, setSelectedCategory] = useState("ACADEMIC");
-  const [isConfidential, setIsConfidential] = useState(false);
 
   const categoryInfo = CATEGORY_ROUTING[selectedCategory] || CATEGORY_ROUTING.GENERAL;
 
@@ -52,7 +51,6 @@ export const ComplaintsPage: React.FC = () => {
         category: selectedCategory,
         priority,
         description,
-        isConfidential: isConfidential || categoryInfo.isConfidential,
       });
 
       if (res.data?.status === "success" || res.status === 201 || res.status === 200) {
@@ -60,7 +58,6 @@ export const ComplaintsPage: React.FC = () => {
         setIsLogModalOpen(false);
         setRefreshKey((prev) => prev + 1);
         setSelectedCategory("ACADEMIC");
-        setIsConfidential(false);
       } else {
         toast.success("Complaint logged");
         setIsLogModalOpen(false);
@@ -117,7 +114,6 @@ export const ComplaintsPage: React.FC = () => {
                 value={selectedCategory}
                 onChange={e => {
                   setSelectedCategory(e.target.value);
-                  if (e.target.value === "ANTI_RAGGING") setIsConfidential(true);
                 }}
                 className="w-full h-10 px-3 bg-surface border border-border rounded-xl text-xs font-semibold focus:outline-none"
               >
@@ -133,7 +129,7 @@ export const ComplaintsPage: React.FC = () => {
                 name="priority"
                 className="w-full h-10 px-3 bg-surface border border-border rounded-xl text-xs font-semibold focus:outline-none"
               >
-                <option value="NORMAL">Normal Priority</option>
+                <option value="MEDIUM">Normal Priority</option>
                 <option value="HIGH">High Priority</option>
                 <option value="CRITICAL">Critical Emergency</option>
               </select>
@@ -141,19 +137,19 @@ export const ComplaintsPage: React.FC = () => {
           </div>
 
           <div className={`flex items-start gap-2.5 p-3 rounded-xl text-xs border ${
-            categoryInfo.isConfidential || isConfidential
+            categoryInfo.restrictedRouting
               ? "bg-amber-500/5 border-amber-500/30 text-amber-700 dark:text-amber-300"
               : "bg-primary/5 border-primary/20 text-primary"
           }`}>
-            {categoryInfo.isConfidential || isConfidential
+            {categoryInfo.restrictedRouting
               ? <Lock className="w-3.5 h-3.5 mt-0.5 shrink-0" />
               : <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
             }
             <div>
               <span className="font-semibold">This complaint will go to: </span>
               <span>{categoryInfo.destination}</span>
-              {(categoryInfo.isConfidential || isConfidential) && (
-                <span className="ml-2 px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-600 dark:text-amber-300 font-bold">CONFIDENTIAL</span>
+              {categoryInfo.restrictedRouting && (
+                <span className="ml-2 px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-600 dark:text-amber-300 font-bold">RESTRICTED ROUTING</span>
               )}
             </div>
           </div>
@@ -170,18 +166,6 @@ export const ComplaintsPage: React.FC = () => {
               className="w-full p-3 bg-surface border border-border rounded-xl text-xs text-text-primary focus:outline-none font-medium"
             />
           </div>
-
-          {!categoryInfo.isConfidential && (
-            <label className="flex items-center gap-2 text-xs font-medium text-text-secondary cursor-pointer">
-              <input
-                type="checkbox"
-                checked={isConfidential}
-                onChange={e => setIsConfidential(e.target.checked)}
-                className="rounded border-border"
-              />
-              Mark as confidential (only visible to designated authority)
-            </label>
-          )}
 
           <div className="pt-3 border-t border-border flex items-center justify-end gap-2">
             <button

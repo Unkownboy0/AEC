@@ -9,33 +9,10 @@
   Operators: Set VITE_SERVER_BASE_URL to an HTTPS endpoint for production builds.
 -->
 <network-security-config>
-    <!-- Production: enforce HTTPS for all remote hosts -->
+    <!-- Release/main policy: HTTPS only. Debug builds replace this resource. -->
     <base-config cleartextTrafficPermitted="false">
         <trust-anchors>
             <certificates src="system" />
         </trust-anchors>
     </base-config>
-
-    <!-- Development: allow HTTP to local/LAN targets only -->
-    <domain-config cleartextTrafficPermitted="true">
-        <!-- Android emulator host loopback -->
-        <domain includeSubdomains="false">10.0.2.2</domain>
-        <!-- Localhost & loopbacks for ADB reverse testing -->
-        <domain includeSubdomains="false">localhost</domain>
-        <domain includeSubdomains="false">127.0.0.1</domain>
-        <!-- LAN IP range for physical device testing -->
-        <domain includeSubdomains="true">192.168.2.160</domain>
-        <domain includeSubdomains="true">192.168.2.1</domain>
-        <domain includeSubdomains="true">192.168.1.0</domain>
-        <domain includeSubdomains="true">192.168.0.0</domain>
-        <domain includeSubdomains="true">10.226.116.201</domain>
-        <domain includeSubdomains="true">10.0.0.0</domain>
-    </domain-config>
-
-    <debug-overrides>
-        <trust-anchors>
-            <certificates src="system" />
-            <certificates src="user" />
-        </trust-anchors>
-    </debug-overrides>
 </network-security-config>

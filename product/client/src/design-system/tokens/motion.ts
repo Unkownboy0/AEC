@@ -10,23 +10,31 @@
  * All animations respect prefers-reduced-motion automatically via CSS.
  */
 
-import type { Variants, Easing } from 'framer-motion';
+import { useState, useEffect } from 'react';
+import type { Variants } from 'framer-motion';
 
-// ─── Duration Scale ───────────────────────────────────────────────
+// ─── Functional Motion Duration Scale (in seconds for Framer Motion) ─────
 export const duration = {
-  /** 100ms — instant feedback (button press, toggle) */
-  instant: 0.1,
-  /** 150ms — fast transitions (hover, focus, small elements) */
+  /** 80–120ms — Instant press feedback (button press, scale compression) */
+  press: 0.1,
+  /** 120–180ms — Fast micro-interactions (chip crossfade, toggle, icon pop) */
+  interaction: 0.15,
   fast: 0.15,
-  /** 200ms — standard transitions (panels, tabs, state changes) */
+  /** 180–240ms — Standard state transitions (workspace switch, card collapse) */
+  standard: 0.2,
   normal: 0.2,
-  /** 300ms — larger elements (drawers, modals, page transitions) */
+  /** 220–300ms — Page navigation & spatial transition */
+  page: 0.25,
   slow: 0.3,
-  /** 400ms — complex sequences (multi-step, stagger parent) */
-  complex: 0.4,
+  /** 250–320ms — Native bottom sheet slide-up */
+  sheet: 0.28,
+  /** 350–550ms — Numeric counter transition */
+  counter: 0.4,
+  /** 400–700ms — Progress bar width transition */
+  progress: 0.5,
 } as const;
 
-// ─── Easing ───────────────────────────────────────────────────────
+// ─── Deceleration & Acceleration Curves ─────────────────────────────────
 export const easing = {
   /** Standard deceleration — elements arriving on screen */
   easeOut: [0.16, 1, 0.3, 1] as [number, number, number, number],
@@ -34,21 +42,24 @@ export const easing = {
   easeIn: [0.4, 0, 1, 1] as [number, number, number, number],
   /** Symmetric — elements moving between positions */
   easeInOut: [0.4, 0, 0.2, 1] as [number, number, number, number],
-  /** Subtle spring-like — micro-interactions */
+  /** Micro-interaction subtle spring */
   spring: [0.34, 1.56, 0.64, 1] as [number, number, number, number],
 } as const;
 
-// ─── CSS Transition Strings ───────────────────────────────────────
+// ─── CSS Transition Strings ──────────────────────────────────────────────
 export const transition = {
+  press: 'transform 100ms cubic-bezier(0.16, 1, 0.3, 1)',
+  interaction: 'all 150ms cubic-bezier(0.16, 1, 0.3, 1)',
   fast: 'all 150ms cubic-bezier(0.16, 1, 0.3, 1)',
+  standard: 'all 200ms cubic-bezier(0.16, 1, 0.3, 1)',
   normal: 'all 200ms cubic-bezier(0.16, 1, 0.3, 1)',
-  slow: 'all 300ms cubic-bezier(0.16, 1, 0.3, 1)',
+  page: 'transform 250ms cubic-bezier(0.16, 1, 0.3, 1), opacity 250ms ease',
+  sheet: 'transform 280ms cubic-bezier(0.16, 1, 0.3, 1)',
   color: 'color 150ms ease, background-color 150ms ease, border-color 150ms ease',
-  transform: 'transform 200ms cubic-bezier(0.16, 1, 0.3, 1)',
-  opacity: 'opacity 150ms ease',
+  progress: 'width 500ms cubic-bezier(0.16, 1, 0.3, 1)',
 } as const;
 
-// ─── Framer Motion Variants ───────────────────────────────────────
+// ─── Framer Motion Variants ──────────────────────────────────────────────
 
 /** Page enter/exit */
 export const pageVariants: Variants = {
@@ -56,13 +67,19 @@ export const pageVariants: Variants = {
   animate: {
     opacity: 1,
     y: 0,
-    transition: { duration: duration.normal, ease: easing.easeOut },
+    transition: { duration: duration.page, ease: easing.easeOut },
   },
   exit: {
     opacity: 0,
     y: -4,
-    transition: { duration: duration.fast },
+    transition: { duration: duration.interaction },
   },
+};
+
+/** Press compression variant */
+export const pressableVariants: Variants = {
+  rest: { scale: 1 },
+  press: { scale: 0.98, transition: { duration: duration.press, ease: easing.easeOut } },
 };
 
 /** Card hover lift */
@@ -82,13 +99,13 @@ export const modalVariants: Variants = {
     opacity: 1,
     scale: 1,
     y: 0,
-    transition: { duration: duration.normal, ease: easing.easeOut },
+    transition: { duration: duration.standard, ease: easing.easeOut },
   },
   exit: {
     opacity: 0,
     scale: 0.97,
     y: 4,
-    transition: { duration: duration.fast },
+    transition: { duration: duration.interaction },
   },
 };
 
@@ -101,7 +118,7 @@ export const drawerVariants: Variants = {
   },
   exit: {
     x: '100%',
-    transition: { duration: duration.normal, ease: easing.easeIn },
+    transition: { duration: duration.standard, ease: easing.easeIn },
   },
 };
 
@@ -110,28 +127,34 @@ export const bottomSheetVariants: Variants = {
   initial: { y: '100%' },
   animate: {
     y: 0,
-    transition: { duration: duration.slow, ease: easing.easeOut },
+    transition: { duration: duration.sheet, ease: easing.easeOut },
   },
   exit: {
     y: '100%',
-    transition: { duration: duration.normal, ease: easing.easeIn },
+    transition: { duration: duration.standard, ease: easing.easeIn },
   },
 };
 
 /** Stagger children in lists */
 export const listContainerVariants: Variants = {
   animate: {
-    transition: { staggerChildren: 0.04 },
+    transition: { staggerChildren: 0.035 },
   },
 };
 
-/** Individual list item */
+/** Individual list item entrance */
 export const listItemVariants: Variants = {
   initial: { opacity: 0, y: 6 },
   animate: {
     opacity: 1,
     y: 0,
-    transition: { duration: duration.fast, ease: easing.easeOut },
+    transition: { duration: duration.interaction, ease: easing.easeOut },
+  },
+  exit: {
+    opacity: 0,
+    height: 0,
+    marginBottom: 0,
+    transition: { duration: duration.standard, ease: easing.easeIn },
   },
 };
 
@@ -140,13 +163,35 @@ export const overlayVariants: Variants = {
   initial: { opacity: 0 },
   animate: {
     opacity: 1,
-    transition: { duration: duration.fast },
+    transition: { duration: duration.interaction },
   },
   exit: {
     opacity: 0,
-    transition: { duration: duration.fast },
+    transition: { duration: duration.interaction },
   },
 };
+
+/** Hook to detect OS prefers-reduced-motion setting */
+export function useReducedMotionPreference(): boolean {
+  const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.matchMedia) return;
+    const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+    setPrefersReducedMotion(mediaQuery.matches);
+
+    const handler = (event: MediaQueryListEvent) => {
+      setPrefersReducedMotion(event.matches);
+    };
+
+    if (mediaQuery.addEventListener) {
+      mediaQuery.addEventListener('change', handler);
+      return () => mediaQuery.removeEventListener('change', handler);
+    }
+  }, []);
+
+  return prefersReducedMotion;
+}
 
 // ─── Consolidated Tokens Export ───────────────────────────────────
 export const motionTokens = {
@@ -154,3 +199,4 @@ export const motionTokens = {
   easing,
   transition,
 } as const;
+

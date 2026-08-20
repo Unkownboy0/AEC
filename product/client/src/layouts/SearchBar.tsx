@@ -1,18 +1,20 @@
 import { Capacitor } from '@capacitor/core';
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
-  Search, X, ArrowRight, User, BookOpen, FileCheck, Megaphone,
+  Search, X, ArrowRight, User, BookOpen, FileCheck, FileText, Megaphone,
   GraduationCap, Building2, Loader2, Sparkles
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import api from '../lib/axios';
+import { AppIcon } from '../design-system/icons/AppIcon';
+import { workspaceApi, type CampusSuiteApplication } from '../services/workspace.api';
 
 interface SearchResultItem {
   id: string;
   title: string;
   subtitle: string;
-  type: 'STUDENT' | 'FACULTY' | 'USER' | 'CIRCULAR' | 'DEPARTMENT' | 'PROGRAM' | 'SUBJECT';
+  type: 'STUDENT' | 'FACULTY' | 'USER' | 'CIRCULAR' | 'DEPARTMENT' | 'PROGRAM' | 'SUBJECT' | 'DOCUMENT' | 'TASK' | 'CALENDAR' | 'MESSAGE';
   link: string;
 }
 
@@ -22,10 +24,24 @@ export const SearchBar: React.FC = () => {
   const [results, setResults] = useState<SearchResultItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const [applications, setApplications] = useState<CampusSuiteApplication[]>([]);
 
   const { user } = useAuth();
   const navigate = useNavigate();
   const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    let active = true;
+    workspaceApi.listApplications()
+      .then((items) => {
+        if (active) setApplications(items);
+      })
+      .catch(() => {
+        if (active) setApplications([]);
+      });
+    return () => { active = false; };
+  }, [isOpen]);
 
   // ─── Keyboard shortcut ⌘K / Ctrl+K ──────────────────────────────
   useEffect(() => {
@@ -127,9 +143,22 @@ export const SearchBar: React.FC = () => {
       case 'FACULTY': return <User className="w-4 h-4 text-primary" />;
       case 'CIRCULAR': return <Megaphone className="w-4 h-4 text-amber-500" />;
       case 'DEPARTMENT': return <Building2 className="w-4 h-4 text-emerald-500" />;
+      case 'DOCUMENT': return <FileText className="w-4 h-4 text-primary" />;
+      case 'TASK': return <FileCheck className="w-4 h-4 text-amber-500" />;
+      case 'CALENDAR': return <BookOpen className="w-4 h-4 text-emerald-500" />;
+      case 'MESSAGE': return <Megaphone className="w-4 h-4 text-primary" />;
       default: return <User className="w-4 h-4 text-primary" />;
     }
   };
+
+  const matchingApplications = useMemo(() => {
+    const normalized = query.trim().toLowerCase();
+    if (!normalized) return applications.slice(0, 6);
+    return applications.filter((app) =>
+      [app.name, app.shortName, app.description, app.category, ...app.keywords]
+        .some((value) => value.toLowerCase().includes(normalized))
+    ).slice(0, 8);
+  }, [applications, query]);
 
   return (
     <>
@@ -181,6 +210,32 @@ export const SearchBar: React.FC = () => {
 
             {/* Results Body */}
             <div className="p-3 space-y-4 max-h-96 overflow-y-auto">
+              {matchingApplications.length > 0 && (
+                <div>
+                  <p className="text-[11px] font-semibold text-text-muted px-2.5 mb-1.5">
+                    Applications
+                  </p>
+                  <div className="grid grid-cols-1 gap-1 sm:grid-cols-2">
+                    {matchingApplications.map((app) => (
+                      <button
+                        key={app.id}
+                        type="button"
+                        onClick={() => handleSelect(app.path)}
+                        className="flex min-h-12 items-center gap-3 rounded-xl p-2.5 text-left text-text-primary transition-colors hover:bg-primary-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                      >
+                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-surface-soft text-primary">
+                          <AppIcon name={app.icon} size="sm" />
+                        </span>
+                        <span className="min-w-0">
+                          <span className="block truncate text-xs font-semibold">{app.name}</span>
+                          <span className="block truncate text-[10px] text-text-muted">{app.category}</span>
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* Live Search Results */}
               {query.trim().length >= 2 && !loading && results.length > 0 && (
                 <div>
@@ -214,7 +269,7 @@ export const SearchBar: React.FC = () => {
               )}
 
               {/* No Results Empty State */}
-              {query.trim().length >= 2 && !loading && results.length === 0 && (
+              {query.trim().length >= 2 && !loading && results.length === 0 && matchingApplications.length === 0 && (
                 <div className="p-8 text-center text-xs text-text-muted flex flex-col items-center justify-center gap-2">
                   <Sparkles className="w-6 h-6 text-primary/40" />
                   <p className="font-bold text-text-primary text-sm">No results found for "{query}"</p>

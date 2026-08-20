@@ -51,7 +51,8 @@ const SECTION_COLORS = ['#1a73e8', '#0f9d58', '#f4b400', '#db4437', '#8e24aa', '
 // ─── Campus Notes Editor ──────────────────────────────────────────────────────
 
 const CampusNotesEditor: React.FC = () => {
-  const { id } = useParams<{ id: string }>();
+  const params = useParams<{ id?: string; documentId?: string }>();
+  const id = params.id || params.documentId;
   const { user } = useAuth();
   const navigate = useNavigate();
 

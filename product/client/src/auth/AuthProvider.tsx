@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { User, switchUserWorkspace, logoutUser, fetchCurrentUser } from './session-manager';
 export type { User };
-import { setStoredTokens, clearStoredTokens } from './token-storage';
+import { setStoredTokens, setStoredActiveRole } from './token-storage';
 import { bootstrapAuthSession, AuthBootstrapStatus } from './auth-bootstrap';
 
 export interface AuthContextProps {
@@ -23,23 +23,15 @@ export interface AuthContextProps {
 
 const AuthContext = createContext<AuthContextProps | undefined>(undefined);
 
-import { resolveAssetUrl } from '../utils/assets';
-
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [status, setStatus] = useState<AuthBootstrapStatus>('BOOTING');
   const [errorMessage, setErrorMessage] = useState<string | undefined>(undefined);
 
   const formatUserWithCacheBust = (userData: User): User => {
-    if (userData && userData.profilePhoto && !userData.profilePhoto.startsWith('data:')) {
-      const resolved = resolveAssetUrl(userData.profilePhoto);
-      const cleanPhoto = resolved.split('?')[0];
-      return {
-        ...userData,
-        profilePhoto: `${cleanPhoto}?v=${Date.now()}`,
-      };
-    }
-    return userData;
+    if (!userData) return userData;
+    const canonicalUrl = userData.profileImage?.url || userData.profilePhoto || null;
+    return { ...userData, profilePhoto: canonicalUrl };
   };
 
   const runBootstrap = useCallback(async () => {
@@ -56,13 +48,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const refreshUser = useCallback(async () => {
-    const updated = await fetchCurrentUser();
-    if (updated) {
-      setUser(formatUserWithCacheBust(updated));
-      setStatus('AUTHENTICATED');
-    } else {
-      setUser(null);
-      setStatus('UNAUTHENTICATED');
+    try {
+      const updated = await fetchCurrentUser();
+      if (updated) {
+        setUser(formatUserWithCacheBust(updated));
+        setStatus('AUTHENTICATED');
+        setErrorMessage(undefined);
+      } else {
+        setUser(null);
+        setStatus('UNAUTHENTICATED');
+      }
+    } catch (error: any) {
+      setErrorMessage(error?.message || 'Unable to refresh the current profile.');
+      throw error;
     }
   }, []);
 
@@ -82,6 +80,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const handleLogin = async (accessToken: string, refreshToken: string, userData: User) => {
     await setStoredTokens(accessToken, refreshToken);
+    await setStoredActiveRole(userData.activeWorkspace || userData.role);
     setUser(formatUserWithCacheBust(userData));
     setStatus('AUTHENTICATED');
   };

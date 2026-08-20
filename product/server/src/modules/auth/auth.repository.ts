@@ -4,19 +4,19 @@ export class AuthRepository {
   /**
    * Find a user by email, eager loading role and permissions via explicit RolePermission join
    */
-  async findByEmail(email: string) {
-    const clean = (email || '').trim();
-    const lower = clean.toLowerCase();
+  async findByEmail(identifier: string) {
+    const clean = (identifier || '').trim();
+    if (!clean) return null;
     return prisma.user.findFirst({
       where: {
         OR: [
-          { email: { equals: clean } },
-          { email: { equals: lower } },
-          { username: { equals: clean } },
-          { student: { admissionNo: clean, deleted: false } },
-          { faculty: { employeeId: clean, deleted: false } },
+          { email: { equals: clean, mode: 'insensitive' } },
+          { username: { equals: clean, mode: 'insensitive' } },
+          { student: { admissionNo: { equals: clean, mode: 'insensitive' }, deleted: false } },
+          { faculty: { employeeId: { equals: clean, mode: 'insensitive' }, deleted: false } },
         ],
       },
+
       include: {
         role: {
           include: {
@@ -29,6 +29,7 @@ export class AuthRepository {
         },
         student: true,
         faculty: true,
+        profileImageFile: true,
       },
     });
   }
@@ -49,6 +50,7 @@ export class AuthRepository {
             },
           },
         },
+        profileImageFile: true,
       },
     });
   }

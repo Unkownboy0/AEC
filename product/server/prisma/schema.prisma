@@ -57,6 +57,8 @@ model User {
   failedLoginAttempts Int                  @default(0)
   forcePasswordChange Boolean              @default(false)
   profilePhoto        String?
+  profileImageFileId  String?
+  profileImageFile    MediaFile?           @relation("UserProfileImage", fields: [profileImageFileId], references: [id], onDelete: SetNull)
   passwordChangedAt   DateTime?
   createdAt           DateTime             @default(now())
   updatedAt           DateTime             @updatedAt
@@ -90,45 +92,46 @@ model User {
   savedReports             SavedReport[]
 
   // Academic Task & Admission Coordination Relations
-  createdAcademicTasks       AcademicTask[]                 @relation("AcademicTaskCreator")
-  assignedAcademicTasks      AcademicTaskAssignment[]       @relation("AcademicTaskHod")
-  createdAcademicAssignments AcademicTaskAssignment[]       @relation("AcademicTaskAssigner")
-  uploadedAcademicFiles      AcademicTaskFile[]             @relation("AcademicTaskFileUploader")
-  authoredAcademicQueries    AcademicTaskQuery[]            @relation("AcademicTaskQueryAuthor")
-  resolvedAcademicQueries    AcademicTaskQuery[]            @relation("AcademicTaskQueryResolver")
-  submittedAcademicTasks     AcademicTaskSubmission[]       @relation("AcademicTaskSubmitter")
-  reviewedAcademicTasks      AcademicTaskSubmission[]       @relation("AcademicTaskReviewer")
-  timelineAcademicEvents     AcademicTaskTimeline[]         @relation("AcademicTaskTimelineActor")
-  createdAcademicTemplates   AcademicTaskTemplate[]         @relation("AcademicTaskTemplateCreator")
-  assignedAdmissionRequests  AdmissionCoordinationRequest[] @relation("AdmissionCoordinationHod")
-  reviewedAdmissionRequests  AdmissionCoordinationRequest[] @relation("AdmissionCoordinationReviewer")
-  createdAdmissionRequests   AdmissionCoordinationRequest[] @relation("AdmissionCoordinationCreator")
-  hodAssignments             DepartmentHodAssignment[]
-  createdIqacAudits          IqacAudit[]                    @relation("IqacAuditCreator")
-  uploadedIqacEvidence       IqacEvidence[]                 @relation("IqacEvidenceUploader")
-  reviewedIqacEvidence       IqacEvidence[]                 @relation("IqacEvidenceReviewer")
-  authoredIqacObservations   IqacObservation[]              @relation("IqacObservationAuthor")
-  iqacTimelineEvents         IqacAuditTimeline[]            @relation("IqacTimelineActor")
-  assignedTickets            Ticket[]                       @relation("TicketAssignee")
-  financeLedgerEntries       FinanceLedgerEntry[]            @relation("FinanceLedgerCreator")
-  accountantClosings         DailyClosing[]                  @relation("FinanceClosingAccountant")
-  reviewedClosings           DailyClosing[]                  @relation("FinanceClosingReviewer")
-  closingApprovalActions     DailyClosingApproval[]          @relation("FinanceClosingApprovalActor")
-  financeRequestsCreated     FinanceRequest[]                @relation("FinanceRequestCreator")
-  financeRequestsReviewed    FinanceRequest[]                @relation("FinanceRequestReviewer")
-  reconciliationAssignments FinanceReconciliation[]         @relation("FinanceReconciliationAssignee")
-  financeAuditActions        FinancialAuditLog[]             @relation("FinancialAuditActor")
-  authoredOfficeDocs         CampusOfficeDocument[]          @relation("OfficeDocAuthor")
-  authoredDocVersions        CampusDocumentVersion[]
-  authoredDocComments        CampusDocumentComment[]
-  ownedDriveItems            CampusDriveItem[]
+  createdAcademicTasks        AcademicTask[]                 @relation("AcademicTaskCreator")
+  assignedAcademicTasks       AcademicTaskAssignment[]       @relation("AcademicTaskHod")
+  createdAcademicAssignments  AcademicTaskAssignment[]       @relation("AcademicTaskAssigner")
+  uploadedAcademicFiles       AcademicTaskFile[]             @relation("AcademicTaskFileUploader")
+  authoredAcademicQueries     AcademicTaskQuery[]            @relation("AcademicTaskQueryAuthor")
+  resolvedAcademicQueries     AcademicTaskQuery[]            @relation("AcademicTaskQueryResolver")
+  submittedAcademicTasks      AcademicTaskSubmission[]       @relation("AcademicTaskSubmitter")
+  reviewedAcademicTasks       AcademicTaskSubmission[]       @relation("AcademicTaskReviewer")
+  timelineAcademicEvents      AcademicTaskTimeline[]         @relation("AcademicTaskTimelineActor")
+  createdAcademicTemplates    AcademicTaskTemplate[]         @relation("AcademicTaskTemplateCreator")
+  assignedAdmissionRequests   AdmissionCoordinationRequest[] @relation("AdmissionCoordinationHod")
+  reviewedAdmissionRequests   AdmissionCoordinationRequest[] @relation("AdmissionCoordinationReviewer")
+  createdAdmissionRequests    AdmissionCoordinationRequest[] @relation("AdmissionCoordinationCreator")
+  hodAssignments              DepartmentHodAssignment[]
+  createdIqacAudits           IqacAudit[]                    @relation("IqacAuditCreator")
+  uploadedIqacEvidence        IqacEvidence[]                 @relation("IqacEvidenceUploader")
+  reviewedIqacEvidence        IqacEvidence[]                 @relation("IqacEvidenceReviewer")
+  authoredIqacObservations    IqacObservation[]              @relation("IqacObservationAuthor")
+  iqacTimelineEvents          IqacAuditTimeline[]            @relation("IqacTimelineActor")
+  assignedTickets             Ticket[]                       @relation("TicketAssignee")
+  financeLedgerEntries        FinanceLedgerEntry[]           @relation("FinanceLedgerCreator")
+  accountantClosings          DailyClosing[]                 @relation("FinanceClosingAccountant")
+  reviewedClosings            DailyClosing[]                 @relation("FinanceClosingReviewer")
+  closingApprovalActions      DailyClosingApproval[]         @relation("FinanceClosingApprovalActor")
+  financeRequestsCreated      FinanceRequest[]               @relation("FinanceRequestCreator")
+  financeRequestsReviewed     FinanceRequest[]               @relation("FinanceRequestReviewer")
+  reconciliationAssignments   FinanceReconciliation[]        @relation("FinanceReconciliationAssignee")
+  financeAuditActions         FinancialAuditLog[]            @relation("FinancialAuditActor")
+  authoredOfficeDocs          CampusOfficeDocument[]         @relation("OfficeDocAuthor")
+  authoredDocVersions         CampusDocumentVersion[]
+  authoredDocComments         CampusDocumentComment[]
+  ownedDriveItems             CampusDriveItem[]
   publishedTimetableRevisions TimetableRevision[]            @relation("TimetableRevisionPublisher")
-  uploadedTimetableBatches   TimetableImportBatch[]
-  resolvedTimetableIssues    TimetableIssueReport[]          @relation("IssueReportResolver")
+  uploadedTimetableBatches    TimetableImportBatch[]
+  resolvedTimetableIssues     TimetableIssueReport[]         @relation("IssueReportResolver")
 
   @@index([email])
   @@index([username])
   @@index([roleId])
+  @@index([profileImageFileId])
   @@map("users")
 }
 
@@ -405,30 +408,30 @@ model SystemSetting {
 }
 
 model AcademicYear {
-  id                 String              @id @default(uuid())
-  name               String              @unique // e.g. "2026-2027"
-  status             String              @default("INACTIVE") // ACTIVE, INACTIVE, ARCHIVED
-  startDate          DateTime
-  endDate            DateTime
-  isCurrent          Boolean             @default(false)
-  archived           Boolean             @default(false)
-  archivedAt         DateTime?
-  deleted            Boolean             @default(false)
-  deletedAt          DateTime?
-  departments        Department[]
-  semesters          Semester[]
-  students           Student[]
-  exams              Exam[]
-  timetableSlots     TimetableSlot[]
-  subjectAssignments SubjectAssignment[]
-  assignments        Assignment[]
-  createdAt          DateTime            @default(now())
-  updatedAt          DateTime            @updatedAt
-  MentorAssignment   MentorAssignment[]
-  teachingGroups     TeachingGroup[]
-  timetableRevisions TimetableRevision[]
+  id                     String                        @id @default(uuid())
+  name                   String                        @unique // e.g. "2026-2027"
+  status                 String                        @default("INACTIVE") // ACTIVE, INACTIVE, ARCHIVED
+  startDate              DateTime
+  endDate                DateTime
+  isCurrent              Boolean                       @default(false)
+  archived               Boolean                       @default(false)
+  archivedAt             DateTime?
+  deleted                Boolean                       @default(false)
+  deletedAt              DateTime?
+  departments            Department[]
+  semesters              Semester[]
+  students               Student[]
+  exams                  Exam[]
+  timetableSlots         TimetableSlot[]
+  subjectAssignments     SubjectAssignment[]
+  assignments            Assignment[]
+  createdAt              DateTime                      @default(now())
+  updatedAt              DateTime                      @updatedAt
+  MentorAssignment       MentorAssignment[]
+  teachingGroups         TeachingGroup[]
+  timetableRevisions     TimetableRevision[]
   timetableImportBatches TimetableImportBatch[]
-  facultyAllocations DepartmentFacultyAllocation[]
+  facultyAllocations     DepartmentFacultyAllocation[]
 
   @@map("academic_years")
 }
@@ -462,16 +465,16 @@ model Department {
   deleted    Boolean   @default(false)
   deletedAt  DateTime?
 
-  programs        Program[]
-  courses         Course[]
-  sections        Section[]
-  subjects        Subject[]
-  students        Student[]
-  programStudents Student[]       @relation("ProgramDepartment")
-  operatingStudents Student[]     @relation("StudentOperatingDepartment")
-  faculties       Faculty[]
-  timetableSlots  TimetableSlot[]
-  assignments     Assignment[]
+  programs          Program[]
+  courses           Course[]
+  sections          Section[]
+  subjects          Subject[]
+  students          Student[]
+  programStudents   Student[]       @relation("ProgramDepartment")
+  operatingStudents Student[]       @relation("StudentOperatingDepartment")
+  faculties         Faculty[]
+  timetableSlots    TimetableSlot[]
+  assignments       Assignment[]
 
   createdAt                     DateTime                       @default(now())
   updatedAt                     DateTime                       @updatedAt
@@ -595,19 +598,19 @@ model Semester {
   deleted    Boolean   @default(false)
   deletedAt  DateTime?
 
-  sections           Section[]
-  subjects           Subject[]
-  students           Student[]
-  exams              Exam[]
-  timetableSlots     TimetableSlot[]
-  subjectAssignments SubjectAssignment[]
-  assignments        Assignment[]
-  createdAt          DateTime            @default(now())
-  updatedAt          DateTime            @updatedAt
-  MentorAssignment   MentorAssignment[]
-  timetableRevisions TimetableRevision[]
+  sections               Section[]
+  subjects               Subject[]
+  students               Student[]
+  exams                  Exam[]
+  timetableSlots         TimetableSlot[]
+  subjectAssignments     SubjectAssignment[]
+  assignments            Assignment[]
+  createdAt              DateTime                      @default(now())
+  updatedAt              DateTime                      @updatedAt
+  MentorAssignment       MentorAssignment[]
+  timetableRevisions     TimetableRevision[]
   timetableImportBatches TimetableImportBatch[]
-  facultyAllocations DepartmentFacultyAllocation[]
+  facultyAllocations     DepartmentFacultyAllocation[]
 
   @@unique([number, courseId])
   @@index([courseId])
@@ -643,8 +646,8 @@ model Section {
   assignments              Assignment[]
   teachingGroupMemberships TeachingGroupSection[]
   facultyAllocations       DepartmentFacultyAllocation[]
-  createdAt                DateTime               @default(now())
-  updatedAt                DateTime               @updatedAt
+  createdAt                DateTime                      @default(now())
+  updatedAt                DateTime                      @updatedAt
   MentorAssignment         MentorAssignment[]
 
   @@unique([name, semesterId])
@@ -701,11 +704,11 @@ model Subject {
   teachingGroups     TeachingGroup[]
   facultyAllocations DepartmentFacultyAllocation[]
 
-  courseOutcomes    CourseOutcome[]
-  curriculumUnits   CurriculumUnit[]
-  materials         CurriculumMaterial[]
-  questionBankItems QuestionBankItem[]
-  labExperiments    LabExperiment[]
+  courseOutcomes      CourseOutcome[]
+  curriculumUnits     CurriculumUnit[]
+  materials           CurriculumMaterial[]
+  questionBankItems   QuestionBankItem[]
+  labExperiments      LabExperiment[]
   teachingAssignments FacultyTeachingAssignment[]
 
   archived   Boolean   @default(false)
@@ -936,15 +939,34 @@ model BackupLog {
 }
 
 model MediaFile {
-  id        String   @id @default(uuid())
-  name      String
-  path      String   @unique
-  mimeType  String
-  fileSize  Int
-  folder    String   @default("/") // Folder organization path e.g. "/images", "/documents"
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id                String                    @id @default(uuid())
+  name              String
+  path              String                    @unique // Legacy compatibility locator; new governed access uses storageKey.
+  storageKey        String?                   @unique
+  originalName      String?
+  safeName          String?
+  mimeType          String
+  fileSize          Int
+  checksum          String?
+  ownerUserId       String?
+  createdByUserId   String?
+  sourceModule      String                    @default("MEDIA")
+  currentVersion    Int                       @default(1)
+  folder            String                    @default("/") // Legacy media-library organization only.
+  archivedAt        DateTime?
+  deletedAt         DateTime?
+  driveItems        CampusDriveItem[]
+  accessGrants      GovernedFileAccessGrant[]
+  references        GovernedFileReference[]
+  governedVersions  GovernedFileVersion[]
+  profileImageUsers User[]                    @relation("UserProfileImage")
+  createdAt         DateTime                  @default(now())
+  updatedAt         DateTime                  @updatedAt
 
+  @@index([ownerUserId])
+  @@index([createdByUserId])
+  @@index([checksum])
+  @@index([deletedAt])
   @@map("media_files")
 }
 
@@ -1045,16 +1067,16 @@ model Student {
   sectionId           String
   section             Section      @relation(fields: [sectionId], references: [id])
 
-  hostelId         String?
-  hostelBuilding   HostelBuilding? @relation(fields: [hostelId], references: [id])
-  roomNo           String?
-  transportRouteId String?
-  transportRoute   TransportRoute? @relation(fields: [transportRouteId], references: [id])
-  transportStopId  String?
-  residentialType  String?         @default("DAY_SCHOLAR") // HOSTELLER, DAY_SCHOLAR
-  transportMode    String?         @default("OTHER") // COLLEGE_BUS, OUT_BUS, OWN_VEHICLE, PUBLIC_TRANSPORT, PARENT_DROP_PICKUP, OTHER
+  hostelId              String?
+  hostelBuilding        HostelBuilding? @relation(fields: [hostelId], references: [id])
+  roomNo                String?
+  transportRouteId      String?
+  transportRoute        TransportRoute? @relation(fields: [transportRouteId], references: [id])
+  transportStopId       String?
+  residentialType       String?         @default("DAY_SCHOLAR") // HOSTELLER, DAY_SCHOLAR
+  transportMode         String?         @default("OTHER") // COLLEGE_BUS, OUT_BUS, OWN_VEHICLE, PUBLIC_TRANSPORT, PARENT_DROP_PICKUP, OTHER
   operatingDepartmentId String?
-  operatingDepartment   Department? @relation("StudentOperatingDepartment", fields: [operatingDepartmentId], references: [id])
+  operatingDepartment   Department?     @relation("StudentOperatingDepartment", fields: [operatingDepartmentId], references: [id])
 
   userId String? @unique
   user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
@@ -1076,7 +1098,7 @@ model Student {
   submissions              AssignmentSubmission[]
   internships              Internship[]
   internshipDocs           InternshipDocument[]
-  mentorAssignments        MentorAssignment[]      @relation("MentorAssignmentStudent")
+  mentorAssignments        MentorAssignment[]          @relation("MentorAssignmentStudent")
   chatMessages             ChatMessage[]
   tickets                  Ticket[]
   placementApplications    PlacementApplication[]
@@ -1182,12 +1204,12 @@ model Faculty {
   subjectAssignments          SubjectAssignment[]
   assignments                 Assignment[]
   assignedSubjects            Subject[]
-  mentoredStudents            Student[]             @relation("StudentMentor")
-  mentorAssignments           MentorAssignment[]    @relation("MentorAssignmentMentor")
+  mentoredStudents            Student[]                     @relation("StudentMentor")
+  mentorAssignments           MentorAssignment[]            @relation("MentorAssignmentMentor")
   chatMessages                ChatMessage[]
-  workflowRequestsAsRequester WorkflowRequest[]     @relation("FacultyRequester")
-  reviewedStudentLeaves       StudentLeaveRequest[] @relation("MentorLeaveReview")
-  appliedLeaves               FacultyLeaveRequest[] @relation("FacultyLeaveApplicant")
+  workflowRequestsAsRequester WorkflowRequest[]             @relation("FacultyRequester")
+  reviewedStudentLeaves       StudentLeaveRequest[]         @relation("MentorLeaveReview")
+  appliedLeaves               FacultyLeaveRequest[]         @relation("FacultyLeaveApplicant")
   teachingGroups              TeachingGroup[]
   teachingAssignments         FacultyTeachingAssignment[]
   departmentTransfers         FacultyDepartmentTransfer[]
@@ -1311,7 +1333,7 @@ model ExamTypeSetting {
 }
 
 model ExamScheduleEntry {
-  id            String   @id @default(uuid())
+  id            String    @id @default(uuid())
   examId        String
   subjectId     String
   departmentId  String?
@@ -1323,13 +1345,13 @@ model ExamScheduleEntry {
   endTime       String
   durationMins  Int
   instructions  String?
-  status        String   @default("DRAFT")
-  version       Int      @default(1)
+  status        String    @default("DRAFT")
+  version       Int       @default(1)
   createdById   String
   publishedById String?
   publishedAt   DateTime?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 
   @@unique([examId, subjectId, sectionId, examDate, session, version])
   @@index([examId, status, examDate, session])
@@ -1340,11 +1362,11 @@ model ExamScheduleEntry {
 model ExamTimetablePublication {
   id                String   @id @default(uuid())
   examId            String
-  version            Int
-  status             String   @default("PUBLISHED")
-  revisionReason     String?
+  version           Int
+  status            String   @default("PUBLISHED")
+  revisionReason    String?
   previousVersionId String?
-  snapshotJson       String
+  snapshotJson      String
   publishedById     String
   publishedAt       DateTime @default(now())
   createdAt         DateTime @default(now())
@@ -1392,20 +1414,20 @@ model ExamSeatAllocation {
 }
 
 model InvigilationAssignment {
-  id              String    @id @default(uuid())
-  examId          String
-  scheduleEntryId String
-  facultyId       String
-  roomId          String
-  reportingTime   String
-  instructions    String?
-  status          String    @default("DRAFT")
-  assignedById    String
-  publishedAt     DateTime?
-  replacedById    String?
+  id               String    @id @default(uuid())
+  examId           String
+  scheduleEntryId  String
+  facultyId        String
+  roomId           String
+  reportingTime    String
+  instructions     String?
+  status           String    @default("DRAFT")
+  assignedById     String
+  publishedAt      DateTime?
+  replacedById     String?
   replacementForId String?
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 
   @@unique([scheduleEntryId, facultyId])
   @@index([facultyId, status])
@@ -1414,7 +1436,7 @@ model InvigilationAssignment {
 }
 
 model ExamIncident {
-  id              String   @id @default(uuid())
+  id              String    @id @default(uuid())
   examId          String
   scheduleEntryId String?
   roomId          String?
@@ -1422,14 +1444,14 @@ model ExamIncident {
   facultyId       String?
   type            String
   description     String
-  confidential    Boolean  @default(true)
-  status          String   @default("OPEN")
+  confidential    Boolean   @default(true)
+  status          String    @default("OPEN")
   reportedById    String
   resolvedById    String?
   resolution      String?
   resolvedAt      DateTime?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
   @@index([examId, status])
   @@map("exam_incidents")
@@ -1469,12 +1491,12 @@ model FeeBill {
   semesterLabel       String?
   allowPartialPayment Boolean  @default(true)
 
-  studentId  String
-  student    Student      @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  categoryId String
-  category   FeeCategory  @relation(fields: [categoryId], references: [id])
-  payments   FeePayment[]
-  ledgerEntries FinanceLedgerEntry[]
+  studentId       String
+  student         Student              @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  categoryId      String
+  category        FeeCategory          @relation(fields: [categoryId], references: [id])
+  payments        FeePayment[]
+  ledgerEntries   FinanceLedgerEntry[]
   financeRequests FinanceRequest[]
 
   archived   Boolean   @default(false)
@@ -1513,11 +1535,11 @@ model FeePayment {
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 
-  billId    String
-  bill      FeeBill @relation(fields: [billId], references: [id], onDelete: Cascade)
-  studentId String
-  student   Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  ledgerEntries FinanceLedgerEntry[]
+  billId          String
+  bill            FeeBill                 @relation(fields: [billId], references: [id], onDelete: Cascade)
+  studentId       String
+  student         Student                 @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  ledgerEntries   FinanceLedgerEntry[]
   financeRequests FinanceRequest[]
   reconciliations FinanceReconciliation[]
 
@@ -1528,26 +1550,26 @@ model FeePayment {
 }
 
 model FeeStructure {
-  id                 String   @id @default(uuid())
-  structureNumber    String   @unique
+  id                 String    @id @default(uuid())
+  structureNumber    String    @unique
   academicYearLabel  String
-  programId           String?
-  departmentId        String?
-  year                Int?
-  semester            Int?
-  categoryId          String
-  amount              Float
-  dueDate             DateTime
-  installmentOptions  String?  // JSON
-  lateFeeRules         String?  // JSON
-  status              String   @default("DRAFT") // DRAFT, SUBMITTED, APPROVED, ACTIVE, ARCHIVED
-  createdById          String
-  approvedById         String?
-  approvedAt           DateTime?
-  activatedAt          DateTime?
-  version              Int      @default(1)
-  createdAt            DateTime @default(now())
-  updatedAt            DateTime @updatedAt
+  programId          String?
+  departmentId       String?
+  year               Int?
+  semester           Int?
+  categoryId         String
+  amount             Float
+  dueDate            DateTime
+  installmentOptions String? // JSON
+  lateFeeRules       String? // JSON
+  status             String    @default("DRAFT") // DRAFT, SUBMITTED, APPROVED, ACTIVE, ARCHIVED
+  createdById        String
+  approvedById       String?
+  approvedAt         DateTime?
+  activatedAt        DateTime?
+  version            Int       @default(1)
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
 
   @@index([academicYearLabel, status])
   @@index([departmentId, programId])
@@ -1555,26 +1577,26 @@ model FeeStructure {
 }
 
 model FinanceLedgerEntry {
-  id             String   @id @default(uuid())
-  entryNumber    String   @unique
-  entryType      String   // PAYMENT, REFUND, ADJUSTMENT, CONCESSION, SCHOLARSHIP
-  direction      String   // DEBIT, CREDIT
-  amount         Float
-  currency       String   @default("INR")
-  description    String
-  paymentId      String?
-  payment        FeePayment? @relation(fields: [paymentId], references: [id], onDelete: Restrict)
-  billId         String?
-  bill           FeeBill? @relation(fields: [billId], references: [id], onDelete: Restrict)
-  studentId      String
-  student        Student @relation(fields: [studentId], references: [id], onDelete: Restrict)
-  createdById    String
-  createdBy      User @relation("FinanceLedgerCreator", fields: [createdById], references: [id], onDelete: Restrict)
-  sourceType     String
-  sourceId       String
-  metadataJson   String?
-  postedAt       DateTime @default(now())
-  createdAt      DateTime @default(now())
+  id           String      @id @default(uuid())
+  entryNumber  String      @unique
+  entryType    String // PAYMENT, REFUND, ADJUSTMENT, CONCESSION, SCHOLARSHIP
+  direction    String // DEBIT, CREDIT
+  amount       Float
+  currency     String      @default("INR")
+  description  String
+  paymentId    String?
+  payment      FeePayment? @relation(fields: [paymentId], references: [id], onDelete: Restrict)
+  billId       String?
+  bill         FeeBill?    @relation(fields: [billId], references: [id], onDelete: Restrict)
+  studentId    String
+  student      Student     @relation(fields: [studentId], references: [id], onDelete: Restrict)
+  createdById  String
+  createdBy    User        @relation("FinanceLedgerCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  sourceType   String
+  sourceId     String
+  metadataJson String?
+  postedAt     DateTime    @default(now())
+  createdAt    DateTime    @default(now())
 
   @@unique([sourceType, sourceId, entryType])
   @@index([studentId, postedAt])
@@ -1584,11 +1606,11 @@ model FinanceLedgerEntry {
 }
 
 model DailyClosing {
-  id              String   @id @default(uuid())
-  closingNumber   String   @unique
-  closingDate     DateTime @db.Date
+  id              String                 @id @default(uuid())
+  closingNumber   String                 @unique
+  closingDate     DateTime               @db.Date
   accountantId    String
-  accountant      User @relation("FinanceClosingAccountant", fields: [accountantId], references: [id], onDelete: Restrict)
+  accountant      User                   @relation("FinanceClosingAccountant", fields: [accountantId], references: [id], onDelete: Restrict)
   expectedTotal   Float
   actualTotal     Float
   onlineTotal     Float
@@ -1605,15 +1627,15 @@ model DailyClosing {
   remarks         String?
   supportUrl      String?
   snapshotJson    String
-  status          String   @default("DRAFT") // DRAFT, SUBMITTED_TO_AO, AO_APPROVED, AO_RETURNED, QUERY_RAISED
+  status          String                 @default("DRAFT") // DRAFT, SUBMITTED_TO_AO, AO_APPROVED, AO_RETURNED, QUERY_RAISED
   submittedAt     DateTime?
   reviewedById    String?
-  reviewedBy      User? @relation("FinanceClosingReviewer", fields: [reviewedById], references: [id], onDelete: Restrict)
+  reviewedBy      User?                  @relation("FinanceClosingReviewer", fields: [reviewedById], references: [id], onDelete: Restrict)
   reviewedAt      DateTime?
   returnReason    String?
   approvals       DailyClosingApproval[]
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  createdAt       DateTime               @default(now())
+  updatedAt       DateTime               @updatedAt
 
   @@unique([accountantId, closingDate])
   @@index([status, closingDate])
@@ -1621,49 +1643,49 @@ model DailyClosing {
 }
 
 model DailyClosingApproval {
-  id          String   @id @default(uuid())
-  closingId   String
-  closing     DailyClosing @relation(fields: [closingId], references: [id], onDelete: Restrict)
-  action      String   // SUBMITTED, APPROVED, RETURNED, QUERY_RAISED, RESUBMITTED
-  reason      String?
-  actorId     String
-  actor       User @relation("FinanceClosingApprovalActor", fields: [actorId], references: [id], onDelete: Restrict)
-  beforeJson  String?
-  afterJson   String?
-  ipAddress   String?
-  userAgent   String?
-  createdAt   DateTime @default(now())
+  id         String       @id @default(uuid())
+  closingId  String
+  closing    DailyClosing @relation(fields: [closingId], references: [id], onDelete: Restrict)
+  action     String // SUBMITTED, APPROVED, RETURNED, QUERY_RAISED, RESUBMITTED
+  reason     String?
+  actorId    String
+  actor      User         @relation("FinanceClosingApprovalActor", fields: [actorId], references: [id], onDelete: Restrict)
+  beforeJson String?
+  afterJson  String?
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime     @default(now())
 
   @@index([closingId, createdAt])
   @@map("daily_closing_approvals")
 }
 
 model FinanceRequest {
-  id              String   @id @default(uuid())
-  requestNumber   String   @unique
-  requestType     String   // REFUND, CONCESSION, SCHOLARSHIP, ADJUSTMENT
-  status          String   @default("REQUESTED")
-  amount          Float
-  originalAmount  Float?
-  reason          String
-  remarks         String?
-  supportUrl      String?
-  metadataJson    String?
-  studentId       String?
-  student         Student? @relation(fields: [studentId], references: [id], onDelete: Restrict)
-  billId          String?
-  bill            FeeBill? @relation(fields: [billId], references: [id], onDelete: Restrict)
-  paymentId       String?
-  payment         FeePayment? @relation(fields: [paymentId], references: [id], onDelete: Restrict)
-  requestedById   String
-  requestedBy     User @relation("FinanceRequestCreator", fields: [requestedById], references: [id], onDelete: Restrict)
-  reviewedById    String?
-  reviewedBy      User? @relation("FinanceRequestReviewer", fields: [reviewedById], references: [id], onDelete: Restrict)
-  reviewedAt      DateTime?
-  decisionReason  String?
-  completedAt     DateTime?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id             String      @id @default(uuid())
+  requestNumber  String      @unique
+  requestType    String // REFUND, CONCESSION, SCHOLARSHIP, ADJUSTMENT
+  status         String      @default("REQUESTED")
+  amount         Float
+  originalAmount Float?
+  reason         String
+  remarks        String?
+  supportUrl     String?
+  metadataJson   String?
+  studentId      String?
+  student        Student?    @relation(fields: [studentId], references: [id], onDelete: Restrict)
+  billId         String?
+  bill           FeeBill?    @relation(fields: [billId], references: [id], onDelete: Restrict)
+  paymentId      String?
+  payment        FeePayment? @relation(fields: [paymentId], references: [id], onDelete: Restrict)
+  requestedById  String
+  requestedBy    User        @relation("FinanceRequestCreator", fields: [requestedById], references: [id], onDelete: Restrict)
+  reviewedById   String?
+  reviewedBy     User?       @relation("FinanceRequestReviewer", fields: [reviewedById], references: [id], onDelete: Restrict)
+  reviewedAt     DateTime?
+  decisionReason String?
+  completedAt    DateTime?
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
 
   @@index([requestType, status, createdAt])
   @@index([studentId, createdAt])
@@ -1671,23 +1693,23 @@ model FinanceRequest {
 }
 
 model FinanceReconciliation {
-  id                 String   @id @default(uuid())
-  caseNumber         String   @unique
-  paymentId          String?
-  payment            FeePayment? @relation(fields: [paymentId], references: [id], onDelete: Restrict)
-  exceptionType      String
-  campusAmount       Float?
-  gatewayAmount      Float?
-  settlementAmount   Float?
-  status             String   @default("OPEN") // OPEN, INVESTIGATING, RESOLVED
-  assignedToId       String?
-  assignedTo         User? @relation("FinanceReconciliationAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
-  remarks            String?
-  proofUrl           String?
-  resolutionJson     String?
-  resolvedAt         DateTime?
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
+  id               String      @id @default(uuid())
+  caseNumber       String      @unique
+  paymentId        String?
+  payment          FeePayment? @relation(fields: [paymentId], references: [id], onDelete: Restrict)
+  exceptionType    String
+  campusAmount     Float?
+  gatewayAmount    Float?
+  settlementAmount Float?
+  status           String      @default("OPEN") // OPEN, INVESTIGATING, RESOLVED
+  assignedToId     String?
+  assignedTo       User?       @relation("FinanceReconciliationAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
+  remarks          String?
+  proofUrl         String?
+  resolutionJson   String?
+  resolvedAt       DateTime?
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
 
   @@index([status, exceptionType])
   @@index([paymentId])
@@ -1697,7 +1719,7 @@ model FinanceReconciliation {
 model FinancialAuditLog {
   id           String   @id @default(uuid())
   actorId      String
-  actor        User @relation("FinancialAuditActor", fields: [actorId], references: [id], onDelete: Restrict)
+  actor        User     @relation("FinancialAuditActor", fields: [actorId], references: [id], onDelete: Restrict)
   actorRole    String
   action       String
   resourceType String
@@ -1725,8 +1747,8 @@ model LibraryBook {
   location        String?
   issues          String  @default("[]") // JSON list of issuances
 
-  libraryIssues    LibraryIssue[]
-  reservations     LibraryReservation[]
+  libraryIssues LibraryIssue[]
+  reservations  LibraryReservation[]
 
   archived   Boolean   @default(false)
   archivedAt DateTime?
@@ -1740,16 +1762,16 @@ model LibraryBook {
 }
 
 model TransportRoute {
-  id          String    @id @default(uuid())
-  routeName   String    @unique
-  vehicleNo   String
-  driverName  String
-  driverPhone String
-  stops       String    @default("[]") // JSON list of stops/fees
-  monthlyFee  Float     @default(0.0)
-  students    Student[]
-  transportStops    TransportStop[]
-  routeVehicles     TransportRouteVehicle[]
+  id                   String                  @id @default(uuid())
+  routeName            String                  @unique
+  vehicleNo            String
+  driverName           String
+  driverPhone          String
+  stops                String                  @default("[]") // JSON list of stops/fees
+  monthlyFee           Float                   @default(0.0)
+  students             Student[]
+  transportStops       TransportStop[]
+  routeVehicles        TransportRouteVehicle[]
   transportAllocations TransportAllocation[]
 
   archived   Boolean   @default(false)
@@ -1763,11 +1785,11 @@ model TransportRoute {
 }
 
 model HostelBuilding {
-  id          String    @id @default(uuid())
-  name        String    @unique
-  type        String    @default("BOYS") // BOYS, GIRLS
+  id          String        @id @default(uuid())
+  name        String        @unique
+  type        String        @default("BOYS") // BOYS, GIRLS
   description String?
-  rooms       String    @default("[]") // JSON rooms, beds capacities
+  rooms       String        @default("[]") // JSON rooms, beds capacities
   students    Student[]
   blocks      HostelBlock[]
 
@@ -1852,35 +1874,35 @@ model WorkflowHistory {
 }
 
 model TimetableSlot {
-  id             String             @id @default(uuid())
-  dayOfWeek      String             // MONDAY, TUESDAY, WEDNESDAY, THURSDAY, FRIDAY, SATURDAY
-  slotIndex      Int                // 1, 2, 3, 4, 5, 6, 7, 8
-  startTime      String             // e.g. "09:00"
-  endTime        String             // e.g. "09:50"
+  id        String @id @default(uuid())
+  dayOfWeek String // MONDAY, TUESDAY, WEDNESDAY, THURSDAY, FRIDAY, SATURDAY
+  slotIndex Int // 1, 2, 3, 4, 5, 6, 7, 8
+  startTime String // e.g. "09:00"
+  endTime   String // e.g. "09:50"
 
   academicYearId String
-  academicYear   AcademicYear       @relation(fields: [academicYearId], references: [id], onDelete: Cascade)
+  academicYear   AcademicYear @relation(fields: [academicYearId], references: [id], onDelete: Cascade)
   departmentId   String
-  department     Department         @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  department     Department   @relation(fields: [departmentId], references: [id], onDelete: Cascade)
   semesterId     String
-  semester       Semester           @relation(fields: [semesterId], references: [id], onDelete: Cascade)
+  semester       Semester     @relation(fields: [semesterId], references: [id], onDelete: Cascade)
   sectionId      String
-  section        Section            @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  section        Section      @relation(fields: [sectionId], references: [id], onDelete: Cascade)
   subjectId      String
-  subject        Subject            @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  subject        Subject      @relation(fields: [subjectId], references: [id], onDelete: Cascade)
   facultyId      String
-  faculty        Faculty            @relation(fields: [facultyId], references: [id], onDelete: Cascade)
+  faculty        Faculty      @relation(fields: [facultyId], references: [id], onDelete: Cascade)
 
-  roomNo         String?
-  isLab          Boolean            @default(false)
-  slotType       String             @default("THEORY") // THEORY, LAB, TUTORIAL, MENTOR, MINI_PROJECT, SEMINAR
-  revisionId     String?
-  revision       TimetableRevision? @relation(fields: [revisionId], references: [id], onDelete: SetNull)
-  status         String             @default("ACTIVE") // ACTIVE, DRAFT, SUPERSEDED, CANCELLED
-  overrides      TimetableSlotOverride[]
-  issueReports   TimetableIssueReport[]
-  createdAt      DateTime           @default(now())
-  updatedAt      DateTime           @updatedAt
+  roomNo       String?
+  isLab        Boolean                 @default(false)
+  slotType     String                  @default("THEORY") // THEORY, LAB, TUTORIAL, MENTOR, MINI_PROJECT, SEMINAR
+  revisionId   String?
+  revision     TimetableRevision?      @relation(fields: [revisionId], references: [id], onDelete: SetNull)
+  status       String                  @default("ACTIVE") // ACTIVE, DRAFT, SUPERSEDED, CANCELLED
+  overrides    TimetableSlotOverride[]
+  issueReports TimetableIssueReport[]
+  createdAt    DateTime                @default(now())
+  updatedAt    DateTime                @updatedAt
 
   @@index([facultyId, dayOfWeek, slotIndex])
   @@index([roomNo, dayOfWeek, slotIndex])
@@ -3552,6 +3574,9 @@ model Conversation {
   id           String                    @id @default(uuid())
   type         String                    @default("ONE_TO_ONE") // ONE_TO_ONE, DEPARTMENT, TASK
   title        String?
+  description  String?
+  avatar       String?
+  createdBy    String?
   departmentId String?
   taskId       String?
   participants ConversationParticipant[]
@@ -3910,19 +3935,19 @@ model IqacAuditDepartment {
 }
 
 model IqacRequirement {
-  id          String         @id @default(uuid())
-  auditId     String
-  audit       IqacAudit      @relation(fields: [auditId], references: [id], onDelete: Cascade)
-  title       String
-  description String?
-  criterion   String?
+  id           String         @id @default(uuid())
+  auditId      String
+  audit        IqacAudit      @relation(fields: [auditId], references: [id], onDelete: Cascade)
+  title        String
+  description  String?
+  criterion    String?
   keyIndicator String?
-  metricCode  String?
-  sourceType  String?
-  isRequired  Boolean        @default(true)
-  evidence    IqacEvidence[]
-  createdAt   DateTime       @default(now())
-  updatedAt   DateTime       @updatedAt
+  metricCode   String?
+  sourceType   String?
+  isRequired   Boolean        @default(true)
+  evidence     IqacEvidence[]
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
 
   @@index([auditId])
   @@map("iqac_requirements")
@@ -4360,16 +4385,16 @@ model ApprovalAttachment {
 // ==========================================
 
 model LibraryCategory {
-  id          String        @id @default(uuid())
-  name        String        @unique
-  code        String        @unique
+  id          String            @id @default(uuid())
+  name        String            @unique
+  code        String            @unique
   description String?
   parentId    String?
   parent      LibraryCategory?  @relation("LibraryCategoryHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
   children    LibraryCategory[] @relation("LibraryCategoryHierarchy")
-  status      String        @default("ACTIVE")
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
+  status      String            @default("ACTIVE")
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
 
   @@map("library_categories")
 }
@@ -4386,26 +4411,26 @@ model LibraryAuthor {
 }
 
 model LibraryIssue {
-  id            String    @id @default(uuid())
-  bookId        String
-  book          LibraryBook @relation(fields: [bookId], references: [id], onDelete: Cascade)
-  borrowerId    String
-  borrowerType  String    @default("STUDENT") // STUDENT, FACULTY, STAFF
-  accessionNo   String?
-  issueDate     DateTime  @default(now())
-  dueDate       DateTime
-  returnDate    DateTime?
-  renewalCount  Int       @default(0)
-  maxRenewals   Int       @default(2)
-  status        String    @default("ISSUED") // ISSUED, RETURNED, OVERDUE, LOST, DAMAGED
-  fineAmount    Float     @default(0)
-  fineStatus    String?   // PENDING, PAID, WAIVED
-  remarks       String?
-  issuedById    String
-  returnedById  String?
-  fines         LibraryFine[]
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  id           String        @id @default(uuid())
+  bookId       String
+  book         LibraryBook   @relation(fields: [bookId], references: [id], onDelete: Cascade)
+  borrowerId   String
+  borrowerType String        @default("STUDENT") // STUDENT, FACULTY, STAFF
+  accessionNo  String?
+  issueDate    DateTime      @default(now())
+  dueDate      DateTime
+  returnDate   DateTime?
+  renewalCount Int           @default(0)
+  maxRenewals  Int           @default(2)
+  status       String        @default("ISSUED") // ISSUED, RETURNED, OVERDUE, LOST, DAMAGED
+  fineAmount   Float         @default(0)
+  fineStatus   String? // PENDING, PAID, WAIVED
+  remarks      String?
+  issuedById   String
+  returnedById String?
+  fines        LibraryFine[]
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
 
   @@index([bookId, status])
   @@index([borrowerId, borrowerType])
@@ -4414,18 +4439,18 @@ model LibraryIssue {
 }
 
 model LibraryReservation {
-  id            String    @id @default(uuid())
-  bookId        String
-  book          LibraryBook @relation(fields: [bookId], references: [id], onDelete: Cascade)
-  reservedById  String
-  reserverType  String    @default("STUDENT")
-  status        String    @default("ACTIVE") // ACTIVE, FULFILLED, CANCELLED, EXPIRED
-  reservedAt    DateTime  @default(now())
-  expiresAt     DateTime
-  fulfilledAt   DateTime?
-  cancelledAt   DateTime?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  id           String      @id @default(uuid())
+  bookId       String
+  book         LibraryBook @relation(fields: [bookId], references: [id], onDelete: Cascade)
+  reservedById String
+  reserverType String      @default("STUDENT")
+  status       String      @default("ACTIVE") // ACTIVE, FULFILLED, CANCELLED, EXPIRED
+  reservedAt   DateTime    @default(now())
+  expiresAt    DateTime
+  fulfilledAt  DateTime?
+  cancelledAt  DateTime?
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
 
   @@index([bookId, status])
   @@index([reservedById])
@@ -4433,20 +4458,20 @@ model LibraryReservation {
 }
 
 model LibraryFine {
-  id           String    @id @default(uuid())
+  id           String       @id @default(uuid())
   issueId      String
   issue        LibraryIssue @relation(fields: [issueId], references: [id], onDelete: Cascade)
   borrowerId   String
-  borrowerType String    @default("STUDENT")
+  borrowerType String       @default("STUDENT")
   amount       Float
-  reason       String    // OVERDUE, LOST, DAMAGED
-  status       String    @default("PENDING") // PENDING, PAID, WAIVED, CONNECTED_TO_FEES
+  reason       String // OVERDUE, LOST, DAMAGED
+  status       String       @default("PENDING") // PENDING, PAID, WAIVED, CONNECTED_TO_FEES
   feePaymentId String?
   waivedById   String?
   waivedReason String?
   paidAt       DateTime?
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
 
   @@index([borrowerId, status])
   @@map("library_fines")
@@ -4476,50 +4501,50 @@ model LibraryDigitalResource {
 // ==========================================
 
 model HostelBlock {
-  id              String        @id @default(uuid())
-  hostelId        String
-  hostel          HostelBuilding @relation(fields: [hostelId], references: [id], onDelete: Cascade)
-  name            String
-  description     String?
-  totalFloors     Int           @default(1)
-  status          String        @default("ACTIVE")
-  floors          HostelFloor[]
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
+  id          String         @id @default(uuid())
+  hostelId    String
+  hostel      HostelBuilding @relation(fields: [hostelId], references: [id], onDelete: Cascade)
+  name        String
+  description String?
+  totalFloors Int            @default(1)
+  status      String         @default("ACTIVE")
+  floors      HostelFloor[]
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
 
   @@unique([hostelId, name])
   @@map("hostel_blocks")
 }
 
 model HostelFloor {
-  id        String      @id @default(uuid())
+  id        String       @id @default(uuid())
   blockId   String
-  block     HostelBlock @relation(fields: [blockId], references: [id], onDelete: Cascade)
+  block     HostelBlock  @relation(fields: [blockId], references: [id], onDelete: Cascade)
   number    Int
   name      String?
-  status    String      @default("ACTIVE")
+  status    String       @default("ACTIVE")
   rooms     HostelRoom[]
-  createdAt DateTime    @default(now())
-  updatedAt DateTime    @updatedAt
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
 
   @@unique([blockId, number])
   @@map("hostel_floors")
 }
 
 model HostelRoom {
-  id          String        @id @default(uuid())
+  id          String             @id @default(uuid())
   floorId     String
-  floor       HostelFloor   @relation(fields: [floorId], references: [id], onDelete: Cascade)
+  floor       HostelFloor        @relation(fields: [floorId], references: [id], onDelete: Cascade)
   roomNumber  String
-  roomType    String        @default("STANDARD") // STANDARD, SINGLE, DOUBLE, TRIPLE, DORMITORY
-  capacity    Int           @default(2)
-  occupied    Int           @default(0)
-  amenities   String        @default("[]") // JSON
-  status      String        @default("AVAILABLE") // AVAILABLE, FULL, MAINTENANCE, BLOCKED
+  roomType    String             @default("STANDARD") // STANDARD, SINGLE, DOUBLE, TRIPLE, DORMITORY
+  capacity    Int                @default(2)
+  occupied    Int                @default(0)
+  amenities   String             @default("[]") // JSON
+  status      String             @default("AVAILABLE") // AVAILABLE, FULL, MAINTENANCE, BLOCKED
   beds        HostelBed[]
   allocations HostelAllocation[]
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
 
   @@unique([floorId, roomNumber])
   @@index([status])
@@ -4527,34 +4552,34 @@ model HostelRoom {
 }
 
 model HostelBed {
-  id         String          @id @default(uuid())
+  id         String            @id @default(uuid())
   roomId     String
-  room       HostelRoom      @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  room       HostelRoom        @relation(fields: [roomId], references: [id], onDelete: Cascade)
   bedNumber  String
-  status     String          @default("AVAILABLE") // AVAILABLE, OCCUPIED, MAINTENANCE
+  status     String            @default("AVAILABLE") // AVAILABLE, OCCUPIED, MAINTENANCE
   allocation HostelAllocation?
-  createdAt  DateTime        @default(now())
-  updatedAt  DateTime        @updatedAt
+  createdAt  DateTime          @default(now())
+  updatedAt  DateTime          @updatedAt
 
   @@unique([roomId, bedNumber])
   @@map("hostel_beds")
 }
 
 model HostelAllocation {
-  id             String    @id @default(uuid())
+  id             String     @id @default(uuid())
   studentId      String
   roomId         String
   room           HostelRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
-  bedId          String?   @unique
+  bedId          String?    @unique
   bed            HostelBed? @relation(fields: [bedId], references: [id], onDelete: SetNull)
   academicYear   String
-  allocationDate DateTime  @default(now())
+  allocationDate DateTime   @default(now())
   vacationDate   DateTime?
-  status         String    @default("ACTIVE") // ACTIVE, VACATED, TRANSFERRED
+  status         String     @default("ACTIVE") // ACTIVE, VACATED, TRANSFERRED
   allocatedById  String
   remarks        String?
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
 
   @@index([studentId, status])
   @@index([roomId, status])
@@ -4562,34 +4587,34 @@ model HostelAllocation {
 }
 
 model HostelRoomChange {
-  id            String   @id @default(uuid())
-  studentId     String
-  fromRoomId    String
-  toRoomId      String
-  fromBedId     String?
-  toBedId       String?
-  reason        String
-  status        String   @default("REQUESTED") // REQUESTED, APPROVED, REJECTED, COMPLETED
-  approvedById  String?
-  approvedAt    DateTime?
-  completedAt   DateTime?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id           String    @id @default(uuid())
+  studentId    String
+  fromRoomId   String
+  toRoomId     String
+  fromBedId    String?
+  toBedId      String?
+  reason       String
+  status       String    @default("REQUESTED") // REQUESTED, APPROVED, REJECTED, COMPLETED
+  approvedById String?
+  approvedAt   DateTime?
+  completedAt  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
   @@index([studentId])
   @@map("hostel_room_changes")
 }
 
 model HostelWarden {
-  id           String   @id @default(uuid())
-  userId       String
-  hostelId     String
-  designation  String   @default("WARDEN") // WARDEN, CHIEF_WARDEN, ASSISTANT_WARDEN
-  status       String   @default("ACTIVE")
-  assignedAt   DateTime @default(now())
-  relievedAt   DateTime?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id          String    @id @default(uuid())
+  userId      String
+  hostelId    String
+  designation String    @default("WARDEN") // WARDEN, CHIEF_WARDEN, ASSISTANT_WARDEN
+  status      String    @default("ACTIVE")
+  assignedAt  DateTime  @default(now())
+  relievedAt  DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
   @@unique([userId, hostelId])
   @@map("hostel_wardens")
@@ -4615,7 +4640,7 @@ model HostelMessAttendance {
   messId    String
   studentId String
   date      DateTime @db.Date
-  meal      String   // BREAKFAST, LUNCH, SNACKS, DINNER
+  meal      String // BREAKFAST, LUNCH, SNACKS, DINNER
   status    String   @default("PRESENT")
   createdAt DateTime @default(now())
 
@@ -4640,22 +4665,22 @@ model HostelNightAttendance {
 }
 
 model HostelOuting {
-  id            String    @id @default(uuid())
-  studentId     String
-  hostelId      String
-  outDate       DateTime
-  outTime       String
+  id             String    @id @default(uuid())
+  studentId      String
+  hostelId       String
+  outDate        DateTime
+  outTime        String
   expectedReturn DateTime
-  actualReturn  DateTime?
-  purpose       String
-  destination   String
-  contactNumber String
-  status        String    @default("REQUESTED") // REQUESTED, APPROVED, OUT, RETURNED, OVERDUE
-  approvedById  String?
-  approvedAt    DateTime?
-  remarks       String?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  actualReturn   DateTime?
+  purpose        String
+  destination    String
+  contactNumber  String
+  status         String    @default("REQUESTED") // REQUESTED, APPROVED, OUT, RETURNED, OVERDUE
+  approvedById   String?
+  approvedAt     DateTime?
+  remarks        String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
   @@index([studentId, status])
   @@map("hostel_outings")
@@ -4685,22 +4710,22 @@ model HostelVisitor {
 }
 
 model HostelComplaint {
-  id            String    @id @default(uuid())
-  hostelId      String
-  studentId     String?
-  roomId        String?
-  category      String    @default("GENERAL") // ELECTRICAL, PLUMBING, FURNITURE, CLEANING, FOOD, SECURITY, GENERAL
-  title         String
-  description   String
-  priority      String    @default("MEDIUM")
-  status        String    @default("OPEN") // OPEN, ASSIGNED, IN_PROGRESS, RESOLVED, CLOSED
-  attachments   String    @default("[]") // JSON
-  assignedToId  String?
-  resolvedAt    DateTime?
-  resolution    String?
-  ticketId      String?   // Link to main Ticket system
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  id           String    @id @default(uuid())
+  hostelId     String
+  studentId    String?
+  roomId       String?
+  category     String    @default("GENERAL") // ELECTRICAL, PLUMBING, FURNITURE, CLEANING, FOOD, SECURITY, GENERAL
+  title        String
+  description  String
+  priority     String    @default("MEDIUM")
+  status       String    @default("OPEN") // OPEN, ASSIGNED, IN_PROGRESS, RESOLVED, CLOSED
+  attachments  String    @default("[]") // JSON
+  assignedToId String?
+  resolvedAt   DateTime?
+  resolution   String?
+  ticketId     String? // Link to main Ticket system
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
   @@index([hostelId, status])
   @@index([studentId])
@@ -4708,18 +4733,18 @@ model HostelComplaint {
 }
 
 model HostelDiscipline {
-  id          String   @id @default(uuid())
-  hostelId    String
-  studentId   String
+  id           String   @id @default(uuid())
+  hostelId     String
+  studentId    String
   incidentDate DateTime
-  category    String   // CURFEW_VIOLATION, PROPERTY_DAMAGE, MISCONDUCT, OTHER
-  description String
-  severity    String   @default("MINOR") // MINOR, MODERATE, MAJOR
-  action      String?
-  actionBy    String
-  status      String   @default("RECORDED") // RECORDED, WARNING_ISSUED, PENALTY_APPLIED, RESOLVED
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  category     String // CURFEW_VIOLATION, PROPERTY_DAMAGE, MISCONDUCT, OTHER
+  description  String
+  severity     String   @default("MINOR") // MINOR, MODERATE, MAJOR
+  action       String?
+  actionBy     String
+  status       String   @default("RECORDED") // RECORDED, WARNING_ISSUED, PENALTY_APPLIED, RESOLVED
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   @@index([studentId])
   @@map("hostel_discipline")
@@ -4730,67 +4755,85 @@ model HostelDiscipline {
 // ==========================================
 
 model Vehicle {
-  id              String   @id @default(uuid())
-  vehicleNumber   String   @unique
-  type            String   @default("BUS") // BUS, MINI_BUS, VAN, CAR
+  id              String    @id @default(uuid())
+  vehicleNumber   String    @unique
+  type            String    @default("BUS") // BUS, MINI_BUS, VAN, CAR
   make            String?
   model           String?
   year            Int?
   capacity        Int
-  fuelType        String   @default("DIESEL")
-  status          String   @default("ACTIVE") // ACTIVE, MAINTENANCE, RETIRED
+  fuelType        String    @default("DIESEL")
+  status          String    @default("ACTIVE") // ACTIVE, MAINTENANCE, RETIRED
   insuranceExpiry DateTime?
   fitnessExpiry   DateTime?
   permitExpiry    DateTime?
   registrationNo  String?
   gpsDeviceId     String?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
-  routes            TransportRouteVehicle[]
+  routes             TransportRouteVehicle[]
   maintenanceRecords TransportMaintenance[]
-  fuelRecords       TransportFuel[]
-  breakdowns        TransportBreakdown[]
+  fuelRecords        TransportFuel[]
+  breakdowns         TransportBreakdown[]
+  locations          VehicleLocation[]
 
   @@map("vehicles")
 }
 
-model TransportStop {
-  id           String   @id @default(uuid())
-  routeId      String
-  route        TransportRoute @relation(fields: [routeId], references: [id], onDelete: Cascade)
-  name         String
-  landmark     String?
-  latitude     Float?
-  longitude    Float?
-  sequence     Int
-  pickupTime   String?
-  dropTime     String?
-  fee          Float    @default(0)
-  status       String   @default("ACTIVE")
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+model VehicleLocation {
+  id         String   @id @default(uuid())
+  vehicleId  String
+  vehicle    Vehicle  @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  tripId     String?
+  latitude   Float
+  longitude  Float
+  speed      Float?
+  heading    Float?
+  accuracy   Float?
+  recordedAt DateTime @default(now())
+  source     String   @default("GPS_DEVICE") // GPS_DEVICE, DRIVER_APP, SIMULATION
 
-  allocations  TransportAllocation[]
+  @@index([vehicleId, recordedAt])
+  @@map("vehicle_locations")
+}
+
+model TransportStop {
+  id         String         @id @default(uuid())
+  routeId    String
+  route      TransportRoute @relation(fields: [routeId], references: [id], onDelete: Cascade)
+  name       String
+  landmark   String?
+  latitude   Float?
+  longitude  Float?
+  sequence   Int
+  pickupTime String?
+  dropTime   String?
+  fee        Float          @default(0)
+  status     String         @default("ACTIVE")
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+
+  allocations TransportAllocation[]
 
   @@unique([routeId, sequence])
   @@map("transport_stops")
 }
 
 model TransportDriver {
-  id            String   @id @default(uuid())
-  name          String
-  phone         String
+  id             String   @id @default(uuid())
+  name           String
+  phone          String
   alternatePhone String?
-  licenseNo     String   @unique
-  licenseExpiry DateTime
-  experience    Int      @default(0)
-  address       String?
-  photo         String?
-  status        String   @default("ACTIVE")
-  userId        String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  licenseNo      String   @unique
+  licenseExpiry  DateTime
+  experience     Int      @default(0)
+  address        String?
+  photo          String?
+  status         String   @default("ACTIVE")
+  userId         String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   routeAssignments TransportRouteVehicle[]
 
@@ -4798,38 +4841,38 @@ model TransportDriver {
 }
 
 model TransportRouteVehicle {
-  id          String   @id @default(uuid())
+  id          String           @id @default(uuid())
   routeId     String
-  route       TransportRoute @relation(fields: [routeId], references: [id], onDelete: Cascade)
+  route       TransportRoute   @relation(fields: [routeId], references: [id], onDelete: Cascade)
   vehicleId   String
-  vehicle     Vehicle  @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  vehicle     Vehicle          @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
   driverId    String?
   driver      TransportDriver? @relation(fields: [driverId], references: [id], onDelete: SetNull)
   conductorId String?
-  shift       String   @default("MORNING") // MORNING, EVENING, BOTH
-  status      String   @default("ACTIVE")
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  shift       String           @default("MORNING") // MORNING, EVENING, BOTH
+  status      String           @default("ACTIVE")
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
 
   @@unique([routeId, vehicleId, shift])
   @@map("transport_route_vehicles")
 }
 
 model TransportAllocation {
-  id            String   @id @default(uuid())
+  id            String         @id @default(uuid())
   routeId       String
   route         TransportRoute @relation(fields: [routeId], references: [id], onDelete: Cascade)
   stopId        String
-  stop          TransportStop @relation(fields: [stopId], references: [id], onDelete: Cascade)
+  stop          TransportStop  @relation(fields: [stopId], references: [id], onDelete: Cascade)
   passengerId   String
-  passengerType String   @default("STUDENT") // STUDENT, FACULTY, STAFF
+  passengerType String         @default("STUDENT") // STUDENT, FACULTY, STAFF
   academicYear  String
-  status        String   @default("ACTIVE") // ACTIVE, CANCELLED, SUSPENDED
+  status        String         @default("ACTIVE") // ACTIVE, CANCELLED, SUSPENDED
   startDate     DateTime
   endDate       DateTime?
-  monthlyFee    Float    @default(0)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  monthlyFee    Float          @default(0)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
 
   @@index([passengerId, passengerType])
   @@index([routeId, status])
@@ -4837,17 +4880,17 @@ model TransportAllocation {
 }
 
 model TransportAttendance {
-  id            String   @id @default(uuid())
+  id            String    @id @default(uuid())
   routeId       String
   vehicleId     String?
   passengerId   String
-  passengerType String   @default("STUDENT")
-  date          DateTime @db.Date
-  direction     String   // PICKUP, DROP
-  status        String   @default("BOARDED") // BOARDED, ABSENT, LATE
+  passengerType String    @default("STUDENT")
+  date          DateTime  @db.Date
+  direction     String // PICKUP, DROP
+  status        String    @default("BOARDED") // BOARDED, ABSENT, LATE
   boardingTime  DateTime?
   recordedBy    String?
-  createdAt     DateTime @default(now())
+  createdAt     DateTime  @default(now())
 
   @@unique([routeId, passengerId, date, direction])
   @@index([passengerId, date])
@@ -4855,19 +4898,19 @@ model TransportAttendance {
 }
 
 model TransportMaintenance {
-  id            String    @id @default(uuid())
-  vehicleId     String
-  vehicle       Vehicle   @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
-  type          String    @default("ROUTINE") // ROUTINE, REPAIR, EMERGENCY
-  description   String
-  startDate     DateTime
-  endDate       DateTime?
-  cost          Float     @default(0)
-  vendorId      String?
-  status        String    @default("SCHEDULED") // SCHEDULED, IN_PROGRESS, COMPLETED
-  remarks       String?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  id          String    @id @default(uuid())
+  vehicleId   String
+  vehicle     Vehicle   @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  type        String    @default("ROUTINE") // ROUTINE, REPAIR, EMERGENCY
+  description String
+  startDate   DateTime
+  endDate     DateTime?
+  cost        Float     @default(0)
+  vendorId    String?
+  status      String    @default("SCHEDULED") // SCHEDULED, IN_PROGRESS, COMPLETED
+  remarks     String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
   @@index([vehicleId, status])
   @@map("transport_maintenance")
@@ -4938,29 +4981,29 @@ model GatePass {
 }
 
 model VisitorRecord {
-  id             String    @id @default(uuid())
-  visitorName    String
-  visitorPhone   String
-  visitorEmail   String?
-  visitorIdType  String?   // AADHAAR, PAN, DRIVING_LICENSE, PASSPORT
-  visitorIdNo    String?
-  organization   String?
-  purpose        String
-  hostId         String?
-  hostType       String?   // FACULTY, STAFF, HOD, PRINCIPAL
-  hostName       String?
-  vehicleNo      String?
-  entryGate      String?
-  exitGate       String?
-  entryTime      DateTime  @default(now())
-  exitTime       DateTime?
-  photo          String?
-  badgeNumber    String?
-  status         String    @default("CHECKED_IN") // CHECKED_IN, CHECKED_OUT, DENIED
-  verifiedById   String
-  remarks        String?
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+  id            String    @id @default(uuid())
+  visitorName   String
+  visitorPhone  String
+  visitorEmail  String?
+  visitorIdType String? // AADHAAR, PAN, DRIVING_LICENSE, PASSPORT
+  visitorIdNo   String?
+  organization  String?
+  purpose       String
+  hostId        String?
+  hostType      String? // FACULTY, STAFF, HOD, PRINCIPAL
+  hostName      String?
+  vehicleNo     String?
+  entryGate     String?
+  exitGate      String?
+  entryTime     DateTime  @default(now())
+  exitTime      DateTime?
+  photo         String?
+  badgeNumber   String?
+  status        String    @default("CHECKED_IN") // CHECKED_IN, CHECKED_OUT, DENIED
+  verifiedById  String
+  remarks       String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 
   @@index([entryTime])
   @@index([hostId])
@@ -4971,8 +5014,8 @@ model VisitorRecord {
 model EntryExitLog {
   id           String   @id @default(uuid())
   personId     String
-  personType   String   // STUDENT, FACULTY, STAFF, VISITOR
-  direction    String   // ENTRY, EXIT
+  personType   String // STUDENT, FACULTY, STAFF, VISITOR
+  direction    String // ENTRY, EXIT
   gate         String?
   method       String   @default("QR_SCAN") // QR_SCAN, MANUAL, BIOMETRIC, RFID
   verifiedById String?
@@ -4985,23 +5028,23 @@ model EntryExitLog {
 }
 
 model SecurityIncident {
-  id            String    @id @default(uuid())
-  incidentNumber String   @unique
-  type          String    // THEFT, TRESPASSING, ACCIDENT, FIRE, MEDICAL, VANDALISM, OTHER
-  severity      String    @default("MEDIUM") // LOW, MEDIUM, HIGH, CRITICAL
-  location      String
-  description   String
-  reportedById  String
-  reportedAt    DateTime  @default(now())
-  witnesses     String    @default("[]") // JSON
-  attachments   String    @default("[]") // JSON
-  status        String    @default("REPORTED") // REPORTED, INVESTIGATING, RESOLVED, CLOSED
-  assignedToId  String?
-  resolution    String?
-  resolvedAt    DateTime?
-  resolvedById  String?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  id             String    @id @default(uuid())
+  incidentNumber String    @unique
+  type           String // THEFT, TRESPASSING, ACCIDENT, FIRE, MEDICAL, VANDALISM, OTHER
+  severity       String    @default("MEDIUM") // LOW, MEDIUM, HIGH, CRITICAL
+  location       String
+  description    String
+  reportedById   String
+  reportedAt     DateTime  @default(now())
+  witnesses      String    @default("[]") // JSON
+  attachments    String    @default("[]") // JSON
+  status         String    @default("REPORTED") // REPORTED, INVESTIGATING, RESOLVED, CLOSED
+  assignedToId   String?
+  resolution     String?
+  resolvedAt     DateTime?
+  resolvedById   String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
   @@index([type, status])
   @@index([reportedAt])
@@ -5012,11 +5055,11 @@ model SecurityVerification {
   id           String   @id @default(uuid())
   verifierId   String
   targetId     String
-  targetType   String   // STUDENT, FACULTY, STAFF, VISITOR, VEHICLE
+  targetType   String // STUDENT, FACULTY, STAFF, VISITOR, VEHICLE
   method       String   @default("QR") // QR, MANUAL, BIOMETRIC
-  result       String   // VERIFIED, FAILED, EXPIRED, INVALID
+  result       String // VERIFIED, FAILED, EXPIRED, INVALID
   qrPayload    String?
-  responseData String?  // JSON — minimum required info returned
+  responseData String? // JSON — minimum required info returned
   ipAddress    String?
   deviceId     String?
   timestamp    DateTime @default(now())
@@ -5032,80 +5075,80 @@ model SecurityVerification {
 // ==========================================
 
 model AppraisalConfig {
-  id             String   @id @default(uuid())
+  id             String                @id @default(uuid())
   academicYear   String
   title          String
   description    String?
-  status         String   @default("DRAFT") // DRAFT, ACTIVE, CLOSED, ARCHIVED
+  status         String                @default("DRAFT") // DRAFT, ACTIVE, CLOSED, ARCHIVED
   startDate      DateTime
   endDate        DateTime
   configuredById String
   categories     AppraisalCategory[]
   submissions    AppraisalSubmission[]
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  createdAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
 
   @@unique([academicYear, title])
   @@map("appraisal_configs")
 }
 
 model AppraisalCategory {
-  id            String   @id @default(uuid())
+  id            String                 @id @default(uuid())
   configId      String
-  config        AppraisalConfig @relation(fields: [configId], references: [id], onDelete: Cascade)
+  config        AppraisalConfig        @relation(fields: [configId], references: [id], onDelete: Cascade)
   name          String
   code          String
   description   String?
-  maxPoints     Float    @default(100)
-  weightage     Float    @default(1.0)
-  sortOrder     Int      @default(0)
+  maxPoints     Float                  @default(100)
+  weightage     Float                  @default(1.0)
+  sortOrder     Int                    @default(0)
   subcategories AppraisalSubcategory[]
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  createdAt     DateTime               @default(now())
+  updatedAt     DateTime               @updatedAt
 
   @@unique([configId, code])
   @@map("appraisal_categories")
 }
 
 model AppraisalSubcategory {
-  id                    String   @id @default(uuid())
+  id                    String            @id @default(uuid())
   categoryId            String
   category              AppraisalCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
   name                  String
   code                  String
   description           String?
-  maxPoints             Float    @default(10)
-  pointsPerItem         Float    @default(1)
+  maxPoints             Float             @default(10)
+  pointsPerItem         Float             @default(1)
   maxItems              Int?
-  evidenceRequired      Boolean  @default(true)
-  verificationAuthority String   @default("HOD") // HOD, DEAN, IQAC, PRINCIPAL
-  sortOrder             Int      @default(0)
+  evidenceRequired      Boolean           @default(true)
+  verificationAuthority String            @default("HOD") // HOD, DEAN, IQAC, PRINCIPAL
+  sortOrder             Int               @default(0)
   entries               AppraisalEntry[]
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
 
   @@unique([categoryId, code])
   @@map("appraisal_subcategories")
 }
 
 model AppraisalSubmission {
-  id             String   @id @default(uuid())
-  configId       String
-  config         AppraisalConfig @relation(fields: [configId], references: [id], onDelete: Cascade)
-  facultyId      String
-  academicYear   String
-  status         String   @default("DRAFT") // DRAFT, SUBMITTED, UNDER_REVIEW, RETURNED, VERIFIED, FINALIZED
-  totalScore     Float    @default(0)
-  weightedScore  Float    @default(0)
-  submittedAt    DateTime?
-  verifiedById   String?
-  verifiedAt     DateTime?
-  returnReason   String?
-  finalizedAt    DateTime?
-  entries        AppraisalEntry[]
-  verifications  AppraisalVerification[]
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  id            String                  @id @default(uuid())
+  configId      String
+  config        AppraisalConfig         @relation(fields: [configId], references: [id], onDelete: Cascade)
+  facultyId     String
+  academicYear  String
+  status        String                  @default("DRAFT") // DRAFT, SUBMITTED, UNDER_REVIEW, RETURNED, VERIFIED, FINALIZED
+  totalScore    Float                   @default(0)
+  weightedScore Float                   @default(0)
+  submittedAt   DateTime?
+  verifiedById  String?
+  verifiedAt    DateTime?
+  returnReason  String?
+  finalizedAt   DateTime?
+  entries       AppraisalEntry[]
+  verifications AppraisalVerification[]
+  createdAt     DateTime                @default(now())
+  updatedAt     DateTime                @updatedAt
 
   @@unique([configId, facultyId, academicYear])
   @@index([facultyId, academicYear])
@@ -5114,24 +5157,24 @@ model AppraisalSubmission {
 }
 
 model AppraisalEntry {
-  id              String   @id @default(uuid())
-  submissionId    String
-  submission      AppraisalSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
-  subcategoryId   String
-  subcategory     AppraisalSubcategory @relation(fields: [subcategoryId], references: [id], onDelete: Cascade)
-  title           String
-  description     String?
-  claimedPoints   Float    @default(0)
-  verifiedPoints  Float?
-  evidenceId      String?  // Link to Evidence Repository
-  evidenceUrl     String?
-  evidenceType    String?
-  status          String   @default("CLAIMED") // CLAIMED, VERIFIED, REJECTED, RETURNED
-  verifiedById    String?
-  verifiedAt      DateTime?
-  remarks         String?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id             String               @id @default(uuid())
+  submissionId   String
+  submission     AppraisalSubmission  @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  subcategoryId  String
+  subcategory    AppraisalSubcategory @relation(fields: [subcategoryId], references: [id], onDelete: Cascade)
+  title          String
+  description    String?
+  claimedPoints  Float                @default(0)
+  verifiedPoints Float?
+  evidenceId     String? // Link to Evidence Repository
+  evidenceUrl    String?
+  evidenceType   String?
+  status         String               @default("CLAIMED") // CLAIMED, VERIFIED, REJECTED, RETURNED
+  verifiedById   String?
+  verifiedAt     DateTime?
+  remarks        String?
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
 
   @@index([submissionId])
   @@index([subcategoryId])
@@ -5139,16 +5182,16 @@ model AppraisalEntry {
 }
 
 model AppraisalVerification {
-  id             String   @id @default(uuid())
+  id             String              @id @default(uuid())
   submissionId   String
   submission     AppraisalSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
   verifierId     String
   verifierRole   String
-  action         String   // SUBMIT, VERIFY, RETURN, FINALIZE
+  action         String // SUBMIT, VERIFY, RETURN, FINALIZE
   previousStatus String?
   newStatus      String
   remarks        String?
-  createdAt      DateTime @default(now())
+  createdAt      DateTime            @default(now())
 
   @@index([submissionId])
   @@map("appraisal_verifications")
@@ -5159,31 +5202,31 @@ model AppraisalVerification {
 // ==========================================
 
 model EvidenceItem {
-  id             String   @id @default(uuid())
-  ownerId        String
-  ownerType      String   @default("FACULTY") // FACULTY, STUDENT, DEPARTMENT
-  category       String   // CERTIFICATE, PUBLICATION, PATENT, RESEARCH, FDP, AWARD, EVENT, DOCUMENT, URL, DOI
-  title          String
-  description    String?
-  fileKey        String?
-  fileUrl        String?
-  fileName       String?
-  fileSize       Int?
-  mimeType       String?
-  fileHash       String?  // SHA-256 for dedup
-  externalUrl    String?
-  doi            String?
-  metadata       String   @default("{}") // JSON: date, venue, organizer, etc.
-  academicYear   String?
-  verificationStatus String @default("UNVERIFIED") // UNVERIFIED, VERIFIED, REJECTED
-  verifiedById   String?
-  verifiedAt     DateTime?
-  version        Int      @default(1)
-  previousVersionId String?
-  status         String   @default("ACTIVE") // ACTIVE, ARCHIVED, DELETED
-  links          EvidenceLink[]
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  id                 String         @id @default(uuid())
+  ownerId            String
+  ownerType          String         @default("FACULTY") // FACULTY, STUDENT, DEPARTMENT
+  category           String // CERTIFICATE, PUBLICATION, PATENT, RESEARCH, FDP, AWARD, EVENT, DOCUMENT, URL, DOI
+  title              String
+  description        String?
+  fileKey            String?
+  fileUrl            String?
+  fileName           String?
+  fileSize           Int?
+  mimeType           String?
+  fileHash           String? // SHA-256 for dedup
+  externalUrl        String?
+  doi                String?
+  metadata           String         @default("{}") // JSON: date, venue, organizer, etc.
+  academicYear       String?
+  verificationStatus String         @default("UNVERIFIED") // UNVERIFIED, VERIFIED, REJECTED
+  verifiedById       String?
+  verifiedAt         DateTime?
+  version            Int            @default(1)
+  previousVersionId  String?
+  status             String         @default("ACTIVE") // ACTIVE, ARCHIVED, DELETED
+  links              EvidenceLink[]
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
 
   @@index([ownerId, ownerType])
   @@index([category, academicYear])
@@ -5195,7 +5238,7 @@ model EvidenceLink {
   id           String       @id @default(uuid())
   evidenceId   String
   evidence     EvidenceItem @relation(fields: [evidenceId], references: [id], onDelete: Cascade)
-  linkedModule String       // APPRAISAL, IQAC, RESEARCH, PROFILE, ANNUAL_REPORT, DEPARTMENT_REPORT
+  linkedModule String // APPRAISAL, IQAC, RESEARCH, PROFILE, ANNUAL_REPORT, DEPARTMENT_REPORT
   linkedId     String
   linkedType   String?
   createdAt    DateTime     @default(now())
@@ -5210,53 +5253,53 @@ model EvidenceLink {
 // ==========================================
 
 model CertificateTemplate {
-  id             String   @id @default(uuid())
-  name           String   @unique
-  code           String   @unique
-  type           String   // BONAFIDE, STUDY, CONDUCT, TC, FEE, SCHOLARSHIP, CUSTOM
-  content        String   // HTML/template with placeholders
-  headerHtml     String?
-  footerHtml     String?
-  signatories    String   @default("[]") // JSON: [{role, name, designation}]
-  requiresFinancialClearance Boolean @default(false)
-  requiresApproval Boolean @default(true)
-  autoFields     String   @default("[]") // JSON: fields auto-pulled from Student Master
-  status         String   @default("ACTIVE")
-  version        Int      @default(1)
-  createdById    String
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  id                         String   @id @default(uuid())
+  name                       String   @unique
+  code                       String   @unique
+  type                       String // BONAFIDE, STUDY, CONDUCT, TC, FEE, SCHOLARSHIP, CUSTOM
+  content                    String // HTML/template with placeholders
+  headerHtml                 String?
+  footerHtml                 String?
+  signatories                String   @default("[]") // JSON: [{role, name, designation}]
+  requiresFinancialClearance Boolean  @default(false)
+  requiresApproval           Boolean  @default(true)
+  autoFields                 String   @default("[]") // JSON: fields auto-pulled from Student Master
+  status                     String   @default("ACTIVE")
+  version                    Int      @default(1)
+  createdById                String
+  createdAt                  DateTime @default(now())
+  updatedAt                  DateTime @updatedAt
 
-  generations    CertificateGeneration[]
+  generations CertificateGeneration[]
 
   @@map("certificate_templates")
 }
 
 model CertificateGeneration {
-  id              String    @id @default(uuid())
-  requestNumber   String    @unique
-  templateId      String
-  template        CertificateTemplate @relation(fields: [templateId], references: [id])
-  studentId       String
-  requestedById   String
-  purpose         String?
-  data            String    @default("{}") // JSON: merged data from Student Master
-  status          String    @default("REQUESTED") // REQUESTED, UNDER_REVIEW, FINANCIAL_CLEARANCE, APPROVED, GENERATED, SIGNED, PUBLISHED, REJECTED, RETURNED
-  currentStep     String    @default("OFFICE_REVIEW")
-  qrVerificationHash String? @unique
-  generatedPdfUrl String?
-  signedPdfUrl    String?
-  signedAt        DateTime?
-  signedById      String?
-  publishedAt     DateTime?
-  rejectionReason String?
-  returnReason    String?
-  turnaroundHours Float?
-  financialClearance Boolean @default(false)
+  id                   String              @id @default(uuid())
+  requestNumber        String              @unique
+  templateId           String
+  template             CertificateTemplate @relation(fields: [templateId], references: [id])
+  studentId            String
+  requestedById        String
+  purpose              String?
+  data                 String              @default("{}") // JSON: merged data from Student Master
+  status               String              @default("REQUESTED") // REQUESTED, UNDER_REVIEW, FINANCIAL_CLEARANCE, APPROVED, GENERATED, SIGNED, PUBLISHED, REJECTED, RETURNED
+  currentStep          String              @default("OFFICE_REVIEW")
+  qrVerificationHash   String?             @unique
+  generatedPdfUrl      String?
+  signedPdfUrl         String?
+  signedAt             DateTime?
+  signedById           String?
+  publishedAt          DateTime?
+  rejectionReason      String?
+  returnReason         String?
+  turnaroundHours      Float?
+  financialClearance   Boolean             @default(false)
   financialClearanceAt DateTime?
   financialClearanceBy String?
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  createdAt            DateTime            @default(now())
+  updatedAt            DateTime            @updatedAt
 
   @@index([studentId, status])
   @@index([templateId])
@@ -5269,26 +5312,26 @@ model CertificateGeneration {
 // ==========================================
 
 model PurchaseRequest {
-  id              String   @id @default(uuid())
-  requestNumber   String   @unique
+  id              String              @id @default(uuid())
+  requestNumber   String              @unique
   departmentId    String
   requestedById   String
   title           String
   description     String
-  category        String   @default("GENERAL") // GENERAL, IT, LAB, FURNITURE, STATIONERY, OTHER
-  items           String   @default("[]") // JSON: [{name, qty, estPrice, specs}]
+  category        String              @default("GENERAL") // GENERAL, IT, LAB, FURNITURE, STATIONERY, OTHER
+  items           String              @default("[]") // JSON: [{name, qty, estPrice, specs}]
   estimatedAmount Float
   budgetHead      String?
-  priority        String   @default("MEDIUM")
-  status          String   @default("DRAFT") // DRAFT, SUBMITTED, HOD_APPROVED, FINANCE_APPROVED, PRINCIPAL_APPROVED, PO_CREATED, COMPLETED, REJECTED
-  currentStep     String   @default("HOD")
-  attachments     String   @default("[]") // JSON
+  priority        String              @default("MEDIUM")
+  status          String              @default("DRAFT") // DRAFT, SUBMITTED, HOD_APPROVED, FINANCE_APPROVED, PRINCIPAL_APPROVED, PO_CREATED, COMPLETED, REJECTED
+  currentStep     String              @default("HOD")
+  attachments     String              @default("[]") // JSON
   remarks         String?
   approvedAmount  Float?
   quotations      PurchaseQuotation[]
   orders          PurchaseOrder[]
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
 
   @@index([departmentId, status])
   @@index([requestedById])
@@ -5296,47 +5339,47 @@ model PurchaseRequest {
 }
 
 model PurchaseQuotation {
-  id            String   @id @default(uuid())
+  id            String          @id @default(uuid())
   requestId     String
   request       PurchaseRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
   vendorId      String?
   vendorName    String
   quotationNo   String?
   quotationDate DateTime
-  items         String   @default("[]") // JSON: [{name, qty, unitPrice, tax, total}]
+  items         String          @default("[]") // JSON: [{name, qty, unitPrice, tax, total}]
   totalAmount   Float
   validUntil    DateTime?
   terms         String?
   attachmentUrl String?
-  isSelected    Boolean  @default(false)
+  isSelected    Boolean         @default(false)
   remarks       String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
 
   @@index([requestId])
   @@map("purchase_quotations")
 }
 
 model PurchaseOrder {
-  id              String   @id @default(uuid())
-  poNumber        String   @unique
-  requestId       String?
-  request         PurchaseRequest? @relation(fields: [requestId], references: [id], onDelete: SetNull)
-  vendorId        String
-  departmentId    String
-  items           String   @default("[]") // JSON
-  totalAmount     Float
-  tax             Float    @default(0)
-  grandTotal      Float
-  deliveryDate    DateTime?
-  terms           String?
-  status          String   @default("CREATED") // CREATED, SENT, ACKNOWLEDGED, PARTIALLY_RECEIVED, RECEIVED, INVOICED, CLOSED, CANCELLED
-  approvedById    String?
-  approvedAt      DateTime?
-  attachments     String   @default("[]") // JSON
-  goodsReceipts   GoodsReceipt[]
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id            String           @id @default(uuid())
+  poNumber      String           @unique
+  requestId     String?
+  request       PurchaseRequest? @relation(fields: [requestId], references: [id], onDelete: SetNull)
+  vendorId      String
+  departmentId  String
+  items         String           @default("[]") // JSON
+  totalAmount   Float
+  tax           Float            @default(0)
+  grandTotal    Float
+  deliveryDate  DateTime?
+  terms         String?
+  status        String           @default("CREATED") // CREATED, SENT, ACKNOWLEDGED, PARTIALLY_RECEIVED, RECEIVED, INVOICED, CLOSED, CANCELLED
+  approvedById  String?
+  approvedAt    DateTime?
+  attachments   String           @default("[]") // JSON
+  goodsReceipts GoodsReceipt[]
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
 
   @@index([vendorId])
   @@index([departmentId, status])
@@ -5344,20 +5387,20 @@ model PurchaseOrder {
 }
 
 model GoodsReceipt {
-  id            String    @id @default(uuid())
-  grnNumber     String    @unique
+  id            String        @id @default(uuid())
+  grnNumber     String        @unique
   poId          String
   po            PurchaseOrder @relation(fields: [poId], references: [id], onDelete: Cascade)
-  receivedDate  DateTime  @default(now())
+  receivedDate  DateTime      @default(now())
   receivedById  String
-  items         String    @default("[]") // JSON: [{item, qtyOrdered, qtyReceived, condition}]
+  items         String        @default("[]") // JSON: [{item, qtyOrdered, qtyReceived, condition}]
   remarks       String?
-  attachments   String    @default("[]") // JSON
-  status        String    @default("RECEIVED") // RECEIVED, INSPECTED, ACCEPTED, REJECTED
+  attachments   String        @default("[]") // JSON
+  status        String        @default("RECEIVED") // RECEIVED, INSPECTED, ACCEPTED, REJECTED
   inspectedById String?
   inspectedAt   DateTime?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
 
   @@index([poId])
   @@map("goods_receipts")
@@ -5368,11 +5411,11 @@ model GoodsReceipt {
 // ==========================================
 
 model Asset {
-  id              String    @id @default(uuid())
-  assetId         String    @unique
+  id              String          @id @default(uuid())
+  assetId         String          @unique
   serialNumber    String?
   name            String
-  category        String    // IT, FURNITURE, LAB, VEHICLE, BUILDING, OTHER
+  category        String // IT, FURNITURE, LAB, VEHICLE, BUILDING, OTHER
   subcategory     String?
   description     String?
   departmentId    String
@@ -5381,20 +5424,20 @@ model Asset {
   purchaseDate    DateTime?
   purchaseOrderId String?
   vendorId        String?
-  purchasePrice   Float     @default(0)
-  currentValue    Float     @default(0)
+  purchasePrice   Float           @default(0)
+  currentValue    Float           @default(0)
   warrantyExpiry  DateTime?
   amcExpiry       DateTime?
   amcVendorId     String?
-  condition       String    @default("GOOD") // NEW, GOOD, FAIR, POOR, CONDEMNED
-  status          String    @default("ACTIVE") // ACTIVE, IN_REPAIR, TRANSFERRED, DISPOSED, LOST
+  condition       String          @default("GOOD") // NEW, GOOD, FAIR, POOR, CONDEMNED
+  status          String          @default("ACTIVE") // ACTIVE, IN_REPAIR, TRANSFERRED, DISPOSED, LOST
   photo           String?
   qrCode          String?
-  metadata        String    @default("{}") // JSON
+  metadata        String          @default("{}") // JSON
   movements       AssetMovement[]
   serviceRecords  AssetService[]
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
 
   @@index([departmentId, status])
   @@index([category])
@@ -5403,62 +5446,62 @@ model Asset {
 }
 
 model AssetMovement {
-  id             String   @id @default(uuid())
-  assetId        String
-  asset          Asset    @relation(fields: [assetId], references: [id], onDelete: Cascade)
-  movementType   String   // ALLOCATION, TRANSFER, RETURN, DISPOSAL, REPAIR
-  fromDeptId     String?
-  toDeptId       String?
+  id              String   @id @default(uuid())
+  assetId         String
+  asset           Asset    @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  movementType    String // ALLOCATION, TRANSFER, RETURN, DISPOSAL, REPAIR
+  fromDeptId      String?
+  toDeptId        String?
   fromCustodianId String?
-  toCustodianId  String?
-  fromLocation   String?
-  toLocation     String?
-  reason         String?
-  approvedById   String?
-  performedById  String
-  performedAt    DateTime @default(now())
-  remarks        String?
-  createdAt      DateTime @default(now())
+  toCustodianId   String?
+  fromLocation    String?
+  toLocation      String?
+  reason          String?
+  approvedById    String?
+  performedById   String
+  performedAt     DateTime @default(now())
+  remarks         String?
+  createdAt       DateTime @default(now())
 
   @@index([assetId])
   @@map("asset_movements")
 }
 
 model AssetService {
-  id           String    @id @default(uuid())
-  assetId      String
-  asset        Asset     @relation(fields: [assetId], references: [id], onDelete: Cascade)
-  serviceType  String    // ROUTINE, REPAIR, AMC, WARRANTY
-  description  String
-  vendorId     String?
-  cost         Float     @default(0)
-  startDate    DateTime
-  endDate      DateTime?
-  status       String    @default("SCHEDULED") // SCHEDULED, IN_PROGRESS, COMPLETED
-  remarks      String?
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  id          String    @id @default(uuid())
+  assetId     String
+  asset       Asset     @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  serviceType String // ROUTINE, REPAIR, AMC, WARRANTY
+  description String
+  vendorId    String?
+  cost        Float     @default(0)
+  startDate   DateTime
+  endDate     DateTime?
+  status      String    @default("SCHEDULED") // SCHEDULED, IN_PROGRESS, COMPLETED
+  remarks     String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
   @@index([assetId])
   @@map("asset_services")
 }
 
 model InventoryItem {
-  id            String   @id @default(uuid())
-  itemCode      String   @unique
-  name          String
-  category      String
-  unit          String   @default("NOS") // NOS, KG, LTR, MTR, PKT, BOX
-  description   String?
-  currentStock  Float    @default(0)
-  minimumStock  Float    @default(0)
-  reorderLevel  Float    @default(0)
-  departmentId  String?
-  location      String?
-  status        String   @default("ACTIVE")
-  transactions  InventoryTransaction[]
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id           String                 @id @default(uuid())
+  itemCode     String                 @unique
+  name         String
+  category     String
+  unit         String                 @default("NOS") // NOS, KG, LTR, MTR, PKT, BOX
+  description  String?
+  currentStock Float                  @default(0)
+  minimumStock Float                  @default(0)
+  reorderLevel Float                  @default(0)
+  departmentId String?
+  location     String?
+  status       String                 @default("ACTIVE")
+  transactions InventoryTransaction[]
+  createdAt    DateTime               @default(now())
+  updatedAt    DateTime               @updatedAt
 
   @@index([category])
   @@index([departmentId])
@@ -5469,11 +5512,11 @@ model InventoryTransaction {
   id            String        @id @default(uuid())
   itemId        String
   item          InventoryItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
-  type          String        // STOCK_IN, STOCK_OUT, ADJUSTMENT, RETURN
+  type          String // STOCK_IN, STOCK_OUT, ADJUSTMENT, RETURN
   quantity      Float
   previousStock Float
   newStock      Float
-  reference     String?       // PO number, issue reference
+  reference     String? // PO number, issue reference
   departmentId  String?
   issuedToId    String?
   performedById String
@@ -5490,36 +5533,36 @@ model InventoryTransaction {
 // ==========================================
 
 model Vendor {
-  id            String   @id @default(uuid())
-  vendorCode    String   @unique
-  name          String
-  tradeName     String?
-  type          String   @default("SUPPLIER") // SUPPLIER, SERVICE_PROVIDER, CONTRACTOR, AMC
-  gstNumber     String?
-  panNumber     String?
-  tanNumber     String?
-  email         String?
-  phone         String
+  id             String          @id @default(uuid())
+  vendorCode     String          @unique
+  name           String
+  tradeName      String?
+  type           String          @default("SUPPLIER") // SUPPLIER, SERVICE_PROVIDER, CONTRACTOR, AMC
+  gstNumber      String?
+  panNumber      String?
+  tanNumber      String?
+  email          String?
+  phone          String
   alternatePhone String?
-  website       String?
-  addressLine1  String
-  addressLine2  String?
-  city          String
-  state         String
-  pincode       String
-  country       String   @default("India")
-  bankName      String?
-  bankBranch    String?
-  bankAccount   String?
-  ifscCode      String?
-  products      String   @default("[]") // JSON: products/services offered
-  documents     String   @default("[]") // JSON
-  rating        Float?
-  status        String   @default("ACTIVE") // ACTIVE, BLACKLISTED, INACTIVE
-  notes         String?
-  contacts      VendorContact[]
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  website        String?
+  addressLine1   String
+  addressLine2   String?
+  city           String
+  state          String
+  pincode        String
+  country        String          @default("India")
+  bankName       String?
+  bankBranch     String?
+  bankAccount    String?
+  ifscCode       String?
+  products       String          @default("[]") // JSON: products/services offered
+  documents      String          @default("[]") // JSON
+  rating         Float?
+  status         String          @default("ACTIVE") // ACTIVE, BLACKLISTED, INACTIVE
+  notes          String?
+  contacts       VendorContact[]
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
 
   @@index([gstNumber])
   @@index([status])
@@ -5527,16 +5570,16 @@ model Vendor {
 }
 
 model VendorContact {
-  id         String   @id @default(uuid())
-  vendorId   String
-  vendor     Vendor   @relation(fields: [vendorId], references: [id], onDelete: Cascade)
-  name       String
+  id          String   @id @default(uuid())
+  vendorId    String
+  vendor      Vendor   @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  name        String
   designation String?
-  email      String?
-  phone      String
-  isPrimary  Boolean  @default(false)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  email       String?
+  phone       String
+  isPrimary   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   @@map("vendor_contacts")
 }
@@ -5546,39 +5589,39 @@ model VendorContact {
 // ==========================================
 
 model MaintenanceRequest {
-  id            String    @id @default(uuid())
-  requestNumber String    @unique
-  category      String    // ELECTRICAL, PLUMBING, IT, CIVIL, LAB, FURNITURE, HOSTEL, TRANSPORT, OTHER
-  subcategory   String?
-  title         String
-  description   String
-  location      String
-  buildingId    String?
-  roomId        String?
-  priority      String    @default("MEDIUM") // LOW, MEDIUM, HIGH, URGENT
-  status        String    @default("OPEN") // OPEN, TRIAGED, ASSIGNED, IN_PROGRESS, RESOLVED, VERIFIED, CLOSED, REJECTED
-  reportedById  String
-  reportedByType String   @default("STAFF") // STUDENT, FACULTY, STAFF, WARDEN
-  attachments   String    @default("[]") // JSON
-  photos        String    @default("[]") // JSON
-  assignedToId  String?
-  ticketId      String?   // Link to Grievance/Helpdesk
-  assetId       String?   // Link to Asset if applicable
-  estimatedCost Float?
-  actualCost    Float?
-  partsUsed     String    @default("[]") // JSON
-  slaHours      Int?
-  triageRemarks String?
-  resolution    String?
-  resolvedAt    DateTime?
-  resolvedById  String?
-  verifiedAt    DateTime?
-  verifiedById  String?
-  feedback      String?
+  id             String            @id @default(uuid())
+  requestNumber  String            @unique
+  category       String // ELECTRICAL, PLUMBING, IT, CIVIL, LAB, FURNITURE, HOSTEL, TRANSPORT, OTHER
+  subcategory    String?
+  title          String
+  description    String
+  location       String
+  buildingId     String?
+  roomId         String?
+  priority       String            @default("MEDIUM") // LOW, MEDIUM, HIGH, URGENT
+  status         String            @default("OPEN") // OPEN, TRIAGED, ASSIGNED, IN_PROGRESS, RESOLVED, VERIFIED, CLOSED, REJECTED
+  reportedById   String
+  reportedByType String            @default("STAFF") // STUDENT, FACULTY, STAFF, WARDEN
+  attachments    String            @default("[]") // JSON
+  photos         String            @default("[]") // JSON
+  assignedToId   String?
+  ticketId       String? // Link to Grievance/Helpdesk
+  assetId        String? // Link to Asset if applicable
+  estimatedCost  Float?
+  actualCost     Float?
+  partsUsed      String            @default("[]") // JSON
+  slaHours       Int?
+  triageRemarks  String?
+  resolution     String?
+  resolvedAt     DateTime?
+  resolvedById   String?
+  verifiedAt     DateTime?
+  verifiedById   String?
+  feedback       String?
   feedbackRating Int?
-  works         MaintenanceWork[]
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  works          MaintenanceWork[]
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
 
   @@index([category, status])
   @@index([reportedById])
@@ -5588,36 +5631,36 @@ model MaintenanceRequest {
 }
 
 model MaintenanceTechnician {
-  id           String   @id @default(uuid())
-  userId       String?
-  name         String
-  phone        String
-  specialization String @default("GENERAL") // ELECTRICAL, PLUMBING, IT, CIVIL, GENERAL
-  status       String   @default("AVAILABLE") // AVAILABLE, BUSY, ON_LEAVE
-  works        MaintenanceWork[]
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id             String            @id @default(uuid())
+  userId         String?
+  name           String
+  phone          String
+  specialization String            @default("GENERAL") // ELECTRICAL, PLUMBING, IT, CIVIL, GENERAL
+  status         String            @default("AVAILABLE") // AVAILABLE, BUSY, ON_LEAVE
+  works          MaintenanceWork[]
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
 
   @@map("maintenance_technicians")
 }
 
 model MaintenanceWork {
-  id            String    @id @default(uuid())
-  requestId     String
-  request       MaintenanceRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
-  technicianId  String?
-  technician    MaintenanceTechnician? @relation(fields: [technicianId], references: [id], onDelete: SetNull)
-  description   String
-  startTime     DateTime?
-  endTime       DateTime?
-  hoursWorked   Float?
-  partsUsed     String    @default("[]") // JSON
-  cost          Float     @default(0)
-  status        String    @default("ASSIGNED") // ASSIGNED, STARTED, COMPLETED
-  remarks       String?
-  photos        String    @default("[]") // JSON
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  id           String                 @id @default(uuid())
+  requestId    String
+  request      MaintenanceRequest     @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  technicianId String?
+  technician   MaintenanceTechnician? @relation(fields: [technicianId], references: [id], onDelete: SetNull)
+  description  String
+  startTime    DateTime?
+  endTime      DateTime?
+  hoursWorked  Float?
+  partsUsed    String                 @default("[]") // JSON
+  cost         Float                  @default(0)
+  status       String                 @default("ASSIGNED") // ASSIGNED, STARTED, COMPLETED
+  remarks      String?
+  photos       String                 @default("[]") // JSON
+  createdAt    DateTime               @default(now())
+  updatedAt    DateTime               @updatedAt
 
   @@index([requestId])
   @@map("maintenance_works")
@@ -5628,46 +5671,46 @@ model MaintenanceWork {
 // ==========================================
 
 model BookableResource {
-  id           String   @id @default(uuid())
+  id           String            @id @default(uuid())
   name         String
-  code         String   @unique
-  type         String   // CLASSROOM, LAB, SEMINAR_HALL, AUDITORIUM, MEETING_ROOM, EQUIPMENT
+  code         String            @unique
+  type         String // CLASSROOM, LAB, SEMINAR_HALL, AUDITORIUM, MEETING_ROOM, EQUIPMENT
   building     String?
   floor        String?
   capacity     Int?
-  amenities    String   @default("[]") // JSON
+  amenities    String            @default("[]") // JSON
   photo        String?
-  status       String   @default("AVAILABLE") // AVAILABLE, MAINTENANCE, BLOCKED, RETIRED
+  status       String            @default("AVAILABLE") // AVAILABLE, MAINTENANCE, BLOCKED, RETIRED
   departmentId String?
   bookings     ResourceBooking[]
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
 
   @@index([type, status])
   @@map("bookable_resources")
 }
 
 model ResourceBooking {
-  id            String    @id @default(uuid())
-  resourceId    String
-  resource      BookableResource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
-  bookedById    String
-  bookedByRole  String
-  purpose       String
-  description   String?
-  startTime     DateTime
-  endTime       DateTime
-  attendees     Int?
-  equipmentNeeded String  @default("[]") // JSON
-  status        String   @default("REQUESTED") // REQUESTED, APPROVED, CONFIRMED, CANCELLED, COMPLETED
-  approvalRequired Boolean @default(false)
-  approvedById  String?
-  approvedAt    DateTime?
-  cancelledAt   DateTime?
-  cancellationReason String?
-  conflictCheckPassed Boolean @default(true)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id                  String           @id @default(uuid())
+  resourceId          String
+  resource            BookableResource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+  bookedById          String
+  bookedByRole        String
+  purpose             String
+  description         String?
+  startTime           DateTime
+  endTime             DateTime
+  attendees           Int?
+  equipmentNeeded     String           @default("[]") // JSON
+  status              String           @default("REQUESTED") // REQUESTED, APPROVED, CONFIRMED, CANCELLED, COMPLETED
+  approvalRequired    Boolean          @default(false)
+  approvedById        String?
+  approvedAt          DateTime?
+  cancelledAt         DateTime?
+  cancellationReason  String?
+  conflictCheckPassed Boolean          @default(true)
+  createdAt           DateTime         @default(now())
+  updatedAt           DateTime         @updatedAt
 
   @@index([resourceId, startTime, endTime])
   @@index([bookedById])
@@ -5680,26 +5723,26 @@ model ResourceBooking {
 // ==========================================
 
 model Meeting {
-  id             String   @id @default(uuid())
-  committeeId    String?
-  title          String
-  description    String?
-  meetingType    String   @default("REGULAR") // REGULAR, SPECIAL, EMERGENCY, REVIEW
-  venue          String?
-  onlineLink     String?
-  scheduledDate  DateTime
-  startTime      String
-  endTime        String
-  chairPersonId  String
-  coordinatorId  String?
-  status         String   @default("SCHEDULED") // SCHEDULED, IN_PROGRESS, COMPLETED, CANCELLED, POSTPONED
-  invitees       MeetingInvitee[]
-  agendaItems    MeetingAgenda[]
-  minutes        MeetingMinutes?
-  actionItems    MeetingActionItem[]
-  attachments    String   @default("[]") // JSON
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  id            String              @id @default(uuid())
+  committeeId   String?
+  title         String
+  description   String?
+  meetingType   String              @default("REGULAR") // REGULAR, SPECIAL, EMERGENCY, REVIEW
+  venue         String?
+  onlineLink    String?
+  scheduledDate DateTime
+  startTime     String
+  endTime       String
+  chairPersonId String
+  coordinatorId String?
+  status        String              @default("SCHEDULED") // SCHEDULED, IN_PROGRESS, COMPLETED, CANCELLED, POSTPONED
+  invitees      MeetingInvitee[]
+  agendaItems   MeetingAgenda[]
+  minutes       MeetingMinutes?
+  actionItems   MeetingActionItem[]
+  attachments   String              @default("[]") // JSON
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
 
   @@index([scheduledDate])
   @@index([committeeId])
@@ -5708,16 +5751,16 @@ model Meeting {
 }
 
 model MeetingInvitee {
-  id           String    @id @default(uuid())
-  meetingId    String
-  meeting      Meeting   @relation(fields: [meetingId], references: [id], onDelete: Cascade)
-  userId       String
-  role         String    @default("MEMBER") // CHAIR, COORDINATOR, MEMBER, INVITEE
-  rsvpStatus   String    @default("PENDING") // PENDING, ACCEPTED, DECLINED, TENTATIVE
-  attended     Boolean   @default(false)
-  attendedAt   DateTime?
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  id         String    @id @default(uuid())
+  meetingId  String
+  meeting    Meeting   @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  userId     String
+  role       String    @default("MEMBER") // CHAIR, COORDINATOR, MEMBER, INVITEE
+  rsvpStatus String    @default("PENDING") // PENDING, ACCEPTED, DECLINED, TENTATIVE
+  attended   Boolean   @default(false)
+  attendedAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
 
   @@unique([meetingId, userId])
   @@map("meeting_invitees")
@@ -5731,7 +5774,7 @@ model MeetingAgenda {
   title       String
   description String?
   presenterId String?
-  duration    Int?     // minutes
+  duration    Int? // minutes
   status      String   @default("PENDING") // PENDING, DISCUSSED, DEFERRED, DROPPED
   decision    String?
   createdAt   DateTime @default(now())
@@ -5742,37 +5785,37 @@ model MeetingAgenda {
 }
 
 model MeetingMinutes {
-  id           String   @id @default(uuid())
-  meetingId    String   @unique
-  meeting      Meeting  @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  id           String    @id @default(uuid())
+  meetingId    String    @unique
+  meeting      Meeting   @relation(fields: [meetingId], references: [id], onDelete: Cascade)
   content      String
   preparedById String
   approvedById String?
   approvedAt   DateTime?
-  status       String   @default("DRAFT") // DRAFT, SUBMITTED, APPROVED, PUBLISHED
+  status       String    @default("DRAFT") // DRAFT, SUBMITTED, APPROVED, PUBLISHED
   publishedAt  DateTime?
-  version      Int      @default(1)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  version      Int       @default(1)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
   @@map("meeting_minutes")
 }
 
 model MeetingActionItem {
-  id            String    @id @default(uuid())
-  meetingId     String
-  meeting       Meeting   @relation(fields: [meetingId], references: [id], onDelete: Cascade)
-  title         String
-  description   String?
-  assigneeId    String
-  deadline      DateTime?
-  priority      String    @default("MEDIUM")
-  status        String    @default("OPEN") // OPEN, IN_PROGRESS, COMPLETED, OVERDUE
-  taskId        String?   // Auto-linked to Task system
-  completedAt   DateTime?
-  remarks       String?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  id          String    @id @default(uuid())
+  meetingId   String
+  meeting     Meeting   @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  title       String
+  description String?
+  assigneeId  String
+  deadline    DateTime?
+  priority    String    @default("MEDIUM")
+  status      String    @default("OPEN") // OPEN, IN_PROGRESS, COMPLETED, OVERDUE
+  taskId      String? // Auto-linked to Task system
+  completedAt DateTime?
+  remarks     String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
   @@index([meetingId])
   @@index([assigneeId])
@@ -5784,25 +5827,25 @@ model MeetingActionItem {
 // ==========================================
 
 model ResearchProject {
-  id             String    @id @default(uuid())
-  title          String
-  piId           String    // Principal Investigator (faculty ID)
-  coPiIds        String    @default("[]") // JSON array of faculty IDs
-  departmentId   String
-  fundingAgency  String?
-  fundingAmount  Float     @default(0)
-  startDate      DateTime?
-  endDate        DateTime?
-  duration       Int?      // months
-  status         String    @default("PROPOSED") // PROPOSED, SANCTIONED, ONGOING, COMPLETED, TERMINATED
-  description    String?
-  objectives     String?
-  milestones     String    @default("[]") // JSON
-  reports        String    @default("[]") // JSON
-  publications   String    @default("[]") // JSON: linked publication IDs
-  evidenceId     String?   // Link to Evidence Repository
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+  id            String    @id @default(uuid())
+  title         String
+  piId          String // Principal Investigator (faculty ID)
+  coPiIds       String    @default("[]") // JSON array of faculty IDs
+  departmentId  String
+  fundingAgency String?
+  fundingAmount Float     @default(0)
+  startDate     DateTime?
+  endDate       DateTime?
+  duration      Int? // months
+  status        String    @default("PROPOSED") // PROPOSED, SANCTIONED, ONGOING, COMPLETED, TERMINATED
+  description   String?
+  objectives    String?
+  milestones    String    @default("[]") // JSON
+  reports       String    @default("[]") // JSON
+  publications  String    @default("[]") // JSON: linked publication IDs
+  evidenceId    String? // Link to Evidence Repository
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 
   @@index([piId])
   @@index([departmentId])
@@ -5811,28 +5854,28 @@ model ResearchProject {
 }
 
 model ResearchPublication {
-  id             String   @id @default(uuid())
-  title          String
-  authors        String   @default("[]") // JSON: [{name, affiliation, facultyId?}]
-  journal        String?
-  conference     String?
-  volume         String?
-  issue          String?
-  pages          String?
-  year           Int
-  doi            String?  @unique
-  isbn           String?
-  impactFactor   Float?
-  indexing       String?  // SCI, SCOPUS, WEB_OF_SCIENCE, UGC_CARE, OTHER
-  type           String   @default("JOURNAL") // JOURNAL, CONFERENCE, BOOK_CHAPTER, BOOK
-  abstract       String?
-  keywords       String   @default("[]") // JSON
-  url            String?
-  evidenceId     String?
-  departmentId   String?
-  status         String   @default("PUBLISHED")
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  id           String   @id @default(uuid())
+  title        String
+  authors      String   @default("[]") // JSON: [{name, affiliation, facultyId?}]
+  journal      String?
+  conference   String?
+  volume       String?
+  issue        String?
+  pages        String?
+  year         Int
+  doi          String?  @unique
+  isbn         String?
+  impactFactor Float?
+  indexing     String? // SCI, SCOPUS, WEB_OF_SCIENCE, UGC_CARE, OTHER
+  type         String   @default("JOURNAL") // JOURNAL, CONFERENCE, BOOK_CHAPTER, BOOK
+  abstract     String?
+  keywords     String   @default("[]") // JSON
+  url          String?
+  evidenceId   String?
+  departmentId String?
+  status       String   @default("PUBLISHED")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   @@index([year, type])
   @@index([departmentId])
@@ -5868,37 +5911,37 @@ model Patent {
 // ==========================================
 
 model ScholarshipScheme {
-  id              String   @id @default(uuid())
-  name            String
-  code            String   @unique
-  provider        String   // GOVERNMENT, INSTITUTION, PRIVATE, TRUST
-  description     String?
-  eligibility     String   @default("{}") // JSON: {minCGPA, maxIncome, categories, departments}
-  amount          Float?
-  isRecurring     Boolean  @default(false)
-  renewalCriteria String?  // JSON
-  documents       String   @default("[]") // JSON: required documents
-  status          String   @default("ACTIVE") // ACTIVE, CLOSED, ARCHIVED
-  academicYear    String?
-  startDate       DateTime?
-  endDate         DateTime?
+  id               String                    @id @default(uuid())
+  name             String
+  code             String                    @unique
+  provider         String // GOVERNMENT, INSTITUTION, PRIVATE, TRUST
+  description      String?
+  eligibility      String                    @default("{}") // JSON: {minCGPA, maxIncome, categories, departments}
+  amount           Float?
+  isRecurring      Boolean                   @default(false)
+  renewalCriteria  String? // JSON
+  documents        String                    @default("[]") // JSON: required documents
+  status           String                    @default("ACTIVE") // ACTIVE, CLOSED, ARCHIVED
+  academicYear     String?
+  startDate        DateTime?
+  endDate          DateTime?
   maxBeneficiaries Int?
-  applications    ScholarshipApplication2[]
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  applications     ScholarshipApplication2[]
+  createdAt        DateTime                  @default(now())
+  updatedAt        DateTime                  @updatedAt
 
   @@map("scholarship_schemes")
 }
 
 model ScholarshipApplication2 {
-  id              String    @id @default(uuid())
+  id              String                    @id @default(uuid())
   schemeId        String
-  scheme          ScholarshipScheme @relation(fields: [schemeId], references: [id], onDelete: Cascade)
+  scheme          ScholarshipScheme         @relation(fields: [schemeId], references: [id], onDelete: Cascade)
   studentId       String
   academicYear    String
-  status          String    @default("APPLIED") // APPLIED, DOCUMENTS_VERIFIED, ELIGIBLE, APPROVED, REJECTED, DISBURSED, RENEWED
-  applicationData String    @default("{}") // JSON
-  documents       String    @default("[]") // JSON
+  status          String                    @default("APPLIED") // APPLIED, DOCUMENTS_VERIFIED, ELIGIBLE, APPROVED, REJECTED, DISBURSED, RENEWED
+  applicationData String                    @default("{}") // JSON
+  documents       String                    @default("[]") // JSON
   verifiedById    String?
   verifiedAt      DateTime?
   approvedById    String?
@@ -5907,8 +5950,8 @@ model ScholarshipApplication2 {
   disbursements   ScholarshipDisbursement[]
   remarks         String?
   rejectionReason String?
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  createdAt       DateTime                  @default(now())
+  updatedAt       DateTime                  @updatedAt
 
   @@unique([schemeId, studentId, academicYear])
   @@index([studentId])
@@ -5917,18 +5960,18 @@ model ScholarshipApplication2 {
 }
 
 model ScholarshipDisbursement {
-  id              String    @id @default(uuid())
-  applicationId   String
-  application     ScholarshipApplication2 @relation(fields: [applicationId], references: [id], onDelete: Cascade)
-  amount          Float
+  id               String                  @id @default(uuid())
+  applicationId    String
+  application      ScholarshipApplication2 @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  amount           Float
   disbursementDate DateTime
-  method          String    @default("BANK_TRANSFER") // BANK_TRANSFER, FEE_ADJUSTMENT, CHEQUE
-  reference       String?
-  feePaymentId   String?   // If connected to Fee/Accounts
-  status          String    @default("PROCESSED") // PROCESSED, CONFIRMED, FAILED
-  processedById   String
-  remarks         String?
-  createdAt       DateTime  @default(now())
+  method           String                  @default("BANK_TRANSFER") // BANK_TRANSFER, FEE_ADJUSTMENT, CHEQUE
+  reference        String?
+  feePaymentId     String? // If connected to Fee/Accounts
+  status           String                  @default("PROCESSED") // PROCESSED, CONFIRMED, FAILED
+  processedById    String
+  remarks          String?
+  createdAt        DateTime                @default(now())
 
   @@index([applicationId])
   @@map("scholarship_disbursements")
@@ -5939,66 +5982,66 @@ model ScholarshipDisbursement {
 // ==========================================
 
 model Club {
-  id             String   @id @default(uuid())
-  name           String   @unique
-  code           String   @unique
-  type           String   @default("TECHNICAL") // TECHNICAL, CULTURAL, LITERARY, SPORTS, SOCIAL_SERVICE, NSS, NCC, OTHER
-  description    String?
-  logo           String?
-  coordinatorId  String?  // Faculty coordinator
-  departmentId   String?
-  status         String   @default("ACTIVE")
-  memberships    ClubMembership[]
-  events         ClubEvent[]
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  id            String           @id @default(uuid())
+  name          String           @unique
+  code          String           @unique
+  type          String           @default("TECHNICAL") // TECHNICAL, CULTURAL, LITERARY, SPORTS, SOCIAL_SERVICE, NSS, NCC, OTHER
+  description   String?
+  logo          String?
+  coordinatorId String? // Faculty coordinator
+  departmentId  String?
+  status        String           @default("ACTIVE")
+  memberships   ClubMembership[]
+  events        ClubEvent[]
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
 
   @@map("clubs")
 }
 
 model ClubMembership {
-  id          String    @id @default(uuid())
-  clubId      String
-  club        Club      @relation(fields: [clubId], references: [id], onDelete: Cascade)
-  studentId   String
-  role        String    @default("MEMBER") // PRESIDENT, VICE_PRESIDENT, SECRETARY, TREASURER, MEMBER
-  status      String    @default("ACTIVE") // REQUESTED, ACTIVE, INACTIVE, REMOVED
-  joinedAt    DateTime  @default(now())
-  leftAt      DateTime?
+  id           String    @id @default(uuid())
+  clubId       String
+  club         Club      @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  studentId    String
+  role         String    @default("MEMBER") // PRESIDENT, VICE_PRESIDENT, SECRETARY, TREASURER, MEMBER
+  status       String    @default("ACTIVE") // REQUESTED, ACTIVE, INACTIVE, REMOVED
+  joinedAt     DateTime  @default(now())
+  leftAt       DateTime?
   approvedById String?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
   @@unique([clubId, studentId])
   @@map("club_memberships")
 }
 
 model ClubEvent {
-  id              String   @id @default(uuid())
-  clubId          String?
-  club            Club?    @relation(fields: [clubId], references: [id], onDelete: SetNull)
-  title           String
-  type            String   @default("EVENT") // EVENT, WORKSHOP, COMPETITION, SEMINAR, WEBINAR, FEST
-  description     String?
-  venue           String?
-  onlineLink      String?
-  startDate       DateTime
-  endDate         DateTime
+  id                   String              @id @default(uuid())
+  clubId               String?
+  club                 Club?               @relation(fields: [clubId], references: [id], onDelete: SetNull)
+  title                String
+  type                 String              @default("EVENT") // EVENT, WORKSHOP, COMPETITION, SEMINAR, WEBINAR, FEST
+  description          String?
+  venue                String?
+  onlineLink           String?
+  startDate            DateTime
+  endDate              DateTime
   registrationDeadline DateTime?
-  maxParticipants Int?
-  eligibility     String?
-  departmentId    String?
-  organizerId     String
-  status          String   @default("PLANNED") // PLANNED, REGISTRATION_OPEN, ONGOING, COMPLETED, CANCELLED
-  budget          Float?
-  budgetApproved  Boolean  @default(false)
-  poster          String?
-  attachments     String   @default("[]") // JSON
-  registrations   EventRegistration[]
-  eventAttendance EventAttendance[]
-  certificates    EventCertificate[]
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  maxParticipants      Int?
+  eligibility          String?
+  departmentId         String?
+  organizerId          String
+  status               String              @default("PLANNED") // PLANNED, REGISTRATION_OPEN, ONGOING, COMPLETED, CANCELLED
+  budget               Float?
+  budgetApproved       Boolean             @default(false)
+  poster               String?
+  attachments          String              @default("[]") // JSON
+  registrations        EventRegistration[]
+  eventAttendance      EventAttendance[]
+  certificates         EventCertificate[]
+  createdAt            DateTime            @default(now())
+  updatedAt            DateTime            @updatedAt
 
   @@index([startDate])
   @@index([clubId])
@@ -6006,47 +6049,47 @@ model ClubEvent {
 }
 
 model EventRegistration {
-  id          String    @id @default(uuid())
-  eventId     String
-  event       ClubEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  studentId   String
-  status      String    @default("REGISTERED") // REGISTERED, CONFIRMED, CANCELLED, ATTENDED
-  registeredAt DateTime @default(now())
-  cancelledAt DateTime?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id           String    @id @default(uuid())
+  eventId      String
+  event        ClubEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  studentId    String
+  status       String    @default("REGISTERED") // REGISTERED, CONFIRMED, CANCELLED, ATTENDED
+  registeredAt DateTime  @default(now())
+  cancelledAt  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
   @@unique([eventId, studentId])
   @@map("event_registrations")
 }
 
 model EventAttendance {
-  id          String    @id @default(uuid())
-  eventId     String
-  event       ClubEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  studentId   String
-  date        DateTime  @db.Date
-  checkIn     DateTime?
-  checkOut    DateTime?
-  status      String    @default("PRESENT") // PRESENT, ABSENT, LATE
+  id           String    @id @default(uuid())
+  eventId      String
+  event        ClubEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  studentId    String
+  date         DateTime  @db.Date
+  checkIn      DateTime?
+  checkOut     DateTime?
+  status       String    @default("PRESENT") // PRESENT, ABSENT, LATE
   recordedById String?
-  createdAt   DateTime  @default(now())
+  createdAt    DateTime  @default(now())
 
   @@unique([eventId, studentId, date])
   @@map("event_attendance")
 }
 
 model EventCertificate {
-  id           String    @id @default(uuid())
-  eventId      String
-  event        ClubEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  studentId    String
-  type         String    @default("PARTICIPATION") // PARTICIPATION, WINNER, RUNNER_UP, MERIT, APPRECIATION
+  id             String    @id @default(uuid())
+  eventId        String
+  event          ClubEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  studentId      String
+  type           String    @default("PARTICIPATION") // PARTICIPATION, WINNER, RUNNER_UP, MERIT, APPRECIATION
   certificateUrl String?
-  qrHash       String?   @unique
-  issuedAt     DateTime  @default(now())
-  issuedById   String
-  createdAt    DateTime  @default(now())
+  qrHash         String?   @unique
+  issuedAt       DateTime  @default(now())
+  issuedById     String
+  createdAt      DateTime  @default(now())
 
   @@unique([eventId, studentId, type])
   @@map("event_certificates")
@@ -6057,34 +6100,34 @@ model EventCertificate {
 // ==========================================
 
 model AlumniProfile {
-  id                 String    @id @default(uuid())
-  userId             String?   @unique
-  originalStudentId  String?   @unique
-  firstName          String
-  lastName           String
-  email              String?
-  phone              String?
-  batch              String    // e.g. "2020-2024"
-  departmentId       String
-  programId          String
-  degreeAwarded      String?
-  yearOfGraduation   Int
-  cgpa               Float?
-  photo              String?
+  id                  String             @id @default(uuid())
+  userId              String?            @unique
+  originalStudentId   String?            @unique
+  firstName           String
+  lastName            String
+  email               String?
+  phone               String?
+  batch               String // e.g. "2020-2024"
+  departmentId        String
+  programId           String
+  degreeAwarded       String?
+  yearOfGraduation    Int
+  cgpa                Float?
+  photo               String?
   currentOrganization String?
   currentDesignation  String?
-  currentLocation    String?
-  linkedin           String?
-  skills             String    @default("[]") // JSON
-  isVerified         Boolean   @default(false)
-  verifiedAt         DateTime?
-  consentToConnect   Boolean   @default(false)
-  consentToMentor    Boolean   @default(false)
-  communicationPrefs String    @default("{}") // JSON
-  employment         AlumniEmployment[]
-  status             String    @default("ACTIVE")
-  createdAt          DateTime  @default(now())
-  updatedAt          DateTime  @updatedAt
+  currentLocation     String?
+  linkedin            String?
+  skills              String             @default("[]") // JSON
+  isVerified          Boolean            @default(false)
+  verifiedAt          DateTime?
+  consentToConnect    Boolean            @default(false)
+  consentToMentor     Boolean            @default(false)
+  communicationPrefs  String             @default("{}") // JSON
+  employment          AlumniEmployment[]
+  status              String             @default("ACTIVE")
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
 
   @@index([departmentId])
   @@index([batch])
@@ -6093,19 +6136,19 @@ model AlumniProfile {
 }
 
 model AlumniEmployment {
-  id              String        @id @default(uuid())
-  alumniId        String
-  alumni          AlumniProfile @relation(fields: [alumniId], references: [id], onDelete: Cascade)
-  organization    String
-  designation     String
-  location        String?
-  type            String        @default("EMPLOYMENT") // EMPLOYMENT, HIGHER_STUDIES, ENTREPRENEURSHIP, OTHER
-  startDate       DateTime?
-  endDate         DateTime?
-  isCurrent       Boolean       @default(false)
-  description     String?
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
+  id           String        @id @default(uuid())
+  alumniId     String
+  alumni       AlumniProfile @relation(fields: [alumniId], references: [id], onDelete: Cascade)
+  organization String
+  designation  String
+  location     String?
+  type         String        @default("EMPLOYMENT") // EMPLOYMENT, HIGHER_STUDIES, ENTREPRENEURSHIP, OTHER
+  startDate    DateTime?
+  endDate      DateTime?
+  isCurrent    Boolean       @default(false)
+  description  String?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
 
   @@index([alumniId])
   @@map("alumni_employment")
@@ -6116,31 +6159,31 @@ model AlumniEmployment {
 // ==========================================
 
 model CalendarEvent {
-  id            String    @id @default(uuid())
-  title         String
-  description   String?
-  eventType     String    // ACADEMIC, HOLIDAY, EXAM, MEETING, TASK, PLACEMENT, EVENT, SPORTS, LEAVE, PERSONAL
-  sourceModule  String?   // The module that created this event
-  sourceId      String?   // ID in the source module
-  startDate     DateTime
-  endDate       DateTime?
-  allDay        Boolean   @default(false)
-  startTime     String?
-  endTime       String?
-  venue         String?
-  onlineLink    String?
-  scope         String    @default("INSTITUTION") // INSTITUTION, DEPARTMENT, PROGRAM, SECTION, PERSONAL
-  departmentId  String?
-  createdById   String
-  visibility    String    @default("PUBLIC") // PUBLIC, RESTRICTED, PRIVATE
-  targetAudience String  @default("[]") // JSON: roles, departments, etc.
-  color         String?
-  isRecurring   Boolean   @default(false)
-  recurrenceRule String?  // iCal RRULE format
+  id              String    @id @default(uuid())
+  title           String
+  description     String?
+  eventType       String // ACADEMIC, HOLIDAY, EXAM, MEETING, TASK, PLACEMENT, EVENT, SPORTS, LEAVE, PERSONAL
+  sourceModule    String? // The module that created this event
+  sourceId        String? // ID in the source module
+  startDate       DateTime
+  endDate         DateTime?
+  allDay          Boolean   @default(false)
+  startTime       String?
+  endTime         String?
+  venue           String?
+  onlineLink      String?
+  scope           String    @default("INSTITUTION") // INSTITUTION, DEPARTMENT, PROGRAM, SECTION, PERSONAL
+  departmentId    String?
+  createdById     String
+  visibility      String    @default("PUBLIC") // PUBLIC, RESTRICTED, PRIVATE
+  targetAudience  String    @default("[]") // JSON: roles, departments, etc.
+  color           String?
+  isRecurring     Boolean   @default(false)
+  recurrenceRule  String? // iCal RRULE format
   reminderMinutes Int?
-  status        String    @default("ACTIVE") // ACTIVE, CANCELLED, POSTPONED
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  status          String    @default("ACTIVE") // ACTIVE, CANCELLED, POSTPONED
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
   @@index([startDate, endDate])
   @@index([eventType])
@@ -6154,26 +6197,26 @@ model CalendarEvent {
 // ==========================================
 
 model EmergencyAlert {
-  id              String    @id @default(uuid())
-  alertNumber     String    @unique
-  type            String    // SECURITY, MEDICAL, TRANSPORT, CAMPUS_CLOSURE, FIRE, NATURAL_DISASTER, OTHER
-  severity        String    @default("HIGH") // MEDIUM, HIGH, CRITICAL
-  title           String
-  message         String
-  instructions    String?
-  scope           String    @default("CAMPUS_WIDE") // CAMPUS_WIDE, BUILDING, DEPARTMENT, HOSTEL, TRANSPORT
-  scopeDetails    String?   // JSON: specific buildings, departments, etc.
-  initiatedById   String
-  initiatedByRole String
-  status          String    @default("ACTIVE") // ACTIVE, UPDATED, RESOLVED, FALSE_ALARM
-  resolvedAt      DateTime?
-  resolvedById    String?
-  resolution      String?
-  updateHistory   String    @default("[]") // JSON: [{time, update, by}]
-  channels        String    @default("[\"IN_APP\",\"PUSH\"]") // JSON: delivery channels
+  id               String                     @id @default(uuid())
+  alertNumber      String                     @unique
+  type             String // SECURITY, MEDICAL, TRANSPORT, CAMPUS_CLOSURE, FIRE, NATURAL_DISASTER, OTHER
+  severity         String                     @default("HIGH") // MEDIUM, HIGH, CRITICAL
+  title            String
+  message          String
+  instructions     String?
+  scope            String                     @default("CAMPUS_WIDE") // CAMPUS_WIDE, BUILDING, DEPARTMENT, HOSTEL, TRANSPORT
+  scopeDetails     String? // JSON: specific buildings, departments, etc.
+  initiatedById    String
+  initiatedByRole  String
+  status           String                     @default("ACTIVE") // ACTIVE, UPDATED, RESOLVED, FALSE_ALARM
+  resolvedAt       DateTime?
+  resolvedById     String?
+  resolution       String?
+  updateHistory    String                     @default("[]") // JSON: [{time, update, by}]
+  channels         String                     @default("[\"IN_APP\",\"PUSH\"]") // JSON: delivery channels
   acknowledgements EmergencyAcknowledgement[]
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  createdAt        DateTime                   @default(now())
+  updatedAt        DateTime                   @updatedAt
 
   @@index([status])
   @@index([type])
@@ -6182,14 +6225,14 @@ model EmergencyAlert {
 }
 
 model EmergencyAcknowledgement {
-  id            String         @id @default(uuid())
-  alertId       String
-  alert         EmergencyAlert @relation(fields: [alertId], references: [id], onDelete: Cascade)
-  userId        String
-  status        String         @default("RECEIVED") // RECEIVED, ACKNOWLEDGED, SAFE, NEED_HELP
-  message       String?
-  location      String?
-  acknowledgedAt DateTime      @default(now())
+  id             String         @id @default(uuid())
+  alertId        String
+  alert          EmergencyAlert @relation(fields: [alertId], references: [id], onDelete: Cascade)
+  userId         String
+  status         String         @default("RECEIVED") // RECEIVED, ACKNOWLEDGED, SAFE, NEED_HELP
+  message        String?
+  location       String?
+  acknowledgedAt DateTime       @default(now())
 
   @@unique([alertId, userId])
   @@index([alertId])
@@ -6201,37 +6244,37 @@ model EmergencyAcknowledgement {
 // ==========================================
 
 model CampusActivity {
-  id                  String   @id @default(uuid())
-  title               String
-  description         String?
-  category            String   // ACADEMIC, TECHNICAL, TRAINING, PLACEMENT, RESEARCH, WORKSHOP, SEMINAR, CONFERENCE, HACKATHON, COMPETITION, CLUB, SPORTS, CULTURAL, NSS_NCC, ORIENTATION, INDUSTRIAL_VISIT, GUEST_LECTURE, CERTIFICATION, MEETING, INSTITUTIONAL_EVENT
-  subcategory         String?
-  organizerId         String
-  responsibleStaffId  String?
-  departmentId        String?
-  programId           String?
-  targetYear          Int?
-  targetSection       String?
-  audience            String   @default("[]") // JSON: eligible departments/programs/years/sections
-  startDate           DateTime
-  endDate             DateTime
-  startTime           String?
-  endTime             String?
-  venue               String?
-  onlineLink          String?
-  capacity            Int?
-  registrationRequired Boolean @default(false)
-  attendanceRequired  Boolean  @default(true)
-  assessmentRequired  Boolean  @default(false)
-  certificateAvailable Boolean @default(false)
-  evidenceRequired    Boolean  @default(false)
-  approvalRequired    Boolean  @default(false)
-  budget              Float?
-  budgetApproved      Boolean  @default(false)
-  status              String   @default("PLANNED") // PLANNED, APPROVED, REGISTRATION_OPEN, ONGOING, COMPLETED, CANCELLED
-  sessions            ActivitySession[]
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
+  id                   String            @id @default(uuid())
+  title                String
+  description          String?
+  category             String // ACADEMIC, TECHNICAL, TRAINING, PLACEMENT, RESEARCH, WORKSHOP, SEMINAR, CONFERENCE, HACKATHON, COMPETITION, CLUB, SPORTS, CULTURAL, NSS_NCC, ORIENTATION, INDUSTRIAL_VISIT, GUEST_LECTURE, CERTIFICATION, MEETING, INSTITUTIONAL_EVENT
+  subcategory          String?
+  organizerId          String
+  responsibleStaffId   String?
+  departmentId         String?
+  programId            String?
+  targetYear           Int?
+  targetSection        String?
+  audience             String            @default("[]") // JSON: eligible departments/programs/years/sections
+  startDate            DateTime
+  endDate              DateTime
+  startTime            String?
+  endTime              String?
+  venue                String?
+  onlineLink           String?
+  capacity             Int?
+  registrationRequired Boolean           @default(false)
+  attendanceRequired   Boolean           @default(true)
+  assessmentRequired   Boolean           @default(false)
+  certificateAvailable Boolean           @default(false)
+  evidenceRequired     Boolean           @default(false)
+  approvalRequired     Boolean           @default(false)
+  budget               Float?
+  budgetApproved       Boolean           @default(false)
+  status               String            @default("PLANNED") // PLANNED, APPROVED, REGISTRATION_OPEN, ONGOING, COMPLETED, CANCELLED
+  sessions             ActivitySession[]
+  createdAt            DateTime          @default(now())
+  updatedAt            DateTime          @updatedAt
 
   @@index([category, status])
   @@index([departmentId])
@@ -6240,41 +6283,41 @@ model CampusActivity {
 }
 
 model ActivitySession {
-  id            String         @id @default(uuid())
-  activityId    String
-  activity      CampusActivity @relation(fields: [activityId], references: [id], onDelete: Cascade)
-  title         String?
-  date          DateTime       @db.Date
-  startTime     String
-  endTime       String
-  venue         String?
-  trainerId     String?
-  trainerName   String?
-  topic         String?
-  sessionOrder  Int            @default(1)
-  status        String         @default("SCHEDULED") // SCHEDULED, IN_PROGRESS, COMPLETED, CANCELLED
-  attendance    ActivityAttendanceRecord[]
-  assessments   ActivityAssessment[]
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
+  id           String                     @id @default(uuid())
+  activityId   String
+  activity     CampusActivity             @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  title        String?
+  date         DateTime                   @db.Date
+  startTime    String
+  endTime      String
+  venue        String?
+  trainerId    String?
+  trainerName  String?
+  topic        String?
+  sessionOrder Int                        @default(1)
+  status       String                     @default("SCHEDULED") // SCHEDULED, IN_PROGRESS, COMPLETED, CANCELLED
+  attendance   ActivityAttendanceRecord[]
+  assessments  ActivityAssessment[]
+  createdAt    DateTime                   @default(now())
+  updatedAt    DateTime                   @updatedAt
 
   @@index([activityId, date])
   @@map("activity_sessions")
 }
 
 model ActivityAttendanceRecord {
-  id          String          @id @default(uuid())
-  sessionId   String
-  session     ActivitySession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-  studentId   String
-  date        DateTime        @db.Date
-  checkIn     DateTime?
-  checkOut    DateTime?
-  status      String          @default("PRESENT") // PRESENT, ABSENT, LATE, EXCUSED, OD
-  source      String          @default("MANUAL") // MANUAL, QR, SELF_CHECK_IN, IMPORT
-  recordedById String?
-  correctionHistory String    @default("[]") // JSON
-  createdAt   DateTime        @default(now())
+  id                String          @id @default(uuid())
+  sessionId         String
+  session           ActivitySession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  studentId         String
+  date              DateTime        @db.Date
+  checkIn           DateTime?
+  checkOut          DateTime?
+  status            String          @default("PRESENT") // PRESENT, ABSENT, LATE, EXCUSED, OD
+  source            String          @default("MANUAL") // MANUAL, QR, SELF_CHECK_IN, IMPORT
+  recordedById      String?
+  correctionHistory String          @default("[]") // JSON
+  createdAt         DateTime        @default(now())
 
   @@unique([sessionId, studentId, date])
   @@index([studentId, date])
@@ -6282,39 +6325,39 @@ model ActivityAttendanceRecord {
 }
 
 model ActivityAssessment {
-  id            String          @id @default(uuid())
+  id            String           @id @default(uuid())
   sessionId     String?
   session       ActivitySession? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
   activityId    String
   studentId     String
-  type          String          @default("COMPLETION") // QUIZ, TEST, PRACTICAL, ASSIGNMENT, PRESENTATION, EVALUATION, PARTICIPATION, COMPLETION
+  type          String           @default("COMPLETION") // QUIZ, TEST, PRACTICAL, ASSIGNMENT, PRESENTATION, EVALUATION, PARTICIPATION, COMPLETION
   maxScore      Float?
   score         Float?
   grade         String?
   feedback      String?
   evaluatedById String?
   evaluatedAt   DateTime?
-  createdAt     DateTime        @default(now())
-  updatedAt     DateTime        @updatedAt
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
 
   @@index([studentId, activityId])
   @@map("activity_assessments")
 }
 
 model StudentSkill {
-  id           String   @id @default(uuid())
+  id           String    @id @default(uuid())
   studentId    String
   skillName    String
-  category     String   @default("TECHNICAL") // TECHNICAL, SOFT, DOMAIN, LANGUAGE, TOOL
-  source       String   // COURSE, TRAINING, PROJECT, CERTIFICATION, HACKATHON, FACULTY_VERIFIED
-  sourceId     String?  // Reference to the source (activity ID, course ID, etc.)
-  evidenceId   String?  // Link to Evidence Repository
-  level        String?  // BEGINNER, INTERMEDIATE, ADVANCED, EXPERT
+  category     String    @default("TECHNICAL") // TECHNICAL, SOFT, DOMAIN, LANGUAGE, TOOL
+  source       String // COURSE, TRAINING, PROJECT, CERTIFICATION, HACKATHON, FACULTY_VERIFIED
+  sourceId     String? // Reference to the source (activity ID, course ID, etc.)
+  evidenceId   String? // Link to Evidence Repository
+  level        String? // BEGINNER, INTERMEDIATE, ADVANCED, EXPERT
   verifiedById String?
   verifiedAt   DateTime?
-  isVerified   Boolean  @default(false)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  isVerified   Boolean   @default(false)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
   @@unique([studentId, skillName, source])
   @@index([studentId])
@@ -6327,18 +6370,18 @@ model StudentSkill {
 // ==========================================
 
 model WorkflowDefinition {
-  id           String   @id @default(uuid())
-  name         String
-  code         String   @unique
-  module       String   // LEAVE, OD, CERTIFICATE, PURCHASE, REFUND, APPRAISAL, GRIEVANCE, GATE_PASS
-  description  String?
-  steps        String   @default("[]") // JSON: [{step, assigneeType, assigneeResolution, actions, sla}]
-  conditions   String   @default("{}") // JSON: conditional routing
-  version      Int      @default(1)
-  isActive     Boolean  @default(true)
+  id             String   @id @default(uuid())
+  name           String
+  code           String   @unique
+  module         String // LEAVE, OD, CERTIFICATE, PURCHASE, REFUND, APPRAISAL, GRIEVANCE, GATE_PASS
+  description    String?
+  steps          String   @default("[]") // JSON: [{step, assigneeType, assigneeResolution, actions, sla}]
+  conditions     String   @default("{}") // JSON: conditional routing
+  version        Int      @default(1)
+  isActive       Boolean  @default(true)
   configuredById String
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   @@unique([code, version])
   @@index([module, isActive])
@@ -6391,7 +6434,7 @@ model FacultyDepartmentTransfer {
   effectiveDate       DateTime
   reason              String
   designationImpact   String?
-  handoverNotes       String?    // JSON: { mentorHandover, subjectHandover, assetHandover }
+  handoverNotes       String? // JSON: { mentorHandover, subjectHandover, assetHandover }
   supportingDocUrl    String?
   status              String     @default("PROPOSED") // PROPOSED, RECEIVING_HOD_APPROVED, HR_APPROVED, VP_APPROVED, PRINCIPAL_APPROVED, COMPLETED, REJECTED
   currentApproverRole String     @default("RECEIVING_HOD")
@@ -6438,14 +6481,14 @@ model FacultyLeaveLedger {
   id                 String   @id @default(uuid())
   facultyId          String
   faculty            Faculty  @relation(fields: [facultyId], references: [id], onDelete: Cascade)
-  leaveType          String   // CASUAL_LEAVE, MEDICAL_LEAVE, EARNED_LEAVE, ON_DUTY
+  leaveType          String // CASUAL_LEAVE, MEDICAL_LEAVE, EARNED_LEAVE, ON_DUTY
   academicYear       String   @default("2026-2027")
   openingBalance     Float
   credit             Float    @default(0)
   debit              Float    @default(0)
   adjustment         Float    @default(0)
   closingBalance     Float
-  transactionType    String   // CREDIT_ANNUAL, DEBIT_LEAVE, REVERSAL_CANCELLATION, ADJUSTMENT_HR
+  transactionType    String // CREDIT_ANNUAL, DEBIT_LEAVE, REVERSAL_CANCELLATION, ADJUSTMENT_HR
   referenceRequestId String?
   remarks            String?
   approvedBy         String?
@@ -6466,12 +6509,12 @@ model TimetableSlotOverride {
   originalFacultyId   String
   substituteFacultyId String
   leaveRequestId      String?
-  status              String    @default("ACTIVE") // ACTIVE, COMPLETED, CANCELLED
-  attendanceTaken     Boolean   @default(false)
+  status              String        @default("ACTIVE") // ACTIVE, COMPLETED, CANCELLED
+  attendanceTaken     Boolean       @default(false)
   attendanceTakenAt   DateTime?
   attendanceNotes     String?
-  createdAt           DateTime  @default(now())
-  updatedAt           DateTime  @updatedAt
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
 
   @@unique([timetableSlotId, date])
   @@index([originalFacultyId, date])
@@ -6490,8 +6533,8 @@ model CampusOfficeDocument {
   type               String                  @default("DOC") // DOC, SHEET, SLIDE, FORM, REPORT, PDF, NOTE
   category           String                  @default("GENERAL") // ACADEMIC, DEPARTMENT, IQAC, REPORT, MINUTES, CURRICULUM, PERSONAL
   contentJson        String                  @default("{}") // Structured rich document / sheet / slide / form definition JSON
-  contentHtml        String?                 // Rendered HTML snapshot for fast preview / export
-  templateKey        String?                 // E.g. "DEPT_MONTHLY_REPORT", "MEETING_MINUTES", "IQAC_DATA_COLLECTION"
+  contentHtml        String? // Rendered HTML snapshot for fast preview / export
+  templateKey        String? // E.g. "DEPT_MONTHLY_REPORT", "MEETING_MINUTES", "IQAC_DATA_COLLECTION"
   authorId           String
   author             User                    @relation("OfficeDocAuthor", fields: [authorId], references: [id], onDelete: Cascade)
   departmentId       String?
@@ -6501,7 +6544,7 @@ model CampusOfficeDocument {
   targetScope        String                  @default("PRIVATE") // PRIVATE, DEPARTMENT, SPECIFIC_USERS, ROLES, ALL_CAMPUS
   targetUsers        String                  @default("[]") // JSON array of user IDs
   targetRoles        String                  @default("[]") // JSON array of role names
-  workflowStep       String?                 // HOD, DEAN, VP, PRINCIPAL
+  workflowStep       String? // HOD, DEAN, VP, PRINCIPAL
   assignedReviewerId String?
   isLocked           Boolean                 @default(false)
   lockedById         String?
@@ -6526,7 +6569,7 @@ model CampusDocumentVersion {
   documentId      String
   document        CampusOfficeDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
   versionNumber   Int
-  contentSnapshot String               // JSON snapshot
+  contentSnapshot String // JSON snapshot
   changeSummary   String?
   authorId        String
   author          User                 @relation(fields: [authorId], references: [id])
@@ -6547,7 +6590,7 @@ model CampusDocumentComment {
   resolved     Boolean              @default(false)
   resolvedById String?
   resolvedAt   DateTime?
-  anchorData   String?              // JSON for inline anchor position / selection
+  anchorData   String? // JSON for inline anchor position / selection
   createdAt    DateTime             @default(now())
   updatedAt    DateTime             @updatedAt
 
@@ -6562,7 +6605,7 @@ model CampusFormResponse {
   respondentId    String?
   respondentEmail String?
   respondentName  String?
-  answersJson     String               // JSON { questionId: value }
+  answersJson     String // JSON { questionId: value }
   status          String               @default("SUBMITTED") // DRAFT, SUBMITTED
   submittedAt     DateTime             @default(now())
 
@@ -6572,31 +6615,101 @@ model CampusFormResponse {
 }
 
 model CampusDriveItem {
-  id           String      @id @default(uuid())
+  id           String                    @id @default(uuid())
   name         String
-  isFolder     Boolean     @default(false)
+  isFolder     Boolean                   @default(false)
   parentId     String?
   mimeType     String?
-  fileSize     Int?        @default(0)
+  fileSize     Int?                      @default(0)
   fileUrl      String?
+  fileId       String?
+  file         MediaFile?                @relation(fields: [fileId], references: [id], onDelete: Restrict)
   documentId   String?
   ownerId      String
-  owner        User        @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  owner        User                      @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   departmentId String?
-  department   Department? @relation(fields: [departmentId], references: [id], onDelete: SetNull)
-  scope        String      @default("PERSONAL") // PERSONAL, DEPARTMENT, SHARED_WITH_ME, COLLEGE_DRIVE
-  permissions  String      @default("[]") // JSON [{ userId, roleName, permission: "VIEW" | "COMMENT" | "EDIT" | "DOWNLOAD" }]
-  isStarred    Boolean     @default(false)
-  isTrashed    Boolean     @default(false)
+  department   Department?               @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  scope        String                    @default("PERSONAL") // PERSONAL, DEPARTMENT, SHARED_WITH_ME, COLLEGE_DRIVE
+  permissions  String                    @default("[]") // JSON [{ userId, roleName, permission: "VIEW" | "COMMENT" | "EDIT" | "DOWNLOAD" }]
+  accessGrants GovernedFileAccessGrant[]
+  isStarred    Boolean                   @default(false)
+  isTrashed    Boolean                   @default(false)
   trashedAt    DateTime?
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
+  createdAt    DateTime                  @default(now())
+  updatedAt    DateTime                  @updatedAt
 
   @@index([ownerId])
   @@index([departmentId])
   @@index([parentId])
+  @@index([fileId])
   @@index([scope])
   @@map("campus_drive_items")
+}
+
+/// Explicit, additive ACL rows for governed binaries and Drive folders/items.
+/// principalType values implemented in Phase 1: SPECIFIC_USER, ROLE, WORKSPACE,
+/// DEPARTMENT and ALL_INSTITUTION. OWNER is derived from MediaFile.ownerUserId.
+model GovernedFileAccessGrant {
+  id                  String           @id @default(uuid())
+  fileId              String?
+  file                MediaFile?       @relation(fields: [fileId], references: [id], onDelete: Cascade)
+  driveItemId         String?
+  driveItem           CampusDriveItem? @relation(fields: [driveItemId], references: [id], onDelete: Cascade)
+  principalType       String
+  principalId         String?
+  accessLevel         String
+  expiresAt           DateTime?
+  revokedAt           DateTime?
+  inheritedFromItemId String?
+  createdByUserId     String
+  createdAt           DateTime         @default(now())
+  updatedAt           DateTime         @updatedAt
+
+  @@index([fileId, revokedAt, expiresAt])
+  @@index([driveItemId, revokedAt, expiresAt])
+  @@index([principalType, principalId])
+  @@map("governed_file_access_grants")
+}
+
+/// A module attaches the canonical file ID; bytes are not copied. Parent-resource
+/// modules keep authority by using authorizationMode=PARENT_RESOURCE.
+model GovernedFileReference {
+  id                String    @id @default(uuid())
+  fileId            String
+  file              MediaFile @relation(fields: [fileId], references: [id], onDelete: Restrict)
+  module            String
+  resourceType      String
+  resourceId        String
+  purpose           String
+  authorizationMode String    @default("FILE_ACL")
+  createdByUserId   String
+  deletedAt         DateTime?
+  createdAt         DateTime  @default(now())
+
+  @@unique([fileId, module, resourceType, resourceId, purpose])
+  @@index([resourceType, resourceId])
+  @@index([fileId, deletedAt])
+  @@map("governed_file_references")
+}
+
+/// Immutable metadata for each governed binary version. Existing Campus document
+/// content snapshots remain authoritative for native Docs/Sheets/Slides content.
+model GovernedFileVersion {
+  id              String    @id @default(uuid())
+  fileId          String
+  file            MediaFile @relation(fields: [fileId], references: [id], onDelete: Restrict)
+  versionNumber   Int
+  storageKey      String
+  mimeType        String
+  sizeBytes       Int
+  checksum        String?
+  createdByUserId String
+  changeSummary   String?
+  createdAt       DateTime  @default(now())
+
+  @@unique([fileId, versionNumber])
+  @@index([fileId, createdAt])
+  @@map("governed_file_versions")
 }
 
 // ==========================================
@@ -6604,26 +6717,26 @@ model CampusDriveItem {
 // ==========================================
 
 model TimetableRevision {
-  id              String          @id @default(uuid())
-  revisionNumber  Int             @default(0) // 0, 1, 2...
-  revisionCode    String          // E.g. "REV-00", "REV-01"
-  departmentId    String
-  department      Department      @relation(fields: [departmentId], references: [id], onDelete: Cascade)
-  academicYearId  String
-  academicYear    AcademicYear    @relation(fields: [academicYearId], references: [id], onDelete: Cascade)
-  semesterId      String
-  semester        Semester        @relation(fields: [semesterId], references: [id], onDelete: Cascade)
-  effectiveFrom   DateTime        @default(now()) // W.E.F date
-  status          String          @default("DRAFT") // DRAFT, UNDER_REVIEW, APPROVED, PUBLISHED, SUPERSEDED, ARCHIVED
-  publishedById   String?
-  publishedBy     User?           @relation("TimetableRevisionPublisher", fields: [publishedById], references: [id])
-  publishedAt     DateTime?
-  changeSummary   String?
-  comparisonDiff  String?         @default("{}") // JSON diff: { added: [], removed: [], modified: [] }
-  slots           TimetableSlot[]
-  importBatches   TimetableImportBatch[]
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
+  id             String                 @id @default(uuid())
+  revisionNumber Int                    @default(0) // 0, 1, 2...
+  revisionCode   String // E.g. "REV-00", "REV-01"
+  departmentId   String
+  department     Department             @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  academicYearId String
+  academicYear   AcademicYear           @relation(fields: [academicYearId], references: [id], onDelete: Cascade)
+  semesterId     String
+  semester       Semester               @relation(fields: [semesterId], references: [id], onDelete: Cascade)
+  effectiveFrom  DateTime               @default(now()) // W.E.F date
+  status         String                 @default("DRAFT") // DRAFT, UNDER_REVIEW, APPROVED, PUBLISHED, SUPERSEDED, ARCHIVED
+  publishedById  String?
+  publishedBy    User?                  @relation("TimetableRevisionPublisher", fields: [publishedById], references: [id])
+  publishedAt    DateTime?
+  changeSummary  String?
+  comparisonDiff String?                @default("{}") // JSON diff: { added: [], removed: [], modified: [] }
+  slots          TimetableSlot[]
+  importBatches  TimetableImportBatch[]
+  createdAt      DateTime               @default(now())
+  updatedAt      DateTime               @updatedAt
 
   @@unique([departmentId, academicYearId, semesterId, revisionNumber])
   @@index([departmentId, status])
@@ -6632,31 +6745,31 @@ model TimetableRevision {
 }
 
 model TimetableImportBatch {
-  id               String             @id @default(uuid())
-  departmentId     String
-  department       Department         @relation(fields: [departmentId], references: [id], onDelete: Cascade)
-  academicYearId   String
-  academicYear     AcademicYear       @relation(fields: [academicYearId], references: [id], onDelete: Cascade)
-  semesterId       String
-  semester         Semester           @relation(fields: [semesterId], references: [id], onDelete: Cascade)
-  revisionId       String?
-  revision         TimetableRevision? @relation(fields: [revisionId], references: [id], onDelete: SetNull)
-  sourceFileName   String
-  fileUrl          String?
-  fileType         String             @default("XLSX") // XLSX, CSV, PDF, IMAGE
-  totalRows        Int                @default(0)
-  validRows        Int                @default(0)
-  warningRows      Int                @default(0)
-  errorRows        Int                @default(0)
-  conflictRows     Int                @default(0)
-  mappingJson      String             @default("{}") // Column header mappings
-  parsedRowsJson   String             @default("[]") // Extracted slot objects
-  errorsJson       String             @default("[]") // Detailed errors & suggestions
-  status           String             @default("UPLOADED") // UPLOADED, MAPPED, VALIDATED, DRAFT_SAVED, PUBLISHED, FAILED
-  uploadedById     String
-  uploadedBy       User               @relation(fields: [uploadedById], references: [id])
-  createdAt        DateTime           @default(now())
-  updatedAt        DateTime           @updatedAt
+  id             String             @id @default(uuid())
+  departmentId   String
+  department     Department         @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  academicYearId String
+  academicYear   AcademicYear       @relation(fields: [academicYearId], references: [id], onDelete: Cascade)
+  semesterId     String
+  semester       Semester           @relation(fields: [semesterId], references: [id], onDelete: Cascade)
+  revisionId     String?
+  revision       TimetableRevision? @relation(fields: [revisionId], references: [id], onDelete: SetNull)
+  sourceFileName String
+  fileUrl        String?
+  fileType       String             @default("XLSX") // XLSX, CSV, PDF, IMAGE
+  totalRows      Int                @default(0)
+  validRows      Int                @default(0)
+  warningRows    Int                @default(0)
+  errorRows      Int                @default(0)
+  conflictRows   Int                @default(0)
+  mappingJson    String             @default("{}") // Column header mappings
+  parsedRowsJson String             @default("[]") // Extracted slot objects
+  errorsJson     String             @default("[]") // Detailed errors & suggestions
+  status         String             @default("UPLOADED") // UPLOADED, MAPPED, VALIDATED, DRAFT_SAVED, PUBLISHED, FAILED
+  uploadedById   String
+  uploadedBy     User               @relation(fields: [uploadedById], references: [id])
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
 
   @@index([departmentId, status])
   @@map("timetable_import_batches")
@@ -6670,7 +6783,7 @@ model TimetableIssueReport {
   department      Department     @relation(fields: [departmentId], references: [id], onDelete: Cascade)
   timetableSlotId String?
   timetableSlot   TimetableSlot? @relation(fields: [timetableSlotId], references: [id], onDelete: SetNull)
-  category        String         // WRONG_COURSE, WRONG_VENUE, TIMING_CONFLICT, MISSING_CLASS, OTHER
+  category        String // WRONG_COURSE, WRONG_VENUE, TIMING_CONFLICT, MISSING_CLASS, OTHER
   description     String
   status          String         @default("PENDING") // PENDING, INVESTIGATING, RESOLVED, REJECTED
   resolutionNotes String?
@@ -6755,11 +6868,11 @@ model MentorFeeAudit {
 
 model LeadershipAssignment {
   id            String    @id @default(uuid())
-  position      String    // CEO, DIRECTOR, PRINCIPAL, VP, ACADEMIC_DEAN, AA_DEAN, IQAC_DEAN, HOD, COE, COORDINATOR
+  position      String // CEO, DIRECTOR, PRINCIPAL, VP, ACADEMIC_DEAN, AA_DEAN, IQAC_DEAN, HOD, COE, COORDINATOR
   facultyId     String?
   userId        String
   departmentId  String?
-  scopeType     String?   // INSTITUTION, DEPARTMENT, DOMAIN
+  scopeType     String? // INSTITUTION, DEPARTMENT, DOMAIN
   scopeId       String?
   isActing      Boolean   @default(false)
   actingReason  String?
@@ -6780,8 +6893,8 @@ model LeadershipAssignment {
 model WorkspaceAssignment {
   id             String    @id @default(uuid())
   userId         String
-  workspaceType  String    // FACULTY, MENTOR, CLASS_ADVISER, HOD, ACADEMIC_DEAN, AA_DEAN, IQAC_DEAN, VP, PRINCIPAL, COLLEGE_ADMIN, ACCOUNTANT, AO, HOSTEL, TRANSPORT, LIBRARY, PLACEMENT, SUPER_ADMIN
-  scopeType      String?   // INSTITUTION, DEPARTMENT, SECTION, HOSTEL, ROUTE
+  workspaceType  String // FACULTY, MENTOR, CLASS_ADVISER, HOD, ACADEMIC_DEAN, AA_DEAN, IQAC_DEAN, VP, PRINCIPAL, COLLEGE_ADMIN, ACCOUNTANT, AO, HOSTEL, TRANSPORT, LIBRARY, PLACEMENT, SUPER_ADMIN
+  scopeType      String? // INSTITUTION, DEPARTMENT, SECTION, HOSTEL, ROUTE
   scopeId        String?
   academicYearId String?
   validFrom      DateTime  @default(now())
@@ -6814,4 +6927,3 @@ model ClassAdviserAssignment {
   @@index([sectionId, status])
   @@map("class_adviser_assignments")
 }
-

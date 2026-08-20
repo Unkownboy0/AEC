@@ -2,6 +2,8 @@ import React from 'react';
 import { ApprovalAttachmentItem } from './ApprovalTypes';
 import { FileText, Image as ImageIcon, FileSpreadsheet, ExternalLink, Download, Paperclip } from 'lucide-react';
 import { resolveAssetUrl } from '../../utils/assets';
+import { toast } from '../ui/Toast';
+import { downloadFile } from '../../platform/download';
 
 interface ApprovalAttachmentSectionProps {
   attachments?: ApprovalAttachmentItem[];
@@ -60,23 +62,36 @@ export const ApprovalAttachmentSection: React.FC<ApprovalAttachmentSectionProps>
               </div>
 
               <div className="flex items-center gap-1.5 flex-shrink-0">
-                <a
-                  href={resolvedUrl}
-                  target="_blank"
-                  rel="noreferrer"
+                <button
+                  onClick={async () => {
+                    toast.show(`Opening ${item.name}...`, 'info');
+                    const res = await downloadFile({ endpoint: resolvedUrl, filename: item.name, action: 'open' });
+                    if (res.success) {
+                      toast.success(`Opened ${item.name}`);
+                    } else {
+                      toast.error(res.error || 'Failed to open file');
+                    }
+                  }}
                   className="p-1.5 rounded-lg text-gray-500 hover:text-blue-600 hover:bg-white dark:hover:bg-gray-700 transition-colors"
                   title="Preview document"
                 >
                   <ExternalLink className="w-3.5 h-3.5" />
-                </a>
-                <a
-                  href={resolvedUrl}
-                  download={item.name}
+                </button>
+                <button
+                  onClick={async () => {
+                    toast.show(`Saving ${item.name} to device...`, 'info');
+                    const res = await downloadFile({ endpoint: resolvedUrl, filename: item.name, action: 'save' });
+                    if (res.success) {
+                      toast.success(`Saved ${item.name} to device successfully`);
+                    } else {
+                      toast.error(res.error || 'Failed to save file');
+                    }
+                  }}
                   className="p-1.5 rounded-lg text-gray-500 hover:text-blue-600 hover:bg-white dark:hover:bg-gray-700 transition-colors"
-                  title="Download file"
+                  title="Save to Device"
                 >
                   <Download className="w-3.5 h-3.5" />
-                </a>
+                </button>
               </div>
             </div>
           );

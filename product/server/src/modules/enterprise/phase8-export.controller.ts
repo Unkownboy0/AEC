@@ -14,7 +14,10 @@ export class Phase8ExportController {
       const { buffer, filename } = await DigitalIdService.getStudentDigitalId(userId, targetId);
 
       res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Length', String(buffer.length));
       res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+      res.setHeader('X-Content-Type-Options', 'nosniff');
+      res.setHeader('Cache-Control', 'private, no-store, max-age=0, must-revalidate');
       res.status(200).send(buffer);
     } catch (err) {
       next(err);
@@ -31,7 +34,10 @@ export class Phase8ExportController {
       const { buffer, filename } = await DigitalIdService.getFacultyDigitalId(userId, targetId);
 
       res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Length', String(buffer.length));
       res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+      res.setHeader('X-Content-Type-Options', 'nosniff');
+      res.setHeader('Cache-Control', 'private, no-store, max-age=0, must-revalidate');
       res.status(200).send(buffer);
     } catch (err) {
       next(err);
@@ -61,7 +67,10 @@ export class Phase8ExportController {
       const { buffer, filename } = await LiveExportService.exportStudentProfilesExcel(user.id, user.role?.name || 'Admin', departmentId);
 
       res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      res.setHeader('Content-Length', String(buffer.length));
       res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+      res.setHeader('X-Content-Type-Options', 'nosniff');
+      res.setHeader('Cache-Control', 'private, no-store, max-age=0, must-revalidate');
       res.status(200).send(buffer);
     } catch (err) {
       next(err);
@@ -77,7 +86,10 @@ export class Phase8ExportController {
       const { buffer, filename } = await LiveExportService.exportFacultyProfilesExcel(user.id, user.role?.name || 'Admin');
 
       res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      res.setHeader('Content-Length', String(buffer.length));
       res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+      res.setHeader('X-Content-Type-Options', 'nosniff');
+      res.setHeader('Cache-Control', 'private, no-store, max-age=0, must-revalidate');
       res.status(200).send(buffer);
     } catch (err) {
       next(err);
@@ -92,8 +104,11 @@ export class Phase8ExportController {
       const user = (req as any).user;
       const { buffer, filename } = await LiveExportService.exportStudentCsv(user.id, user.role?.name || 'Admin');
 
-      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+      res.setHeader('Content-Length', String(buffer.length));
       res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+      res.setHeader('X-Content-Type-Options', 'nosniff');
+      res.setHeader('Cache-Control', 'private, no-store, max-age=0, must-revalidate');
       res.status(200).send(buffer);
     } catch (err) {
       next(err);

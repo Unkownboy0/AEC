@@ -6,23 +6,55 @@ import { UserPayload } from '../../utils/security';
 import bcrypt from 'bcryptjs';
 import { StudentAccessService } from '../security/student-access.service';
 import { NotificationService } from '../notifications/notification.service';
+import { ComplaintRoutingService } from './complaint-routing.service';
+import { FeatureFlags } from '../../core/feature-flags';
+import { WorkspaceDocumentService } from '../campus-workspace/workspace.document.service';
+import { profileImageDescriptor } from '../users/profile-media.service';
+import { normalizeProfileGender } from '../users/profile-values';
+
+const WORKSPACE_DOCUMENT_PATHS: Record<string, string> = {
+  DOC: 'docs', SHEET: 'sheets', SLIDE: 'slides', FORM: 'forms', QUIZ: 'quiz',
+  PDF: 'pdf', NOTE: 'notes', REPORT: 'reports',
+};
+
+const resolveChatPath = (role: string): string | null => {
+  if (role === 'Student') return '/student/messages';
+  if (role === 'Parent') return '/parent/messages';
+  if (role === 'Mentor') return '/mentor/messages';
+  return null;
+};
+
+const complaintDeepLink = (complaintId: string) => `/complaints?complaintId=${encodeURIComponent(complaintId)}`;
 
 export class EnterpriseService {
   private repo = new EnterpriseRepository();
+
+  private withCanonicalAvatar<T>(entry: T): T {
+    if (!entry || typeof entry !== 'object') return entry;
+    const anyEntry = entry as any;
+    if (!anyEntry.user) return entry;
+    const { passwordHash: _passwordHash, profileImageFile, ...safeUser } = anyEntry.user;
+    const profileImage = profileImageDescriptor({ ...anyEntry.user, profileImageFile });
+    return { ...entry, user: { ...safeUser, profilePhoto: profileImage.url, profileImage } };
+  }
+
+  private withCanonicalAvatars<T extends { items: any[] }>(result: T): T {
+    return { ...result, items: result.items.map((item: any) => this.withCanonicalAvatar(item)) };
+  }
 
   // ==========================================
   // 1. STUDENTS
   // ==========================================
   async listStudents(params: any, user?: UserPayload) {
-    if (!user) return this.repo.findStudents(params);
+    if (!user) return this.withCanonicalAvatars(await this.repo.findStudents(params));
     const scopeWhere = await StudentAccessService.visibleStudentWhere(user);
-    return this.repo.findStudents({ ...params, scopeWhere });
+    return this.withCanonicalAvatars(await this.repo.findStudents({ ...params, scopeWhere }));
   }
 
   async getStudent(id: string) {
     const student = await this.repo.findStudentById(id);
     if (!student) throw new NotFoundException('Student profile not found');
-    return student;
+    return this.withCanonicalAvatar(student);
   }
 
   async createStudent(input: any, userId: string, ip?: string, ua?: string) {
@@ -33,6 +65,7 @@ export class EnterpriseService {
       courseId, semesterId, sectionId, hostelId, roomNo, transportRouteId, transportStopId,
       mentorId, facultyId, classAdvisorId
     } = input;
+    const normalizedGender = normalizeProfileGender(gender);
 
     if (!email) {
       throw new BadRequestException('Official Email ID is required for credentials generation.');
@@ -77,7 +110,8 @@ export class EnterpriseService {
           lastName,
           status: 'ACTIVE',
           roleId: studentRole.id,
-          forcePasswordChange: true
+          forcePasswordChange: true,
+          gender: normalizedGender,
         }
       });
     }
@@ -139,7 +173,7 @@ export class EnterpriseService {
       phone,
       dob: new Date(dob),
       dateOfAdmission: new Date(dateOfAdmission),
-      gender,
+      gender: normalizedGender,
       bloodGroup,
       religion,
       category,
@@ -208,7 +242,7 @@ export class EnterpriseService {
     if (phone !== undefined) data.phone = phone;
     if (dob) data.dob = new Date(dob);
     if (dateOfAdmission) data.dateOfAdmission = new Date(dateOfAdmission);
-    if (gender) data.gender = gender;
+    if (gender !== undefined) data.gender = normalizeProfileGender(gender);
     if (bloodGroup !== undefined) data.bloodGroup = bloodGroup;
     if (religion !== undefined) data.religion = religion;
     if (category !== undefined) data.category = category;
@@ -324,6 +358,9 @@ export class EnterpriseService {
     }
 
     const updated = await this.repo.updateStudent(id, data);
+    if (gender !== undefined && student.userId) {
+      await prisma.user.update({ where: { id: student.userId }, data: { gender: normalizeProfileGender(gender) } });
+    }
     await this.logActivity(userId, 'UPDATE', 'STUDENTS', `Updated Student profile for ${student.admissionNo}`, ip, ua);
     return updated;
   }
@@ -332,20 +369,21 @@ export class EnterpriseService {
   // 2. FACULTY
   // ==========================================
   async listFaculties(params: any, user?: UserPayload) {
-    return this.repo.findFaculties(params, user);
+    return this.withCanonicalAvatars(await this.repo.findFaculties(params, user));
   }
 
   async getFaculty(id: string) {
     const faculty = await this.repo.findFacultyById(id);
     if (!faculty) throw new NotFoundException('Faculty profile not found');
-    return faculty;
+    return this.withCanonicalAvatar(faculty);
   }
 
   async createFaculty(input: any, userId: string, ip?: string, ua?: string) {
     const {
       employeeId, firstName, lastName, email, phone, dob, dateOfJoining, designation,
-      qualification, experience, departmentId, status, subjectMappings
+      qualification, experience, departmentId, status, subjectMappings, gender
     } = input;
+    const normalizedGender = normalizeProfileGender(gender);
 
     if (!email) {
       throw new BadRequestException('Official Email ID is required for credentials generation.');
@@ -393,7 +431,8 @@ export class EnterpriseService {
           lastName,
           status: 'ACTIVE',
           roleId: facultyRole.id,
-          forcePasswordChange: true
+          forcePasswordChange: true,
+          gender: normalizedGender,
         }
       });
     }
@@ -412,6 +451,7 @@ export class EnterpriseService {
       departmentId,
       status: status || 'ACTIVE',
       subjectMappings: subjectMappings || '[]',
+      gender: normalizedGender,
       userId: userRecord.id,
     });
 
@@ -423,7 +463,7 @@ export class EnterpriseService {
     const faculty = await this.getFaculty(id);
     const {
       firstName, lastName, email, phone, dob, dateOfJoining, designation,
-      qualification, experience, departmentId, status, subjectMappings
+      qualification, experience, departmentId, status, subjectMappings, gender
     } = input;
 
     const data: any = {};
@@ -439,8 +479,12 @@ export class EnterpriseService {
     if (departmentId) data.departmentId = departmentId;
     if (status) data.status = status;
     if (subjectMappings !== undefined) data.subjectMappings = subjectMappings;
+    if (gender !== undefined) data.gender = normalizeProfileGender(gender);
 
     const updated = await this.repo.updateFaculty(id, data);
+    if (gender !== undefined && faculty.userId) {
+      await prisma.user.update({ where: { id: faculty.userId }, data: { gender: normalizeProfileGender(gender) } });
+    }
     await this.logActivity(userId, 'UPDATE', 'FACULTY', `Updated Faculty profile for ${faculty.employeeId}`, ip, ua);
     return updated;
   }
@@ -950,11 +994,7 @@ export class EnterpriseService {
     const normalizedCategory = String(category || 'GENERAL').trim().toUpperCase();
     const normalizedPriority = String(priority || 'MEDIUM').trim().toUpperCase();
     if (!['LOW', 'MEDIUM', 'HIGH', 'URGENT', 'CRITICAL'].includes(normalizedPriority)) throw new BadRequestException('Invalid complaint priority');
-    let assignedToUserId: string | null = null;
-    if (['HOSTEL', 'ADMINISTRATION', 'ADMIN', 'STUDENT_SERVICE', 'DOCUMENT', 'ADMISSION'].includes(normalizedCategory)) {
-      const admissionWorkspace = await prisma.userWorkspace.findFirst({ where: { status: 'ACTIVE', user: { status: 'ACTIVE' }, OR: [{ workspaceCode: { in: ['ADMISSION', 'ADMINISTRATION'] } }, { roleName: { in: ['Admission Dean', 'Administration & Admission Dean'] } }] }, orderBy: { isPrimary: 'desc' }, select: { userId: true } });
-      assignedToUserId = admissionWorkspace?.userId || null;
-    }
+    const assignedToUserId = await ComplaintRoutingService.resolveOwner({ category: normalizedCategory, studentId, facultyId });
 
     const ticket = await prisma.ticket.create({
       data: {
@@ -971,7 +1011,10 @@ export class EnterpriseService {
     });
 
     await this.logActivity(userId, 'CREATE', 'SUPPORT', `Created support ticket: ${title}`, ip, ua);
-    if (assignedToUserId) await NotificationService.sendNotification({ recipientId: assignedToUserId, eventType: 'HOSTEL_COMPLAINT_CREATED', title: 'New hostel complaint', message: title, relatedEntityType: 'TICKET', relatedEntityId: ticket.id, deepLinkRoute: `/complaints/${ticket.id}` });
+    await NotificationService.sendNotification({ recipientId: assignedToUserId, eventType: `COMPLAINT_${normalizedCategory}`, title: `New ${normalizedCategory.toLowerCase()} complaint`, message: title, relatedEntityType: 'TICKET', relatedEntityId: ticket.id, deepLinkRoute: complaintDeepLink(ticket.id) });
+    if (assignedToUserId !== userId) {
+      await NotificationService.sendNotification({ recipientId: userId, eventType: 'COMPLAINT_ACKNOWLEDGED', title: 'Complaint received', message: `Your complaint "${title}" has been routed to the responsible authority.`, relatedEntityType: 'TICKET', relatedEntityId: ticket.id, deepLinkRoute: complaintDeepLink(ticket.id) });
+    }
     return ticket;
   }
 
@@ -1042,7 +1085,7 @@ export class EnterpriseService {
         : ticket.facultyId
           ? await prisma.faculty.findUnique({ where: { id: ticket.facultyId }, select: { userId: true } })
           : null;
-      if (reporter?.userId) await NotificationService.sendNotification({ recipientId: reporter.userId, eventType: 'COMPLAINT_UPDATED', title: 'Complaint updated', message: `Your complaint "${ticket.title}" is now ${data.status || ticket.status}.`, relatedEntityType: 'TICKET', relatedEntityId: ticket.id, deepLinkRoute: `/complaints/${ticket.id}` });
+      if (reporter?.userId) await NotificationService.sendNotification({ recipientId: reporter.userId, eventType: 'COMPLAINT_UPDATED', title: 'Complaint updated', message: `Your complaint "${ticket.title}" is now ${data.status || ticket.status}.`, relatedEntityType: 'TICKET', relatedEntityId: ticket.id, deepLinkRoute: complaintDeepLink(ticket.id) });
     }
     return updated;
   }
@@ -1348,6 +1391,108 @@ export class EnterpriseService {
               .forEach(c => results.push({ id: c.id, type: 'STUDENT', title: `${c.firstName} ${c.lastName}`, subtitle: `Child Profile (${c.admissionNo})`, link: `/student-portal` }));
     }
 
-    return results;
+    // 3. Search connected productivity and collaboration data through the same
+    // active-workspace boundary. Every query below is constrained to records the
+    // current user owns, receives, participates in, or may see by explicit scope.
+    const userRecord = await prisma.user.findUnique({
+      where: { id: user.id },
+      select: { departmentId: true },
+    });
+    const departmentId = userRecord?.departmentId || undefined;
+
+    if (await FeatureFlags.isEnabled('MODULE_CAMPUS_WORKSPACE_ENABLED')) {
+      const documents = await WorkspaceDocumentService.listDocuments(
+        user.id,
+        user.role,
+        departmentId,
+        { search: q }
+      );
+      [...documents.owned, ...documents.shared].slice(0, 10).forEach((document) => {
+        const editor = WORKSPACE_DOCUMENT_PATHS[document.type] || 'docs';
+        results.push({
+          id: document.id,
+          type: 'DOCUMENT',
+          title: document.title,
+          subtitle: `${document.type} · ${document.status}`,
+          link: `/workspace/${editor}/${document.id}`,
+        });
+      });
+    }
+
+    if (await FeatureFlags.isEnabled('MODULE_GOVERNANCE_ENABLED')) {
+      const tasks = await prisma.task.findMany({
+        where: {
+          title: { contains: q },
+          OR: [
+            { createdById: user.id },
+            { assignees: { some: { assigneeId: user.id } } },
+            { visibility: 'PUBLIC' },
+            ...(departmentId ? [{ visibility: 'DEPARTMENT', departmentId }] : []),
+          ],
+        },
+        select: { id: true, taskNumber: true, title: true, status: true, priority: true },
+        orderBy: { updatedAt: 'desc' },
+        take: 8,
+      });
+      tasks.forEach((task) => results.push({
+        id: task.id,
+        type: 'TASK',
+        title: task.title,
+        subtitle: `${task.taskNumber} · ${task.status} · ${task.priority}`,
+        link: '/tasks',
+      }));
+    }
+
+    if (role === 'Student') {
+      const events = await prisma.calendarEvent.findMany({
+        where: {
+          title: { contains: q },
+          status: 'ACTIVE',
+          OR: [
+            { createdById: user.id },
+            { visibility: 'PUBLIC', scope: 'INSTITUTION' },
+            ...(departmentId ? [{ visibility: 'PUBLIC', scope: 'DEPARTMENT', departmentId }] : []),
+          ],
+        },
+        select: { id: true, title: true, eventType: true, startDate: true },
+        orderBy: { startDate: 'asc' },
+        take: 8,
+      });
+      events.forEach((event) => results.push({
+        id: event.id,
+        type: 'CALENDAR',
+        title: event.title,
+        subtitle: `${event.eventType} · ${event.startDate.toISOString().slice(0, 10)}`,
+        link: '/student/calendar',
+      }));
+    }
+
+    const chatPath = resolveChatPath(role);
+    if (chatPath) {
+      const messages = await prisma.message.findMany({
+        where: {
+          content: { contains: q },
+          deletedAt: null,
+          conversation: { participants: { some: { userId: user.id } } },
+        },
+        select: {
+          id: true,
+          content: true,
+          conversation: { select: { title: true } },
+          sender: { select: { firstName: true, lastName: true } },
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 8,
+      });
+      messages.forEach((message) => results.push({
+        id: message.id,
+        type: 'MESSAGE',
+        title: message.conversation.title || `${message.sender.firstName} ${message.sender.lastName}`,
+        subtitle: message.content.length > 90 ? `${message.content.slice(0, 87)}…` : message.content,
+        link: chatPath,
+      }));
+    }
+
+    return results.slice(0, 40);
   }
 }

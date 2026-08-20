@@ -1,15 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { CreditCard, Download, Printer } from 'lucide-react';
+import { CreditCard, Download, Printer, Shield, QrCode } from 'lucide-react';
 import { toast } from '../../components/ui/Toast';
 import { Loading } from '../../components/ui/Loading';
 import api from '../../lib/axios';
 import { saveBlobAndOpen } from '../../platform/download';
 import { resolveAssetUrl } from '../../utils/assets';
-
 import { useAuth } from '../../context/AuthContext';
+import { useInstitution } from '../../context/InstitutionContext';
+import { ProfileAvatar } from '../../components/common/ProfileAvatar';
 
 export const StudentIdCard: React.FC = () => {
   const { user } = useAuth();
+  const { institutionName, officialLogo, tagline, address, phone, website } = useInstitution();
   const [studentInfo, setStudentInfo] = useState<any>(null);
   const [cardData, setCardData] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -67,15 +69,15 @@ export const StudentIdCard: React.FC = () => {
 
   if (isLoading) return <Loading text="Loading ID Card..." />;
 
-  const fullName = cardData?.name || `${studentInfo?.firstName} ${studentInfo?.lastName}`;
-  const regNo = cardData?.registerNo || studentInfo?.admissionNo || '';
-  const deptName = cardData?.department || studentInfo?.department?.name || '';
-  const bloodGroup = cardData?.bloodGroup || studentInfo?.bloodGroup || 'O+';
-  const validity = cardData?.year ? `Validity: ${cardData.year}` : `Validity: 2026 - 2030`;
+  const fullName = cardData?.name || `${studentInfo?.firstName || ''} ${studentInfo?.lastName || ''}`.trim() || user?.firstName || 'Student';
+  const regNo = cardData?.registerNo || studentInfo?.admissionNo || (user as any)?.username || 'Not available';
+  const deptName = cardData?.department || studentInfo?.department?.name || 'Department not available';
+  const bloodGroup = cardData?.bloodGroup || studentInfo?.bloodGroup || 'Not available';
+  const validity = cardData?.year ? `Validity: ${cardData.year}` : 'Validity not available';
   
   const rawPhoto = cardData?.photo || studentInfo?.user?.profilePhoto || user?.profilePhoto;
   const studentPhoto = rawPhoto ? resolveAssetUrl(rawPhoto) : '';
-  const verificationUrl = `${window.location.origin}/verify/${cardData?.qrCodeToken || ''}`;
+  const verificationUrl = `${window.location.origin}/verify/${cardData?.qrCodeToken || regNo}`;
   const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(verificationUrl)}`;
   const barcodeUrl = `https://bwipjs-api.metafloor.com/?bcid=code128&text=${encodeURIComponent(regNo)}&scale=2&rotate=N&includetext=false`;
 
@@ -86,10 +88,10 @@ export const StudentIdCard: React.FC = () => {
           <h1 className="text-xl font-black text-slate-800 dark:text-white flex items-center gap-2">
             <CreditCard className="h-5 w-5 text-indigo-600" /> Digital Student ID Card
           </h1>
-          <p className="text-xs text-muted-foreground mt-0.5">High-quality, printable identity verification card</p>
+          <p className="text-xs text-muted-foreground mt-0.5">High-quality, printable official identity verification card</p>
         </div>
         <div className="flex gap-2">
-          <button onClick={handleDownload} className="px-4 py-2 bg-indigo-600 text-white text-xs font-extrabold rounded-lg shadow hover:bg-indigo-700 transition-all flex items-center gap-1.5">
+          <button onClick={handleDownload} className="px-4 py-2 bg-indigo-600 text-white text-xs font-extrabold rounded-lg shadow hover:bg-indigo-700 transition-all flex items-center gap-1.5 cursor-pointer">
             <Download className="h-4 w-4" /> Download PDF
           </button>
         </div>
@@ -100,37 +102,42 @@ export const StudentIdCard: React.FC = () => {
         
         {/* FRONT SIDE */}
         <div className="flex flex-col items-center">
-          <div className="w-[330px] h-[520px] bg-white border rounded-[20px] shadow-xl relative overflow-hidden flex flex-col justify-between text-center select-none">
+          <div className="w-[330px] h-[520px] bg-white border border-slate-200 rounded-[20px] shadow-xl relative overflow-hidden flex flex-col justify-between text-center select-none">
             <div className="absolute top-0 left-0 right-0 h-28 bg-gradient-to-b from-indigo-50/70 to-transparent pointer-events-none" />
             <div className="absolute top-[-50px] right-[-50px] w-36 h-36 bg-indigo-600/10 rounded-full blur-xl pointer-events-none" />
             <div className="absolute top-[-20px] left-[-20px] w-28 h-28 bg-violet-600/5 rounded-full blur-lg pointer-events-none" />
             
-            <div className="pt-6 px-4 z-10">
+            {/* Header: Official College Branding Primary */}
+            <div className="pt-4 px-4 z-10">
               <div className="flex justify-center mb-1">
-                <div className="h-10 w-10 bg-indigo-600/10 border border-indigo-600/20 rounded-full flex items-center justify-center">
-                  <svg className="h-6 w-6 text-indigo-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-                  </svg>
-                </div>
-              </div>
-              <h2 className="text-sm font-extrabold text-slate-800 tracking-wide uppercase">GEETORUS CAMPUSOS</h2>
-              <p className="text-[9px] text-slate-500 font-bold uppercase tracking-wider">College Management System</p>
-              <p className="text-[8px] text-indigo-600 font-extrabold tracking-widest uppercase mt-0.5">Digital Student ID Card</p>
-            </div>
-
-            <div className="flex justify-center z-10">
-              <div className="h-28 w-24 rounded-lg overflow-hidden border-2 border-indigo-100 shadow-md bg-indigo-600 flex items-center justify-center text-white font-black text-2xl">
-                {studentPhoto ? (
+                {officialLogo ? (
                   <img
-                    src={studentPhoto}
-                    className="h-full w-full object-cover"
-                    alt="Student Front"
-                    onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                    src={officialLogo}
+                    alt="Institution Logo"
+                    className="h-10 w-auto max-w-[140px] object-contain"
                   />
                 ) : (
-                  <span>{fullName.slice(0, 2).toUpperCase()}</span>
+                  <div className="h-10 w-10 bg-indigo-600/10 border border-indigo-600/20 rounded-full flex items-center justify-center">
+                    <Shield className="h-6 w-6 text-indigo-600" />
+                  </div>
                 )}
               </div>
+              <h2 className="text-xs font-black text-slate-900 tracking-wide uppercase line-clamp-1">{institutionName || 'AL-AMEEN ENGINEERING COLLEGE'}</h2>
+              <p className="text-[8px] text-slate-500 font-bold uppercase tracking-wider line-clamp-1">{tagline || 'Autonomous Institution • Approved by AICTE'}</p>
+              <div className="inline-block mt-1 px-2 py-0.5 bg-indigo-600/10 text-indigo-700 text-[8px] font-black tracking-widest uppercase rounded-full">
+                Student Identity Card
+              </div>
+            </div>
+
+            {/* Photo: Real Student Photo */}
+            <div className="flex justify-center z-10">
+              <ProfileAvatar
+                person={studentInfo}
+                size="2xl"
+                shape="rounded"
+                className="!h-28 !w-24 !rounded-lg border-2 border-indigo-100 shadow-md bg-slate-100"
+                alt={fullName}
+              />
             </div>
 
             <div className="mx-6 bg-gradient-to-r from-indigo-500 via-indigo-600 to-violet-600 text-white py-1.5 px-4 rounded-full relative shadow-sm z-10">
@@ -154,49 +161,51 @@ export const StudentIdCard: React.FC = () => {
             </div>
 
             <div className="px-6 z-10 flex flex-col items-center">
-              <p className="text-[8px] font-bold text-slate-400 mb-1">Barcode (Code 128)</p>
-              <img src={barcodeUrl} className="h-7 w-48 object-contain animate-pulse" alt="Barcode" />
+              <p className="text-[8px] font-bold text-slate-400 mb-0.5">Barcode (Code 128)</p>
+              <img src={barcodeUrl} className="h-6 w-44 object-contain" alt="Barcode" />
               <p className="text-[8px] font-black text-slate-600 mt-0.5 tracking-widest">{regNo}</p>
             </div>
 
-            <div className="border-t border-slate-100 pt-3 pb-4 px-6 z-10 flex justify-between items-end text-left">
+            <div className="border-t border-slate-100 pt-2 pb-3 px-6 z-10 flex justify-between items-end text-left">
               <div>
                 <p className="text-[8px] text-slate-400 font-bold">{validity}</p>
-                <p className="text-[8px] text-slate-400 font-bold mt-0.5">Issued: <span className="text-slate-800 font-black">June 2026</span></p>
-                <div className="mt-2 text-center">
+                <p className="text-[8px] text-slate-400 font-bold mt-0.5">Issued: <span className="text-slate-800 font-black">2026</span></p>
+                <div className="mt-1 text-center">
                   <span className="font-serif italic text-xs text-indigo-700 block max-w-[80px] truncate">{fullName.split(' ')[0]}</span>
                   <div className="border-t border-slate-300 w-16 mx-auto mt-0.5" />
-                  <span className="text-[7px] text-slate-400 font-bold block mt-0.5">Student's Signature</span>
+                  <span className="text-[7px] text-slate-400 font-bold block mt-0.5">Student Signature</span>
                 </div>
               </div>
 
               <div className="text-right flex flex-col items-end">
-                <span className="font-serif italic text-[11px] text-slate-700 block">Dr. Charles Xavier</span>
+                <span className="font-serif italic text-[11px] text-slate-700 block">Principal</span>
                 <div className="border-t border-slate-300 w-20 mt-0.5" />
-                <span className="text-[6px] text-slate-400 font-bold block mt-0.5 leading-tight">Principal's Signature<br/>Principal<br/>GEETORUS Campusos</span>
+                <span className="text-[6px] text-slate-400 font-bold block mt-0.5 leading-tight">Issuing Authority<br/>{institutionName || 'College Administration'}</span>
               </div>
             </div>
 
-            <div className="absolute bottom-0 left-0 right-0 h-4 bg-gradient-to-r from-indigo-500 via-indigo-600 to-violet-600" />
+            <div className="absolute bottom-0 left-0 right-0 h-3 bg-gradient-to-r from-indigo-500 via-indigo-600 to-violet-600" />
           </div>
           <span className="text-xs font-bold text-slate-400 mt-3 uppercase tracking-wider">Front Side</span>
         </div>
 
         {/* BACK SIDE */}
         <div className="flex flex-col items-center">
-          <div className="w-[330px] h-[520px] bg-white border rounded-[20px] shadow-xl relative overflow-hidden flex flex-col justify-between select-none text-left p-5">
+          <div className="w-[330px] h-[520px] bg-white border border-slate-200 rounded-[20px] shadow-xl relative overflow-hidden flex flex-col justify-between select-none text-left p-5">
             <div className="absolute top-0 right-0 left-0 h-28 bg-gradient-to-b from-indigo-50/50 to-transparent pointer-events-none" />
             <div className="absolute bottom-[-40px] left-[-40px] w-32 h-32 bg-indigo-600/5 rounded-full blur-xl pointer-events-none" />
 
             <div className="flex items-center gap-2 border-b pb-2">
-              <div className="h-7 w-7 bg-indigo-600/10 border border-indigo-600/20 rounded-full flex items-center justify-center">
-                <svg className="h-4.5 w-4.5 text-indigo-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-                </svg>
-              </div>
-              <div>
-                <h2 className="text-[10px] font-black text-slate-800 leading-none">GEETORUS CAMPUSOS</h2>
-                <p className="text-[7px] text-slate-500 font-bold uppercase tracking-wider">College Management System</p>
+              {officialLogo ? (
+                <img src={officialLogo} alt="Logo" className="h-6 w-auto object-contain" />
+              ) : (
+                <div className="h-6 w-6 bg-indigo-600/10 rounded-full flex items-center justify-center">
+                  <Shield className="h-4 w-4 text-indigo-600" />
+                </div>
+              )}
+              <div className="min-w-0">
+                <h2 className="text-[10px] font-black text-slate-800 leading-none truncate">{institutionName || 'AL-AMEEN ENGINEERING COLLEGE'}</h2>
+                <p className="text-[7px] text-slate-500 font-bold uppercase tracking-wider truncate">Campus Identity Verification</p>
               </div>
             </div>
 
@@ -207,8 +216,8 @@ export const StudentIdCard: React.FC = () => {
                 📞 Emergency Contacts
               </h4>
               <ul className="text-[8.5px] font-bold text-slate-700 space-y-0.5 pl-1">
-                <li>• College Office: +91 98765 43210</li>
-                <li>• Parent Phone: {studentInfo?.parentPhone}</li>
+                <li>• College Office: {phone || '+91 98765 43210'}</li>
+                <li>• Parent Phone: {studentInfo?.parentPhone || '—'}</li>
               </ul>
             </div>
 
@@ -216,8 +225,8 @@ export const StudentIdCard: React.FC = () => {
               <h4 className="text-[8px] font-extrabold text-slate-400 uppercase tracking-wider flex items-center gap-1">
                 🏠 Student Address
               </h4>
-              <p className="text-[8.5px] font-bold text-slate-700 pl-1 leading-normal">
-                {studentInfo?.currentAddress || studentInfo?.permanentAddress}
+              <p className="text-[8.5px] font-bold text-slate-700 pl-1 leading-normal truncate">
+                {studentInfo?.currentAddress || studentInfo?.permanentAddress || address || 'Campus Residential Hall'}
               </p>
             </div>
 
@@ -260,7 +269,7 @@ export const StudentIdCard: React.FC = () => {
               </div>
               <p className="text-[7.5px] text-slate-400 font-bold text-center mt-1 leading-tight">
                 Scan to Verify Identity<br/>
-                <span className="text-indigo-600 font-black">campusos.geetorus.com</span>
+                <span className="text-indigo-600 font-black">CampusOS • Developed by Geetorus</span>
               </p>
             </div>
 

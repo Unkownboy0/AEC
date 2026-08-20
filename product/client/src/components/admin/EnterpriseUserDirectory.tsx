@@ -188,6 +188,7 @@ export const EnterpriseUserDirectory: React.FC<EnterpriseUserDirectoryProps> = (
     lastName: '',
     email: '',
     phone: '',
+    gender: 'UNSPECIFIED',
     roleName: 'Student',
     departmentCode: 'CSE',
     program: 'B.Tech',
@@ -579,6 +580,7 @@ export const EnterpriseUserDirectory: React.FC<EnterpriseUserDirectoryProps> = (
                 setGeneratedCreds(null);
                 setFormData({
                   firstName: '', lastName: '', email: '', phone: '',
+                  gender: 'UNSPECIFIED',
                   roleName: 'Student', departmentCode: 'CSE', program: 'B.Tech',
                   academicYear: '2025-2026', regOrEmpNo: '', designation: 'Student',
                   username: '', password: '', status: 'ACTIVE'
@@ -1200,6 +1202,21 @@ export const EnterpriseUserDirectory: React.FC<EnterpriseUserDirectoryProps> = (
                     onChange={e => setFormData({ ...formData, phone: e.target.value })}
                     className="w-full h-8 border rounded-lg bg-background px-3 focus:outline-none focus:border-primary font-semibold"
                   />
+                </div>
+
+                <div>
+                  <label className="text-[10px] uppercase font-bold text-muted-foreground block mb-1">Gender *</label>
+                  <select
+                    value={formData.gender}
+                    onChange={e => setFormData({ ...formData, gender: e.target.value })}
+                    className="w-full h-8 border rounded-lg bg-background px-2 text-xs font-bold"
+                  >
+                    <option value="UNSPECIFIED">Unspecified</option>
+                    <option value="MALE">Male</option>
+                    <option value="FEMALE">Female</option>
+                    <option value="OTHER">Other</option>
+                    <option value="PREFER_NOT_TO_SAY">Prefer not to say</option>
+                  </select>
                 </div>
               </div>
 

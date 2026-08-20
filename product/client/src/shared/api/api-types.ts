@@ -29,7 +29,8 @@ export type ApiErrorCode =
   | 'VALIDATION_ERROR'
   | 'TIMEOUT'
   | 'OFFLINE'
-  | 'CONFIG_ERROR';
+  | 'CONFIG_ERROR'
+  | 'MODULE_DISABLED';
 
 export interface NormalizedApiError {
   code: ApiErrorCode;

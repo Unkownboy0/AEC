@@ -50,9 +50,9 @@ export const CurrentStatusCard: React.FC<CurrentStatusCardProps> = ({
   };
 
   return (
-    <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 shadow-2xs space-y-2">
+    <div className="p-5 rounded-2xl bg-card border border-border shadow-xs space-y-3">
       <div className="flex items-center justify-between text-xs">
-        <span className="text-slate-400 dark:text-slate-400 font-bold uppercase tracking-wider text-[10px]">
+        <span className="text-muted-foreground font-extrabold uppercase tracking-wider text-[10px]">
           Current Status & Stage
         </span>
         {getStatusBadge()}
@@ -60,11 +60,11 @@ export const CurrentStatusCard: React.FC<CurrentStatusCardProps> = ({
 
       <div className="flex items-center justify-between pt-1">
         <div>
-          <h4 className="text-sm font-extrabold text-slate-900 dark:text-slate-100">
+          <h4 className="text-sm font-extrabold text-foreground">
             {currentStage || 'Principal Level Authorization'}
           </h4>
           {assignedRole === 'ACTING_PRINCIPAL' && (
-            <p className="text-[11px] text-amber-600 dark:text-amber-400 font-semibold flex items-center gap-1 mt-0.5">
+            <p className="text-[11px] text-amber-600 dark:text-amber-400 font-semibold flex items-center gap-1 mt-1">
               <ShieldAlert className="w-3.5 h-3.5 text-amber-500 shrink-0" />
               Handling Authority: Vice Principal (Acting Principal)
             </p>

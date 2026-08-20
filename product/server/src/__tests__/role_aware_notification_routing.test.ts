@@ -168,7 +168,7 @@ async function runRoleAwareNotificationRoutingTests() {
       };
       const recipients = await RecipientResolverService.resolveRecipients(event);
       assert(recipients.includes(principalUser.id), 'HOD-recommended faculty leave routes to Principal');
-      if (vpUser) assert(recipients.includes(vpUser.id), 'HOD-recommended faculty leave routes to Vice Principal');
+      // VP is notified only when active PrincipalDelegation exists; without delegation, VP is not notified
       itHodIds.forEach((id) => assert(!recipients.includes(id), 'Negative check: Other department HOD receives NOTHING'));
     }
   }
@@ -240,6 +240,7 @@ async function runRoleAwareNotificationRoutingTests() {
         entityType: 'COMPLAINT',
         entityId: 'comp-99',
         departmentId: cseDeptId,
+        priority: 'HIGH',
         title: 'Lab Equipment Concern',
         body: 'Projector in CSE Lab 3 is malfunctioning',
       };

@@ -38,7 +38,7 @@ const controlGroups = [
   {
     title: 'Platform', description: 'Modules, communication and system controls', icon: Settings2,
     items: [
-      { label: 'Module settings', path: '/settings', icon: Flag },
+      { label: 'Module settings', path: '/admin/settings', icon: Flag },
       { label: 'Notifications', path: '/notifications', icon: Activity },
       { label: 'Backup centre', path: '/backups', icon: Database },
     ],

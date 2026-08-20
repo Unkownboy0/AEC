@@ -89,8 +89,22 @@ export type NotificationEventType =
   | 'FACULTY_LEAVE_SUBMITTED'
   | 'FACULTY_LEAVE_APPROVED'
   | 'FACULTY_LEAVE_REJECTED'
+  | 'FACULTY_LEAVE'
+  | 'ON_DUTY'
   | 'SUBSTITUTE_ASSIGNED'
+  | 'CLASS_SUBSTITUTION_ASSIGNED'
+  | 'SUBSTITUTION_ASSIGNED'
+  | 'TIMETABLE_PUBLISHED'
+  | 'TIMETABLE_CHANGED'
   | 'TIMETABLE_UPDATED'
+  // Workspace & Files
+  | 'FILE_SHARED'
+  | 'DOCUMENT_SHARED'
+  | 'DOCUMENT_REVIEW_REQUESTED'
+  // General
+  | 'CAMPUS_ANNOUNCEMENT'
+  | 'ANNOUNCEMENT'
+  | 'GENERAL'
   // Fallback
   | string;
 
@@ -108,6 +122,12 @@ export interface AppNotification {
   deliveryChannel: NotificationDeliveryChannel;
   deliveryState: NotificationDeliveryState;
   createdAt: string;
+  senderName?: string;
+  senderAvatar?: string;
+  senderRole?: string;
+  actorAvatar?: string;
+  actorName?: string;
+  actorRole?: string;
 }
 
 export interface NotificationMeta {

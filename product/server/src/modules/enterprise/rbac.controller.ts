@@ -30,7 +30,7 @@ export class RbacController {
       }
     }, 15000);
 
-    registerSSEClient(userId || 'anonymous', res);
+    registerSSEClient(userId || 'anonymous', String((req as any).user?.role || ''), res);
 
     const cleanup = () => {
       clearInterval(pingInterval);

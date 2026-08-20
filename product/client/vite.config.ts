@@ -1,6 +1,14 @@
 import { defineConfig, createLogger } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
+import fs from 'fs';
+import { execFileSync } from 'child_process';
+
+const packageVersion = JSON.parse(fs.readFileSync(path.resolve(__dirname, 'package.json'), 'utf8')).version || 'unknown';
+let sourceCommit = process.env.CAMPUSOS_SOURCE_COMMIT || 'unknown';
+try {
+  sourceCommit = execFileSync('git', ['rev-parse', '--short=12', 'HEAD'], { cwd: __dirname, encoding: 'utf8' }).trim();
+} catch {}
 
 const customLogger = createLogger();
 const originalLoggerError = customLogger.error;
@@ -13,6 +21,12 @@ customLogger.error = (msg, options) => {
 
 // https://vitejs.dev/config/
 export default defineConfig({
+  define: {
+    'import.meta.env.VITE_CAMPUSOS_VERSION': JSON.stringify(packageVersion),
+    'import.meta.env.VITE_CAMPUSOS_BUILD_CODE': JSON.stringify(process.env.CAMPUSOS_BUILD_CODE || '7'),
+    'import.meta.env.VITE_CAMPUSOS_COMMIT': JSON.stringify(sourceCommit),
+    'import.meta.env.VITE_CAMPUSOS_BUILT_AT': JSON.stringify(new Date().toISOString()),
+  },
   customLogger,
   plugins: [react()],
   resolve: {
@@ -20,7 +34,17 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
+  // Exclude native platform build directories from file watching.
+  // Gradle write-locks .aab/.apk intermediates during Android builds, causing
+  // Node FSWatcher to throw EBUSY on Windows and crash the dev server.
   server: {
+    watch: {
+      ignored: [
+        '**/android/**',
+        '**/ios/**',
+        '**/.git/**',
+      ],
+    },
     port: 5173,
     host: '0.0.0.0',
     allowedHosts: true,

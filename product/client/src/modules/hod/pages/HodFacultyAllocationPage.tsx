@@ -70,16 +70,16 @@ export const HodFacultyAllocationPage: React.FC = () => {
         <h2 className="text-base font-semibold text-text-primary mb-4 flex items-center gap-2"><Plus className="w-5 h-5 text-primary"/>Assign Faculty to Subject/Section</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {[
-            { label: "Faculty *", value: form.facultyId, key: "facultyId", options: faculty.map((f) => ({ value: f.id, label: `${f.name} — ${f.designation} (${f.totalPeriods}h/wk)` })) },
-            { label: "Subject *", value: form.subjectId, key: "subjectId", options: subjects.map((s) => ({ value: s.id, label: `${s.name} (${s.code})${s.semester ? ` — Sem ${s.semester.semesterNumber}` : ""}` })) },
-            { label: "Section *", value: form.sectionId, key: "sectionId", options: sections.map((s) => ({ value: s.id, label: `Year ${s.year} — ${s.name}` })) },
+            { label: "Faculty *", value: form.facultyId, key: "facultyId", options: faculty.map((f) => ({ value: f.id, label: `${f.name} - ${f.designation} (${f.totalPeriods}h/wk)` })) },
+            { label: "Subject *", value: form.subjectId, key: "subjectId", options: subjects.map((s) => ({ value: s.id, label: `${s.name} (${s.code})${s.semester ? ` - Sem ${s.semester?.semesterNumber || s.semester?.number || ''}` : ""}` })) },
+            { label: "Section *", value: form.sectionId, key: "sectionId", options: sections.map((s) => ({ value: s.id, label: `${s.semester?.name || `Semester ${s.semester?.number || ''}`} - ${s.name}` })) },
           ].map(({ label, value, key, options }) => (
             <div key={key} className="space-y-1.5">
               <label className="text-xs font-semibold text-text-secondary uppercase tracking-wider">{label}</label>
               <div className="relative">
                 <select value={value} onChange={(e) => setForm((f) => ({ ...f, [key]: e.target.value }))}
                   className="w-full appearance-none pl-3 pr-8 py-2.5 rounded-xl border border-border bg-surface text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary">
-                  <option value="">Select…</option>
+                  <option value="">Select...</option>
                   {options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
                 </select>
                 <ChevronDown className="absolute right-2.5 top-3 w-4 h-4 text-text-muted pointer-events-none"/>
@@ -100,14 +100,14 @@ export const HodFacultyAllocationPage: React.FC = () => {
             <button onClick={handleAssign} disabled={isSaving || !form.facultyId || !form.subjectId || !form.sectionId}
               className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary-hover active:scale-[0.98] transition-all disabled:opacity-50 shadow-sm">
               {isSaving ? <RefreshCw className="w-4 h-4 animate-spin"/> : <CheckCircle className="w-4 h-4"/>}
-              {isSaving ? "Saving…" : "Assign"}
+              {isSaving ? "Saving..." : "Assign"}
             </button>
           </div>
         </div>
         {selectedFac && (
           <div className="mt-4 p-3 rounded-xl bg-primary/5 border border-primary/20 text-sm">
             <span className="font-medium text-primary">Workload for {selectedFac.name}:</span>{" "}
-            <span className="text-text-secondary">{selectedFac.totalPeriods} periods/week · {selectedFac.allocations?.length || 0} subject(s)</span>
+            <span className="text-text-secondary">{selectedFac.totalPeriods} allocated periods Â· {selectedFac.busySlots ?? 0} busy Â· {selectedFac.availableSlots ?? 48} free timetable slots</span>
           </div>
         )}
       </div>
@@ -131,9 +131,9 @@ export const HodFacultyAllocationPage: React.FC = () => {
                 <tbody className="divide-y divide-border">
                   {allocations.map((a) => (
                     <tr key={a.id} className="hover:bg-surface-soft transition-colors">
-                      <td className="px-4 py-3"><div className="font-medium text-text-primary">{a.faculty?.firstName} {a.faculty?.lastName}</div><div className="text-xs text-text-muted">{a.faculty?.employeeId} · {a.faculty?.designation}</div></td>
+                      <td className="px-4 py-3"><div className="font-medium text-text-primary">{a.faculty?.firstName} {a.faculty?.lastName}</div><div className="text-xs text-text-muted">{a.faculty?.employeeId} - {a.faculty?.designation}</div></td>
                       <td className="px-4 py-3"><div className="font-medium text-text-primary">{a.subject?.name}</div><div className="text-xs text-text-muted">{a.subject?.code}</div></td>
-                      <td className="px-4 py-3"><div className="font-medium text-text-primary">Year {a.section?.year} — {a.section?.name}</div>{a.semester && <div className="text-xs text-text-muted">Sem {a.semester.semesterNumber}</div>}</td>
+                      <td className="px-4 py-3"><div className="font-medium text-text-primary">Year {a.section?.year} - {a.section?.name}</div>{a.semester && <div className="text-xs text-text-muted">Sem {a.semester.semesterNumber}</div>}</td>
                       <td className="px-4 py-3 text-text-secondary">{a.requiredTheoryHours}T+{a.requiredLabHours}L</td>
                       <td className="px-4 py-3 text-right"><button onClick={() => handleRemove(a.id)} className="p-1.5 rounded-lg text-destructive hover:bg-destructive/10 transition-colors"><Trash2 className="w-4 h-4"/></button></td>
                     </tr>
@@ -150,7 +150,7 @@ export const HodFacultyAllocationPage: React.FC = () => {
                   </div>
                   <div className="flex flex-wrap gap-2 text-xs">
                     <span className="px-2 py-0.5 rounded-full bg-primary/10 text-primary font-medium">{a.subject?.name}</span>
-                    <span className="px-2 py-0.5 rounded-full bg-surface-soft text-text-secondary border border-border">Year {a.section?.year} · {a.section?.name}</span>
+                    <span className="px-2 py-0.5 rounded-full bg-surface-soft text-text-secondary border border-border">Year {a.section?.year} - {a.section?.name}</span>
                     <span className="px-2 py-0.5 rounded-full bg-surface-soft text-text-secondary border border-border">{a.requiredTheoryHours}T+{a.requiredLabHours}L hrs</span>
                   </div>
                 </div>

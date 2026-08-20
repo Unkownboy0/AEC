@@ -17,21 +17,14 @@ export const AppShell: React.FC<{ children?: React.ReactNode }> = ({ children })
 
   return (
     <div className="relative isolate h-dvh overflow-hidden bg-app-bg text-foreground flex flex-col font-sans antialiased selection:bg-primary selection:text-white">
-      {/*
-        h-dvh + overflow-hidden (not min-h-screen) is intentional: it guarantees this
-        shell never grows taller than the viewport and never lets the page/body scroll.
-        <main> below is the single scroll container. Without this, a sticky TopHeader
-        could ride up under the status bar once the body itself scrolled past it — the
-        "feels like a website, not an app" + header-jumps-while-scrolling defect.
-      */}
       {/* Institutional Watermark Layer */}
       <InstitutionalWatermark isSidebarCollapsed={isSidebarCollapsed} />
 
-      {/* Top Navigation Bar */}
+      {/* Top Navigation Bar with RoleHeader */}
       <TopHeader />
 
       {/* Main Workspace Body */}
-      <div className="flex-1 flex overflow-hidden">
+      <div className="relative z-10 flex-1 flex overflow-hidden">
         {/* Desktop Collapsible Sidebar */}
         <div className="hidden lg:block shrink-0">
           <Sidebar
@@ -43,11 +36,18 @@ export const AppShell: React.FC<{ children?: React.ReactNode }> = ({ children })
         {/* Main Content Area */}
         <main
           className={clsx(
-            'flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto w-full transition-[padding] duration-150',
-            isKeyboardOpen ? 'pb-safe pb-4 lg:pb-12' : 'pb-24 lg:pb-12'
+            'campus-page flex-1 overflow-y-auto max-w-7xl mx-auto w-full transition-[padding] duration-150 flex flex-col justify-between',
+            isKeyboardOpen && 'campus-page-keyboard-open'
           )}
         >
-          {children || <Outlet />}
+          <div className="flex-1">
+            {children || <Outlet />}
+          </div>
+
+          {/* Muted Page Footer */}
+          <footer className="mt-auto py-4 text-center text-[10px] text-text-muted/60 select-none">
+            CampusOS • Developed by Geetorus
+          </footer>
         </main>
       </div>
 
@@ -71,3 +71,5 @@ export const AppShell: React.FC<{ children?: React.ReactNode }> = ({ children })
     </div>
   );
 };
+
+export default AppShell;

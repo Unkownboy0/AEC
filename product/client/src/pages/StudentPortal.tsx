@@ -12,6 +12,7 @@ import api from '../lib/axios';
 import { env } from '../shared/config/environment';
 import { useAuth } from '../context/AuthContext';
 import { useDevice } from '../context/DeviceContext';
+import { downloadFile } from '../platform/download';
 import { DigitalIdCard } from './DigitalIdCard';
 
 import { useSearchParams } from 'react-router-dom';
@@ -574,7 +575,7 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ user }) => {
 
       // Embed Institutional Background Watermark
       const { getWatermarkBase64, drawPdfWatermark } = await import('../services/pdfExportService');
-      const watermarkBase64 = await getWatermarkBase64('/branding/al-ameen-logo.png');
+      const watermarkBase64 = await getWatermarkBase64('/branding/official-logo.png');
       if (watermarkBase64) {
         drawPdfWatermark(pdf, watermarkBase64, { opacity: 0.045, orientation: 'portrait' });
       }
@@ -1168,7 +1169,7 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ user }) => {
   const handleAddProject = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newProjectTitle.trim()) return;
-    setProjects([...projects, { title: newProjectTitle, tech: newProjectTech, type: 'Mini', guide: 'Ada Lovelace', link: newProjectLink }]);
+    setProjects([...projects, { title: newProjectTitle, tech: newProjectTech, type: 'Mini', guide: '', link: newProjectLink }]);
     setNewProjectTitle('');
     setNewProjectTech('');
     setNewProjectLink('');
@@ -1338,25 +1339,20 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ user }) => {
     }
     setDownloadingAttendance(true);
     try {
-      const res = await api.get(`/enterprise/students/${studentInfo.id}/attendance/pdf`, {
-        responseType: 'blob'
-      });
-
-      const blob = new Blob([res.data], { type: 'application/pdf' });
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-
       const details = getIdCardDetails();
       const registerNo = details?.registerNo || studentInfo.admissionNo;
       const filename = `${studentInfo.firstName}_${registerNo}_Attendance_Report.pdf`;
+      const result = await downloadFile({
+        endpoint: `/enterprise/students/${studentInfo.id}/attendance/pdf`,
+        filename,
+        action: 'open',
+      });
 
-      link.setAttribute('download', filename);
-      document.body.appendChild(link);
-      link.click();
-      link.parentNode?.removeChild(link);
-      window.URL.revokeObjectURL(url);
-      toast.success('Attendance report PDF downloaded successfully.', 'Download Complete');
+      if (result.success) {
+        toast.success('Attendance report PDF downloaded successfully.', 'Download Complete');
+      } else {
+        toast.error(result.error || 'Failed to download Attendance report PDF.');
+      }
     } catch (err: any) {
       console.error(err);
       toast.error('Failed to download Attendance report PDF.');
@@ -2604,15 +2600,23 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ user }) => {
                                               onClick={() => setPreviewFile({ url: getFileUrl(doc.fileUrl), name: doc.fileName, type: doc.documentType })}
                                               className="text-[9px] font-bold text-indigo-600 hover:text-indigo-800 border border-indigo-200 rounded px-2 py-1 bg-white hover:bg-indigo-50/50"
                                             >
-                                              View
-                                            </button>
-                                            <a
-                                              href={getFileUrl(doc.fileUrl)}
-                                              download={doc.fileName}
-                                              className="text-[9px] font-bold text-slate-600 hover:text-slate-800 border border-slate-200 rounded px-2 py-1 bg-white hover:bg-slate-50/50"
-                                            >
-                                              Download
-                                            </a>
+                                                                                 <button
+                                               type="button"
+                                               onClick={async () => {
+                                                 const url = getFileUrl(doc.fileUrl);
+                                                 toast.show(`Downloading ${doc.fileName}...`, 'info');
+                                                 const res = await downloadFile({ endpoint: url, filename: doc.fileName });
+                                                 if (res.success) {
+                                                   toast.success(`Downloaded ${doc.fileName}`);
+                                                 } else {
+                                                   toast.error(res.error || 'Failed to download document');
+                                                 }
+                                               }}
+                                               className="text-[9px] font-bold text-slate-600 hover:text-slate-800 border border-slate-200 rounded px-2 py-1 bg-white hover:bg-slate-50/50"
+                                             >
+                                               Download
+                                             </button>       Download
+                                             </button>
                                           </div>
                                         </div>
                                       </div>
@@ -5287,13 +5291,21 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ user }) => {
                   </div>
                 )}
                 
-                <a
-                  href={previewFile.url}
-                  download={previewFile.name}
+                <button
+                  type="button"
+                  onClick={async () => {
+                    toast.show(`Saving ${previewFile.name} to device...`, 'info');
+                    const res = await downloadFile({ endpoint: previewFile.url, filename: previewFile.name, action: 'save' });
+                    if (res.success) {
+                      toast.success(`Saved ${previewFile.name} to device successfully`);
+                    } else {
+                      toast.error(res.error || 'Failed to save file');
+                    }
+                  }}
                   className="px-3 py-1.5 bg-primary text-primary-foreground rounded-lg text-xs font-bold hover:bg-primary/90 flex flex-wrap items-center gap-1.5"
                 >
-                  📥 Download
-                </a>
+                  📥 Save to Device
+                </button>
                 <button
                   type="button"
                   onClick={() => { setPreviewFile(null); setImgZoom(1); setImgRotation(0); }}
@@ -5334,13 +5346,21 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({ user }) => {
                     <div className="w-16 h-16 bg-amber-50 text-amber-600 rounded-full flex items-center justify-center mx-auto text-2xl">📝</div>
                     <h4 className="text-sm font-extrabold uppercase">Direct Preview Not Supported</h4>
                     <p className="text-[11px] text-muted-foreground">This file format ({ext.toUpperCase()}) cannot be rendered directly inside the browser. Please download the file to view its contents on your device.</p>
-                    <a
-                      href={previewFile.url}
-                      download={previewFile.name}
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        toast.show(`Saving ${previewFile.name} to device...`, 'info');
+                        const res = await downloadFile({ endpoint: previewFile.url, filename: previewFile.name, action: 'save' });
+                        if (res.success) {
+                          toast.success(`Saved ${previewFile.name} to device successfully`);
+                        } else {
+                          toast.error(res.error || 'Failed to save file');
+                        }
+                      }}
                       className="inline-block px-4 py-2 bg-primary text-primary-foreground rounded-lg text-xs font-bold hover:bg-primary/95"
                     >
-                      Download Original File
-                    </a>
+                      Save File to Device
+                    </button>
                   </div>
                 );
               })()}

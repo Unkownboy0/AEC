@@ -61,8 +61,9 @@ export const FacultyDashboardPage: React.FC = () => {
               <Sparkles className="h-4 w-4" />
               Faculty Workspace
             </div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-text-primary">
-              Welcome back, {user?.firstName}!
+            <h1 className="text-xl sm:text-3xl font-extrabold tracking-tight text-text-primary">
+              <span className="hidden sm:inline">Welcome back, {user?.firstName}!</span>
+              <span className="sm:hidden">Faculty Overview</span>
             </h1>
             <p className="text-xs sm:text-sm text-text-muted mt-1 leading-relaxed">
               Today's timetable, pending attendance marking, assigned subjects, and leave status.

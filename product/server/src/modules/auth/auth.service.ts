@@ -7,8 +7,11 @@ import { logger } from '../../utils/logger';
 import { env } from '../../config/env';
 import { parseUserAgent } from '../../utils/uaParser';
 import { SecurityHelper, auditLog } from '../../utils/security';
+import { getUserPreferences } from '../users/preferences';
+import { profileImageDescriptor } from '../users/profile-media.service';
 import {
   UnauthorizedException,
+  ForbiddenException,
   BadRequestException,
   NotFoundException,
 } from '../../utils/exceptions';
@@ -46,19 +49,20 @@ export class AuthService {
 
     const user = await this.repo.findByEmail(email);
 
-    if (!user || user.status !== 'ACTIVE') {
-      // Create failure log
-      if (user) {
-        await this.repo.createLoginHistory({
-          userId: user.id,
-          ipAddress,
-          userAgent,
-          device: ua.device,
-          browser: ua.browser,
-          status: 'FAILED',
-        });
-      }
-      throw new UnauthorizedException('Invalid email or password');
+    if (!user) {
+      throw new UnauthorizedException('Invalid email, username, ID, or password');
+    }
+
+    if (user.status !== 'ACTIVE') {
+      await this.repo.createLoginHistory({
+        userId: user.id,
+        ipAddress,
+        userAgent,
+        device: ua.device,
+        browser: ua.browser,
+        status: 'FAILED',
+      });
+      throw new ForbiddenException('Your account is currently unavailable. Contact the administrator.');
     }
 
     // ── Account Lockout Check ──
@@ -68,7 +72,7 @@ export class AuthService {
         userId: user.id, ipAddress, userAgent,
         device: ua.device, browser: ua.browser, status: 'FAILED',
       });
-      throw new UnauthorizedException(
+      throw new ForbiddenException(
         `Account temporarily locked due to multiple failed login attempts. Try again in ${minutesLeft} minute(s).`
       );
     }
@@ -93,14 +97,14 @@ export class AuthService {
           userId: user.id, userEmail: user.email, userRole: user.role.name,
           action: 'ACCOUNT_LOCKED', module: 'AUTH',
           description: `Account locked after ${MAX_FAILED_ATTEMPTS} failed login attempts for ${LOCKOUT_DURATION_MINUTES} minutes`,
-          statusCode: 401, ipAddress, userAgent,
+          statusCode: 403, ipAddress, userAgent,
         });
-        throw new UnauthorizedException(
+        throw new ForbiddenException(
           `Account locked after ${MAX_FAILED_ATTEMPTS} failed attempts. Try again in ${LOCKOUT_DURATION_MINUTES} minutes.`
         );
       }
 
-      throw new UnauthorizedException('Invalid email or password');
+      throw new UnauthorizedException('Invalid email, username, ID, or password');
     }
 
     // ── Successful auth: reset lockout counter ──
@@ -129,10 +133,11 @@ export class AuthService {
     });
 
     const refreshToken = jwt.sign(
-      { userId: user.id },
+      { userId: user.id, jti: crypto.randomUUID() },
       env.JWT_SECRET,
       { expiresIn: refreshLifetime as jwt.SignOptions['expiresIn'] }
     );
+
 
     // Store Session
     await this.repo.createSession({
@@ -155,10 +160,30 @@ export class AuthService {
       status: 'SUCCESS',
     });
 
-    const menus = await SecurityHelper.getPermittedMenus(permissions, user.role.name);
+    let menus: any[] = [];
+    try {
+      menus = await SecurityHelper.getPermittedMenus(permissions, user.role.name);
+    } catch {
+      menus = [];
+    }
 
-    const workspaceAccess = await resolveUserWorkspaceAccess(user.id);
-    const workspaces = workspaceAccess?.workspaces.map((workspace) => workspace.name) || [user.role.name];
+    let workspaces: string[] = [user.role.name];
+    try {
+      const workspaceAccess = await resolveUserWorkspaceAccess(user.id);
+      if (workspaceAccess?.workspaces && workspaceAccess.workspaces.length > 0) {
+        workspaces = workspaceAccess.workspaces.map((workspace) => workspace.name);
+      }
+    } catch {
+      workspaces = [user.role.name];
+    }
+
+    let preferences: any = {};
+    try {
+      preferences = await getUserPreferences(user.id);
+    } catch {
+      preferences = { theme: 'system', fontScale: 'default', language: 'en', notificationsEnabled: true };
+    }
+    const canonicalProfileImage = profileImageDescriptor(user as any);
 
     return {
       accessToken,
@@ -169,11 +194,13 @@ export class AuthService {
         firstName: user.firstName,
         lastName: user.lastName,
         role: user.role.name,
-        profilePhoto: user.profilePhoto,
+        profilePhoto: canonicalProfileImage.url,
+        profileImage: canonicalProfileImage,
         permissions,
         menus,
         forcePasswordChange: user.forcePasswordChange,
         workspaces,
+        preferences,
       },
     };
   }
@@ -229,10 +256,11 @@ export class AuthService {
     const refreshLifetimeSeconds = Math.max(1, Math.floor(remainingMs / 1000));
 
     const newRefreshToken = jwt.sign(
-      { userId: user.id },
+      { userId: user.id, jti: crypto.randomUUID() },
       env.JWT_SECRET,
       { expiresIn: refreshLifetimeSeconds }
     );
+
 
     const ua = parseUserAgent(userAgent);
     const newExpiresAt = new Date(Date.now() + remainingMs);
@@ -284,13 +312,7 @@ export class AuthService {
   }
 
   /**
-   * Deactivate this user's push device tokens on logout. There's no reliable
-   * per-device correlation between a UserSession and a DeviceToken (sessions
-   * only store a free-text user-agent string, not the deviceId push tokens
-   * are keyed on), so this deactivates all of the user's tokens rather than
-   * leaving a stale token addressed to a now-logged-out user — closing the
-   * "next user on a shared/reused device gets pushed the previous user's
-   * notifications" gap. A fresh login re-registers the token automatically.
+   * Deactivate this user's push device tokens on logout.
    */
   private async deactivateDeviceTokens(userId: string): Promise<void> {
     try {
@@ -340,6 +362,8 @@ export class AuthService {
     });
 
     const menus = await SecurityHelper.getPermittedMenus(permissions, roleName);
+    const preferences = await getUserPreferences(user.id);
+    const canonicalProfileImage = profileImageDescriptor(user as any);
 
     return {
       accessToken,
@@ -350,11 +374,13 @@ export class AuthService {
         firstName: user.firstName,
         lastName: user.lastName,
         role: roleName,
-        profilePhoto: user.profilePhoto,
+        profilePhoto: canonicalProfileImage.url,
+        profileImage: canonicalProfileImage,
         permissions,
         menus,
         workspaces: allowedRoles,
         activeWorkspace: roleName,
+        preferences,
       },
     };
   }
@@ -375,7 +401,12 @@ export class AuthService {
     const roleName = activeWorkspace?.name || user.role.name;
     const permissions = activeWorkspace?.permissions || user.role.permissions.map((rp) => rp.permission.name);
 
-    const menus = await SecurityHelper.getPermittedMenus(permissions, roleName);
+    let menus: any[] = [];
+    try {
+      menus = await SecurityHelper.getPermittedMenus(permissions, roleName);
+    } catch {
+      menus = [];
+    }
 
     // 1. Fetch linked Student record if user is student or has student relation
     let student: any = null;
@@ -420,28 +451,10 @@ export class AuthService {
       // Ignore
     }
 
-    // Canonical profile image metadata builder
-    let profileImageUrl = user.profilePhoto || null;
-    let fileId: string | null = null;
-    if (user.profilePhoto) {
-      if (!user.profilePhoto.startsWith('http://') && !user.profilePhoto.startsWith('https://') && !user.profilePhoto.startsWith('data:')) {
-        if (user.profilePhoto.startsWith('/api/files/') || user.profilePhoto.startsWith('api/files/')) {
-          profileImageUrl = user.profilePhoto.startsWith('/') ? user.profilePhoto : `/${user.profilePhoto}`;
-        } else if (user.profilePhoto.startsWith('/uploads/') || user.profilePhoto.startsWith('uploads/')) {
-          profileImageUrl = `/api/files/content?path=${encodeURIComponent(user.profilePhoto)}`;
-        } else {
-          // UUID file ID
-          fileId = user.profilePhoto;
-          profileImageUrl = `/api/files/${user.profilePhoto}/content`;
-        }
-      }
-    }
+    const canonicalProfileImage = profileImageDescriptor(user as any);
+    const profileImageUrl = canonicalProfileImage.url;
 
-    const canonicalProfileImage = {
-      fileId,
-      url: profileImageUrl,
-      thumbnailUrl: profileImageUrl,
-    };
+    const preferences = await getUserPreferences(userId);
 
     return {
       id: user.id,
@@ -470,6 +483,7 @@ export class AuthService {
         qualification: faculty.highestQualification || (user as any).qualification,
       } : null,
       workspaces,
+      preferences,
       primaryWorkspace: workspaces[0] || roleName,
       activeWorkspace: roleName,
     };
@@ -512,11 +526,11 @@ export class AuthService {
 
     await this.repo.createPasswordResetToken(user.id, hashResetToken(resetToken), expiresAt);
 
-    const appUrl = (env.PUBLIC_APP_URL || 'http://localhost:5173').replace(/\/+$/, '');
+    const appUrl = (env.PUBLIC_APP_URL || (env.NODE_ENV === 'development' ? 'http://localhost:5173' : '')).replace(/\/+$/, '');
+    if (!appUrl) throw new Error('PUBLIC_APP_URL is required to generate password reset links');
     const resetLink = `${appUrl}/reset-password?token=${resetToken}`;
     const expiresInMinutes = env.PASSWORD_RESET_TOKEN_MINUTES;
 
-    // Never log or return the one-time credential itself — only send it via email.
     await sendMail({
       to: user.email,
       subject: 'Reset your GEETORUS CAMPUSOS password',

@@ -1133,19 +1133,19 @@ export const Dashboard: React.FC = () => {
                 <div className="flex flex-col gap-1">
                   <label className="text-[9px] uppercase font-extrabold text-muted-foreground">Subject</label>
                   <select name="subjectId" className="h-10 border rounded bg-background px-3">
-                    <option value={stats.subjectId || '1'}>Introduction to Programming</option>
+                    <option value={stats.subjectId || ''}>{stats.subjectName || 'Select subject'}</option>
                   </select>
                 </div>
                 <div className="flex flex-col gap-1">
                   <label className="text-[9px] uppercase font-extrabold text-muted-foreground">Assign Faculty</label>
                   <select name="facultyId" className="h-10 border rounded bg-background px-3">
-                    <option value={stats.facultyId || '1'}>Mrs. Ada Lovelace</option>
+                    <option value={stats.facultyId || ''}>{stats.facultyName || 'Select faculty'}</option>
                   </select>
                 </div>
               </div>
               <div className="flex flex-col gap-1">
                 <label className="text-[9px] uppercase font-extrabold text-muted-foreground">Room Number</label>
-                <input type="text" name="roomNo" defaultValue="Room 305" className="h-10 border rounded bg-background px-3" />
+                <input type="text" name="roomNo" defaultValue={stats.roomNo || ''} className="h-10 border rounded bg-background px-3" />
               </div>
               <div className="flex flex-wrap justify-end gap-2 pt-2">
                 <button type="button" onClick={() => setIsTimetableModalOpen(false)} className="px-4 py-2 border rounded font-bold hover:bg-muted">Cancel</button>

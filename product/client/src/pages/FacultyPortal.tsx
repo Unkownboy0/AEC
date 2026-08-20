@@ -9,7 +9,7 @@ import api from '../lib/axios';
 import { MentorPortal } from './RolePortals';
 import { Shield } from 'lucide-react';
 import { DigitalIdCard } from './DigitalIdCard';
-import { saveBlobAndOpen } from '../platform/download';
+import { saveBlobAndOpen, downloadFile } from '../platform/download';
 
 import { useDevice } from '../context/DeviceContext';
 import { useAuth } from '../context/AuthContext';
@@ -4045,13 +4045,22 @@ export const FacultyPortal: React.FC<FacultyPortalProps> = ({ user }) => {
                             >
                               🔍 {doc.fileName}
                             </button>
-                            <a
-                              href={getFileUrl(doc.fileUrl)}
-                              download={doc.fileName}
-                              className="text-[9px] text-slate-500 hover:text-slate-700 font-extrabold"
+                            <button
+                              type="button"
+                              onClick={async () => {
+                                const url = getFileUrl(doc.fileUrl);
+                                toast.show(`Saving ${doc.fileName} to device...`, 'info');
+                                const res = await downloadFile({ endpoint: url, filename: doc.fileName, action: 'save' });
+                                if (res.success) {
+                                  toast.success(`Saved ${doc.fileName} to device successfully`);
+                                } else {
+                                  toast.error(res.error || 'Failed to save document');
+                                }
+                              }}
+                              className="text-[9px] text-slate-500 hover:text-slate-700 font-extrabold text-left"
                             >
-                              📥 Download File
-                            </a>
+                              📥 Save to Device
+                            </button>
                           </div>
                           <span className="block text-[8px] text-muted-foreground mt-1">{(doc.fileSize / 1024 / 1024).toFixed(2)} MB · {new Date(doc.uploadedAt || doc.createdAt).toLocaleString()}</span>
                         </td>

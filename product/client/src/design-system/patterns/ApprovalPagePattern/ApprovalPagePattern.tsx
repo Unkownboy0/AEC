@@ -60,15 +60,15 @@ export const ApprovalPagePattern: React.FC<ApprovalPagePatternProps> = ({
         {/* Main Request Information */}
         <div className="lg:col-span-2 space-y-6">
           {/* Details Card */}
-          <div className="bg-surface border border-border rounded-lg p-5 space-y-4">
-            <h3 className="text-section-title font-semibold text-foreground border-b border-border pb-3">
+          <div className="bg-card border border-border rounded-2xl p-6 space-y-4 shadow-xs">
+            <h3 className="text-base font-extrabold text-foreground border-b border-border pb-3">
               Request Details
             </h3>
             <dl className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {details.map((item, idx) => (
                 <div key={idx} className="space-y-1">
-                  <dt className="text-caption text-muted-foreground">{item.label}</dt>
-                  <dd className="text-body font-medium text-foreground">{item.value}</dd>
+                  <dt className="text-xs font-bold text-muted-foreground">{item.label}</dt>
+                  <dd className="text-sm font-semibold text-foreground">{item.value}</dd>
                 </div>
               ))}
             </dl>
@@ -76,24 +76,24 @@ export const ApprovalPagePattern: React.FC<ApprovalPagePatternProps> = ({
 
           {/* Documents Card */}
           {documents.length > 0 && (
-            <div className="bg-surface border border-border rounded-lg p-5 space-y-3">
-              <h3 className="text-section-title font-semibold text-foreground border-b border-border pb-3">
+            <div className="bg-card border border-border rounded-2xl p-6 space-y-3 shadow-xs">
+              <h3 className="text-base font-extrabold text-foreground border-b border-border pb-3">
                 Attached Documents
               </h3>
               <div className="space-y-2">
                 {documents.map((doc, idx) => (
                   <div
                     key={idx}
-                    className="flex items-center justify-between p-3 border border-border rounded-md hover:bg-raised transition-colors"
+                    className="flex items-center justify-between p-3.5 border border-border rounded-xl bg-surface-soft hover:bg-muted/50 transition-colors"
                   >
-                    <span className="text-body font-medium text-foreground truncate">{doc.name}</span>
+                    <span className="text-xs font-bold text-foreground truncate">{doc.name}</span>
                     <a
                       href={doc.url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-caption font-semibold text-primary hover:underline"
+                      className="text-xs font-extrabold text-primary hover:underline shrink-0"
                     >
-                      View
+                      View Document
                     </a>
                   </div>
                 ))}
@@ -104,8 +104,8 @@ export const ApprovalPagePattern: React.FC<ApprovalPagePatternProps> = ({
 
         {/* Timeline Sidebar */}
         {timeline && (
-          <div className="bg-surface border border-border rounded-lg p-5 space-y-4 h-fit">
-            <h3 className="text-section-title font-semibold text-foreground border-b border-border pb-3">
+          <div className="bg-card border border-border rounded-2xl p-6 space-y-4 h-fit shadow-xs">
+            <h3 className="text-base font-extrabold text-foreground border-b border-border pb-3">
               Approval History
             </h3>
             {timeline}
@@ -113,9 +113,9 @@ export const ApprovalPagePattern: React.FC<ApprovalPagePatternProps> = ({
         )}
       </div>
 
-      {/* Action Bar (Sticky on Mobile) */}
+      {/* Action Bar (Sticky above bottom nav on Mobile, inline on Desktop) */}
       {(onApprove || onReject || onReturn) && (
-        <div className="fixed bottom-14 left-0 right-0 p-4 bg-surface/95 backdrop-blur border-t border-border lg:static lg:bg-transparent lg:p-0 lg:border-none flex items-center justify-end gap-3 z-header">
+        <div className="fixed bottom-[calc(var(--mobile-bottom-nav-height)+var(--safe-area-bottom))] left-0 right-0 p-4 bg-surface/95 backdrop-blur-md border-t border-border lg:static lg:bg-transparent lg:p-0 lg:border-none flex items-center justify-end gap-3 z-30 shadow-lg lg:shadow-none">
           {onReturn && (
             <Button variant="secondary" onClick={onReturn} disabled={isProcessing}>
               Return for Changes

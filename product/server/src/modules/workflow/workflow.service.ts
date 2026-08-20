@@ -103,12 +103,18 @@ export class WorkflowService {
           }
         }) : null;
         
-        if (departmentHod) {
+                if (departmentHod) {
           await this.sendNotification(
             `New Faculty ${type} Request`,
             `Faculty member ${faculty.firstName} ${faculty.lastName} submitted request: "${title}". Forwarded for your HOD approval.`,
             'EMAIL',
-            departmentHod.userId || undefined
+            departmentHod.userId || undefined,
+            {
+              eventType: 'FACULTY_LEAVE_SUBMITTED',
+              relatedEntityType: 'WORKFLOW_REQUEST',
+              relatedEntityId: request.id,
+              deepLinkRoute: `/hod/approvals`
+            }
           );
         }
       } else if (initialStep === 'PRINCIPAL') {
@@ -130,13 +136,19 @@ export class WorkflowService {
         const principalRole = await prisma.role.findFirst({ where: { name: 'Principal' } });
         const principalUsers = principalRole ? await prisma.user.findMany({ where: { roleId: principalRole.id } }) : [];
 
-        if (isPrincipalOffline && delegationContext.delegationStatus === 'ACTIVE' && delegationContext.actingPrincipalUserId) {
+                if (isPrincipalOffline && delegationContext.delegationStatus === 'ACTIVE' && delegationContext.actingPrincipalUserId) {
           // Route to VP (Acting Principal)
           await this.sendNotification(
             `⚡ Acting Principal: Executive ${type} Request (${faculty.firstName} ${faculty.lastName})`,
             `Principal is ${delegationContext.principalStatus}. Acting Principal mode active: ${type} request "${title}" from ${faculty.firstName} ${faculty.lastName} (${requesterRole || 'Executive'}) requires your authorization.`,
             'EMAIL',
-            delegationContext.actingPrincipalUserId
+            delegationContext.actingPrincipalUserId,
+            {
+              eventType: 'LEAVE_DELEGATED_TO_VP',
+              relatedEntityType: 'WORKFLOW_REQUEST',
+              relatedEntityId: request.id,
+              deepLinkRoute: `/vp/acting-principal/approvals`
+            }
           );
         } else {
           for (const principalUser of principalUsers) {
@@ -144,7 +156,13 @@ export class WorkflowService {
               `Executive ${type} Request: ${faculty.firstName} ${faculty.lastName}`,
               `${type} request "${title}" from ${faculty.firstName} ${faculty.lastName} (${requesterRole || 'Executive'}) requires your approval.`,
               'EMAIL',
-              principalUser.id
+              principalUser.id,
+              {
+                eventType: 'LEAVE_SENT_TO_PRINCIPAL',
+                relatedEntityType: 'WORKFLOW_REQUEST',
+                relatedEntityId: request.id,
+                deepLinkRoute: `/student/leave-od/${request.id}`
+              }
             );
           }
         }
@@ -211,7 +229,7 @@ export class WorkflowService {
       },
     });
 
-    // Notify assigned Mentor
+        // Notify assigned Mentor
     if (resolvedMentorId) {
       const mentor = await prisma.faculty.findUnique({ where: { id: resolvedMentorId } });
       if (mentor) {
@@ -219,7 +237,13 @@ export class WorkflowService {
           `New Student ${type} Request: ${student.firstName} ${student.lastName}`,
           `Student ${student.firstName} ${student.lastName} (${student.admissionNo}) has submitted a new ${type} request: "${title}". Please review and action in your Mentor Portal.`,
           'EMAIL',
-          mentor.userId || undefined
+          mentor.userId || undefined,
+          {
+            eventType: type.toUpperCase().includes('OD') ? 'OD_REQUESTED' : 'LEAVE_REQUESTED',
+            relatedEntityType: 'WORKFLOW_REQUEST',
+            relatedEntityId: request.id,
+            deepLinkRoute: `/faculty/mentor/leave-od/${request.id}`
+          }
         );
       }
     }
@@ -237,13 +261,19 @@ export class WorkflowService {
         const periodStr = periodsList.length > 0 ? `Period ${periodsList.join(', ')}` : 'full-day';
         for (const facId of affectedIds) {
           if (facId === resolvedMentorId) continue; // Avoid duplicate alert if mentor teaches affected period
-          const fac = await prisma.faculty.findUnique({ where: { id: facId } });
+                    const fac = await prisma.faculty.findUnique({ where: { id: facId } });
           if (fac) {
             await this.sendNotification(
               `Student Absence Notice (${student.firstName} ${student.lastName})`,
               `Informational Notice: Student ${student.firstName} ${student.lastName} (${student.admissionNo}) will be absent for ${periodStr} today due to ${type} ("${title}"). No approval action is required from you.`,
               'EMAIL',
-              fac.userId || undefined
+              fac.userId || undefined,
+              {
+                eventType: 'GENERAL',
+                relatedEntityType: 'WORKFLOW_REQUEST',
+                relatedEntityId: request.id,
+                deepLinkRoute: `/student/leave-od/${request.id}`
+              }
             );
           }
         }
@@ -633,12 +663,18 @@ export class WorkflowService {
         }
       }
 
-      if (facReq.faculty?.userId) {
+            if (facReq.faculty?.userId) {
         await this.sendNotification(
           `🔔 Leave Request ${action === 'APPROVE' ? 'Approved' : 'Rejected'} by ${userRole}`,
           `Your leave request (${facReq.requestNumber}) was ${action === 'APPROVE' ? 'approved' : 'rejected'} by ${userRole}.`,
           'EMAIL',
-          facReq.faculty.userId
+          facReq.faculty.userId,
+          {
+            eventType: action === 'APPROVE' ? 'FACULTY_LEAVE_APPROVED' : 'FACULTY_LEAVE_REJECTED',
+            relatedEntityType: 'FACULTY_LEAVE_REQUEST',
+            relatedEntityId: facReq.id,
+            deepLinkRoute: `/faculty/leave-od`
+          }
         ).catch(() => {});
       }
 
@@ -904,28 +940,46 @@ export class WorkflowService {
         }
       }) : null;
       
-      if (departmentHod) {
+            if (departmentHod) {
         await this.sendNotification(
           `🔔 New Student Request: ${request.student?.firstName} ${request.student?.lastName}`,
           `A ${request.type} request "${request.title}" from ${request.student?.firstName} ${request.student?.lastName} has been approved by Advisor and is pending your HOD approval.`,
           'EMAIL',
-          departmentHod.userId || undefined
+          departmentHod.userId || undefined,
+          {
+            eventType: 'STUDENT_LEAVE_FORWARDED_TO_HOD',
+            relatedEntityType: 'WORKFLOW_REQUEST',
+            relatedEntityId: request.id,
+            deepLinkRoute: `/hod/leave-approvals/${request.id}`
+          }
         );
       }
 
-      await this.sendNotification(
+            await this.sendNotification(
         `🔔 Request Approved by Faculty/Advisor`,
         `Your request "${request.title}" has been approved by your Faculty Advisor / Class Advisor and sent to HOD for final approval.`,
         'EMAIL',
-        request.student?.userId || undefined
+        request.student?.userId || undefined,
+        {
+          eventType: 'LEAVE_MENTOR_REVIEWED',
+          relatedEntityType: 'WORKFLOW_REQUEST',
+          relatedEntityId: request.id,
+          deepLinkRoute: `/student/leave-od/${request.id}`
+        }
       );
 
     } else if (nextStatus === 'REJECTED_BY_MENTOR') {
-      await this.sendNotification(
+            await this.sendNotification(
         `🔔 Request Rejected by Faculty/Advisor`,
         `Your request has been rejected by your Faculty Advisor / Class Advisor. Remarks: ${comment || 'None'}`,
         'EMAIL',
-        request.student?.userId || undefined
+        request.student?.userId || undefined,
+        {
+          eventType: 'LEAVE_REJECTED',
+          relatedEntityType: 'WORKFLOW_REQUEST',
+          relatedEntityId: request.id,
+          deepLinkRoute: `/student/leave-od/${request.id}`
+        }
       );
 
     } else if (nextStatus === 'HOD_APPROVED' && request.facultyRequesterId) {
@@ -937,12 +991,18 @@ export class WorkflowService {
       const targetRole = await prisma.role.findFirst({ where: { name: targetRoleName } });
       const targetUsers = targetRole ? await prisma.user.findMany({ where: { roleId: targetRole.id } }) : [];
 
-      for (const targetUser of targetUsers) {
+            for (const targetUser of targetUsers) {
         await this.sendNotification(
           `🔔 ${isPrincipalOffline ? '⚡ Acting Principal (VP): ' : ''}HOD Approved Faculty Leave/OD Request`,
           `Faculty Leave/OD request from ${request.facultyRequester?.firstName} ${request.facultyRequester?.lastName} has been approved by HOD and is pending your ${isPrincipalOffline ? 'Acting Principal ' : ''}final approval.`,
           'EMAIL',
-          targetUser.id || undefined
+          targetUser.id || undefined,
+          {
+            eventType: 'LEAVE_SENT_TO_PRINCIPAL',
+            relatedEntityType: 'WORKFLOW_REQUEST',
+            relatedEntityId: request.id,
+            deepLinkRoute: `/vp/acting-principal/approvals`
+          }
         );
       }
 
@@ -951,7 +1011,13 @@ export class WorkflowService {
         `🔔 HOD Approved`,
         `Your Leave/OD request has been approved by HOD and forwarded to ${targetRoleName} for final approval.`,
         'EMAIL',
-        request.facultyRequester?.userId || undefined
+        request.facultyRequester?.userId || undefined,
+        {
+          eventType: 'LEAVE_HOD_APPROVED',
+          relatedEntityType: 'WORKFLOW_REQUEST',
+          relatedEntityId: request.id,
+          deepLinkRoute: `/faculty/leave-od`
+        }
       );
 
     } else if (nextStatus === 'REJECTED_BY_HOD') {
@@ -960,24 +1026,42 @@ export class WorkflowService {
           `🔔 HOD Rejected`,
           `Your Leave/OD request has been rejected by HOD. Remarks: ${comment || 'None'}`,
           'EMAIL',
-          request.facultyRequester?.userId || undefined
+          request.facultyRequester?.userId || undefined,
+          {
+            eventType: 'LEAVE_HOD_REJECTED',
+            relatedEntityType: 'WORKFLOW_REQUEST',
+            relatedEntityId: request.id,
+            deepLinkRoute: `/faculty/leave-od`
+          }
         );
-      } else {
+            } else {
         await this.sendNotification(
           `🔔 Request Rejected by HOD`,
           `Your request has been rejected by HOD. Remarks: ${comment || 'None'}`,
           'EMAIL',
-          request.student?.userId || undefined
+          request.student?.userId || undefined,
+          {
+            eventType: 'LEAVE_HOD_REJECTED',
+            relatedEntityType: 'WORKFLOW_REQUEST',
+            relatedEntityId: request.id,
+            deepLinkRoute: `/student/leave-od/${request.id}`
+          }
         );
       }
 
-    } else if (nextStatus === 'REJECTED_BY_DEAN') {
+        } else if (nextStatus === 'REJECTED_BY_DEAN') {
       if (request.facultyRequesterId) {
         await this.sendNotification(
           `🔔 Final Rejected`,
           `Your Leave/OD request has been rejected by Admission Dean. Remarks: ${comment || 'None'}`,
           'EMAIL',
-          request.facultyRequester?.userId || undefined
+          request.facultyRequester?.userId || undefined,
+          {
+            eventType: 'LEAVE_REJECTED',
+            relatedEntityType: 'WORKFLOW_REQUEST',
+            relatedEntityId: request.id,
+            deepLinkRoute: `/faculty/leave-od`
+          }
         );
       }
 
@@ -997,11 +1081,17 @@ export class WorkflowService {
           }
         }).catch(() => {});
 
-        await this.sendNotification(
+                await this.sendNotification(
           `🔔 Final Approved`,
           `Your Leave/OD request has been fully approved.`,
           'EMAIL',
-          request.facultyRequester?.userId || undefined
+          request.facultyRequester?.userId || undefined,
+          {
+            eventType: 'FACULTY_LEAVE_APPROVED',
+            relatedEntityType: 'WORKFLOW_REQUEST',
+            relatedEntityId: request.id,
+            deepLinkRoute: `/faculty/leave-od`
+          }
         );
 
         if (request.startDate && request.endDate) {
@@ -1060,12 +1150,18 @@ export class WorkflowService {
           }).catch(() => {});
         }
 
-        const actorLabel = userRole === 'HOD' ? 'HOD' : 'your Faculty Advisor / Class Advisor';
+                const actorLabel = userRole === 'HOD' ? 'HOD' : 'your Faculty Advisor / Class Advisor';
         await this.sendNotification(
           `Request Status Update: Approved`,
           `Your request has been approved by ${actorLabel}.`,
           'EMAIL',
-          request.student?.userId || undefined
+          request.student?.userId || undefined,
+          {
+            eventType: 'LEAVE_APPROVED',
+            relatedEntityType: 'WORKFLOW_REQUEST',
+            relatedEntityId: request.id,
+            deepLinkRoute: `/student/leave-od/${request.id}`
+          }
         );
 
         // ── Attendance Integration on Final Approval for Student ──
@@ -1111,12 +1207,18 @@ export class WorkflowService {
         }
       }
     } else {
-      // Default notification for other statuses (e.g. clarification requested)
+            // Default notification for other statuses (e.g. clarification requested)
       await this.sendNotification(
         `Request Status Update: ${request.title}`,
         `Your request status has been updated to "${nextStatus.replace(/_/g, ' ')}" by ${actorName}.`,
         'EMAIL',
-        request.facultyRequester?.userId || request.student?.userId || undefined
+        request.facultyRequester?.userId || request.student?.userId || undefined,
+        {
+          eventType: 'GENERAL',
+          relatedEntityType: 'WORKFLOW_REQUEST',
+          relatedEntityId: request.id,
+          deepLinkRoute: request.facultyRequesterId ? `/faculty/leave-od` : `/student/leave-od/${request.id}`
+        }
       );
     }
 

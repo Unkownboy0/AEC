@@ -10,7 +10,7 @@ const context: PrincipalAvailabilityContext = {
   permissionVersion: 3, serverTime: new Date().toISOString(),
   actingPrincipal: { userId: 'vp-1', name: 'Vice Principal', role: 'VICE_PRINCIPAL' },
   delegation: {
-    id: 'delegation-1', startsAt: new Date(now - 60_000).toISOString(), endsAt: new Date(now + 60_000).toISOString(), reason: 'Duty',
+    id: 'delegation-1', principalUserId: 'principal-1', startsAt: new Date(now - 60_000).toISOString(), endsAt: new Date(now + 60_000).toISOString(), reason: 'Duty',
     delegatedCategories: ['FACULTY_LEAVE', 'FINANCE_APPROVAL'], permissions: ['leave.approve', 'finance.approve'],
     scope: { tenantId, departmentIds: ['dept-1'], workflowStages: ['PRINCIPAL'] }, financialThreshold: 50_000,
   },
@@ -25,7 +25,11 @@ assert.strictEqual((authorizeDelegatedAssignmentAction(context, { ...assignment,
 assert.strictEqual((authorizeDelegatedAssignmentAction(context, { ...assignment, requestType: 'FINANCE_APPROVAL', financialAmount: 50_001 }, 'vp-1', 'approve', tenantId) as any).code, 'FINANCIAL_THRESHOLD_EXCEEDED');
 assert.strictEqual((authorizeDelegatedAssignmentAction(context, { ...assignment, status: 'APPROVED' }, 'vp-1', 'approve', tenantId) as any).code, 'ALREADY_RESOLVED');
 assert.strictEqual((authorizeDelegatedAssignmentAction({ ...context, delegationStatus: 'REVOKED', canVpActAsPrincipal: false }, assignment, 'vp-1', 'approve', tenantId) as any).code, 'DELEGATION_INACTIVE');
+assert.strictEqual((authorizeDelegatedAssignmentAction({ ...context, delegationStatus: 'REVOKED' }, assignment, 'vp-1', 'approve', tenantId) as any).code, 'DELEGATION_INACTIVE');
 assert.strictEqual((authorizeDelegatedAssignmentAction({ ...context, delegation: { ...context.delegation!, endsAt: new Date(now - 1).toISOString() } }, assignment, 'vp-1', 'approve', tenantId) as any).code, 'DELEGATION_OUTSIDE_WINDOW');
+assert.strictEqual((authorizeDelegatedAssignmentAction({ ...context, delegation: { ...context.delegation!, permissions: [] } }, assignment, 'vp-1', 'approve', tenantId) as any).code, 'PERMISSION_NOT_DELEGATED');
+assert.strictEqual((authorizeDelegatedAssignmentAction({ ...context, delegation: { ...context.delegation!, delegatedCategories: [] } }, assignment, 'vp-1', 'approve', tenantId) as any).code, 'CATEGORY_NOT_DELEGATED');
+assert.strictEqual((authorizeDelegatedAssignmentAction({ ...context, delegation: { ...context.delegation!, scope: { ...context.delegation!.scope, excludedPermissions: ['leave.approve'] } } }, assignment, 'vp-1', 'approve', tenantId) as any).code, 'ACTION_EXPLICITLY_EXCLUDED');
 assert.strictEqual(vpDashboardQuerySchema.safeParse({ periodDays: 30 }).success, true);
 assert.strictEqual(vpDashboardQuerySchema.safeParse({ periodDays: 3 }).success, false);
 

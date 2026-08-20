@@ -17,9 +17,9 @@ export interface InputProps extends Omit<React.InputHTMLAttributes<HTMLInputElem
 }
 
 const sizeStyles: Record<string, string> = {
-  sm: 'h-8 px-3 text-caption-sm rounded-sm',
-  md: 'h-9 px-3 text-body rounded',
-  lg: 'h-11 px-4 text-body-lg rounded-lg touch-target',
+  sm: 'min-h-12 lg:min-h-8 px-3 text-caption-sm rounded-xl',
+  md: 'min-h-12 lg:min-h-9 px-3 text-body rounded-xl',
+  lg: 'min-h-12 lg:min-h-11 px-4 text-body-lg rounded-xl touch-target',
 };
 
 export const Input = React.forwardRef<HTMLInputElement, InputProps>(

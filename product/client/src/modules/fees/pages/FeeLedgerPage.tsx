@@ -1,65 +1,705 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { AlertCircle, Building2, CalendarDays, CheckCircle2, ChevronRight, CreditCard, Download, FileCheck2, History, Landmark, Loader2, Receipt, RefreshCw, ShieldCheck, Smartphone, Wallet, WalletCards, X } from 'lucide-react';
+import {
+  AlertCircle, Building2, CalendarDays, CheckCircle2, ChevronRight,
+  CreditCard, Download, FileCheck2, History, Landmark, Loader2,
+  Receipt, RefreshCw, ShieldCheck, Smartphone, Wallet, WalletCards, X, Sparkles
+} from 'lucide-react';
 import api from '../../../lib/axios';
 import { toast } from '../../../components/ui/Toast';
 import { pageVariants } from '../../../design-system/tokens/motion';
 import { downloadAndOpen } from '../../../platform/download';
 
 type InvoiceStatus = 'PAID' | 'PARTIAL' | 'PENDING' | 'OVERDUE' | 'VERIFICATION_PENDING';
-type Invoice = { id:string; invoiceNumber:string; feeName:string; academicYear?:string; semester?:string; amount:number; paidAmount:number; balance:number; dueDate:string; status:InvoiceStatus; allowPartialPayment:boolean };
-type Payment = { id:string; receiptNumber?:string; date:string; feeType:string; amount:number; method:string; transactionId:string; status:string; rejectionReason?:string };
-type Portal = { student:{name:string;registerNumber:string}; summary:{totalFee:number;paid:number;pending:number;nextDue?:string;status:string}; invoices:Invoice[]; payments:Payment[]; gateway:{enabled:boolean;provider:string} };
-
-declare global { interface Window { Razorpay?: new (options:any) => { open:()=>void; on:(name:string, cb:(value:any)=>void)=>void } } }
-
-const money = (value:number) => `₹${Number(value || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
-const date = (value?:string) => value ? new Date(value).toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'numeric' }) : '—';
-const tone:Record<string,string> = { PAID:'bg-emerald-500/10 text-emerald-500 border-emerald-500/20', PARTIAL:'bg-amber-500/10 text-amber-500 border-amber-500/20', PENDING:'bg-slate-500/10 text-text-muted border-border', OVERDUE:'bg-rose-500/10 text-rose-500 border-rose-500/20', VERIFICATION_PENDING:'bg-blue-500/10 text-blue-500 border-blue-500/20', PENDING_VERIFICATION:'bg-blue-500/10 text-blue-500 border-blue-500/20', REJECTED:'bg-rose-500/10 text-rose-500 border-rose-500/20', SUCCEEDED:'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' };
-const Status = ({value}:{value:string}) => <span className={`inline-flex rounded-full border px-2.5 py-1 text-[10px] font-extrabold tracking-wide ${tone[value] || tone.PENDING}`}>{value.replaceAll('_',' ')}</span>;
-
-const loadRazorpay = () => new Promise<boolean>((resolve) => {
-  if (window.Razorpay) return resolve(true);
-  const script = document.createElement('script'); script.src='https://checkout.razorpay.com/v1/checkout.js'; script.onload=()=>resolve(true); script.onerror=()=>resolve(false); document.body.appendChild(script);
-});
-
-export const FeeLedgerPage:React.FC = () => {
-  const [portal,setPortal]=useState<Portal|null>(null); const [loading,setLoading]=useState(true); const [error,setError]=useState('');
-  const [invoice,setInvoice]=useState<Invoice|null>(null); const [tab,setTab]=useState<'online'|'external'>('online'); const [busy,setBusy]=useState(false);
-  const [onlineMethod,setOnlineMethod]=useState<'upi'|'card'|'netbanking'|'wallet'>('upi');
-  const [amount,setAmount]=useState(''); const [method,setMethod]=useState('BANK_TRANSFER'); const [reference,setReference]=useState(''); const [paymentDate,setPaymentDate]=useState(new Date().toISOString().slice(0,10)); const [remarks,setRemarks]=useState(''); const [proof,setProof]=useState<File|null>(null);
-  const fetchPortal=async()=>{ setLoading(true); setError(''); try { const {data}=await api.get('/enterprise/fees/student/portal'); setPortal(data.data); } catch(e:any){ setError(e.response?.data?.message || 'Unable to load your fee account.'); } finally { setLoading(false); } };
-  useEffect(()=>{fetchPortal();},[]);
-  const openPayment=(item:Invoice, initial:'online'|'external')=>{ setInvoice(item); setTab(initial); setAmount(String(item.balance)); setReference(''); setRemarks(''); setProof(null); };
-  const validAmount=useMemo(()=>invoice ? Number(amount)>0 && Number(amount)<=invoice.balance && (invoice.allowPartialPayment || Number(amount)===invoice.balance) : false,[amount,invoice]);
-
-  const verifyPayment=async(response:any)=>{ await api.post('/enterprise/fees/student/online-payment/verify',{ orderId:response.razorpay_order_id,paymentId:response.razorpay_payment_id,signature:response.razorpay_signature }); toast.success('Payment successful. Your receipt is ready.'); setInvoice(null); await fetchPortal(); };
-  const payOnline=async()=>{ if(!invoice||!validAmount)return; setBusy(true); try { const key=globalThis.crypto?.randomUUID?.() || `${Date.now()}-${invoice.id}`; const {data}=await api.post(`/enterprise/fees/student/bills/${invoice.id}/online-order`,{amount:Number(amount)},{headers:{'x-idempotency-key':key}}); if(!await loadRazorpay()||!window.Razorpay) throw new Error('Secure checkout could not be loaded'); const order=data.data; const checkout=new window.Razorpay({key:order.keyId,amount:Math.round(order.amount*100),currency:order.currency,order_id:order.orderId,name:'CampusOS',description:invoice.feeName,prefill:{name:portal?.student.name},theme:{color:'#6d5dfc'},handler:async(r:any)=>{setBusy(true);try{await verifyPayment(r);}catch(e:any){toast.error(e.response?.data?.message||'Payment verification failed.');}finally{setBusy(false);}}}); checkout.on('payment.failed',()=>toast.error('Payment was not completed. No fee balance was changed.')); checkout.open(); } catch(e:any){toast.error(e.response?.data?.message||e.message||'Unable to start payment.');} finally{setBusy(false);} };
-  const fileBase64=(file:File)=>new Promise<string>((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(String(reader.result).split(',')[1]);reader.onerror=reject;reader.readAsDataURL(file);});
-  const submitExternal=async()=>{ if(!invoice||!validAmount||!reference.trim())return; setBusy(true); try { let proofUrl:string|undefined; if(proof){ if(proof.size>8*1024*1024) throw new Error('Proof must be smaller than 8 MB'); const upload=await api.post('/files/upload',{name:proof.name,mimeType:proof.type,folder:'fee-proofs',base64:await fileBase64(proof)}); proofUrl=upload.data?.data?.url || upload.data?.data?.path; } await api.post(`/enterprise/fees/student/bills/${invoice.id}/external-payment`,{method,amount:Number(amount),reference:reference.trim(),paymentDate,remarks,proofUrl}); toast.success('Payment proof submitted for Accounts verification.'); setInvoice(null); await fetchPortal(); } catch(e:any){toast.error(e.response?.data?.message||e.message||'Could not submit payment proof.');} finally{setBusy(false);} };
-  const receipt=async(payment:Payment)=>{ const result=await downloadAndOpen(`/enterprise/fees/student/payments/${payment.id}/receipt`, `${payment.receiptNumber||'fee-receipt'}.pdf`); if(!result.success) toast.error(result.error || 'Receipt is not available.'); };
-
-  if(loading) return <div className="mx-auto max-w-7xl space-y-5 pb-16"><div className="h-28 animate-pulse rounded-3xl bg-surface"/><div className="grid grid-cols-2 gap-3 lg:grid-cols-5">{Array.from({length:5}).map((_,i)=><div key={i} className="h-28 animate-pulse rounded-2xl bg-surface"/>)}</div><div className="h-72 animate-pulse rounded-3xl bg-surface"/></div>;
-  if(error||!portal) return <div className="mx-auto max-w-xl rounded-3xl border border-border bg-surface p-10 text-center"><AlertCircle className="mx-auto h-8 w-8 text-rose-500"/><h2 className="mt-3 font-bold">Fee account unavailable</h2><p className="mt-2 text-sm text-text-muted">{error}</p><button onClick={fetchPortal} className="mt-5 inline-flex min-h-11 items-center gap-2 rounded-xl bg-primary px-5 text-sm font-bold text-white"><RefreshCw className="h-4 w-4"/>Try again</button></div>;
-  const summaries=[['Total fee',portal.summary.totalFee,WalletCards],['Amount paid',portal.summary.paid,CheckCircle2],['Pending amount',portal.summary.pending,CreditCard],['Next due',portal.summary.nextDue?date(portal.summary.nextDue):'No dues',CalendarDays],['Payment status',portal.summary.status,ShieldCheck]] as const;
-
-  return <motion.div variants={pageVariants} initial="initial" animate="animate" exit="exit" className="mx-auto max-w-7xl space-y-6 pb-20">
-    <section className="relative overflow-hidden rounded-3xl border border-primary/20 bg-gradient-to-br from-primary/15 via-surface to-surface p-5 sm:p-7"><div className="absolute -right-16 -top-20 h-56 w-56 rounded-full bg-primary/10 blur-3xl"/><div className="relative flex flex-col justify-between gap-5 sm:flex-row sm:items-end"><div><div className="mb-2 flex items-center gap-2 text-xs font-extrabold uppercase tracking-[.16em] text-primary"><Receipt className="h-4 w-4"/>Student finance</div><h1 className="text-2xl font-black tracking-tight text-text-primary sm:text-3xl">Fees & payments</h1><p className="mt-2 max-w-2xl text-sm text-text-muted">A secure view of your invoices, balances, payment proofs and verified receipts.</p></div><div className="rounded-2xl border border-border/70 bg-background/60 px-4 py-3 backdrop-blur"><p className="text-xs font-bold text-text-primary">{portal.student.name}</p><p className="mt-1 font-mono text-[11px] text-text-muted">{portal.student.registerNumber}</p></div></div></section>
-    <section className="grid grid-cols-2 gap-3 lg:grid-cols-5">{summaries.map(([label,value,Icon],i)=><div key={label} className={`rounded-2xl border p-4 ${i===2&&portal.summary.pending>0?'border-amber-500/25 bg-amber-500/[.07]':'border-border bg-surface'}`}><div className="flex items-center justify-between"><span className="text-[10px] font-extrabold uppercase tracking-wider text-text-muted">{label}</span><Icon className="h-4 w-4 text-primary"/></div><p className="mt-4 truncate text-lg font-black text-text-primary sm:text-xl">{typeof value==='number'?money(value):value}</p></div>)}</section>
-    <section className="overflow-hidden rounded-3xl border border-border bg-surface"><div className="flex items-center justify-between border-b border-border p-5 sm:p-6"><div><h2 className="font-extrabold text-text-primary">Fee breakdown</h2><p className="mt-1 text-xs text-text-muted">Semester and category-wise invoices</p></div><span className="text-xs font-bold text-text-muted">{portal.invoices.length} invoice{portal.invoices.length===1?'':'s'}</span></div>
-      {portal.invoices.length===0?<div className="p-12 text-center text-sm text-text-muted">No fee invoices are assigned to your account.</div>:<><div className="hidden overflow-x-auto md:block"><table className="w-full min-w-[980px] text-left text-xs"><thead className="bg-surface-soft text-[10px] uppercase tracking-wider text-text-muted"><tr>{['Fee / invoice','Academic period','Total','Paid','Balance','Due date','Status','Actions'].map(h=><th key={h} className="px-5 py-3 font-extrabold">{h}</th>)}</tr></thead><tbody className="divide-y divide-border">{portal.invoices.map(item=><tr key={item.id} className="hover:bg-surface-soft/60"><td className="px-5 py-4"><b className="block text-text-primary">{item.feeName}</b><span className="mt-1 block font-mono text-[10px] text-text-muted">{item.invoiceNumber}</span></td><td className="px-5 py-4 text-text-muted">{item.academicYear||'—'}<br/>{item.semester||'—'}</td><td className="px-5 py-4 font-bold">{money(item.amount)}</td><td className="px-5 py-4 font-bold text-emerald-500">{money(item.paidAmount)}</td><td className="px-5 py-4 font-black">{money(item.balance)}</td><td className="px-5 py-4">{date(item.dueDate)}</td><td className="px-5 py-4"><Status value={item.status}/></td><td className="px-5 py-4">{item.balance>0?<div className="flex gap-2"><button onClick={()=>openPayment(item,'online')} className="min-h-9 rounded-lg bg-primary px-3 font-bold text-white">Pay now</button><button onClick={()=>openPayment(item,'external')} className="min-h-9 rounded-lg border border-border px-3 font-bold">External</button></div>:<span className="text-text-muted">Settled</span>}</td></tr>)}</tbody></table></div>
-      <div className="divide-y divide-border md:hidden">{portal.invoices.map(item=><article key={item.id} className="p-5"><div className="flex items-start justify-between gap-3"><div><h3 className="text-sm font-extrabold text-text-primary">{item.feeName}</h3><p className="mt-1 font-mono text-[10px] text-text-muted">{item.invoiceNumber}</p></div><Status value={item.status}/></div><div className="mt-4 grid grid-cols-2 gap-3 rounded-2xl bg-surface-soft p-4 text-xs"><div><span className="text-text-muted">Total</span><b className="mt-1 block">{money(item.amount)}</b></div><div><span className="text-text-muted">Balance</span><b className="mt-1 block text-amber-500">{money(item.balance)}</b></div><div><span className="text-text-muted">Period</span><b className="mt-1 block">{item.semester||item.academicYear||'—'}</b></div><div><span className="text-text-muted">Due date</span><b className="mt-1 block">{date(item.dueDate)}</b></div></div>{item.balance>0&&<div className="mt-4 grid grid-cols-2 gap-2"><button onClick={()=>openPayment(item,'online')} className="min-h-12 rounded-xl bg-primary text-sm font-extrabold text-white">Pay now</button><button onClick={()=>openPayment(item,'external')} className="min-h-12 rounded-xl border border-border text-sm font-extrabold">External payment</button></div>}</article>)}</div></>}</section>
-    <section className="overflow-hidden rounded-3xl border border-border bg-surface"><div className="border-b border-border p-5 sm:p-6"><div className="flex items-center gap-2"><History className="h-4 w-4 text-primary"/><h2 className="font-extrabold">Payment history</h2></div><p className="mt-1 text-xs text-text-muted">Verified payments and submitted proofs</p></div>{portal.payments.length===0?<div className="p-12 text-center text-sm text-text-muted">Your payment history will appear here.</div>:<div className="divide-y divide-border">{portal.payments.map(p=><div key={p.id} className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between"><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><b className="text-sm">{p.feeType}</b><Status value={p.status}/></div><p className="mt-2 break-all text-xs text-text-muted">{date(p.date)} · {p.method.replaceAll('_',' ')} · {p.transactionId}</p>{p.rejectionReason&&<p className="mt-2 text-xs text-rose-500">Reason: {p.rejectionReason}</p>}</div><div className="flex items-center justify-between gap-4 sm:justify-end"><b className="text-base">{money(p.amount)}</b>{p.status==='SUCCEEDED'&&<button onClick={()=>receipt(p)} className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-border px-3 text-xs font-bold"><Download className="h-4 w-4"/>Receipt</button>}</div></div>)}</div>}</section>
-    {invoice&&<div className="fixed inset-0 z-[80] flex items-end justify-center sm:items-center sm:p-5"><button aria-label="Close payment" className="absolute inset-0 bg-slate-950/70 backdrop-blur-sm" onClick={()=>!busy&&setInvoice(null)}/><div className="relative max-h-[92vh] w-full max-w-xl overflow-y-auto rounded-t-3xl border border-border bg-surface shadow-2xl sm:rounded-3xl"><div className="sticky top-0 z-10 flex items-start justify-between border-b border-border bg-surface/95 p-5 backdrop-blur"><div><p className="text-[10px] font-extrabold uppercase tracking-wider text-primary">Secure payment</p><h2 className="mt-1 text-lg font-black">{invoice.feeName}</h2><p className="mt-1 font-mono text-[10px] text-text-muted">{invoice.invoiceNumber}</p></div><button disabled={busy} onClick={()=>setInvoice(null)} className="rounded-xl p-2 hover:bg-surface-soft"><X className="h-5 w-5"/></button></div><div className="p-5 sm:p-6"><div className="grid grid-cols-2 gap-3 rounded-2xl bg-surface-soft p-4 text-xs"><div><span className="text-text-muted">Student</span><b className="mt-1 block">{portal.student.name}</b></div><div><span className="text-text-muted">Register no.</span><b className="mt-1 block">{portal.student.registerNumber}</b></div><div><span className="text-text-muted">Total / paid</span><b className="mt-1 block">{money(invoice.amount)} / {money(invoice.paidAmount)}</b></div><div><span className="text-text-muted">Pending</span><b className="mt-1 block text-amber-500">{money(invoice.balance)}</b></div></div><div className="mt-5 grid grid-cols-2 rounded-xl bg-surface-soft p-1"><button onClick={()=>setTab('online')} className={`min-h-10 rounded-lg text-xs font-extrabold ${tab==='online'?'bg-surface text-primary shadow-sm':'text-text-muted'}`}>Online payment</button><button onClick={()=>setTab('external')} className={`min-h-10 rounded-lg text-xs font-extrabold ${tab==='external'?'bg-surface text-primary shadow-sm':'text-text-muted'}`}>External payment</button></div><label className="mt-5 block text-[10px] font-extrabold uppercase tracking-wider text-text-muted">Amount to pay</label><input value={amount} onChange={e=>setAmount(e.target.value)} type="number" min="1" max={invoice.balance} step="0.01" disabled={!invoice.allowPartialPayment} className="mt-2 h-12 w-full rounded-xl border border-border bg-background px-4 text-base font-black outline-none focus:border-primary"/><p className="mt-2 text-[11px] text-text-muted">{invoice.allowPartialPayment?'Full or partial payment is allowed for this invoice.':'This invoice requires full payment.'}</p>
-      {tab==='online'?<div className="mt-5">
-        <p className="mb-3 text-[10px] font-extrabold uppercase tracking-wider text-text-muted">Choose payment method</p>
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">{[
-          ['upi','UPI',Smartphone],['card','Card',CreditCard],['netbanking','Net banking',Building2],['wallet','Wallet',Wallet]
-        ].map(([value,label,Icon]:any)=><button key={value} type="button" onClick={()=>setOnlineMethod(value)} className={`min-h-20 rounded-xl border p-3 text-left transition active:scale-[.98] ${onlineMethod===value?'border-primary bg-primary/10 text-primary':'border-border bg-background text-text-muted hover:border-primary/40'}`}><Icon className="h-5 w-5"/><span className="mt-2 block text-xs font-extrabold">{label}</span></button>)}</div>
-        <div className="mt-4 flex gap-3 rounded-2xl border border-border bg-background p-4"><ShieldCheck className="h-5 w-5 shrink-0 text-emerald-500"/><p className="text-xs leading-5 text-text-muted">Razorpay checkout supports UPI apps and QR, debit/credit cards, net banking and supported wallets. The server verifies every payment before updating fees.</p></div>
-        {!portal.gateway.enabled&&<div className="mt-3 rounded-xl border border-amber-500/20 bg-amber-500/10 p-4 text-xs text-amber-500"><b className="block">Online gateway setup is required</b><span className="mt-1 block leading-5">Until Accounts configures the gateway, submit your UPI, bank, cash, cheque or DD payment reference for verification.</span><button type="button" onClick={()=>{setTab('external');setMethod('UPI_EXTERNAL');}} className="mt-3 min-h-10 rounded-lg border border-amber-500/30 bg-background/40 px-3 font-extrabold">Record a UPI payment</button></div>}
-        <button disabled={busy||!validAmount||!portal.gateway.enabled} onClick={payOnline} className="mt-5 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-primary font-extrabold text-white disabled:cursor-not-allowed disabled:opacity-50">{busy?<Loader2 className="h-4 w-4 animate-spin"/>:<CreditCard className="h-4 w-4"/>}Continue with {onlineMethod==='netbanking'?'net banking':onlineMethod.toUpperCase()} · {money(Number(amount)||0)}</button>
-      </div>:<div className="mt-5 space-y-4"><div className="grid gap-4 sm:grid-cols-2"><label className="text-[10px] font-extrabold uppercase text-text-muted">Payment method<select value={method} onChange={e=>setMethod(e.target.value)} className="mt-2 h-12 w-full rounded-xl border border-border bg-background px-3 text-xs text-text-primary"><option value="UPI_EXTERNAL">UPI outside CampusOS</option><option value="BANK_TRANSFER">Bank transfer</option><option value="CASH_AT_COLLEGE">Cash at college</option><option value="DD">Demand draft</option><option value="NEFT_RTGS">NEFT / RTGS</option><option value="CHEQUE">Cheque</option><option value="OTHER">Other approved method</option></select></label><label className="text-[10px] font-extrabold uppercase text-text-muted">Payment date<input value={paymentDate} onChange={e=>setPaymentDate(e.target.value)} type="date" max={new Date().toISOString().slice(0,10)} className="mt-2 h-12 w-full rounded-xl border border-border bg-background px-3 text-xs text-text-primary"/></label></div><label className="block text-[10px] font-extrabold uppercase text-text-muted">Transaction / UTR / reference<input value={reference} onChange={e=>setReference(e.target.value)} className="mt-2 h-12 w-full rounded-xl border border-border bg-background px-3 text-sm text-text-primary" required/></label><label className="block text-[10px] font-extrabold uppercase text-text-muted">Bank / remarks<textarea value={remarks} onChange={e=>setRemarks(e.target.value)} rows={3} className="mt-2 w-full rounded-xl border border-border bg-background p-3 text-sm text-text-primary"/></label><label className="block rounded-2xl border border-dashed border-border p-4 text-center text-xs font-bold text-text-muted"><FileCheck2 className="mx-auto mb-2 h-5 w-5 text-primary"/>{proof?.name||'Attach proof (JPG, PNG or PDF — optional)'}<input type="file" accept="image/jpeg,image/png,application/pdf" onChange={e=>setProof(e.target.files?.[0]||null)} className="sr-only"/></label><button disabled={busy||!validAmount||!reference.trim()} onClick={submitExternal} className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-primary font-extrabold text-white disabled:opacity-50">{busy?<Loader2 className="h-4 w-4 animate-spin"/>:<Landmark className="h-4 w-4"/>}Submit for verification <ChevronRight className="h-4 w-4"/></button><p className="text-center text-[11px] leading-5 text-text-muted">Submitting proof does not mark the invoice paid. Accounts must verify it first.</p></div>}</div></div></div>}
-  </motion.div>;
+type Invoice = {
+  id: string;
+  invoiceNumber: string;
+  feeName: string;
+  academicYear?: string;
+  semester?: string;
+  amount: number;
+  paidAmount: number;
+  balance: number;
+  dueDate: string;
+  status: InvoiceStatus;
+  allowPartialPayment: boolean;
 };
+type Payment = {
+  id: string;
+  receiptNumber?: string;
+  date: string;
+  feeType: string;
+  amount: number;
+  method: string;
+  transactionId: string;
+  status: string;
+  rejectionReason?: string;
+};
+type Portal = {
+  student: { name: string; registerNumber: string };
+  summary: { totalFee: number; paid: number; pending: number; nextDue?: string; status: string };
+  invoices: Invoice[];
+  payments: Payment[];
+  gateway: { enabled: boolean; provider: string; isDemo?: boolean };
+};
+
+declare global {
+  interface Window {
+    Razorpay?: new (options: any) => { open: () => void; on: (name: string, cb: (value: any) => void) => void };
+  }
+}
+
+const money = (value: number) => `₹${Number(value || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
+const date = (value?: string) =>
+  value ? new Date(value).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
+
+const tone: Record<string, string> = {
+  PAID: 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20',
+  PARTIAL: 'bg-amber-500/10 text-amber-500 border-amber-500/20',
+  PENDING: 'bg-slate-500/10 text-text-muted border-border',
+  OVERDUE: 'bg-rose-500/10 text-rose-500 border-rose-500/20',
+  VERIFICATION_PENDING: 'bg-blue-500/10 text-blue-500 border-blue-500/20',
+  PENDING_VERIFICATION: 'bg-blue-500/10 text-blue-500 border-blue-500/20',
+  REJECTED: 'bg-rose-500/10 text-rose-500 border-rose-500/20',
+  SUCCEEDED: 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20',
+};
+
+const Status = ({ value }: { value: string }) => (
+  <span className={`inline-flex rounded-full border px-2.5 py-1 text-[10px] font-extrabold tracking-wide ${tone[value] || tone.PENDING}`}>
+    {value.replaceAll('_', ' ')}
+  </span>
+);
+
+const loadRazorpay = () =>
+  new Promise<boolean>((resolve) => {
+    if (window.Razorpay) return resolve(true);
+    const script = document.createElement('script');
+    script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+    script.onload = () => resolve(true);
+    script.onerror = () => resolve(false);
+    document.body.appendChild(script);
+  });
+
+export const FeeLedgerPage: React.FC = () => {
+  const [portal, setPortal] = useState<Portal | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [invoice, setInvoice] = useState<Invoice | null>(null);
+  const [tab, setTab] = useState<'online' | 'external'>('online');
+  const [busy, setBusy] = useState(false);
+  const [onlineMethod, setOnlineMethod] = useState<'upi' | 'card' | 'netbanking' | 'wallet'>('upi');
+  const [amount, setAmount] = useState('');
+  const [method, setMethod] = useState('BANK_TRANSFER');
+  const [reference, setReference] = useState('');
+  const [paymentDate, setPaymentDate] = useState(new Date().toISOString().slice(0, 10));
+  const [remarks, setRemarks] = useState('');
+  const [proof, setProof] = useState<File | null>(null);
+
+  const fetchPortal = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const { data } = await api.get('/enterprise/fees/student/portal');
+      setPortal(data.data);
+    } catch (e: any) {
+      setError(e.response?.data?.message || 'Unable to load your fee account.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchPortal();
+  }, []);
+
+  const openPayment = (item: Invoice, initial: 'online' | 'external') => {
+    setInvoice(item);
+    setTab(initial);
+    setAmount(String(item.balance));
+    setReference('');
+    setRemarks('');
+    setProof(null);
+  };
+
+  const validAmount = useMemo(
+    () => (invoice ? Number(amount) > 0 && Number(amount) <= invoice.balance && (invoice.allowPartialPayment || Number(amount) === invoice.balance) : false),
+    [amount, invoice]
+  );
+
+  const verifyPayment = async (response: any) => {
+    await api.post('/enterprise/fees/student/online-payment/verify', {
+      orderId: response.razorpay_order_id || response.orderId,
+      paymentId: response.razorpay_payment_id || response.paymentId,
+      signature: response.razorpay_signature,
+      mode: response.mode,
+    });
+    toast.success('Payment verified successfully. Your official receipt is ready.');
+    setInvoice(null);
+    await fetchPortal();
+  };
+
+  const payOnline = async () => {
+    if (!invoice || !validAmount) return;
+    setBusy(true);
+    try {
+      const key = globalThis.crypto?.randomUUID?.() || `${Date.now()}-${invoice.id}`;
+      const { data } = await api.post(
+        `/enterprise/fees/student/bills/${invoice.id}/online-order`,
+        { amount: Number(amount) },
+        { headers: { 'x-idempotency-key': key } }
+      );
+      const order = data.data;
+
+      // Check if running in DEMO mode
+      if (order.isDemo || order.provider === 'DEMO_PAYMENT' || !portal?.gateway?.enabled) {
+        await verifyPayment({
+          orderId: order.orderId,
+          paymentId: `DEMO_${Date.now()}`,
+          mode: 'DEMO_PAYMENT',
+        });
+        return;
+      }
+
+      // Live Razorpay Flow
+      if (!(await loadRazorpay()) || !window.Razorpay) {
+        throw new Error('Secure checkout could not be loaded');
+      }
+      const checkout = new window.Razorpay({
+        key: order.keyId,
+        amount: Math.round(order.amount * 100),
+        currency: order.currency,
+        order_id: order.orderId,
+        name: 'CampusOS',
+        description: invoice.feeName,
+        prefill: { name: portal?.student.name },
+        theme: { color: '#6d5dfc' },
+        handler: async (r: any) => {
+          setBusy(true);
+          try {
+            await verifyPayment(r);
+          } catch (e: any) {
+            toast.error(e.response?.data?.message || 'Payment verification failed.');
+          } finally {
+            setBusy(false);
+          }
+        },
+      });
+      checkout.on('payment.failed', () => toast.error('Payment was not completed. No fee balance was changed.'));
+      checkout.open();
+    } catch (e: any) {
+      toast.error(e.response?.data?.message || e.message || 'Unable to start payment.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const fileBase64 = (file: File) =>
+    new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result).split(',')[1]);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+
+  const submitExternal = async () => {
+    if (!invoice || !validAmount || !reference.trim()) return;
+    setBusy(true);
+    try {
+      let proofUrl: string | undefined;
+      if (proof) {
+        if (proof.size > 8 * 1024 * 1024) throw new Error('Proof must be smaller than 8 MB');
+        const upload = await api.post('/files/upload', {
+          name: proof.name,
+          mimeType: proof.type,
+          folder: 'fee-proofs',
+          base64: await fileBase64(proof),
+        });
+        proofUrl = upload.data?.data?.url || upload.data?.data?.path;
+      }
+      await api.post(`/enterprise/fees/student/bills/${invoice.id}/external-payment`, {
+        method,
+        amount: Number(amount),
+        reference: reference.trim(),
+        paymentDate,
+        remarks,
+        proofUrl,
+      });
+      toast.success('Payment proof submitted for Accounts verification.');
+      setInvoice(null);
+      await fetchPortal();
+    } catch (e: any) {
+      toast.error(e.response?.data?.message || e.message || 'Could not submit payment proof.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const receipt = async (payment: Payment) => {
+    const result = await downloadAndOpen(
+      `/enterprise/fees/student/payments/${payment.id}/receipt`,
+      `${payment.receiptNumber || 'fee-receipt'}.pdf`
+    );
+    if (!result.success) toast.error(result.error || 'Receipt is not available.');
+  };
+
+  if (loading) {
+    return (
+      <div className="mx-auto max-w-7xl space-y-5 pb-16">
+        <div className="h-28 animate-pulse rounded-3xl bg-surface" />
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="h-28 animate-pulse rounded-2xl bg-surface" />
+          ))}
+        </div>
+        <div className="h-72 animate-pulse rounded-3xl bg-surface" />
+      </div>
+    );
+  }
+
+  if (error || !portal) {
+    return (
+      <div className="mx-auto max-w-xl rounded-3xl border border-border bg-surface p-10 text-center">
+        <AlertCircle className="mx-auto h-8 w-8 text-rose-500" />
+        <h2 className="mt-3 font-bold">Fee account unavailable</h2>
+        <p className="mt-2 text-sm text-text-muted">{error}</p>
+        <button
+          onClick={fetchPortal}
+          className="mt-5 inline-flex min-h-11 items-center gap-2 rounded-xl bg-primary px-5 text-sm font-bold text-white cursor-pointer"
+        >
+          <RefreshCw className="h-4 w-4" /> Try again
+        </button>
+      </div>
+    );
+  }
+
+  const isDemoMode = Boolean(portal.gateway?.isDemo || portal.gateway?.provider === 'DEMO_PAYMENT');
+  const summaries = [
+    ['Total fee', portal.summary.totalFee, WalletCards],
+    ['Amount paid', portal.summary.paid, CheckCircle2],
+    ['Pending amount', portal.summary.pending, CreditCard],
+    ['Next due', portal.summary.nextDue ? date(portal.summary.nextDue) : 'No dues', CalendarDays],
+    ['Payment status', portal.summary.status, ShieldCheck],
+  ] as const;
+
+  return (
+    <motion.div variants={pageVariants} initial="initial" animate="animate" exit="exit" className="mx-auto max-w-7xl space-y-6 pb-24 text-left">
+      <section className="relative overflow-hidden rounded-3xl border border-primary/20 bg-gradient-to-br from-primary/15 via-surface to-surface p-5 sm:p-7">
+        <div className="absolute -right-16 -top-20 h-56 w-56 rounded-full bg-primary/10 blur-3xl" />
+        <div className="relative flex flex-col justify-between gap-5 sm:flex-row sm:items-end">
+          <div>
+            <div className="mb-2 flex items-center gap-2 text-xs font-extrabold uppercase tracking-[.16em] text-primary">
+              <Receipt className="h-4 w-4" /> Student Finance
+            </div>
+            <h1 className="text-2xl font-black tracking-tight text-text-primary sm:text-3xl">Fees & Payments</h1>
+            <p className="mt-2 max-w-2xl text-sm text-text-muted">
+              Secure fee management portal with real-time invoices, instant receipt downloads, and ledger tracking.
+            </p>
+          </div>
+          <div className="rounded-2xl border border-border/70 bg-background/60 px-4 py-3 backdrop-blur">
+            <p className="text-xs font-bold text-text-primary">{portal.student.name}</p>
+            <p className="mt-1 font-mono text-[11px] text-text-muted">{portal.student.registerNumber}</p>
+          </div>
+        </div>
+      </section>
+
+      <section className="grid grid-cols-2 gap-3 lg:grid-cols-5">
+        {summaries.map(([label, value, Icon], i) => (
+          <div
+            key={label}
+            className={`rounded-2xl border p-4 ${
+              i === 2 && portal.summary.pending > 0 ? 'border-amber-500/25 bg-amber-500/[.07]' : 'border-border bg-surface'
+            }`}
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-extrabold uppercase tracking-wider text-text-muted">{label}</span>
+              <Icon className="h-4 w-4 text-primary" />
+            </div>
+            <p className="mt-4 truncate text-lg font-black text-text-primary sm:text-xl">
+              {typeof value === 'number' ? money(value) : value}
+            </p>
+          </div>
+        ))}
+      </section>
+
+      <section className="overflow-hidden rounded-3xl border border-border bg-surface">
+        <div className="flex items-center justify-between border-b border-border p-5 sm:p-6">
+          <div>
+            <h2 className="font-extrabold text-text-primary">Fee Breakdown</h2>
+            <p className="mt-1 text-xs text-text-muted">Semester and category-wise assigned invoices</p>
+          </div>
+          <span className="text-xs font-bold text-text-muted">
+            {portal.invoices.length} invoice{portal.invoices.length === 1 ? '' : 's'}
+          </span>
+        </div>
+        {portal.invoices.length === 0 ? (
+          <div className="p-12 text-center text-sm text-text-muted">No fee invoices are currently assigned to your account.</div>
+        ) : (
+          <>
+            <div className="hidden overflow-x-auto md:block">
+              <table className="w-full min-w-[980px] text-left text-xs">
+                <thead className="bg-surface-soft text-[10px] uppercase tracking-wider text-text-muted">
+                  <tr>
+                    {['Fee / Invoice', 'Academic Period', 'Total', 'Paid', 'Balance', 'Due Date', 'Status', 'Actions'].map((h) => (
+                      <th key={h} className="px-5 py-3 font-extrabold">
+                        {h}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {portal.invoices.map((item) => (
+                    <tr key={item.id} className="hover:bg-surface-soft/60">
+                      <td className="px-5 py-4">
+                        <b className="block text-text-primary">{item.feeName}</b>
+                        <span className="mt-1 block font-mono text-[10px] text-text-muted">{item.invoiceNumber}</span>
+                      </td>
+                      <td className="px-5 py-4 text-text-muted">
+                        {item.academicYear || '—'}
+                        <br />
+                        {item.semester || '—'}
+                      </td>
+                      <td className="px-5 py-4 font-bold">{money(item.amount)}</td>
+                      <td className="px-5 py-4 font-bold text-emerald-500">{money(item.paidAmount)}</td>
+                      <td className="px-5 py-4 font-black">{money(item.balance)}</td>
+                      <td className="px-5 py-4">{date(item.dueDate)}</td>
+                      <td className="px-5 py-4">
+                        <Status value={item.status} />
+                      </td>
+                      <td className="px-5 py-4">
+                        {item.balance > 0 ? (
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => openPayment(item, 'online')}
+                              className="min-h-9 rounded-lg bg-primary px-3 font-bold text-white cursor-pointer hover:bg-primary-hover transition-colors"
+                            >
+                              Pay Now
+                            </button>
+                            <button
+                              onClick={() => openPayment(item, 'external')}
+                              className="min-h-9 rounded-lg border border-border px-3 font-bold hover:bg-surface-soft transition-colors cursor-pointer"
+                            >
+                              External
+                            </button>
+                          </div>
+                        ) : (
+                          <span className="text-text-muted font-bold text-xs">Settled</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="divide-y divide-border md:hidden">
+              {portal.invoices.map((item) => (
+                <article key={item.id} className="p-5">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <h3 className="text-sm font-extrabold text-text-primary">{item.feeName}</h3>
+                      <p className="mt-1 font-mono text-[10px] text-text-muted">{item.invoiceNumber}</p>
+                    </div>
+                    <Status value={item.status} />
+                  </div>
+                  <div className="mt-4 grid grid-cols-2 gap-3 rounded-2xl bg-surface-soft p-4 text-xs">
+                    <div>
+                      <span className="text-text-muted">Total</span>
+                      <b className="mt-1 block">{money(item.amount)}</b>
+                    </div>
+                    <div>
+                      <span className="text-text-muted">Balance</span>
+                      <b className="mt-1 block text-amber-500">{money(item.balance)}</b>
+                    </div>
+                    <div>
+                      <span className="text-text-muted">Period</span>
+                      <b className="mt-1 block">{item.semester || item.academicYear || '—'}</b>
+                    </div>
+                    <div>
+                      <span className="text-text-muted">Due Date</span>
+                      <b className="mt-1 block">{date(item.dueDate)}</b>
+                    </div>
+                  </div>
+                  {item.balance > 0 && (
+                    <div className="mt-4 grid grid-cols-2 gap-2">
+                      <button
+                        onClick={() => openPayment(item, 'online')}
+                        className="min-h-12 rounded-xl bg-primary text-sm font-extrabold text-white cursor-pointer"
+                      >
+                        Pay Now
+                      </button>
+                      <button
+                        onClick={() => openPayment(item, 'external')}
+                        className="min-h-12 rounded-xl border border-border text-sm font-extrabold cursor-pointer"
+                      >
+                        External Payment
+                      </button>
+                    </div>
+                  )}
+                </article>
+              ))}
+            </div>
+          </>
+        )}
+      </section>
+
+      <section className="overflow-hidden rounded-3xl border border-border bg-surface">
+        <div className="border-b border-border p-5 sm:p-6">
+          <div className="flex items-center gap-2">
+            <History className="h-4 w-4 text-primary" />
+            <h2 className="font-extrabold">Payment History</h2>
+          </div>
+          <p className="mt-1 text-xs text-text-muted">Verified transactions and downloadable receipts</p>
+        </div>
+        {portal.payments.length === 0 ? (
+          <div className="p-12 text-center text-sm text-text-muted">Your verified payments will appear here.</div>
+        ) : (
+          <div className="divide-y divide-border">
+            {portal.payments.map((p) => (
+              <div key={p.id} className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <b className="text-sm">{p.feeType}</b>
+                    <Status value={p.status} />
+                  </div>
+                  <p className="mt-2 break-all text-xs text-text-muted">
+                    {date(p.date)} • {p.method.replaceAll('_', ' ')} • Ref: {p.transactionId}
+                  </p>
+                  {p.rejectionReason && <p className="mt-2 text-xs text-rose-500">Reason: {p.rejectionReason}</p>}
+                </div>
+                <div className="flex items-center justify-between gap-4 sm:justify-end">
+                  <b className="text-base font-black">{money(p.amount)}</b>
+                  {p.status === 'SUCCEEDED' && (
+                    <button
+                      onClick={() => receipt(p)}
+                      className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-border px-3 text-xs font-bold hover:bg-surface-soft transition-colors cursor-pointer"
+                    >
+                      <Download className="h-4 w-4" /> Receipt
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
+      {/* Payment Sheet / Modal */}
+      {invoice && (
+        <div className="fixed inset-0 z-[90] flex items-end justify-center sm:items-center sm:p-5">
+          <button
+            aria-label="Close payment"
+            className="absolute inset-0 bg-slate-950/70 backdrop-blur-xs cursor-pointer"
+            onClick={() => !busy && setInvoice(null)}
+          />
+          <div className="relative max-h-[92vh] w-full max-w-xl overflow-y-auto rounded-t-3xl border border-border bg-surface shadow-2xl sm:rounded-3xl pb-safe">
+            <div className="sticky top-0 z-10 flex items-start justify-between border-b border-border bg-surface/95 p-5 backdrop-blur">
+              <div>
+                <p className="text-[10px] font-extrabold uppercase tracking-wider text-primary">Secure Payment</p>
+                <h2 className="mt-1 text-lg font-black">{invoice.feeName}</h2>
+                <p className="mt-1 font-mono text-[10px] text-text-muted">{invoice.invoiceNumber}</p>
+              </div>
+              <button disabled={busy} onClick={() => setInvoice(null)} className="rounded-xl p-2 hover:bg-surface-soft cursor-pointer">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            
+            <div className="p-5 sm:p-6 space-y-4">
+              <div className="grid grid-cols-2 gap-3 rounded-2xl bg-surface-soft p-4 text-xs">
+                <div>
+                  <span className="text-text-muted">Student</span>
+                  <b className="mt-1 block">{portal.student.name}</b>
+                </div>
+                <div>
+                  <span className="text-text-muted">Register No.</span>
+                  <b className="mt-1 block">{portal.student.registerNumber}</b>
+                </div>
+                <div>
+                  <span className="text-text-muted">Total / Paid</span>
+                  <b className="mt-1 block">
+                    {money(invoice.amount)} / {money(invoice.paidAmount)}
+                  </b>
+                </div>
+                <div>
+                  <span className="text-text-muted">Balance Due</span>
+                  <b className="mt-1 block text-amber-500">{money(invoice.balance)}</b>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 rounded-xl bg-surface-soft p-1">
+                <button
+                  type="button"
+                  onClick={() => setTab('online')}
+                  className={`min-h-10 rounded-lg text-xs font-extrabold cursor-pointer transition-all ${
+                    tab === 'online' ? 'bg-surface text-primary shadow-sm' : 'text-text-muted'
+                  }`}
+                >
+                  {isDemoMode ? 'Demo Payment' : 'Online Payment'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTab('external')}
+                  className={`min-h-10 rounded-lg text-xs font-extrabold cursor-pointer transition-all ${
+                    tab === 'external' ? 'bg-surface text-primary shadow-sm' : 'text-text-muted'
+                  }`}
+                >
+                  External Payment
+                </button>
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-extrabold uppercase tracking-wider text-text-muted">
+                  Amount to Pay (INR)
+                </label>
+                <input
+                  value={amount}
+                  onChange={(e) => setAmount(e.target.value)}
+                  type="number"
+                  min="1"
+                  max={invoice.balance}
+                  step="0.01"
+                  disabled={!invoice.allowPartialPayment}
+                  className="mt-1.5 h-12 w-full rounded-xl border border-border bg-background px-4 text-base font-black outline-none focus:border-primary"
+                />
+                <p className="mt-1.5 text-[11px] text-text-muted">
+                  {invoice.allowPartialPayment
+                    ? 'Full or partial payment is allowed for this invoice.'
+                    : 'This invoice requires full balance payment.'}
+                </p>
+              </div>
+
+              {tab === 'online' ? (
+                <div className="space-y-4">
+                  <p className="text-[10px] font-extrabold uppercase tracking-wider text-text-muted">Choose Payment Option</p>
+                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                    {[
+                      ['upi', isDemoMode ? 'Demo UPI' : 'UPI', Smartphone],
+                      ['card', isDemoMode ? 'Demo Card' : 'Card', CreditCard],
+                      ['netbanking', isDemoMode ? 'Demo Netbanking' : 'Net Banking', Building2],
+                      ['wallet', isDemoMode ? 'Demo Cash' : 'Wallet', Wallet],
+                    ].map(([value, label, Icon]: any) => (
+                      <button
+                        key={value}
+                        type="button"
+                        onClick={() => setOnlineMethod(value)}
+                        className={`min-h-20 rounded-xl border p-3 text-left transition active:scale-[.98] cursor-pointer ${
+                          onlineMethod === value
+                            ? 'border-primary bg-primary/10 text-primary'
+                            : 'border-border bg-background text-text-muted hover:border-primary/40'
+                        }`}
+                      >
+                        <Icon className="h-5 w-5" />
+                        <span className="mt-2 block text-xs font-extrabold">{label}</span>
+                      </button>
+                    ))}
+                  </div>
+
+                  {isDemoMode ? (
+                    <div className="flex gap-3 rounded-2xl border border-indigo-500/30 bg-indigo-500/10 p-4">
+                      <Sparkles className="h-5 w-5 shrink-0 text-indigo-500" />
+                      <div className="text-xs text-text-secondary leading-relaxed">
+                        <b className="font-bold text-foreground block">CampusOS Instant Verified Demo Payment</b>
+                        <span>
+                          Simulates verified payment, writes to canonical finance ledger, updates student balance, and generates official receipt PDF instantly.
+                        </span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex gap-3 rounded-2xl border border-border bg-background p-4">
+                      <ShieldCheck className="h-5 w-5 shrink-0 text-emerald-500" />
+                      <p className="text-xs leading-5 text-text-muted">
+                        Secure checkout supporting UPI apps, QR codes, cards, and net banking.
+                      </p>
+                    </div>
+                  )}
+
+                  <button
+                    disabled={busy || !validAmount}
+                    onClick={payOnline}
+                    className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-primary font-extrabold text-white disabled:cursor-not-allowed disabled:opacity-50 shadow-md cursor-pointer hover:bg-primary-hover transition-all"
+                  >
+                    {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <CreditCard className="h-4 w-4" />}
+                    {isDemoMode
+                      ? `Pay ${money(Number(amount) || 0)} (Instant Verification)`
+                      : `Continue with ${onlineMethod === 'netbanking' ? 'Net Banking' : onlineMethod.toUpperCase()} • ${money(Number(amount) || 0)}`}
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <label className="text-[10px] font-extrabold uppercase text-text-muted">
+                      Payment Method
+                      <select
+                        value={method}
+                        onChange={(e) => setMethod(e.target.value)}
+                        className="mt-1.5 h-12 w-full rounded-xl border border-border bg-background px-3 text-xs text-text-primary cursor-pointer"
+                      >
+                        <option value="UPI_EXTERNAL">UPI Transfer</option>
+                        <option value="BANK_TRANSFER">Bank Transfer (NEFT/RTGS)</option>
+                        <option value="CASH_AT_COLLEGE">Cash at Cashier</option>
+                        <option value="DD">Demand Draft (DD)</option>
+                        <option value="CHEQUE">Cheque</option>
+                        <option value="OTHER">Other Approved Mode</option>
+                      </select>
+                    </label>
+                    <label className="text-[10px] font-extrabold uppercase text-text-muted">
+                      Payment Date
+                      <input
+                        value={paymentDate}
+                        onChange={(e) => setPaymentDate(e.target.value)}
+                        type="date"
+                        max={new Date().toISOString().slice(0, 10)}
+                        className="mt-1.5 h-12 w-full rounded-xl border border-border bg-background px-3 text-xs text-text-primary"
+                      />
+                    </label>
+                  </div>
+                  <label className="block text-[10px] font-extrabold uppercase text-text-muted">
+                    Transaction / UTR / Reference Number
+                    <input
+                      value={reference}
+                      onChange={(e) => setReference(e.target.value)}
+                      placeholder="e.g. UTR1234567890"
+                      className="mt-1.5 h-12 w-full rounded-xl border border-border bg-background px-3 text-sm text-text-primary"
+                      required
+                    />
+                  </label>
+                  <label className="block text-[10px] font-extrabold uppercase text-text-muted">
+                    Bank / Remarks
+                    <textarea
+                      value={remarks}
+                      onChange={(e) => setRemarks(e.target.value)}
+                      placeholder="Optional bank branch or depositor details"
+                      rows={2}
+                      className="mt-1.5 w-full rounded-xl border border-border bg-background p-3 text-sm text-text-primary"
+                    />
+                  </label>
+                  <label className="block rounded-2xl border border-dashed border-border p-4 text-center text-xs font-bold text-text-muted cursor-pointer hover:border-primary/40 transition-colors">
+                    <FileCheck2 className="mx-auto mb-2 h-5 w-5 text-primary" />
+                    {proof?.name || 'Attach Payment Proof (JPG, PNG or PDF — optional)'}
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,application/pdf"
+                      onChange={(e) => setProof(e.target.files?.[0] || null)}
+                      className="sr-only"
+                    />
+                  </label>
+                  <button
+                    disabled={busy || !validAmount || !reference.trim()}
+                    onClick={submitExternal}
+                    className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-primary font-extrabold text-white disabled:opacity-50 shadow-md cursor-pointer hover:bg-primary-hover transition-all"
+                  >
+                    {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Landmark className="h-4 w-4" />}
+                    Submit for Verification <ChevronRight className="h-4 w-4" />
+                  </button>
+                  <p className="text-center text-[11px] leading-5 text-text-muted">
+                    Submitting external proof will notify the Accounts department to verify and settle your invoice.
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </motion.div>
+  );
+};
+
 export default FeeLedgerPage;

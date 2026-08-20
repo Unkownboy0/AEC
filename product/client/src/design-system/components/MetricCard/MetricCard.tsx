@@ -37,17 +37,17 @@ export const MetricCard: React.FC<MetricCardProps> = ({
     <Wrapper
       onClick={onClick}
       className={clsx(
-        'bg-surface border border-border rounded-lg p-4 md:p-5',
-        'text-left transition-colors duration-fast',
-        onClick && 'hover:border-border-strong hover:bg-raised cursor-pointer',
+        'min-w-0 bg-surface border border-border/80 rounded-2xl p-4 md:p-5 shadow-2xs',
+        'text-left transition-all duration-fast',
+        onClick && 'hover:border-primary/30 hover:bg-raised cursor-pointer active:scale-[0.99]',
         'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',
         className
       )}
     >
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1 min-w-0">
-          <p className="text-caption text-muted-foreground truncate">{label}</p>
-          <p className="mt-1 text-page-title-sm md:text-page-title font-semibold tabular-nums text-foreground">
+          <p className="text-xs sm:text-caption text-muted-foreground line-clamp-2 leading-snug">{label}</p>
+          <p className="mt-1 text-[clamp(1.375rem,7vw,1.75rem)] leading-tight font-semibold tabular-nums text-foreground break-words">
             {value}
           </p>
           {trend && (
@@ -69,7 +69,7 @@ export const MetricCard: React.FC<MetricCardProps> = ({
           )}
         </div>
         {icon && (
-          <div className="shrink-0 w-10 h-10 rounded-lg bg-accent flex items-center justify-center text-primary [&>svg]:w-5 [&>svg]:h-5">
+          <div className="shrink-0 w-10 h-10 rounded-xl bg-accent flex items-center justify-center text-primary [&>svg]:w-5 [&>svg]:h-5">
             {icon}
           </div>
         )}

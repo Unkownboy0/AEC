@@ -40,11 +40,10 @@ export const QuickActionFAB: React.FC = () => {
   return (
     <div
       className={clsx(
-        'fixed right-4 sm:right-6 z-40 flex flex-col items-end',
+        'fixed right-4 sm:right-6 z-40 flex flex-col items-end lg:hidden',
         // Clears the mobile bottom nav bar + the device's own safe-area inset (gesture
-        // bar / home indicator) with a consistent 16px margin above it. Desktop (lg+) has no bottom nav.
-        'bottom-[calc(var(--mobile-bottom-nav-height)+var(--safe-area-bottom)+16px)]',
-        'lg:bottom-6'
+        // bar / home indicator) with a consistent 16px margin above it.
+        'bottom-[calc(var(--mobile-bottom-nav-height)+var(--safe-area-bottom)+16px)]'
       )}
     >
       {/* Action menu backdrop */}

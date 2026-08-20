@@ -90,7 +90,7 @@ function OfferRow({ offer }: { offer: any }) {
 export default function PlacementOfficerWorkspace() {
   const { collegeName } = useInstitution();
   const [search, setSearch] = useState('');
-  const [activeTab, setActiveTab] = useState<'drives' | 'offers' | 'eligible'>('drives');
+  const [activeTab, setActiveTab] = useState<'drives' | 'offers'>('drives');
 
   const { data: statsData } = useQuery({
     queryKey: ['placement-stats'],
@@ -188,7 +188,7 @@ export default function PlacementOfficerWorkspace() {
 
         {/* Tabs */}
         <div className="flex gap-1 bg-muted/50 p-1 rounded-lg w-fit">
-          {(['drives', 'offers', 'eligible'] as const).map((tab) => (
+          {(['drives', 'offers'] as const).map((tab) => (
             <button key={tab} onClick={() => setActiveTab(tab)}
               className={`text-xs px-4 py-1.5 rounded-md transition-colors capitalize ${
                 activeTab === tab ? 'bg-background text-foreground shadow-sm font-medium' : 'text-muted-foreground hover:text-foreground'
@@ -244,19 +244,6 @@ export default function PlacementOfficerWorkspace() {
           </div>
         )}
 
-        {activeTab === 'eligible' && (
-          <div className="bg-card border border-border rounded-xl">
-            <div className="p-4 border-b border-border">
-              <h2 className="text-sm font-semibold text-foreground">Eligible Students</h2>
-              <p className="text-xs text-muted-foreground mt-0.5">Students meeting placement eligibility criteria</p>
-            </div>
-            <div className="flex flex-col items-center justify-center py-12 text-center">
-              <Target className="h-10 w-10 text-muted-foreground/30 mb-3" />
-              <p className="text-sm text-muted-foreground">Eligibility filter coming soon</p>
-              <p className="text-xs text-muted-foreground/60 mt-1">Filter students by CGPA, backlogs, and attendance</p>
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );

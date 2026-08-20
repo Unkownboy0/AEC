@@ -54,3 +54,24 @@ export function createFeeReceipt(payment: any) {
   writeFeeReceipt(doc, payment);
   return doc;
 }
+
+export async function generateFeeReceiptBuffer(payment: any): Promise<Buffer> {
+  const doc = new PDFDocument({ size: 'A4', margin: 0, info: { Title: `Fee Receipt ${payment.receiptNumber}` } });
+  writeFeeReceipt(doc, payment);
+  return new Promise<Buffer>((resolve, reject) => {
+    const chunks: Buffer[] = [];
+    doc.on('data', (chunk) => chunks.push(chunk));
+    doc.on('end', () => {
+      const result = Buffer.concat(chunks);
+      if (!result || result.length === 0) {
+        return reject(new Error('Generated fee receipt PDF is empty (0 bytes).'));
+      }
+      if (result.slice(0, 5).toString() !== '%PDF-') {
+        return reject(new Error('Generated fee receipt PDF signature is invalid.'));
+      }
+      resolve(result);
+    });
+    doc.on('error', (err) => reject(err));
+    doc.end();
+  });
+}

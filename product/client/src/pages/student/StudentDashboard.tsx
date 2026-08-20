@@ -55,8 +55,12 @@ export const StudentDashboard: React.FC = () => {
   const circulars = dashboardData?.circulars || [];
   const notifications = dashboardData?.notifications || [];
 
-  const isTransportEligible = metrics.isTransportEligible || Boolean(student?.transportRouteId || student?.transportStopId);
-  const isHostelEligible = metrics.isHostelEligible || Boolean(student?.hostelId || student?.roomNo);
+  const isHostelEligible = student?.residentialType === 'HOSTELLER' || metrics.isHostelEligible || Boolean(student?.hostelId);
+  const isTransportEligible =
+    student?.residentialType !== 'HOSTELLER' &&
+    student?.transportMode === 'COLLEGE_BUS' &&
+    Boolean(student?.transportRouteId || student?.transportStopId || metrics.hasActiveTransportAllocation);
+
 
   const studentName = student ? `${student.firstName || ''} ${student.lastName || ''}`.trim() : (user?.firstName || 'Student');
   const programText = student?.program?.name ? `${student.program.name}` : (student?.department?.name || 'Academic Program');
@@ -64,18 +68,22 @@ export const StudentDashboard: React.FC = () => {
 
   return (
     <main className="mx-auto max-w-[1440px] space-y-5 pb-24 text-left sm:space-y-7 sm:pb-14 animate-in fade-in duration-200">
-      {/* Page Header */}
-      <PageHeader
-        title={`Welcome back, ${studentName}! 👋`}
-        subtitle={`${programText} ${semText ? `· ${semText}` : ''}`}
-        badge={
-          student?.admissionNo ? (
-            <span className="px-3 py-1 text-xs font-mono font-bold bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 rounded-full border border-indigo-200/50">
-              Admission No: {student.admissionNo}
-            </span>
-          ) : null
-        }
-      />
+      {/* Desktop-only Contextual Title Bar (Mobile uses TopHeader RoleHeader) */}
+      <div className="hidden lg:flex items-center justify-between gap-4 pb-1">
+        <div>
+          <h2 className="text-xl font-bold tracking-tight text-text-primary">
+            Student Academic Overview
+          </h2>
+          <p className="text-xs text-text-muted mt-0.5">
+            {programText} {semText ? `· ${semText}` : ''}
+          </p>
+        </div>
+        {student?.admissionNo && (
+          <span className="px-3 py-1 text-xs font-mono font-bold bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 rounded-full border border-indigo-200/50">
+            Admission No: {student.admissionNo}
+          </span>
+        )}
+      </div>
 
       {/* Immediate Attention Card: "What does the student need right now?" */}
       <section aria-label="Current status highlight" className="rounded-2xl border border-indigo-200/80 bg-gradient-to-r from-indigo-900 via-slate-900 to-indigo-950 p-5 text-white shadow-lg sm:p-6">

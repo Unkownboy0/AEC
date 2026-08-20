@@ -31,6 +31,8 @@ export function normalizeApiError(error: any): NormalizedApiError {
     code = 'NOT_FOUND';
   } else if (status === 422 || status === 400) {
     code = 'VALIDATION_ERROR';
+  } else if (status === 503 && data?.code === 'MODULE_DISABLED') {
+    code = 'MODULE_DISABLED';
   } else if (axiosErr.code === 'ECONNABORTED') {
     code = 'TIMEOUT';
   }
@@ -45,6 +47,8 @@ export function normalizeApiError(error: any): NormalizedApiError {
       ? 'Your session has expired. Please sign in again.'
       : code === 'FORBIDDEN'
       ? 'You do not have permission to perform this action.'
+      : code === 'MODULE_DISABLED'
+      ? 'This CampusOS module is currently disabled by your institution.'
       : axiosErr.message || 'CampusOS encountered an error processing your request.');
 
   return {

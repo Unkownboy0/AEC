@@ -46,6 +46,7 @@ import {
   Receipt,
   PhoneCall,
   Home,
+  Sparkles,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { Avatar } from '../../design-system/primitives/Avatar/Avatar';
@@ -110,6 +111,7 @@ const ICON_MAP: Record<string, React.FC<{ className?: string }>> = {
   Receipt,
   PhoneCall,
   Home,
+  Sparkles,
 };
 
 function getIcon(iconName: string): React.FC<{ className?: string }> {
@@ -165,8 +167,8 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
       <div className="px-3 pt-4 pb-3 border-b border-slate-800/60">
         <div className="flex items-center gap-3 px-1">
           {/* Logo */}
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-purple-700 to-indigo-500 text-white flex items-center justify-center font-extrabold text-base shrink-0 shadow-md shadow-purple-900/40 border border-purple-400/20">
-            C
+          <div className="w-9 h-9 rounded-xl bg-white/10 text-white flex items-center justify-center font-extrabold text-base shrink-0 shadow-md border border-white/10 overflow-hidden p-0.5">
+            <img src="/branding/official-logo.png" alt="AEC" className="w-full h-full object-contain" />
           </div>
           {!isCollapsed && (
             <div className="flex-1 min-w-0">

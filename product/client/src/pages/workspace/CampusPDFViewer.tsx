@@ -9,7 +9,8 @@ import { useAuth } from '../../context/AuthContext';
 import { toast } from '../../components/ui/Toast';
 
 const CampusPDFViewer: React.FC = () => {
-  const { id } = useParams<{ id: string }>();
+  const params = useParams<{ id?: string; documentId?: string }>();
+  const id = params.id || params.documentId;
   const { user } = useAuth();
   const navigate = useNavigate();
 

@@ -38,7 +38,7 @@ export class EnterpriseRepository {
         skip,
         take: pageSize,
         orderBy: { createdAt: 'desc' },
-        include: { academicYear: true, department: true, programDepartment: true, program: true, course: true, semester: true, section: true, user: true },
+        include: { academicYear: true, department: true, programDepartment: true, program: true, course: true, semester: true, section: true, user: { include: { profileImageFile: true } } },
       }),
       prisma.student.count({ where }),
     ]);
@@ -49,7 +49,7 @@ export class EnterpriseRepository {
   async findStudentById(id: string) {
     return prisma.student.findFirst({
       where: { id, deleted: false },
-      include: { academicYear: true, department: true, programDepartment: true, program: true, course: true, semester: true, section: true, hostelBuilding: true, transportRoute: true, user: true },
+      include: { academicYear: true, department: true, programDepartment: true, program: true, course: true, semester: true, section: true, hostelBuilding: true, transportRoute: true, user: { include: { profileImageFile: true } } },
     });
   }
 
@@ -117,7 +117,7 @@ export class EnterpriseRepository {
           subjectMappings: true,
           gender: true,
           department: true,
-          user: { select: { profilePhoto: true } },
+          user: { select: { id: true, profilePhoto: true, profileImageFileId: true, profileImageFile: true } },
         } : {
           id: true,
           employeeId: true,
@@ -129,7 +129,7 @@ export class EnterpriseRepository {
           departmentId: true,
           status: true,
           department: true,
-          user: { select: { profilePhoto: true } },
+          user: { select: { id: true, profilePhoto: true, profileImageFileId: true, profileImageFile: true } },
         },
       }),
       prisma.faculty.count({ where }),
@@ -143,7 +143,7 @@ export class EnterpriseRepository {
       where: { id, deleted: false },
       include: { 
         department: true,
-        user: { select: { profilePhoto: true } }
+        user: { select: { id: true, profilePhoto: true, profileImageFileId: true, profileImageFile: true } }
       },
     });
   }

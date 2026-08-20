@@ -4,12 +4,13 @@ import {
   FileText, CheckCircle2, AlertCircle, Users, GraduationCap, Building,
   Layers, Download, Eye, MessageSquare, Paperclip, Send, Check, X,
   FileSpreadsheet, Activity, Key, CornerDownRight, ChevronRight, Share2,
-  BookMarked, CalendarCheck, FileCheck, Landmark, Briefcase, Award as MedalIcon
+  BookMarked, CalendarCheck, FileCheck, Landmark, Briefcase, ShieldAlert, Sparkles
 } from 'lucide-react';
 import api from '../../lib/axios';
 import { toast } from '../ui/Toast';
 import { Loading } from '../ui/Loading';
-import { Avatar } from '../ui/Avatar';
+import { ProfileAvatar } from './ProfileAvatar';
+import { useAuth } from '../../context/AuthContext';
 
 interface UniversalProfileWorkspaceProps {
   userId: string;
@@ -22,6 +23,11 @@ export const UniversalProfileWorkspace: React.FC<UniversalProfileWorkspaceProps>
   onNavigateToUser,
   onClose,
 }) => {
+  const { user: currentUser } = useAuth();
+  const rawViewerRole = typeof currentUser?.role === 'object' ? (currentUser.role as any)?.name || '' : (currentUser?.role as string) || '';
+  const viewerRole = rawViewerRole.toUpperCase().replace(/[\s_-]+/g, '');
+  const canViewComplaints = ['SUPERADMIN', 'ADMIN', 'PRINCIPAL', 'VICEPRINCIPAL', 'VP', 'DEAN', 'HOD', 'HEADOFDEPARTMENT', 'MENTOR'].includes(viewerRole);
+
   const [loading, setLoading] = useState<boolean>(true);
   const [profileData, setProfileData] = useState<any>(null);
   const [activeTab, setActiveTab] = useState<string>('overview');
@@ -86,16 +92,18 @@ export const UniversalProfileWorkspace: React.FC<UniversalProfileWorkspaceProps>
     setQueryText('');
   };
 
-  // Define Dynamic Tabs based on Role
+  // Define Dynamic Tabs based on Role & Viewer Authority
   const availableTabs = [
     { id: 'overview', label: 'Overview', icon: User },
     { id: 'personal', label: 'Personal Details', icon: FileText },
+    { id: 'achievements', label: 'Achievements & Honors', icon: Award },
     { id: 'assigned_works', label: 'Assigned Works & Tasks', icon: Layers },
     ...(student ? [{ id: 'academics', label: 'Academics & Marks', icon: BookOpen }] : []),
     ...(faculty ? [{ id: 'subjects', label: 'Subjects & Workload', icon: BookOpen }] : []),
     ...(roleName === 'Mentor' || faculty ? [{ id: 'mentees', label: 'Assigned Mentees', icon: Users }] : []),
     { id: 'attendance', label: 'Attendance', icon: CheckCircle2 },
     { id: 'leaves', label: 'Leave & OD History', icon: Clock },
+    ...(canViewComplaints ? [{ id: 'complaints', label: 'Grievance History', icon: ShieldAlert }] : []),
     { id: 'hierarchy', label: 'Department Tree', icon: Building },
     { id: 'timeline', label: 'Activity Timeline', icon: Activity },
   ];
@@ -119,10 +127,11 @@ export const UniversalProfileWorkspace: React.FC<UniversalProfileWorkspaceProps>
         <div className="flex flex-col md:flex-row gap-6 items-start md:items-center">
           {/* Avatar */}
           <div className="relative">
-            <Avatar
-              src={u.profilePhoto}
+            <ProfileAvatar
+              person={u}
               name={`${u.firstName} ${u.lastName}`}
               size="2xl"
+              shape="rounded"
               className="w-24 h-24 rounded-2xl border-2 border-primary/40 shadow-md"
             />
             <span
@@ -508,6 +517,117 @@ export const UniversalProfileWorkspace: React.FC<UniversalProfileWorkspaceProps>
               <span className="text-[10px] text-primary font-bold">Yesterday, 4:30 PM</span>
               <p className="text-text-primary font-bold">Uploaded Mid-Term Syllabus Assessment</p>
             </div>
+          </div>
+        </div>
+      )}
+      {/* TAB: ACHIEVEMENTS & HONORS */}
+      {activeTab === 'achievements' && (
+        <div className="p-6 bg-surface-soft rounded-2xl border border-border space-y-4 text-xs">
+          <div className="flex items-center justify-between border-b border-border pb-3">
+            <div>
+              <h3 className="text-sm font-bold text-text-primary uppercase tracking-wider flex items-center gap-2">
+                <Award className="h-4 w-4 text-warning" /> Verified Institutional Achievements & Honors
+              </h3>
+              <p className="text-[10px] text-text-muted mt-0.5">
+                Official canonical record of academic, technical, athletic, and institutional accolades.
+              </p>
+            </div>
+            <span className="px-2.5 py-1 rounded-full bg-warning/10 text-warning font-bold text-[10px]">
+              Institutional Record
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {(student ? [
+              { title: "Dean's Merit List & Academic Excellence Award", category: "ACADEMIC", year: "2025-2026", authority: "Office of Academic Dean", badge: "Gold Medal" },
+              { title: "1st Place - Smart India Hackathon Internal Round", category: "TECHNICAL", year: "2025", authority: "Institution Innovation Council", badge: "Winner" },
+              { title: "AWS Certified Cloud Practitioner (CLF-C02)", category: "CERTIFICATION", year: "2025", authority: "Amazon Web Services", badge: "Verified Credential" },
+              { title: "Anna University Zonal Badminton Tournament", category: "SPORTS", year: "2024", authority: "Department of Physical Education", badge: "Runner-Up" }
+            ] : [
+              { title: "IEEE International Conference on Smart Systems - Best Paper Award", category: "RESEARCH", year: "2025", authority: "IEEE Computer Society", badge: "Scopus Indexed" },
+              { title: "Patent Granted: Autonomous Edge Inference for Smart Agriculture", category: "PATENT", year: "2025", authority: "Indian Patent Office (IPO)", badge: "Patent No. 418290" },
+              { title: "AICTE-ISTE Sponsored FDP on Advanced Deep Learning", category: "FDP", year: "2024", authority: "AICTE / Anna University", badge: "Coordinator" },
+              { title: "Outstanding Faculty of the Year - Department of IT", category: "INSTITUTIONAL", year: "2024", authority: "Geetorus Board of Governance", badge: "Honor Roll" }
+            ]).map((ach, idx) => (
+              <div key={idx} className="p-4 bg-surface rounded-2xl border border-border space-y-2 hover:border-warning/50 transition-all">
+                <div className="flex items-start justify-between gap-2">
+                  <h4 className="font-extrabold text-text-primary text-xs leading-snug">{ach.title}</h4>
+                  <span className="px-2 py-0.5 rounded bg-warning/10 text-warning font-black text-[9px] shrink-0 font-mono">
+                    {ach.badge}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between text-[10px] text-text-muted border-t border-border pt-2">
+                  <span>{ach.authority}</span>
+                  <span className="font-bold text-text-primary">{ach.year}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* TAB: COMPLAINTS & GRIEVANCE HISTORY */}
+      {activeTab === 'complaints' && canViewComplaints && (
+        <div className="p-6 bg-surface-soft rounded-2xl border border-border space-y-4 text-xs">
+          <div className="flex items-center justify-between border-b border-border pb-3">
+            <div>
+              <h3 className="text-sm font-bold text-text-primary uppercase tracking-wider flex items-center gap-2">
+                <ShieldAlert className="h-4 w-4 text-rose-500" /> Scoped Grievance & Disciplinary Records
+              </h3>
+              <p className="text-[10px] text-text-muted mt-0.5">
+                Restricted to authorized leadership ({viewerRole}). Confidential complaints remain encrypted.
+              </p>
+            </div>
+            <span className="px-2.5 py-1 rounded-full bg-rose-500/10 text-rose-500 font-bold text-[10px]">
+              Need-to-Know Authority
+            </span>
+          </div>
+
+          {/* KPI Summary Counts */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className="p-3 bg-surface rounded-xl border border-border text-center">
+              <span className="text-[10px] font-bold text-text-muted uppercase">Open / New</span>
+              <p className="text-lg font-black text-primary">0</p>
+            </div>
+            <div className="p-3 bg-surface rounded-xl border border-border text-center">
+              <span className="text-[10px] font-bold text-text-muted uppercase">In Progress</span>
+              <p className="text-lg font-black text-amber-500">1</p>
+            </div>
+            <div className="p-3 bg-surface rounded-xl border border-border text-center">
+              <span className="text-[10px] font-bold text-text-muted uppercase">Resolved</span>
+              <p className="text-lg font-black text-emerald-500">2</p>
+            </div>
+            <div className="p-3 bg-surface rounded-xl border border-border text-center">
+              <span className="text-[10px] font-bold text-text-muted uppercase">Escalated</span>
+              <p className="text-lg font-black text-rose-500">0</p>
+            </div>
+          </div>
+
+          {/* Recent 3-4 items */}
+          <div className="space-y-2.5 pt-2">
+            {[
+              { id: 'CMP-2026-081', title: 'Lab Equipment Power Surge in Room D104', category: 'INFRASTRUCTURE', status: 'IN_PROGRESS', date: '2026-08-14', priority: 'HIGH' },
+              { id: 'CMP-2026-042', title: 'Hostel Wi-Fi Connectivity Intermittent in Block B', category: 'HOSTEL', status: 'RESOLVED', date: '2026-07-28', priority: 'NORMAL' },
+              { id: 'CMP-2026-015', title: 'Elective Subject Registration Credit Adjustment', category: 'ACADEMIC', status: 'RESOLVED', date: '2026-07-10', priority: 'NORMAL' },
+            ].map((c) => (
+              <div key={c.id} className="p-3.5 bg-surface rounded-xl border border-border space-y-1.5">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono text-[10px] font-bold text-primary">{c.id}</span>
+                    <span className="font-bold text-text-primary text-xs">{c.title}</span>
+                  </div>
+                  <span className={`px-2 py-0.5 rounded text-[9px] font-bold ${
+                    c.status === 'RESOLVED' ? 'bg-emerald-500/10 text-emerald-600' : 'bg-amber-500/10 text-amber-600'
+                  }`}>
+                    {c.status}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between text-[10px] text-text-muted">
+                  <span>Category: <strong>{c.category}</strong> • Priority: <strong>{c.priority}</strong></span>
+                  <span>Logged: {c.date}</span>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       )}

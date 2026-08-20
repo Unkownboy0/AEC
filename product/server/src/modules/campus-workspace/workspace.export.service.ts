@@ -60,10 +60,8 @@ export class WorkspaceExportService {
     const PDFDocument = (await import('pdfkit')).default;
 
     const pdfDoc = new PDFDocument({ margin: 50, size: 'A4' });
-
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename="${safeName}_${dateStr}.pdf"`);
-    pdfDoc.pipe(res);
+    const chunks: Buffer[] = [];
+    pdfDoc.on('data', (chunk) => chunks.push(chunk));
 
     // Apply institutional watermark
     PdfWatermarkService.applyWatermark(pdfDoc);
@@ -109,7 +107,22 @@ export class WorkspaceExportService {
       { align: 'center', width: 495 }
     );
 
-    pdfDoc.end();
+    const buffer = await new Promise<Buffer>((resolve, reject) => {
+      pdfDoc.on('end', () => {
+        const result = Buffer.concat(chunks);
+        if (!result || result.length === 0) return reject(new Error('Exported PDF is empty.'));
+        resolve(result);
+      });
+      pdfDoc.on('error', reject);
+      pdfDoc.end();
+    });
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Length', buffer.length.toString());
+    res.setHeader('Content-Disposition', `attachment; filename="${safeName}_${dateStr}.pdf"`);
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('Cache-Control', 'private, no-store, max-age=0, must-revalidate');
+    res.status(200).send(buffer);
   }
 
   private static renderTipTapToPDF(doc: PDFKit.PDFDocument, content: any) {

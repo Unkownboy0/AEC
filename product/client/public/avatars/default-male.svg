@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="Default male profile">
+  <rect width="128" height="128" rx="64" fill="#E8EEF8"/>
+  <circle cx="64" cy="48" r="25" fill="#7C8DA8"/>
+  <path d="M21 116c3-28 20-43 43-43s40 15 43 43" fill="#657894"/>
+  <path d="M42 43c2-19 12-29 26-29 13 0 22 8 25 23-12-7-33-4-51 6Z" fill="#44546A"/>
+</svg>

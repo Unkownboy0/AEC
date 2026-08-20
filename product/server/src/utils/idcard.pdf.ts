@@ -4,6 +4,8 @@ import fs from 'fs';
 import path from 'path';
 import { prisma } from '../lib/prisma';
 import { BadRequestException } from './exceptions';
+import { ProfileMediaService } from '../modules/users/profile-media.service';
+import { PdfWatermarkService } from '../services/pdf-watermark.service';
 
 interface IDCardData {
   student: any;
@@ -14,9 +16,22 @@ interface IDCardData {
 }
 
 /**
- * Draw a beautiful vector shield emblem as the college logo
+ * Draw the official institution logo or vector shield emblem
  */
 function drawCollegeLogo(doc: PDFKit.PDFDocument, x: number, y: number, size: number, color: string) {
+  const logoPath = PdfWatermarkService.getLogoPath();
+  if (logoPath && fs.existsSync(logoPath)) {
+    doc.save();
+    try {
+      doc.circle(x + size / 2, y + size / 2, size / 2 + 1).fill('#ffffff');
+      doc.image(logoPath, x, y, { width: size, height: size, fit: [size, size] });
+    } catch {
+      // fallback
+    } finally {
+      doc.restore();
+    }
+    return;
+  }
   doc.save();
   doc.moveTo(x + size / 2, y)
      .lineTo(x + size, y + size * 0.25)
@@ -27,11 +42,11 @@ function drawCollegeLogo(doc: PDFKit.PDFDocument, x: number, y: number, size: nu
      .closePath()
      .fill(color);
 
-  // Draw a white 'G' inside the shield
+  // Draw white 'AEC' inside the shield
   doc.fillColor('#ffffff')
      .font('Helvetica-Bold')
-     .fontSize(size * 0.55)
-     .text('G', x + size * 0.25, y + size * 0.18, { lineBreak: false });
+     .fontSize(size * 0.35)
+     .text('AEC', x + size * 0.15, y + size * 0.25, { lineBreak: false });
   doc.restore();
 }
 
@@ -75,7 +90,10 @@ export async function buildStudentIDCardPDF(data: IDCardData): Promise<PDFKit.PD
 
   // 1. Resolve student photo
   let photoBuffer: Buffer | null = null;
-  if (student.user?.profilePhoto) {
+  const canonicalPhotoPath = await ProfileMediaService.resolveInternalPhysicalPath(student.user?.profileImageFileId);
+  if (canonicalPhotoPath) {
+    try { photoBuffer = fs.readFileSync(canonicalPhotoPath); } catch { photoBuffer = null; }
+  } else if (student.user?.profilePhoto && !student.user.profilePhoto.startsWith('/users/')) {
     try {
       const rawPath = student.user.profilePhoto;
       if (rawPath.startsWith('data:image')) {
@@ -175,8 +193,21 @@ export async function buildStudentIDCardPDF(data: IDCardData): Promise<PDFKit.PD
      .fillColor('#e0e7ff')
      .text('OFFICIAL DIGITAL IDENTITY CARD', 22, 16);
 
-  // B. Card Body White Area
+  // B. Card Body White Area with Background Watermark
   doc.rect(0, 38, 153.0, 204.6).fill('#ffffff');
+
+  const watermarkFile = PdfWatermarkService.getLogoPath();
+  if (watermarkFile && fs.existsSync(watermarkFile)) {
+    doc.save();
+    try {
+      doc.opacity(0.04);
+      doc.image(watermarkFile, (153.0 - 90) / 2, (242.6 - 90) / 2 + 10, { width: 90, height: 90, fit: [90, 90] });
+    } catch {
+      // ignore
+    } finally {
+      doc.restore();
+    }
+  }
 
   // Student Photo (Circle Clip & Draw)
   doc.save();
@@ -213,12 +244,17 @@ export async function buildStudentIDCardPDF(data: IDCardData): Promise<PDFKit.PD
   const col2X = 58;
   const rowH = 9.5;
 
+  const programCode = student.program?.code || student.program?.name || 'GEN';
+  const deptCode = student.department?.code || student.department?.name || 'GEN';
+  const semName = student.semester?.name || student.semester?.code || student.currentSemester || '1';
+  const secName = (student.section && typeof student.section === 'object' ? student.section.name : student.section) || 'A';
+
   const fields = [
-    { label: 'Admission No', val: student.admissionNo },
-    { label: 'Register No', val: registerNo },
-    { label: 'Roll Number', val: rollNo },
-    { label: 'Program / Dept', val: `${student.program.code} / ${student.department.code}` },
-    { label: 'Semester / Sec', val: `${student.semester.name} / ${student.section.name}` },
+    { label: 'Admission No', val: student.admissionNo || 'N/A' },
+    { label: 'Register No', val: registerNo || student.admissionNo || 'N/A' },
+    { label: 'Roll Number', val: rollNo || student.admissionNo || 'N/A' },
+    { label: 'Program / Dept', val: `${programCode} / ${deptCode}` },
+    { label: 'Semester / Sec', val: `Sem ${semName} / Sec ${secName}` },
     { label: 'Blood Group', val: student.bloodGroup || 'N/A' },
   ];
 
@@ -289,8 +325,20 @@ export async function buildStudentIDCardPDF(data: IDCardData): Promise<PDFKit.PD
      .fontSize(5)
      .text('EMERGENCY INFORMATION & ADDRESS', 10, 9, { width: 133, align: 'center' });
 
-  // B. Card Body White Area
+  // B. Card Body White Area with Background Watermark
   doc.rect(0, 24, 153.0, 218.6).fill('#ffffff');
+
+  if (watermarkFile && fs.existsSync(watermarkFile)) {
+    doc.save();
+    try {
+      doc.opacity(0.035);
+      doc.image(watermarkFile, (153.0 - 90) / 2, (242.6 - 90) / 2 + 10, { width: 90, height: 90, fit: [90, 90] });
+    } catch {
+      // ignore
+    } finally {
+      doc.restore();
+    }
+  }
 
   // Contact Details
   const contactY = 36;
@@ -363,3 +411,27 @@ export async function buildStudentIDCardPDF(data: IDCardData): Promise<PDFKit.PD
 
   return doc;
 }
+
+/**
+ * Generate fully validated Student Digital ID Card PDF Buffer
+ */
+export async function generateStudentIDCardPdfBuffer(data: IDCardData): Promise<Buffer> {
+  const doc = await buildStudentIDCardPDF(data);
+  return new Promise<Buffer>((resolve, reject) => {
+    const chunks: Buffer[] = [];
+    doc.on('data', (chunk) => chunks.push(chunk));
+    doc.on('end', () => {
+      const result = Buffer.concat(chunks);
+      if (!result || result.length === 0) {
+        return reject(new BadRequestException('Generated Student ID card PDF is empty (0 bytes).'));
+      }
+      if (result.slice(0, 5).toString() !== '%PDF-') {
+        return reject(new BadRequestException('Generated Student ID card PDF signature is invalid.'));
+      }
+      resolve(result);
+    });
+    doc.on('error', (err) => reject(err));
+    doc.end();
+  });
+}
+

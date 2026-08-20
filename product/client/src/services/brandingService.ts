@@ -56,7 +56,7 @@ export const DEFAULT_BRANDING: InstitutionBrandingConfig = {
   accreditation: 'Accredited by NAAC with A+ Grade | NBA Accredited Programmes',
 
   // Asset Paths
-  appIconUrl: '/branding/app-icon.png',
+  appIconUrl: '/app-icon.png',
   officialLogoUrl: '/branding/official-logo.png',
   watermarkLogoUrl: '/branding/official-logo.png',
 

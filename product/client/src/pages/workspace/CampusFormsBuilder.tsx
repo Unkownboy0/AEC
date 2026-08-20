@@ -303,7 +303,8 @@ const FormResponsePreview: React.FC<{ content: FormContent; formId: string; onCl
 // ─── Main Forms Builder ───────────────────────────────────────────────────────
 
 const CampusFormsBuilder: React.FC = () => {
-  const { id } = useParams<{ id: string }>();
+  const params = useParams<{ id?: string; documentId?: string }>();
+  const id = params.id || params.documentId;
   const { user } = useAuth();
   const navigate = useNavigate();
 
@@ -313,7 +314,7 @@ const CampusFormsBuilder: React.FC = () => {
     questions: [],
     settings: { requiresLogin: false, limitResponses: false, isAnonymous: false },
   });
-  const [activeView, setActiveView] = useState<'build' | 'preview' | 'responses' | 'settings'>('build');
+  const [activeView, setActiveView] = useState<'build' | 'preview' | 'settings'>('build');
   const [saveState, setSaveState] = useState<'saved' | 'saving' | 'unsaved' | 'error'>('saved');
   const [loading, setLoading] = useState(true);
   const autosaveRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -425,7 +426,7 @@ const CampusFormsBuilder: React.FC = () => {
 
         {/* View tabs */}
         <div className="flex items-center gap-1 bg-gray-100 rounded-xl p-1 mx-2">
-          {(['build', 'preview', 'responses', 'settings'] as const).map((view) => (
+          {(['build', 'preview', 'settings'] as const).map((view) => (
             <button
               key={view}
               onClick={() => setActiveView(view)}
@@ -433,7 +434,7 @@ const CampusFormsBuilder: React.FC = () => {
                 activeView === view ? 'bg-white text-red-600 shadow-sm' : 'text-gray-600 hover:text-gray-900'
               }`}
             >
-              {view === 'responses' ? `Responses (${doc?.commentsCount || 0})` : view}
+              {view}
             </button>
           ))}
         </div>
@@ -506,15 +507,6 @@ const CampusFormsBuilder: React.FC = () => {
           <FormResponsePreview content={content} formId={id!} onClose={() => setActiveView('build')} />
         )}
 
-        {activeView === 'responses' && (
-          <div className="max-w-2xl mx-auto py-6 px-4">
-            <div className="bg-white rounded-2xl border border-gray-200 p-6 text-center">
-              <BarChart3 size={32} className="mx-auto text-gray-300 mb-3" />
-              <p className="text-sm text-gray-500">Response analytics coming soon.</p>
-              <p className="text-xs text-gray-400 mt-1">Responses are stored and retrievable via the API.</p>
-            </div>
-          </div>
-        )}
 
         {activeView === 'settings' && (
           <div className="max-w-2xl mx-auto py-6 px-4">

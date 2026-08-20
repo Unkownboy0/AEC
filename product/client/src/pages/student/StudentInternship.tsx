@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import {
   FileCode, Search, Download, Star, Info, FileText, CheckCircle, Clock,
   AlertTriangle, ArrowRight, User, Shield, ChevronRight, TrendingUp, Award,
-  MapPin, Building2, Calendar, Upload, Plus, Trash2, BookOpen, UserCheck, Inbox, Flame
+  MapPin, Building2, Calendar, Upload, Plus, Trash2, BookOpen, UserCheck, Inbox, Flame, Sparkles
 } from 'lucide-react';
 import { toast } from '../../components/ui/Toast';
 import { Loading } from '../../components/ui/Loading';
@@ -37,7 +37,7 @@ export const StudentInternship: React.FC = () => {
   const [duration, setDuration] = useState('6 Months');
   const [credits, setCredits] = useState('3');
 
-  // Logs & Weekly reports stubs
+  // Logs & Weekly reports
   const [logs, setLogs] = useState<{ date: string; task: string }[]>(() => {
     try {
       return JSON.parse(localStorage.getItem('student_internship_logs') || '[]');
@@ -59,7 +59,6 @@ export const StudentInternship: React.FC = () => {
         const data = res.data.data;
         setInternships(data);
         if (data.length > 0) {
-          // Find first active/approved one
           const active = data.find((i: any) => i.status === 'APPROVED' || i.status === 'STARTED') || data[0];
           setActiveInternship(active);
         } else {
@@ -131,7 +130,7 @@ export const StudentInternship: React.FC = () => {
       return;
     }
     if (!uploadedUrl.trim()) {
-      toast.error('Please specify document URL/Link.');
+      toast.error('Please specify document URL or link.');
       return;
     }
     try {
@@ -141,7 +140,7 @@ export const StudentInternship: React.FC = () => {
         documentType: docType,
         fileName: cleanName,
         fileUrl: uploadedUrl.trim(),
-        fileSize: 1024 * 400, // 400 KB mock
+        fileSize: 1024 * 400,
         fileType: 'application/pdf'
       });
       if (res.data?.status === 'success') {
@@ -181,89 +180,96 @@ export const StudentInternship: React.FC = () => {
   const pendingCount = internships.filter(i => i.status === 'PENDING').length;
 
   return (
-    <div className="dark bg-slate-950 text-slate-100 p-6 rounded-2xl border border-slate-800 shadow-2xl space-y-6 text-left pb-12 animate-in fade-in duration-200">
+    <div className="p-4 md:p-6 space-y-6 max-w-7xl mx-auto text-left pb-28 animate-in fade-in duration-200">
       
       {/* Banner */}
-      <div className="flex flex-col sm:flex-row justify-between items-center gap-4 border-b border-slate-800 pb-5">
-        <div>
-          <div className="flex items-center gap-2">
-            <span className="h-2 w-2 rounded-full bg-indigo-500 animate-ping"></span>
-            <span className="text-[10px] uppercase font-black tracking-wider text-indigo-400">GEETORUS CAREER PLAN</span>
+      <section className="relative overflow-hidden rounded-3xl border border-primary/20 bg-gradient-to-br from-primary/10 via-card to-card p-5 sm:p-7 shadow-xs">
+        <div className="absolute -right-16 -top-20 h-56 w-56 rounded-full bg-primary/10 blur-3xl pointer-events-none" />
+        <div className="relative flex flex-col justify-between gap-5 sm:flex-row sm:items-end">
+          <div className="space-y-1.5">
+            <div className="flex items-center gap-2 text-xs font-black uppercase tracking-wider text-primary">
+              <Sparkles className="h-3.5 w-3.5" />
+              <span>Work-Study & Industry Training</span>
+            </div>
+            <h1 className="text-2xl sm:text-3xl font-black text-foreground tracking-tight flex items-center gap-2.5">
+              <FileCode className="h-7 w-7 text-primary" /> Internship & Work-Study Portal
+            </h1>
+            <p className="text-xs sm:text-sm text-muted-foreground max-w-2xl leading-relaxed">
+              File work-study proposals, upload verified offer certificates, and submit your daily technical logbook.
+            </p>
           </div>
-          <h1 className="text-2xl font-black text-white mt-1 flex items-center gap-2">
-            <FileCode className="h-6 w-6 text-indigo-500" /> Internship & Work-Study Portal
-          </h1>
-          <p className="text-xs text-slate-400">File work-study proposals, upload certificates, and submit daily logs</p>
         </div>
-      </div>
+      </section>
 
       {/* KPI Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <section className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
         {[
-          { label: 'Internships Filed', value: `${appliedCount} Proposals` },
-          { label: 'Approved Positions', value: `${approvedCount} Approved` },
-          { label: 'Awaiting Cell Review', value: `${pendingCount} Pending` },
-          { label: 'Logbook Entries', value: `${logs.length} Days logged` }
+          { label: 'Internships Filed', value: `${appliedCount} Proposals`, tone: 'text-indigo-600 dark:text-indigo-400 bg-indigo-500/10 border-indigo-500/20' },
+          { label: 'Approved Positions', value: `${approvedCount} Approved`, tone: 'text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border-emerald-500/20' },
+          { label: 'Awaiting Cell Review', value: `${pendingCount} Pending`, tone: 'text-amber-600 dark:text-amber-400 bg-amber-500/10 border-amber-500/20' },
+          { label: 'Logbook Entries', value: `${logs.length} Days Logged`, tone: 'text-cyan-600 dark:text-cyan-400 bg-cyan-500/10 border-cyan-500/20' }
         ].map((card, idx) => (
-          <div key={idx} className="border border-slate-800 bg-slate-900/50 p-4 rounded-xl shadow-sm">
-            <p className="text-[10px] uppercase font-black tracking-wider text-slate-400">{card.label}</p>
-            <p className="text-sm font-black text-slate-100 mt-1">{card.value}</p>
+          <div key={idx} className="bg-card border border-border p-4 sm:p-5 rounded-2xl shadow-xs">
+            <p className="text-[10px] sm:text-xs uppercase font-black tracking-wider text-muted-foreground">{card.label}</p>
+            <p className="text-base sm:text-lg font-black text-foreground mt-1">{card.value}</p>
           </div>
         ))}
-      </div>
+      </section>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         
         {/* Left Column: Listings & Workspace */}
         <div className="lg:col-span-8 space-y-6">
           
           {/* Active Internship Workspace */}
           {activeInternship ? (
-            <div className="border border-slate-800 bg-slate-900/40 p-5 rounded-xl space-y-4">
+            <div className="bg-card border border-border p-5 rounded-2xl shadow-xs space-y-4">
               <div className="flex justify-between items-start flex-wrap gap-2">
                 <div>
-                  <span className="text-[9px] uppercase font-black tracking-wider text-indigo-400 bg-indigo-950/40 border border-indigo-800/40 px-2 py-0.5 rounded">
+                  <span className="text-[9px] uppercase font-black tracking-wider text-primary bg-primary/10 border border-primary/20 px-2.5 py-0.5 rounded-full">
                     Active Workspace
                   </span>
-                  <h3 className="text-lg font-black text-white mt-1.5">{activeInternship.company}</h3>
-                  <p className="text-xs text-slate-400 font-bold">Duration: {activeInternship.duration} · Mapped Credits: {activeInternship.credits}</p>
+                  <h3 className="text-lg sm:text-xl font-black text-foreground mt-1.5">{activeInternship.company}</h3>
+                  <p className="text-xs text-muted-foreground font-semibold">
+                    Duration: {activeInternship.duration} • Mapped Academic Credits: {activeInternship.credits}
+                  </p>
                 </div>
-                <span className="text-[10px] uppercase font-black tracking-wider text-emerald-400 bg-emerald-950/40 border border-emerald-800/40 px-2.5 py-1 rounded">
+                <span className="text-[10px] uppercase font-black tracking-wider text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-full">
                   {activeInternship.status}
                 </span>
               </div>
 
               {/* Progress Timeline */}
-              <div className="border-t border-slate-800/60 pt-4">
-                <h4 className="text-[10px] font-black uppercase text-slate-500 tracking-wider mb-3">Position Milestones</h4>
+              <div className="border-t border-border pt-4">
+                <h4 className="text-[10px] font-black uppercase text-muted-foreground tracking-wider mb-3">Position Milestones</h4>
                 <div className="grid grid-cols-5 gap-1.5 text-center text-[9px] font-black">
                   {[
                     { label: 'Propose', done: true },
                     { label: 'Cell Approve', done: activeInternship.status !== 'PENDING' },
-                    { label: 'Offer upload', done: activeInternship.documents?.some((d: any) => d.documentType === 'OFFER_LETTER') },
-                    { label: 'Reports filed', done: activeInternship.documents?.some((d: any) => d.documentType === 'WEEKLY_REPORT') },
+                    { label: 'Offer Upload', done: activeInternship.documents?.some((d: any) => d.documentType === 'OFFER_LETTER') },
+                    { label: 'Reports Filed', done: activeInternship.documents?.some((d: any) => d.documentType === 'WEEKLY_REPORT') },
                     { label: 'Certificate', done: activeInternship.documents?.some((d: any) => d.documentType === 'COMPLETION_CERTIFICATE') }
                   ].map((step, idx) => (
                     <div key={idx} className="space-y-1">
-                      <div className={`h-1.5 rounded-full ${step.done ? 'bg-indigo-500 shadow-sm shadow-indigo-500/50' : 'bg-slate-800'}`} />
-                      <span className={step.done ? 'text-slate-200' : 'text-slate-600'}>{step.label}</span>
+                      <div className={`h-1.5 rounded-full ${step.done ? 'bg-primary shadow-xs' : 'bg-muted'}`} />
+                      <span className={step.done ? 'text-foreground font-bold' : 'text-muted-foreground'}>{step.label}</span>
                     </div>
                   ))}
                 </div>
               </div>
 
               {/* Upload Documents form */}
-              <form onSubmit={handleUploadDocument} className="pt-4 border-t border-slate-800/60 space-y-3.5">
-                <h4 className="text-[10px] font-black uppercase text-slate-500 tracking-wider flex items-center gap-1.5">
-                  <Upload className="h-4 w-4 text-indigo-400" /> Submit Document Verification
+              <form onSubmit={handleUploadDocument} className="pt-4 border-t border-border space-y-3.5">
+                <h4 className="text-[10px] font-black uppercase text-foreground tracking-wider flex items-center gap-1.5">
+                  <Upload className="h-4 w-4 text-primary" /> Submit Document for Verification
                 </h4>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 text-xs font-semibold">
                   <div>
-                    <label className="block text-[8px] uppercase font-black text-slate-500 mb-1">Document Category</label>
+                    <label className="block text-[9px] uppercase font-black text-muted-foreground mb-1">Document Category</label>
                     <select
                       value={docType}
                       onChange={e => setDocType(e.target.value)}
-                      className="w-full px-3 py-2 border border-slate-800 bg-slate-950 rounded-lg outline-none text-slate-300"
+                      className="w-full px-3 py-2 border border-border bg-background rounded-xl outline-none text-foreground cursor-pointer"
                     >
                       <option value="OFFER_LETTER">Offer Letter</option>
                       <option value="JOINING_LETTER">Joining Letter</option>
@@ -273,13 +279,13 @@ export const StudentInternship: React.FC = () => {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-[8px] uppercase font-black text-slate-500 mb-1">Document Link / URL</label>
+                    <label className="block text-[9px] uppercase font-black text-muted-foreground mb-1">Document Link / URL</label>
                     <input
                       type="url"
                       placeholder="https://drive.google.com/..."
                       value={uploadedUrl}
                       onChange={e => setUploadedUrl(e.target.value)}
-                      className="w-full px-3 py-2 border border-slate-800 bg-slate-950 rounded-lg outline-none text-slate-300 placeholder:text-slate-700"
+                      className="w-full px-3 py-2 border border-border bg-background rounded-xl outline-none text-foreground placeholder:text-muted-foreground focus:border-primary"
                       required
                     />
                   </div>
@@ -287,7 +293,7 @@ export const StudentInternship: React.FC = () => {
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-slate-950 text-xs font-black rounded-lg transition-colors flex items-center gap-1.5"
+                  className="px-4 py-2 bg-primary hover:bg-primary-hover text-primary-foreground text-xs font-bold rounded-xl transition-all flex items-center gap-2 cursor-pointer shadow-xs"
                 >
                   {isSubmitting ? 'Uploading...' : 'Verify Document'}
                 </button>
@@ -295,17 +301,17 @@ export const StudentInternship: React.FC = () => {
 
               {/* Uploaded Documents List */}
               {activeInternship.documents && activeInternship.documents.length > 0 && (
-                <div className="pt-4 border-t border-slate-800/60 space-y-2">
-                  <h4 className="text-[10px] font-black uppercase text-slate-500 tracking-wider">Submitted Sheets</h4>
+                <div className="pt-4 border-t border-border space-y-2">
+                  <h4 className="text-[10px] font-black uppercase text-muted-foreground tracking-wider">Submitted Documents</h4>
                   <div className="space-y-1.5">
                     {activeInternship.documents.map((doc: any, i: number) => (
-                      <div key={i} className="p-2 border border-slate-800 bg-slate-950 rounded-lg flex items-center justify-between text-xs">
+                      <div key={i} className="p-3 border border-border bg-background rounded-xl flex items-center justify-between text-xs">
                         <div>
-                          <span className="font-extrabold text-slate-200 block">{doc.documentType}</span>
-                          <a href={doc.fileUrl} target="_blank" rel="noreferrer" className="text-[10px] text-indigo-400 hover:underline block truncate max-w-[250px]">{doc.fileName}</a>
+                          <span className="font-bold text-foreground block">{doc.documentType}</span>
+                          <a href={doc.fileUrl} target="_blank" rel="noreferrer" className="text-[11px] text-primary hover:underline block truncate max-w-[250px] font-semibold">{doc.fileName}</a>
                         </div>
-                        <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded ${
-                          doc.verificationStatus === 'VERIFIED' ? 'bg-emerald-950/40 text-emerald-400 border border-emerald-800/40' : 'bg-slate-900 text-slate-500'
+                        <span className={`text-[9px] font-black uppercase px-2.5 py-0.5 rounded-full border ${
+                          doc.verificationStatus === 'VERIFIED' ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20' : 'bg-muted text-muted-foreground border-transparent'
                         }`}>
                           {doc.verificationStatus}
                         </span>
@@ -316,34 +322,34 @@ export const StudentInternship: React.FC = () => {
               )}
             </div>
           ) : (
-            <div className="text-center py-16 border-2 border-dashed border-slate-850 rounded-2xl bg-slate-900/10">
-              <Flame className="h-10 w-10 text-slate-800 mx-auto" />
-              <p className="text-xs text-slate-500 font-bold mt-2.5">No active internship proposals filed yet.</p>
+            <div className="text-center py-16 border-2 border-dashed border-border rounded-3xl bg-card p-6">
+              <Flame className="h-10 w-10 text-muted-foreground/40 mx-auto" />
+              <p className="text-xs text-muted-foreground font-bold mt-2.5">No active internship proposals filed yet.</p>
             </div>
           )}
 
           {/* Internship listings */}
-          <div className="border border-slate-800 bg-slate-900/40 p-5 rounded-xl space-y-4">
-            <h3 className="text-xs font-black uppercase text-slate-400 tracking-wider">
+          <div className="bg-card border border-border p-5 rounded-2xl shadow-xs space-y-4">
+            <h3 className="text-xs font-black uppercase text-foreground tracking-wider">
               Recommended Campus Internship Opportunities
             </h3>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {INTERNSHIP_LISTINGS.map((listing) => (
-                <div key={listing.id} className="p-4 border border-slate-800 bg-slate-950 rounded-xl hover:border-slate-700 transition-colors flex flex-col justify-between gap-3 text-left">
+                <div key={listing.id} className="p-4 border border-border bg-background rounded-2xl hover:border-primary/40 transition-colors flex flex-col justify-between gap-3 text-left shadow-xs">
                   <div className="space-y-1.5">
                     <div className="flex items-center justify-between">
-                      <h4 className="font-black text-white text-sm">{listing.company}</h4>
-                      <span className="text-[9px] uppercase font-black text-indigo-400 bg-indigo-950/40 border border-indigo-800/40 px-2 py-0.5 rounded">{listing.duration}</span>
+                      <h4 className="font-black text-foreground text-sm">{listing.company}</h4>
+                      <span className="text-[9px] uppercase font-black text-primary bg-primary/10 border border-primary/20 px-2 py-0.5 rounded-full">{listing.duration}</span>
                     </div>
-                    <p className="text-xs font-bold text-slate-300">{listing.role}</p>
-                    <p className="text-[10px] text-slate-500 font-bold flex items-center gap-1"><MapPin className="h-3.5 w-3.5 text-slate-750" /> {listing.location} · {listing.stipend}</p>
-                    <p className="text-[9px] text-slate-500 font-medium truncate">Skills: {listing.skills}</p>
+                    <p className="text-xs font-bold text-muted-foreground">{listing.role}</p>
+                    <p className="text-[10.5px] text-muted-foreground font-semibold flex items-center gap-1"><MapPin className="h-3.5 w-3.5 text-primary shrink-0" /> {listing.location} • {listing.stipend}</p>
+                    <p className="text-[10px] text-muted-foreground font-medium truncate">Skills: {listing.skills}</p>
                   </div>
                   <button
                     onClick={() => handleApplyListing(listing)}
                     disabled={isSubmitting}
-                    className="w-full py-1.5 bg-indigo-600 hover:bg-indigo-500 text-slate-950 text-xs font-black rounded-lg transition-all"
+                    className="w-full py-2 bg-primary hover:bg-primary-hover text-primary-foreground text-xs font-bold rounded-xl transition-all cursor-pointer shadow-xs"
                   >
                     Apply Proposal
                   </button>
@@ -357,30 +363,30 @@ export const StudentInternship: React.FC = () => {
         <div className="lg:col-span-4 space-y-6">
           
           {/* Custom Propose Form */}
-          <div className="border border-slate-800 bg-slate-900/40 p-5 rounded-xl space-y-4 text-left">
-            <h3 className="text-xs font-black uppercase text-slate-400 tracking-wider">
+          <div className="bg-card border border-border p-5 rounded-2xl shadow-xs space-y-4 text-left">
+            <h3 className="text-xs font-black uppercase text-foreground tracking-wider">
               Propose Custom Internship
             </h3>
             <form onSubmit={handleRequestCustom} className="space-y-3 text-xs font-semibold">
               <div>
-                <label className="block text-[8px] uppercase font-black text-slate-500 mb-1">Company Name</label>
+                <label className="block text-[9px] uppercase font-black text-muted-foreground mb-1">Company Name</label>
                 <input
                   type="text"
-                  placeholder="e.g. Acme Corp..."
+                  placeholder="e.g. Acme Corporation..."
                   value={company}
                   onChange={e => setCompany(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-800 bg-slate-950 rounded-lg outline-none text-slate-200"
+                  className="w-full px-3 py-2 border border-border bg-background rounded-xl outline-none text-foreground focus:border-primary"
                   required
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="block text-[8px] uppercase font-black text-slate-500 mb-1">Duration</label>
+                  <label className="block text-[9px] uppercase font-black text-muted-foreground mb-1">Duration</label>
                   <select
                     value={duration}
                     onChange={e => setDuration(e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-800 bg-slate-950 rounded-lg outline-none text-slate-300"
+                    className="w-full px-3 py-2 border border-border bg-background rounded-xl outline-none text-foreground cursor-pointer"
                   >
                     <option value="3 Months">3 Months</option>
                     <option value="6 Months">6 Months</option>
@@ -388,11 +394,11 @@ export const StudentInternship: React.FC = () => {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-[8px] uppercase font-black text-slate-500 mb-1">Credits</label>
+                  <label className="block text-[9px] uppercase font-black text-muted-foreground mb-1">Credits</label>
                   <select
                     value={credits}
                     onChange={e => setCredits(e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-800 bg-slate-950 rounded-lg outline-none text-slate-300"
+                    className="w-full px-3 py-2 border border-border bg-background rounded-xl outline-none text-foreground cursor-pointer"
                   >
                     <option value="2">2 Credits</option>
                     <option value="3">3 Credits</option>
@@ -404,7 +410,7 @@ export const StudentInternship: React.FC = () => {
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="w-full py-2 bg-indigo-600 hover:bg-indigo-500 text-slate-950 text-xs font-black rounded-lg transition-all"
+                className="w-full py-2.5 bg-primary hover:bg-primary-hover text-primary-foreground text-xs font-bold rounded-xl transition-all cursor-pointer shadow-xs"
               >
                 File Internship Proposal
               </button>
@@ -412,43 +418,43 @@ export const StudentInternship: React.FC = () => {
           </div>
 
           {/* Daily Log Book */}
-          <div className="border border-slate-800 bg-slate-900/40 p-5 rounded-xl space-y-4 text-left">
+          <div className="bg-card border border-border p-5 rounded-2xl shadow-xs space-y-4 text-left">
             <div className="flex justify-between items-center">
-              <h3 className="text-xs font-black uppercase text-slate-400 tracking-wider flex items-center gap-1.5">
-                <BookOpen className="h-4 w-4 text-indigo-400" /> Daily Work Logbook
+              <h3 className="text-xs font-black uppercase text-foreground tracking-wider flex items-center gap-1.5">
+                <BookOpen className="h-4 w-4 text-primary" /> Daily Work Logbook
               </h3>
               {logs.length > 0 && (
-                <button onClick={handleClearLogs} className="text-[9px] text-rose-400 font-extrabold hover:underline">Clear</button>
+                <button onClick={handleClearLogs} className="text-[10px] text-rose-500 font-bold hover:underline cursor-pointer">Clear</button>
               )}
             </div>
 
-            <form onSubmit={handleAddLog} className="space-y-3.5 text-xs font-semibold border-b border-slate-800/60 pb-4">
+            <form onSubmit={handleAddLog} className="space-y-3 text-xs font-semibold border-b border-border pb-4">
               <div>
-                <label className="block text-[8px] uppercase font-black text-slate-500 mb-1">Date</label>
+                <label className="block text-[9px] uppercase font-black text-muted-foreground mb-1">Date</label>
                 <input
                   type="date"
                   value={logDate}
                   onChange={e => setLogDate(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-800 bg-slate-950 rounded-lg outline-none text-slate-300"
+                  className="w-full px-3 py-2 border border-border bg-background rounded-xl outline-none text-foreground"
                   required
                 />
               </div>
 
               <div>
-                <label className="block text-[8px] uppercase font-black text-slate-500 mb-1">Tasks Completed</label>
+                <label className="block text-[9px] uppercase font-black text-muted-foreground mb-1">Tasks Completed</label>
                 <textarea
                   placeholder="Describe your daily technical tasks..."
                   value={logTask}
                   onChange={e => setLogTask(e.target.value)}
                   rows={2}
-                  className="w-full px-3 py-2 border border-slate-800 bg-slate-950 rounded-lg outline-none text-slate-200 resize-none placeholder:text-slate-800"
+                  className="w-full px-3 py-2 border border-border bg-background rounded-xl outline-none text-foreground resize-none placeholder:text-muted-foreground focus:border-primary"
                   required
                 />
               </div>
 
               <button
                 type="submit"
-                className="w-full py-2 bg-indigo-600 hover:bg-indigo-500 text-slate-950 text-xs font-black rounded-lg transition-all flex items-center justify-center gap-1.5"
+                className="w-full py-2 bg-primary hover:bg-primary-hover text-primary-foreground text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
               >
                 <Plus className="h-4 w-4" /> Save Logbook Entry
               </button>
@@ -457,13 +463,13 @@ export const StudentInternship: React.FC = () => {
             <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
               {logs.length > 0 ? (
                 logs.map((log, i) => (
-                  <div key={i} className="p-2.5 border border-slate-850 bg-slate-950 rounded-xl text-[10.5px] leading-relaxed">
-                    <span className="font-black text-indigo-400 block">{new Date(log.date).toLocaleDateString('en-IN')}</span>
-                    <p className="text-slate-400 font-medium mt-0.5">{log.task}</p>
+                  <div key={i} className="p-3 border border-border bg-background rounded-xl text-xs space-y-0.5">
+                    <span className="font-bold text-primary block">{new Date(log.date).toLocaleDateString('en-IN')}</span>
+                    <p className="text-muted-foreground font-medium">{log.task}</p>
                   </div>
                 ))
               ) : (
-                <p className="text-[10px] text-slate-500 italic py-4 text-center">No logbook entries recorded for this internship.</p>
+                <p className="text-xs text-muted-foreground italic py-4 text-center">No logbook entries recorded for this internship.</p>
               )}
             </div>
           </div>

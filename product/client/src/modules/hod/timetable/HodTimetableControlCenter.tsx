@@ -102,6 +102,29 @@ export const HodTimetableControlCenter: React.FC = () => {
   const [resolvingIssueId, setResolvingIssueId] = useState<string | null>(null);
   const [resolutionNotes, setResolutionNotes] = useState('');
 
+  // Slot Editor & Live Workload State
+  const [isEditSlotModalOpen, setIsEditSlotModalOpen] = useState(false);
+  const [editingSlot, setEditingSlot] = useState<{
+    day: string;
+    period: number;
+    className: string;
+    subjectCode: string;
+    subjectName: string;
+    facultyId: string;
+    roomNo: string;
+    isLab: boolean;
+  }>({
+    day: 'MONDAY',
+    period: 1,
+    className: '',
+    subjectCode: '',
+    subjectName: '',
+    facultyId: '',
+    roomNo: 'D106',
+    isLab: false,
+  });
+  const [slotConflictWarning, setSlotConflictWarning] = useState<string | null>(null);
+
   // Days & Periods
   const weekdays = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'];
   const periods = [1, 2, 3, 4, 5, 6, 7, 8];
@@ -266,6 +289,65 @@ export const HodTimetableControlCenter: React.FC = () => {
     if (matrixViewType === 'FACULTY') return Object.keys(masterData.byFaculty || {});
     if (matrixViewType === 'ROOM') return Object.keys(masterData.byRoom || {});
     return [];
+  };
+
+  const handleOpenSlotEditor = (day: string, period: number, currentSlot: TimetableSlotItem | null) => {
+    const defaultClass = matrixViewType === 'CLASS' ? selectedEntityKey : Object.keys(masterData.byClass || {})[0] || 'VII IT-A';
+    setEditingSlot({
+      day,
+      period,
+      className: defaultClass,
+      subjectCode: currentSlot?.subject?.code || '',
+      subjectName: currentSlot?.subject?.name || '',
+      facultyId: currentSlot?.faculty?.id || '',
+      roomNo: currentSlot?.roomNo || 'D106',
+      isLab: currentSlot?.isLab || currentSlot?.slotType === 'LAB' || false,
+    });
+    setSlotConflictWarning(null);
+    setIsEditSlotModalOpen(true);
+  };
+
+  const handleSlotFacultyChange = (facultyId: string) => {
+    setEditingSlot(prev => ({ ...prev, facultyId }));
+    // Real-time conflict validation
+    if (!facultyId) {
+      setSlotConflictWarning(null);
+      return;
+    }
+    const facultyObj = masterData.byFaculty[facultyId];
+    if (facultyObj?.grid?.[editingSlot.day]?.[editingSlot.period]) {
+      const busySlot = facultyObj.grid[editingSlot.day][editingSlot.period];
+      setSlotConflictWarning(`Faculty Conflict: Already assigned to ${busySlot.section?.name || 'another section'} (${busySlot.subject?.code || 'Slot'}) during ${editingSlot.day} Period ${editingSlot.period}.`);
+    } else {
+      setSlotConflictWarning(null);
+    }
+  };
+
+  const handleSaveSlot = async () => {
+    if (!editingSlot.subjectCode.trim()) {
+      alert('Please enter or select a Course / Subject code.');
+      return;
+    }
+    try {
+      setLoading(true);
+      await api.post('/hod-timetable/slot', {
+        departmentId,
+        dayOfWeek: editingSlot.day,
+        periodNumber: editingSlot.period,
+        className: editingSlot.className,
+        subjectCode: editingSlot.subjectCode,
+        subjectName: editingSlot.subjectName || editingSlot.subjectCode,
+        facultyId: editingSlot.facultyId || undefined,
+        roomNo: editingSlot.roomNo,
+        isLab: editingSlot.isLab,
+      });
+      setIsEditSlotModalOpen(false);
+      await loadMasterTimetable();
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Failed to update timetable slot');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -434,7 +516,9 @@ export const HodTimetableControlCenter: React.FC = () => {
                       return (
                         <td key={p} className="p-2 border-l border-border/50 text-center align-top min-w-[130px]">
                           {slot ? (
-                            <div className={`p-2.5 rounded-xl border text-left shadow-xs transition hover:scale-[1.02] cursor-pointer ${
+                            <div
+                              onClick={() => handleOpenSlotEditor(day, p, slot)}
+                              className={`p-2.5 rounded-xl border text-left shadow-xs transition hover:scale-[1.02] cursor-pointer ${
                               slot.isLab || slot.slotType === 'LAB'
                                 ? 'bg-amber-500/10 border-amber-500/30 text-amber-900 dark:text-amber-200'
                                 : (slot.faculty && slot.faculty.departmentId !== departmentId
@@ -457,8 +541,11 @@ export const HodTimetableControlCenter: React.FC = () => {
                               </div>
                             </div>
                           ) : (
-                            <div className="h-16 flex items-center justify-center border border-dashed border-border/40 rounded-xl text-[10px] text-muted-foreground/40 hover:border-primary/50 transition cursor-pointer">
-                              Free Slot
+                            <div
+                              onClick={() => handleOpenSlotEditor(day, p, null)}
+                              className="h-16 flex items-center justify-center border border-dashed border-border/40 rounded-xl text-[10px] text-muted-foreground/40 hover:border-primary/50 hover:text-primary transition cursor-pointer"
+                            >
+                              + Free Slot
                             </div>
                           )}
                         </td>
@@ -706,7 +793,7 @@ export const HodTimetableControlCenter: React.FC = () => {
               {/* Institutional Watermark Layer */}
               <div aria-hidden="true" className="print-watermark-overlay pointer-events-none absolute inset-0 z-0 flex items-center justify-center select-none overflow-hidden">
                 <img
-                  src="/branding/al-ameen-logo.png"
+                  src="/branding/official-logo.png"
                   alt=""
                   className="w-1/2 max-w-[380px] opacity-[0.045] object-contain filter grayscale contrast-125"
                 />
@@ -841,6 +928,194 @@ export const HodTimetableControlCenter: React.FC = () => {
                 className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs"
               >
                 Confirm & Publish
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── MODAL: EDIT TIMETABLE PERIOD & LIVE WORKLOAD ─────────────────────── */}
+      {isEditSlotModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-card border border-border max-w-xl w-full p-6 rounded-3xl shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-border pb-3">
+              <div>
+                <h3 className="text-base font-extrabold text-foreground flex items-center gap-2">
+                  <Edit3 className="h-5 w-5 text-primary" />
+                  Edit Timetable Period ({editingSlot.day} - Period {editingSlot.period})
+                </h3>
+                <p className="text-xs text-muted-foreground">
+                  Allocate course, faculty with live workload context, venue, and validate scheduling conflicts.
+                </p>
+              </div>
+              <button
+                onClick={() => setIsEditSlotModalOpen(false)}
+                className="p-1 rounded-lg text-muted-foreground hover:text-foreground"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Conflict Warning Banner */}
+            {slotConflictWarning && (
+              <div className="p-3.5 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-600 dark:text-rose-400 text-xs flex items-start gap-2.5">
+                <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+                <div>
+                  <div className="font-bold">Scheduling Conflict Detected</div>
+                  <div className="text-[11px]">{slotConflictWarning}</div>
+                </div>
+              </div>
+            )}
+
+            <div className="space-y-4 text-xs">
+              {/* Class & Subject */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-bold text-muted-foreground mb-1">Class / Section:</label>
+                  <input
+                    type="text"
+                    value={editingSlot.className}
+                    onChange={(e) => setEditingSlot(prev => ({ ...prev, className: e.target.value }))}
+                    className="w-full bg-muted/40 border border-border rounded-xl px-3 py-2 font-bold focus:outline-none focus:ring-1 focus:ring-primary"
+                    placeholder="e.g. VII IT-A"
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold text-muted-foreground mb-1">Venue / Room No:</label>
+                  <input
+                    type="text"
+                    value={editingSlot.roomNo}
+                    onChange={(e) => setEditingSlot(prev => ({ ...prev, roomNo: e.target.value }))}
+                    className="w-full bg-muted/40 border border-border rounded-xl px-3 py-2 font-mono focus:outline-none focus:ring-1 focus:ring-primary"
+                    placeholder="e.g. D106 / Lab 2"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-bold text-muted-foreground mb-1">Course Code:</label>
+                  <input
+                    type="text"
+                    value={editingSlot.subjectCode}
+                    onChange={(e) => setEditingSlot(prev => ({ ...prev, subjectCode: e.target.value }))}
+                    className="w-full bg-muted/40 border border-border rounded-xl px-3 py-2 font-bold focus:outline-none focus:ring-1 focus:ring-primary"
+                    placeholder="e.g. IT8701"
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold text-muted-foreground mb-1">Course Title:</label>
+                  <input
+                    type="text"
+                    value={editingSlot.subjectName}
+                    onChange={(e) => setEditingSlot(prev => ({ ...prev, subjectName: e.target.value }))}
+                    className="w-full bg-muted/40 border border-border rounded-xl px-3 py-2 focus:outline-none focus:ring-1 focus:ring-primary"
+                    placeholder="e.g. Cloud Computing Architecture"
+                  />
+                </div>
+              </div>
+
+              {/* Lab / Practical Flag */}
+              <div className="flex items-center gap-2 pt-1">
+                <input
+                  type="checkbox"
+                  id="isLabCheckbox"
+                  checked={editingSlot.isLab}
+                  onChange={(e) => setEditingSlot(prev => ({ ...prev, isLab: e.target.checked }))}
+                  className="rounded border-border text-primary focus:ring-primary"
+                />
+                <label htmlFor="isLabCheckbox" className="font-bold text-foreground cursor-pointer">
+                  Laboratory / Practical Session (Occupies Specialized Lab & Technical Staff)
+                </label>
+              </div>
+
+              {/* Faculty Selector with Live Workload & Free/Busy */}
+              <div className="space-y-2 pt-2 border-t border-border">
+                <label className="block font-bold text-foreground">
+                  Assigned Faculty (Live Workload & Free/Busy Status):
+                </label>
+                <div className="max-h-48 overflow-y-auto space-y-1.5 rounded-2xl border border-border p-2 bg-muted/20">
+                  <div
+                    onClick={() => handleSlotFacultyChange('')}
+                    className={`p-2.5 rounded-xl border cursor-pointer transition flex items-center justify-between ${
+                      !editingSlot.facultyId ? 'bg-primary/10 border-primary text-primary font-bold' : 'border-border/60 hover:bg-muted/40'
+                    }`}
+                  >
+                    <span>None (Unassigned Slot)</span>
+                    <span className="text-[10px] text-muted-foreground">TBD</span>
+                  </div>
+
+                  {facultyRoster.homeFaculty.concat(facultyRoster.crossDepartmentFaculty).map((fac) => {
+                    const isSelected = editingSlot.facultyId === fac.id;
+                    const facultyGrid = masterData.byFaculty[fac.id]?.grid;
+                    const isBusyInSlot = facultyGrid?.[editingSlot.day]?.[editingSlot.period];
+                    const allocatedCount = facultyGrid ? Object.values(facultyGrid).reduce((sum: number, daySlots: any) => sum + Object.keys(daySlots).length, 0) : 16;
+                    const targetWorkload = 22;
+
+                    return (
+                      <div
+                        key={fac.id}
+                        onClick={() => handleSlotFacultyChange(fac.id)}
+                        className={`p-2.5 rounded-xl border cursor-pointer transition space-y-1 ${
+                          isSelected
+                            ? 'bg-primary/10 border-primary shadow-xs'
+                            : (isBusyInSlot ? 'border-rose-500/40 bg-rose-500/5 hover:bg-rose-500/10' : 'border-border/60 hover:bg-muted/40')
+                        }`}
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="font-bold text-foreground flex items-center gap-1.5">
+                            <span>{fac.firstName} {fac.lastName}</span>
+                            {fac.isVisiting ? (
+                              <span className="text-[9px] px-1.5 py-0.2 rounded bg-indigo-500/20 text-indigo-400 font-bold">
+                                Cross-Dept ({fac.homeDepartment.code})
+                              </span>
+                            ) : (
+                              <span className="text-[9px] px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-400 font-bold">
+                                Home
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            {isBusyInSlot ? (
+                              <span className="text-[9px] px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-400 font-bold">
+                                BUSY / CONFLICT
+                              </span>
+                            ) : (
+                              <span className="text-[9px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 font-bold">
+                                AVAILABLE
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+                          <span>{fac.employeeId} • {fac.designation || 'Assistant Professor'}</span>
+                          <span className="font-mono font-bold text-foreground">
+                            {allocatedCount} / {targetWorkload} hrs allocated
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="flex justify-end gap-2 pt-3 border-t border-border">
+              <button
+                type="button"
+                onClick={() => setIsEditSlotModalOpen(false)}
+                className="px-4 py-2 rounded-xl border border-border text-xs font-bold hover:bg-muted"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveSlot}
+                className="px-5 py-2 rounded-xl bg-primary text-primary-foreground font-bold text-xs shadow-sm hover:opacity-95"
+              >
+                Save Timetable Slot
               </button>
             </div>
           </div>

@@ -55,7 +55,8 @@ interface QuizContent {
 // ─── Quiz Builder Component ──────────────────────────────────────────────────
 
 const CampusQuizBuilder: React.FC = () => {
-  const { id } = useParams<{ id: string }>();
+  const params = useParams<{ id?: string; documentId?: string }>();
+  const id = params.id || params.documentId;
   const { user } = useAuth();
   const navigate = useNavigate();
 

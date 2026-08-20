@@ -109,23 +109,15 @@ export const HODProfile: React.FC = () => {
           const uploadPayload = {
             name: file.name,
             mimeType: file.type,
-            folder: '/profiles',
             base64: base64Data,
           };
 
-          const uploadRes = await api.post('/files/upload', uploadPayload);
-          if (uploadRes.data?.status === 'success') {
-            const photoUrl = uploadRes.data.data.path;
-
-            const updateRes = await api.put('/auth/profile', { profilePhoto: photoUrl });
-            if (updateRes.data?.status === 'success') {
-              setProfile((prev: any) => ({ ...prev, profilePhoto: photoUrl }));
-              toast.success('✅ Profile photo updated and saved.');
-            } else {
-              toast.error('Photo uploaded but failed to save URL to profile.');
-            }
+          const res = await api.put('/users/profile/avatar', uploadPayload);
+          if (res.data?.status === 'success' || res.data?.success) {
+            toast.success('✅ Profile photo updated successfully.');
+            await fetchProfile();
           } else {
-            toast.error(uploadRes.data?.message || 'File upload failed.');
+            toast.error(res.data?.message || 'File upload failed.');
           }
         } catch (err: any) {
           const msg = err.response?.data?.message || err.message || 'Photo upload failed.';

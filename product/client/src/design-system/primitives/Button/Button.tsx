@@ -24,11 +24,11 @@ export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElemen
 
 const variantStyles: Record<string, string> = {
   primary:
-    'bg-purple-600 hover:bg-purple-700 active:bg-purple-800 text-white shadow-xs shadow-purple-600/25 border border-purple-500/30',
+    'bg-primary hover:bg-primary-hover active:brightness-90 text-primary-foreground shadow-xs border border-primary/30',
   secondary:
-    'bg-white text-slate-700 border border-slate-300 hover:bg-slate-50 hover:text-slate-900 active:bg-slate-100 shadow-2xs',
+    'bg-surface text-foreground border border-border hover:bg-surface-soft active:bg-muted shadow-2xs',
   ghost:
-    'bg-transparent text-slate-700 hover:bg-slate-100 hover:text-slate-900 active:bg-slate-200',
+    'bg-transparent text-foreground hover:bg-muted active:bg-muted/80',
   danger:
     'bg-red-600 hover:bg-red-700 active:bg-red-800 text-white shadow-xs shadow-red-600/25 border border-red-500/30',
   warning:
@@ -38,9 +38,9 @@ const variantStyles: Record<string, string> = {
 };
 
 const sizeStyles: Record<string, string> = {
-  sm: 'h-8 px-3 text-xs font-medium gap-1.5 rounded-lg',
-  md: 'h-9 px-4 text-sm font-medium gap-2 rounded-xl',
-  lg: 'h-11 px-5 text-base font-medium gap-2.5 rounded-xl touch-target min-h-[44px]',
+  sm: 'h-12 lg:h-8 px-3 text-xs font-medium gap-1.5 rounded-xl',
+  md: 'h-12 lg:h-9 px-4 text-sm font-semibold gap-2 rounded-xl',
+  lg: 'h-12 lg:h-11 px-5 text-base font-semibold gap-2.5 rounded-xl touch-target',
 };
 
 export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
@@ -68,8 +68,8 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
           // Base
           'inline-flex items-center justify-center font-medium',
           'transition-all duration-150 ease-in-out',
-          'select-none whitespace-nowrap cursor-pointer',
-          'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-purple-500',
+          'select-none whitespace-normal text-center leading-tight cursor-pointer active:scale-[0.98]',
+          'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',
           // Variant
           variantStyles[variant],
           // Size

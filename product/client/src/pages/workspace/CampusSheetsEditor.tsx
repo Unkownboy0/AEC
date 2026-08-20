@@ -155,7 +155,8 @@ function evaluateFormula(formula: string, cells: Record<string, CellData>): stri
 // ─── Campus Sheets Editor ────────────────────────────────────────────────────
 
 const CampusSheetsEditor: React.FC = () => {
-  const { id } = useParams<{ id: string }>();
+  const params = useParams<{ id?: string; documentId?: string }>();
+  const id = params.id || params.documentId;
   const { user } = useAuth();
   const navigate = useNavigate();
 

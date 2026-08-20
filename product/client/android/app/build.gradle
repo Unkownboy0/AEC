@@ -13,8 +13,8 @@ android {
         applicationId System.getenv('CAMPUSOS_APP_ID') ?: "com.campusos.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 4
-        versionName "1.0.3"
+        versionCode 7
+        versionName "1.0.6"
         manifestPlaceholders = [
             campusosHost: System.getenv('CAMPUSOS_HOST') ?: "campusos.app"
         ]
@@ -26,6 +26,12 @@ android {
         }
     }
     signingConfigs {
+        debug {
+            enableV1Signing true
+            enableV2Signing true
+            enableV3Signing true
+            enableV4Signing true
+        }
         if (hasReleaseSigning) {
             release {
                 storeFile file(releaseStoreFile)
@@ -44,10 +50,18 @@ android {
             minifyEnabled true
             shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            ndk {
+                abiFilters 'armeabi-v7a', 'arm64-v8a'
+            }
             if (hasReleaseSigning) {
                 signingConfig signingConfigs.release
             }
         }
+    }
+    flavorDimensions "deployment"
+    productFlavors {
+        internetProduction { dimension "deployment" }
+        onPrem { dimension "deployment" }
     }
     configurations.configureEach {
         resolutionStrategy {
@@ -58,9 +72,11 @@ android {
 }
 
 gradle.taskGraph.whenReady { graph ->
-    def requestedReleaseBundle = graph.allTasks.any { it.path in [':app:bundleRelease', ':app:assembleRelease'] }
+    def requestedReleaseBundle = graph.allTasks.any {
+        it.path ==~ /:app:(assemble|bundle).*Release/
+    }
     if (requestedReleaseBundle && !hasReleaseSigning) {
-        logger.warn('CAMPUSOS NOTE: Release build running without signing credentials. Generating unsigned release artifact. Set CAMPUSOS_ANDROID_KEYSTORE_FILE, CAMPUSOS_ANDROID_KEYSTORE_PASSWORD, CAMPUSOS_ANDROID_KEY_ALIAS and CAMPUSOS_ANDROID_KEY_PASSWORD for signed store release.')
+        throw new GradleException('CampusOS release signing is required. Set CAMPUSOS_ANDROID_KEYSTORE_FILE, CAMPUSOS_ANDROID_KEYSTORE_PASSWORD, CAMPUSOS_ANDROID_KEY_ALIAS and CAMPUSOS_ANDROID_KEY_PASSWORD. No debug-signed or unsigned release artifact will be produced.')
     }
 }
 

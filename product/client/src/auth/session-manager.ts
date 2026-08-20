@@ -16,6 +16,7 @@ export interface User {
   fullName?: string;
   username?: string;
   phone?: string | null;
+  gender?: 'MALE' | 'FEMALE' | 'OTHER' | 'PREFER_NOT_TO_SAY' | 'UNSPECIFIED' | string | null;
   status?: string;
   role: string;
   roles?: string[];
@@ -50,12 +51,13 @@ export async function fetchCurrentUser(): Promise<User | null> {
         try {
           const payload = await apiGet<User | { user: User }>('/auth/me');
           return 'user' in payload ? payload.user : payload;
-        } catch (retryErr) {
-          return null;
+        } catch (retryErr: any) {
+          if (retryErr?.status === 401) return null;
+          throw retryErr;
         }
       }
     }
-    return null;
+    throw err;
   }
 }
 

@@ -32,6 +32,7 @@ export interface EligibleDelegate {
 
 export interface ActiveDelegationDetails {
   id: string;
+  principalUserId?: string;
   startsAt: string;
   endsAt: string;
   reason: string;
@@ -46,6 +47,8 @@ export interface DelegationScope {
   requestTypes?: string[];
   departmentIds?: string[];
   workflowStages?: string[];
+  resourceIds?: string[];
+  excludedPermissions?: string[];
 }
 
 export interface PrincipalAvailabilityContext {

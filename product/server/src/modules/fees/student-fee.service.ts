@@ -3,6 +3,12 @@ import { prisma } from '../../lib/prisma';
 import { env } from '../../config/env';
 import { BadRequestException, ForbiddenException, NotFoundException } from '../../utils/exceptions';
 import { NotificationService } from '../notifications/notification.service';
+import { AuditService } from '../security/audit.service';
+import {
+  requirePersistedPaymentProvider,
+  verifyRazorpayPaymentSignature,
+  verifyRazorpayWebhookSignature,
+} from './payment-security';
 
 const EXTERNAL_METHODS = new Set(['BANK_TRANSFER', 'UPI_EXTERNAL', 'CASH_AT_COLLEGE', 'DD', 'NEFT_RTGS', 'CHEQUE', 'OTHER']);
 
@@ -110,14 +116,18 @@ export class StudentFeeService {
         transactionId: p.providerPaymentId || p.externalReference || p.transactionId,
         status: p.status, rejectionReason: p.rejectionReason, proofUrl: p.proofUrl,
       })),
-      gateway: { provider: env.PAYMENT_GATEWAY, enabled: env.PAYMENT_GATEWAY === 'RAZORPAY' && Boolean(env.RAZORPAY_KEY_ID && env.RAZORPAY_KEY_SECRET) },
+      gateway: {
+        provider: env.PAYMENT_GATEWAY === 'RAZORPAY' ? 'RAZORPAY' : env.PAYMENT_GATEWAY === 'DEMO_PAYMENT' ? 'DEMO_PAYMENT' : 'DISABLED',
+        enabled: env.PAYMENT_GATEWAY !== 'DISABLED',
+        isDemo: env.PAYMENT_GATEWAY === 'DEMO_PAYMENT',
+      },
     };
   }
 
   static async createOnlineOrder(userId: string, billId: string, requestedAmount: unknown, idempotencyKey?: string) {
-    if (env.PAYMENT_GATEWAY !== 'RAZORPAY' || !env.RAZORPAY_KEY_ID || !env.RAZORPAY_KEY_SECRET) {
-      throw new BadRequestException('Online payment gateway is not configured. Use external payment or contact Accounts.');
-    }
+    const isRazorpay = env.PAYMENT_GATEWAY === 'RAZORPAY' && Boolean(env.RAZORPAY_KEY_ID && env.RAZORPAY_KEY_SECRET);
+    const isDemo = env.PAYMENT_GATEWAY === 'DEMO_PAYMENT';
+    if (!isRazorpay && !isDemo) throw new BadRequestException('Online payments are disabled');
     const { student, bill } = await this.ownedBill(userId, billId);
     const balance = payable(bill) - Number(bill.paidAmount || 0);
     if (balance <= 0) throw new BadRequestException('This invoice is already paid');
@@ -128,9 +138,46 @@ export class StudentFeeService {
       const existing = await prisma.feePayment.findUnique({ where: { idempotencyKey } });
       if (existing) {
         if (existing.studentId !== student.id || existing.billId !== bill.id) throw new ForbiddenException('Idempotency key does not belong to this invoice');
-        return { paymentId: existing.id, orderId: existing.providerOrderId, amount: existing.amount, currency: existing.currency, keyId: env.RAZORPAY_KEY_ID };
+        return {
+          paymentId: existing.id,
+          orderId: existing.providerOrderId,
+          amount: existing.amount,
+          currency: existing.currency,
+          keyId: isRazorpay ? env.RAZORPAY_KEY_ID : 'DEMO_KEY',
+          provider: requirePersistedPaymentProvider(existing.provider),
+          isDemo: existing.provider === 'DEMO_PAYMENT',
+        };
       }
     }
+
+    if (isDemo) {
+      // Deterministic DEMO_PAYMENT provider flow
+      const orderId = token('DEMO_ORD');
+      const payment = await prisma.feePayment.create({
+        data: {
+          billId: bill.id,
+          studentId: student.id,
+          transactionId: token('TXN'),
+          source: 'ONLINE',
+          method: 'DEMO_PAYMENT',
+          status: 'CREATED',
+          amount,
+          provider: 'DEMO_PAYMENT',
+          providerOrderId: orderId,
+          idempotencyKey: idempotencyKey || null,
+        },
+      });
+      return {
+        paymentId: payment.id,
+        orderId,
+        amount,
+        currency: 'INR',
+        keyId: 'DEMO_KEY',
+        provider: 'DEMO_PAYMENT',
+        isDemo: true,
+      };
+    }
+
     const auth = Buffer.from(`${env.RAZORPAY_KEY_ID}:${env.RAZORPAY_KEY_SECRET}`).toString('base64');
     const response = await fetch('https://api.razorpay.com/v1/orders', {
       method: 'POST', headers: { Authorization: `Basic ${auth}`, 'Content-Type': 'application/json' },
@@ -142,22 +189,34 @@ export class StudentFeeService {
       billId: bill.id, studentId: student.id, transactionId: token('TXN'), source: 'ONLINE', method: 'RAZORPAY',
       status: 'CREATED', amount, provider: 'RAZORPAY', providerOrderId: order.id, idempotencyKey: idempotencyKey || null,
     }});
-    return { paymentId: payment.id, orderId: order.id, amount, currency: 'INR', keyId: env.RAZORPAY_KEY_ID };
+    return { paymentId: payment.id, orderId: order.id, amount, currency: 'INR', keyId: env.RAZORPAY_KEY_ID, provider: 'RAZORPAY', isDemo: false };
   }
 
   static async verifyOnlinePayment(userId: string, input: any) {
-    if (!env.RAZORPAY_KEY_SECRET) throw new BadRequestException('Payment gateway is not configured');
     const { orderId, paymentId, signature } = input || {};
-    if (!orderId || !paymentId || !signature) throw new BadRequestException('Payment verification details are incomplete');
-    const expected = crypto.createHmac('sha256', env.RAZORPAY_KEY_SECRET).update(`${orderId}|${paymentId}`).digest('hex');
-    const valid = expected.length === String(signature).length && crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(String(signature)));
-    if (!valid) throw new ForbiddenException('Payment signature verification failed');
+    if (!orderId) throw new BadRequestException('Payment verification details are incomplete');
     const student = await this.studentForUser(userId);
+    const persistedPayment: any = await prisma.feePayment.findFirst({
+      where: { providerOrderId: String(orderId), studentId: student.id },
+    });
+    if (!persistedPayment) throw new NotFoundException('Payment order not found');
+
+    const provider = requirePersistedPaymentProvider(persistedPayment.provider);
+    let resolvedPaymentId: string;
+    if (provider === 'RAZORPAY') {
+      resolvedPaymentId = verifyRazorpayPaymentSignature({
+        orderId: persistedPayment.providerOrderId,
+        paymentId,
+        signature,
+        keySecret: env.RAZORPAY_KEY_SECRET,
+      });
+    } else {
+      if (env.PAYMENT_GATEWAY !== 'DEMO_PAYMENT') throw new ForbiddenException('Demo payments are not enabled');
+      resolvedPaymentId = persistedPayment.providerPaymentId || token('DEMO_PAY');
+    }
+
     const result: any = await prisma.$transaction(async (tx) => {
       // ── Re-fetch inside Serializable transaction (SELECT…FOR UPDATE equivalent) ────
-      // Without this re-check, two concurrent /verify requests for the same orderId
-      // would both pass the outer signature check and both enter the transaction,
-      // resulting in double-credit on the bill and two ledger entries.
       const payment: any = await (tx as any).feePayment.findFirst({
         where: { providerOrderId: orderId, studentId: student.id },
         include: { bill: true }
@@ -165,16 +224,20 @@ export class StudentFeeService {
       if (!payment) throw new NotFoundException('Payment order not found');
 
       // ── Idempotency guard: already SUCCEEDED → return early, do NOT re-post ────────
-      if (payment.status === 'SUCCEEDED') return payment;
+      const transactionProvider = requirePersistedPaymentProvider(payment.provider);
+      if (transactionProvider !== provider) throw new BadRequestException('Payment provider changed during verification');
+      if (payment.status === 'SUCCEEDED') {
+        if (provider === 'RAZORPAY' && payment.providerPaymentId !== resolvedPaymentId) {
+          throw new BadRequestException('Payment order was already settled with a different payment ID');
+        }
+        return payment;
+      }
       if (payment.status !== 'CREATED') throw new BadRequestException('Payment order is no longer valid');
 
       // ── providerPaymentId uniqueness guard ────────────────────────────────────────
-      // Razorpay sends the same providerPaymentId on retried webhooks. If we already
-      // have this ID stored (on a DIFFERENT order), it means a replay attack or cross-
-      // order confusion — reject immediately.
-      if (paymentId) {
+      if (provider === 'RAZORPAY') {
         const providerIdConflict = await (tx as any).feePayment.findFirst({
-          where: { providerPaymentId: paymentId, id: { not: payment.id } }
+          where: { providerPaymentId: resolvedPaymentId, id: { not: payment.id } }
         });
         if (providerIdConflict) {
           throw new BadRequestException('Payment ID already associated with another transaction');
@@ -186,16 +249,59 @@ export class StudentFeeService {
       const newPaid = Number(payment.bill.paidAmount || 0) + payment.amount;
       const receiptNumber = token('REC');
       const history = JSON.parse(payment.bill.paymentHistory || '[]');
-      history.push({ paymentId: payment.id, receiptNumber, date: new Date(), amount: payment.amount, mode: 'RAZORPAY', transactionId: paymentId });
-      await (tx as any).feeBill.update({ where: { id: payment.billId }, data: { paidAmount: newPaid, status: newPaid >= payable(payment.bill) ? 'PAID' : 'PARTIAL', paymentHistory: JSON.stringify(history) } });
-      await (tx as any).financeLedgerEntry.create({ data: { entryNumber: token('LED'), entryType: 'PAYMENT', direction: 'CREDIT', amount: payment.amount, description: 'Verified Razorpay fee payment', paymentId: payment.id, billId: payment.billId, studentId: student.id, createdById: userId, sourceType: 'FEE_PAYMENT', sourceId: payment.id, metadataJson: JSON.stringify({ provider: 'RAZORPAY', providerPaymentId: paymentId }) } });
-      const updated = await (tx as any).feePayment.update({ where: { id: payment.id }, data: { status: 'SUCCEEDED', providerPaymentId: paymentId, receiptNumber, paymentDate: new Date(), verifiedAt: new Date() } });
+      history.push({
+        paymentId: payment.id,
+        receiptNumber,
+        date: new Date(),
+        amount: payment.amount,
+        mode: provider,
+        transactionId: resolvedPaymentId
+      });
+      await (tx as any).feeBill.update({
+        where: { id: payment.billId },
+        data: {
+          paidAmount: newPaid,
+          status: newPaid >= payable(payment.bill) ? 'PAID' : 'PARTIAL',
+          paymentHistory: JSON.stringify(history)
+        }
+      });
+      await (tx as any).financeLedgerEntry.create({
+        data: {
+          entryNumber: token('LED'),
+          entryType: 'PAYMENT',
+          direction: 'CREDIT',
+          amount: payment.amount,
+          description: provider === 'DEMO_PAYMENT' ? 'Verified Demo fee payment' : 'Verified Razorpay fee payment',
+          paymentId: payment.id,
+          billId: payment.billId,
+          studentId: student.id,
+          createdById: userId,
+          sourceType: 'FEE_PAYMENT',
+          sourceId: payment.id,
+          metadataJson: JSON.stringify({
+            provider,
+            providerPaymentId: resolvedPaymentId,
+            isDemo: provider === 'DEMO_PAYMENT'
+          })
+        }
+      });
+      const updated = await (tx as any).feePayment.update({
+        where: { id: payment.id },
+        data: {
+          status: 'SUCCEEDED',
+          providerPaymentId: resolvedPaymentId,
+          receiptNumber,
+          paymentDate: new Date(),
+          verifiedAt: new Date()
+        }
+      });
 
       return updated;
     }, { isolationLevel: 'Serializable' });
 
     // Post-Commit Success Event Dispatch
-    if (student.userId && result?.status === 'SUCCEEDED') {
+    const newlySettled = persistedPayment.status !== 'SUCCEEDED' && result?.status === 'SUCCEEDED';
+    if (student.userId && newlySettled) {
       NotificationService.dispatchDomainEvent({
         eventType: 'PAYMENT_SUCCESS',
         actorUserId: userId,
@@ -212,8 +318,17 @@ export class StudentFeeService {
           amount: result.amount,
           receiptNumber: result.receiptNumber,
           billId: result.billId,
+          isDemo: provider === 'DEMO_PAYMENT',
         },
       }).catch((err) => console.error('[StudentFeeService] Payment notification error:', err));
+    }
+
+    if (newlySettled) {
+      await AuditService.log({
+        actorId: userId, action: 'PAY', entityType: 'FEE_PAYMENT', entityId: result.id,
+        description: `Verified ${provider} fee payment`,
+        newValues: { billId: result.billId, amount: result.amount, receiptNumber: result.receiptNumber, provider },
+      });
     }
 
     return result;
@@ -222,19 +337,45 @@ export class StudentFeeService {
   /**
    * Gateway Webhook Handling with Duplicate-Webhook Protection
    */
-  static async handleWebhook(payload: any, signatureHeader?: string) {
-    // 1. Duplicate-Webhook Protection: Check if providerPaymentId already processed
-    const providerPaymentId = payload?.payload?.payment?.entity?.id || payload?.paymentId;
-    const providerOrderId = payload?.payload?.payment?.entity?.order_id || payload?.orderId;
-
-    if (providerOrderId) {
-      const existing = await prisma.feePayment.findFirst({ where: { providerOrderId } });
-      if (existing && existing.status === 'SUCCEEDED') {
-        return { status: 'ignored', reason: 'already_processed', paymentId: existing.id };
-      }
+  static async handleWebhook(rawBody: Buffer, signatureHeader?: string) {
+    verifyRazorpayWebhookSignature(rawBody, signatureHeader, env.RAZORPAY_WEBHOOK_SECRET);
+    let payload: any;
+    try {
+      payload = JSON.parse(rawBody.toString('utf8'));
+    } catch {
+      throw new BadRequestException('Razorpay webhook body is not valid JSON');
     }
 
-    return { status: 'acknowledged', event: payload?.event || 'payment.captured' };
+    const providerPaymentId = payload?.payload?.payment?.entity?.id || payload?.paymentId;
+    const providerOrderId = payload?.payload?.payment?.entity?.order_id || payload?.orderId;
+    const eventId = String(payload?.id || payload?.event_id || providerPaymentId || 'unknown');
+    if (!providerOrderId || !providerPaymentId) {
+      return { status: 'ignored', reason: 'unsupported_event', eventId };
+    }
+    const existing: any = await prisma.feePayment.findFirst({ where: { providerOrderId }, include: { student: true } });
+    if (!existing) return { status: 'ignored', reason: 'unknown_order', eventId };
+    if (requirePersistedPaymentProvider(existing.provider) !== 'RAZORPAY') {
+      throw new ForbiddenException('Webhook cannot settle a non-Razorpay payment');
+    }
+    if (existing.status === 'SUCCEEDED') {
+      if (existing.providerPaymentId !== providerPaymentId) {
+        throw new BadRequestException('Payment order was already settled with a different payment ID');
+      }
+      return { status: 'ignored', reason: 'already_processed', paymentId: existing.id, eventId };
+    }
+    // Webhooks are a secondary confirmation channel. The verified event is retained
+    // in payment metadata, while settlement continues through the ownership-aware
+    // verification endpoint so ledger creator attribution remains an authenticated user.
+    await prisma.feePayment.update({
+      where: { id: existing.id },
+      data: {
+        metadataJson: JSON.stringify({
+          ...(existing.metadataJson ? JSON.parse(existing.metadataJson) : {}),
+          razorpayWebhook: { eventId, event: payload?.event, providerPaymentId, verifiedAt: new Date().toISOString() },
+        }),
+      },
+    });
+    return { status: 'acknowledged', paymentId: existing.id, eventId };
   }
 
   static async submitExternal(userId: string, billId: string, input: any) {

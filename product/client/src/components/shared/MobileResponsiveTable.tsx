@@ -46,7 +46,7 @@ export function MobileResponsiveTable<T extends Record<string, any>>({
 
   if (data.length === 0) {
     return (
-      <div className="p-8 text-center text-xs text-slate-400 bg-slate-900/50 rounded-2xl border border-slate-800">
+      <div className="p-8 text-center text-sm text-muted-foreground bg-card rounded-2xl border border-border">
         {emptyMessage}
       </div>
     );
@@ -64,14 +64,14 @@ export function MobileResponsiveTable<T extends Record<string, any>>({
             <div
               key={key}
               onClick={() => onRowClick && onRowClick(item)}
-              className="p-4 rounded-2xl bg-slate-900 border border-slate-800 space-y-2 shadow-md transition-all active:scale-[0.99] cursor-pointer"
+              className="p-4 rounded-2xl bg-card text-card-foreground border border-border/80 space-y-2 shadow-2xs transition-all active:scale-[0.99] cursor-pointer"
             >
               {/* Card Header: Primary & Secondary Column */}
-              <div className="flex items-center justify-between">
-                <div>
-                  <h4 className="text-xs font-black text-white">{getCellValue(item, primaryCol)}</h4>
+              <div className="flex min-w-0 items-start justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                  <h4 className="text-sm font-semibold text-foreground break-words">{getCellValue(item, primaryCol)}</h4>
                   {secondaryCol && (
-                    <span className="text-[11px] text-slate-400 font-semibold block mt-0.5">
+                    <span className="text-xs text-muted-foreground font-medium block mt-1 break-words">
                       {getCellValue(item, secondaryCol)}
                     </span>
                   )}
@@ -81,7 +81,8 @@ export function MobileResponsiveTable<T extends Record<string, any>>({
                   {renderActions && renderActions(item)}
                   <button
                     onClick={(e) => toggleExpand(key, e)}
-                    className="p-1 rounded-lg bg-slate-800 text-slate-400 hover:text-white"
+                    className="touch-target p-2 rounded-xl bg-muted text-muted-foreground hover:text-foreground"
+                    aria-label={isExpanded ? 'Hide row details' : 'Show row details'}
                   >
                     {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                   </button>
@@ -90,11 +91,11 @@ export function MobileResponsiveTable<T extends Record<string, any>>({
 
               {/* Expanded Card Details */}
               {isExpanded && (
-                <div className="pt-3 border-t border-slate-800/80 space-y-2 text-xs text-slate-300 animate-in fade-in duration-150">
+                <div className="pt-3 border-t border-border/80 space-y-2.5 text-xs text-foreground animate-in fade-in duration-150">
                   {remainingCols.map((col, idx) => (
-                    <div key={idx} className="flex justify-between items-center text-[11px]">
-                      <span className="text-slate-400 font-bold">{col.header}:</span>
-                      <span className="font-semibold text-slate-200 text-right">
+                    <div key={idx} className="grid grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] gap-3 items-start text-xs">
+                      <span className="text-muted-foreground font-medium break-words">{col.header}</span>
+                      <span className="min-w-0 font-medium text-foreground text-right break-words">
                         {getCellValue(item, col)}
                       </span>
                     </div>
@@ -107,9 +108,9 @@ export function MobileResponsiveTable<T extends Record<string, any>>({
       </div>
 
       {/* Standard Desktop Table (hidden md:table) */}
-      <div className="hidden md:block overflow-x-auto rounded-2xl border border-slate-800 bg-slate-900/80">
+      <div className="hidden md:block overflow-x-auto rounded-2xl border border-border bg-card">
         <table className="w-full text-left text-xs">
-          <thead className="bg-slate-950 border-b border-slate-800 text-slate-400 font-black uppercase text-[10px] tracking-wider">
+          <thead className="bg-muted/60 border-b border-border text-muted-foreground font-semibold text-xs">
             <tr>
               {columns.map((col, idx) => (
                 <th key={idx} className="p-3.5">{col.header}</th>
@@ -117,14 +118,14 @@ export function MobileResponsiveTable<T extends Record<string, any>>({
               {renderActions && <th className="p-3.5 text-right">Actions</th>}
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-800/60 text-slate-200 font-semibold">
+          <tbody className="divide-y divide-border/60 text-foreground font-medium">
             {data.map((item) => {
               const key = keyExtractor(item);
               return (
                 <tr
                   key={key}
                   onClick={() => onRowClick && onRowClick(item)}
-                  className="hover:bg-slate-800/50 transition-colors cursor-pointer"
+                  className="hover:bg-muted/40 transition-colors cursor-pointer"
                 >
                   {columns.map((col, idx) => (
                     <td key={idx} className="p-3.5">{getCellValue(item, col)}</td>

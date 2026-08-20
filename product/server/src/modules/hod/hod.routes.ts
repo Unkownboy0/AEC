@@ -51,6 +51,8 @@ router.post('/students/assign-mentor', controller.assignMentor);
 
 // 4. Faculty & Mentors
 router.get('/faculty', controller.getDepartmentFaculty);
+router.get('/mentors', controller.getDepartmentMentors);
+router.post('/mentors/assign', controller.assignMentor);
 router.post('/subjects/assign', controller.assignSubject);
 
 // 5. Attendance & Timetable

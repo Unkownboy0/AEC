@@ -69,12 +69,14 @@ export const DashboardPattern: React.FC<DashboardPatternProps> = ({
 
   return (
     <div className={clsx('space-y-6 md:space-y-8', className)}>
-      {/* 1. Header & Greeting */}
-      <PageHeader
-        title={formattedGreeting}
-        description={roleTitle ? `Here is your overview for today as ${roleTitle}.` : 'Here is your summary and daily priorities.'}
-        action={headerAction}
-      />
+      {/* 1. Header & Greeting (Desktop only — mobile header provides identity) */}
+      <div className="hidden lg:block">
+        <PageHeader
+          title={formattedGreeting}
+          description={roleTitle ? `Here is your overview for today as ${roleTitle}.` : 'Here is your summary and daily priorities.'}
+          action={headerAction}
+        />
+      </div>
 
       {/* 2. Key Metrics Grid */}
       {metrics.length > 0 && (

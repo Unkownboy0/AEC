@@ -1,6 +1,7 @@
 import { prisma } from '../../lib/prisma';
 import { UnauthorizedException, NotFoundException, ForbiddenException } from '../../utils/exceptions';
 import { CircularService } from '../circulars/circular.service';
+import { TransportService } from '../transport/transport.service';
 
 export class ParentService {
   /**
@@ -285,39 +286,14 @@ export class ParentService {
   }
 
   /**
-   * Get Child Transport Allocation & Status
+   * Get Child Transport Allocation & Live Tracking Status
    */
   async getChildTransport(userId: string, studentId: string) {
     await this.verifyParentChildLink(userId, studentId);
-
-    const student = await prisma.student.findUnique({
-      where: { id: studentId },
-      include: { transportRoute: true },
-    });
-
-    if (!student || !student.transportRoute) {
-      return { isAssigned: false, message: 'No campus bus transport assigned for this student.' };
-    }
-
-    const route = student.transportRoute;
-    let stops: any[] = [];
-    try {
-      stops = JSON.parse(route.stops || '[]');
-    } catch (_) {}
-
-    return {
-      isAssigned: true,
-      routeNumber: route.routeName,
-      routeName: route.routeName,
-      busNumber: route.vehicleNo,
-      driverName: route.driverName,
-      driverPhone: route.driverPhone,
-      vehicleReg: route.vehicleNo,
-      pickupStop: student.transportStopId || 'Campus Stop',
-      stops,
-      feeStatus: 'Paid',
-    };
+    const transportService = new TransportService();
+    return transportService.getStudentLiveTracking(userId, studentId);
   }
+
 
   /**
    * Get Important Alerts for Child

@@ -43,6 +43,8 @@ export async function enforceDepartmentScope(
       where: { id: req.user.id },
       select: {
         departmentId: true,
+        faculty: { select: { departmentId: true } },
+        student: { select: { departmentId: true } },
         departmentMemberships: {
           select: { departmentId: true, role: true },
         },
@@ -55,18 +57,16 @@ export async function enforceDepartmentScope(
 
     const assignedDepartmentIds = Array.from(new Set([
       dbUser.departmentId,
+      dbUser.faculty?.departmentId,
+      dbUser.student?.departmentId,
       ...dbUser.departmentMemberships.map((membership) => membership.departmentId),
     ].filter((departmentId): departmentId is string => Boolean(departmentId))));
 
-    if (assignedDepartmentIds.length === 0) {
-      throw new ForbiddenException('User is not assigned to any valid department');
-    }
-
-    if (requestedDeptId && !assignedDepartmentIds.includes(requestedDeptId)) {
+    if (requestedDeptId && assignedDepartmentIds.length > 0 && !assignedDepartmentIds.includes(requestedDeptId)) {
       throw new ForbiddenException('Access denied: You cannot access data belonging to another department');
     }
 
-    req.departmentId = requestedDeptId || dbUser.departmentId || dbUser.departmentMemberships[0]?.departmentId;
+    req.departmentId = requestedDeptId || assignedDepartmentIds[0] || undefined;
     next();
   } catch (error) {
     next(error);

@@ -1,6 +1,7 @@
 import { prisma } from '../../lib/prisma';
 import { credentialService } from './credential.service';
 import { ProvisioningRow, provisioningRowSchema } from './provisioning.validator';
+import { normalizeProfileGender } from './profile-values';
 import ExcelJS from 'exceljs';
 
 type ReferenceData = Awaited<ReturnType<ProvisioningService['references']>>;
@@ -152,16 +153,74 @@ export class ProvisioningService {
       const passwordHash = await credentialService.hashPassword(temporaryPassword);
       const username = row.username || row.registerNumber || row.employeeId || await credentialService.generateUsername(row.roleName);
       try {
+        const normalizedGender = row.gender ? normalizeProfileGender(row.gender) : undefined;
         await prisma.$transaction(async (tx) => {
-          const user = await tx.user.create({ data: { email: row.email.toLowerCase(), username, passwordHash, firstName: row.firstName, lastName: row.lastName, phone: row.phone, departmentId: resolved.departmentId, status: row.status, accountStatus: row.status === 'ACTIVE' ? 'ACTIVE' : 'DEACTIVATED', forcePasswordChange: true, roleId: resolved.roleId! } });
+          const user = await tx.user.create({
+            data: {
+              email: row.email.toLowerCase(),
+              username,
+              passwordHash,
+              firstName: row.firstName,
+              lastName: row.lastName,
+              phone: row.phone,
+              gender: normalizedGender,
+              departmentId: resolved.departmentId,
+              status: row.status,
+              accountStatus: row.status === 'ACTIVE' ? 'ACTIVE' : 'DEACTIVATED',
+              forcePasswordChange: true,
+              roleId: resolved.roleId!,
+            },
+          });
           const workspaceRoleNames = Array.from(new Set([row.roleName, ...row.workspaceRoles]));
           for (const [index, workspaceRoleName] of workspaceRoleNames.entries()) {
             const workspaceRole = refs.roles.find((candidate) => candidate.name.toLowerCase() === workspaceRoleName.toLowerCase())!;
             await tx.userRole.create({ data: { userId: user.id, roleId: workspaceRole.id, isPrimary: index === 0 } });
             await tx.userWorkspace.create({ data: { userId: user.id, workspaceCode: workspaceRole.name.toUpperCase().replace(/[^A-Z0-9]+/g, '_'), workspaceName: `${workspaceRole.name} Workspace`, roleName: workspaceRole.name, isPrimary: index === 0 } });
           }
-          if (row.profileType === 'STUDENT') await tx.student.create({ data: { admissionNo: row.registerNumber!, firstName: row.firstName, lastName: row.lastName, email: row.email, phone: row.phone, dob: row.dob!, dateOfAdmission: row.dateOfAdmission!, gender: row.gender!, parentName: row.parentName!, parentPhone: row.parentPhone!, currentAddress: row.currentAddress!, permanentAddress: row.permanentAddress!, academicYearId: resolved.academicYearId!, departmentId: resolved.departmentId!, programId: resolved.programId!, courseId: resolved.courseId!, semesterId: resolved.semesterId!, sectionId: resolved.sectionId!, userId: user.id } });
-          if (row.profileType === 'EMPLOYEE') await tx.faculty.create({ data: { employeeId: row.employeeId!, firstName: row.firstName, lastName: row.lastName, email: row.email, phone: row.phone!, dob: row.dob!, dateOfJoining: row.dateOfJoining!, designation: row.designation!, qualification: row.qualification!, experience: row.experience!, departmentId: resolved.departmentId!, userId: user.id } });
+          if (row.profileType === 'STUDENT') {
+            await tx.student.create({
+              data: {
+                admissionNo: row.registerNumber!,
+                firstName: row.firstName,
+                lastName: row.lastName,
+                email: row.email,
+                phone: row.phone,
+                dob: row.dob!,
+                dateOfAdmission: row.dateOfAdmission!,
+                gender: normalizedGender || row.gender || 'UNSPECIFIED',
+                parentName: row.parentName!,
+                parentPhone: row.parentPhone!,
+                currentAddress: row.currentAddress!,
+                permanentAddress: row.permanentAddress!,
+                academicYearId: resolved.academicYearId!,
+                departmentId: resolved.departmentId!,
+                programId: resolved.programId!,
+                courseId: resolved.courseId!,
+                semesterId: resolved.semesterId!,
+                sectionId: resolved.sectionId!,
+                userId: user.id,
+              },
+            });
+          }
+          if (row.profileType === 'EMPLOYEE') {
+            await tx.faculty.create({
+              data: {
+                employeeId: row.employeeId!,
+                firstName: row.firstName,
+                lastName: row.lastName,
+                email: row.email,
+                phone: row.phone!,
+                dob: row.dob!,
+                dateOfJoining: row.dateOfJoining!,
+                gender: normalizedGender,
+                designation: row.designation!,
+                qualification: row.qualification!,
+                experience: row.experience!,
+                departmentId: resolved.departmentId!,
+                userId: user.id,
+              },
+            });
+          }
           await tx.userActivityLog.create({ data: { userId: actorId, action: 'CREATE', module: 'USER', description: `Provisioned ${row.profileType} account ${row.email} with role ${row.roleName}`, ipAddress: ip, userAgent } });
         });
         credentials.push({ rowNumber: item.rowNumber, email: row.email, username, temporaryPassword });

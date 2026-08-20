@@ -52,20 +52,25 @@ export const FacultyLeaveOdPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-950 p-4 sm:p-6 space-y-6">
+    <div className="mx-auto min-h-full w-full max-w-[1440px] space-y-6 pb-12">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-white dark:bg-gray-900 p-5 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-card p-6 rounded-3xl border border-border shadow-sm">
         <div>
-          <h1 className="text-2xl font-black text-gray-900 dark:text-white tracking-tight">My Leave & OD Requests</h1>
-          <p className="text-xs text-gray-500 mt-1">Apply for leave/OD and track approval timeline (Faculty ➔ HOD ➔ Principal/Acting VP)</p>
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-foreground tracking-tight">My Leave & OD Requests</h1>
+          <p className="text-xs sm:text-sm text-muted-foreground mt-1">Apply for leave/OD and track approval timeline (Faculty ➔ HOD ➔ Principal/Acting VP)</p>
         </div>
         <div className="flex items-center gap-3">
-          <button onClick={loadRequests} className="p-2.5 rounded-xl border hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
-            <RefreshCw className="w-4 h-4 text-gray-500" />
+          <button
+            onClick={loadRequests}
+            disabled={loading}
+            className="p-2.5 rounded-xl border border-border bg-background hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+            title="Refresh requests"
+          >
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
           </button>
           <button
             onClick={() => setShowApplyModal(true)}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 text-white font-bold text-sm hover:bg-blue-700 active:scale-[0.98] transition-all shadow-md shadow-blue-500/20"
+            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-primary-foreground font-bold text-sm hover:bg-primary/90 active:scale-[0.98] transition-all shadow-md shadow-primary/20"
           >
             <Plus className="w-4 h-4" />
             Apply Leave / OD
@@ -77,22 +82,22 @@ export const FacultyLeaveOdPage: React.FC = () => {
       <div className="space-y-4">
         {loading && (
           <div className="space-y-3">
-            {[1, 2, 3].map(i => <div key={i} className="h-28 rounded-2xl bg-white animate-pulse border border-gray-100" />)}
+            {[1, 2, 3].map(i => <div key={i} className="h-28 rounded-2xl bg-muted/45 animate-pulse border border-border/60" />)}
           </div>
         )}
 
         {!loading && error && (
-          <div className="text-center py-12 bg-white rounded-2xl border border-gray-100">
-            <p className="text-gray-500 text-sm mb-3">{error}</p>
-            <button onClick={loadRequests} className="px-4 py-2 bg-blue-600 text-white text-xs font-bold rounded-xl">Retry</button>
+          <div className="text-center py-12 bg-card rounded-2xl border border-danger/30 p-6">
+            <p className="text-danger text-sm font-semibold mb-3">{error}</p>
+            <button onClick={loadRequests} className="px-4 py-2 bg-primary text-primary-foreground text-xs font-bold rounded-xl">Retry</button>
           </div>
         )}
 
         {!loading && !error && requests.length === 0 && (
-          <div className="text-center py-16 bg-white rounded-2xl border border-gray-100">
-            <FileCheck2 className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-            <h3 className="font-bold text-gray-800">No Leave / OD Requests</h3>
-            <p className="text-xs text-gray-400 mt-1">You haven't submitted any leave or on-duty requests yet.</p>
+          <div className="text-center py-16 bg-card rounded-3xl border border-border/80 p-8 shadow-xs">
+            <FileCheck2 className="w-12 h-12 text-primary/40 mx-auto mb-3" />
+            <h3 className="font-extrabold text-foreground text-base">No Leave / OD Requests</h3>
+            <p className="text-xs text-muted-foreground mt-1 max-w-md mx-auto">You haven't submitted any leave or on-duty requests yet. Use the button above to create a new application.</p>
           </div>
         )}
 
@@ -100,23 +105,23 @@ export const FacultyLeaveOdPage: React.FC = () => {
           <div
             key={req.id}
             onClick={() => navigate(`/faculty/leave-od/${req.id}`)}
-            className="bg-white dark:bg-gray-900 p-5 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm hover:border-blue-200 transition-all cursor-pointer flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
+            className="bg-card p-5 rounded-2xl border border-border shadow-xs hover:border-primary/50 transition-all cursor-pointer flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
           >
-            <div className="space-y-1">
+            <div className="space-y-1.5 min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
-                <span className={`px-2.5 py-0.5 rounded-md text-xs font-black uppercase ${req.type === 'LEAVE' ? 'bg-purple-50 text-purple-700' : 'bg-blue-50 text-blue-700'}`}>
+                <span className={`px-2.5 py-0.5 rounded-md text-xs font-black uppercase tracking-wider ${req.type === 'LEAVE' ? 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20' : 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20'}`}>
                   {req.type}
                 </span>
-                <span className="text-xs font-bold text-gray-700 dark:text-gray-200">{req.title}</span>
-                {req.isEmergency && <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-red-600 text-white animate-pulse">🚨 EMERGENCY</span>}
+                <span className="text-sm font-bold text-foreground">{req.title}</span>
+                {req.isEmergency && <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-rose-600 text-white animate-pulse">🚨 EMERGENCY</span>}
               </div>
-              <p className="text-xs text-gray-500 line-clamp-1">{req.reason}</p>
-              <div className="flex items-center gap-4 text-xs text-gray-400 pt-1">
-                <span className="flex items-center gap-1"><Calendar className="w-3.5 h-3.5" /> {new Date(req.startDate).toLocaleDateString('en-IN')} - {new Date(req.endDate).toLocaleDateString('en-IN')}</span>
-                <span>• {req.totalDays} Day(s)</span>
+              <p className="text-xs text-muted-foreground line-clamp-1">{req.reason}</p>
+              <div className="flex items-center gap-4 text-xs text-muted-foreground pt-1">
+                <span className="flex items-center gap-1 font-medium"><Calendar className="w-3.5 h-3.5 text-primary" /> {new Date(req.startDate).toLocaleDateString('en-IN')} - {new Date(req.endDate).toLocaleDateString('en-IN')}</span>
+                <span className="font-semibold">• {req.totalDays} Day(s)</span>
               </div>
             </div>
-            <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end">
+            <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end shrink-0">
               {getStatusBadge(req.status)}
               {req.status.includes('PENDING') && (
                 <button
@@ -127,7 +132,7 @@ export const FacultyLeaveOdPage: React.FC = () => {
                   Cancel Request
                 </button>
               )}
-              <ChevronRight className="w-5 h-5 text-gray-400" />
+              <ChevronRight className="w-5 h-5 text-muted-foreground" />
             </div>
           </div>
         ))}
@@ -142,6 +147,7 @@ export const FacultyLeaveOdPage: React.FC = () => {
       )}
     </div>
   );
+
 };
 
 export default FacultyLeaveOdPage;

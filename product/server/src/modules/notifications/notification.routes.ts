@@ -8,6 +8,7 @@ router.use(requireAuth);
 
 router.get('/', NotificationController.getNotifications);
 router.get('/unread-count', NotificationController.getUnreadCount);
+router.get('/badges', NotificationController.getBadgeSummary);
 router.patch('/:notificationId/read', NotificationController.markAsRead);
 router.post('/:notificationId/read', NotificationController.markAsRead);
 router.post('/:notificationId/acknowledge', NotificationController.acknowledge);
@@ -16,6 +17,7 @@ router.get('/preferences', NotificationController.getPreferences);
 router.patch('/preferences', NotificationController.updatePreferences);
 router.post('/preferences', NotificationController.updatePreferences);
 router.delete('/clear-all', NotificationController.clearAll);
+router.delete('/:notificationId', NotificationController.clearOne);
 router.post('/device-tokens', NotificationController.registerDeviceToken);
 router.post('/devices', NotificationController.registerDeviceToken);
 router.post('/trigger-self-test', NotificationController.triggerSelfTest);

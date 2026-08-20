@@ -21,13 +21,16 @@ import {
   MessageSquare,
   Sparkles,
   Layers,
-  Printer
+  Printer,
+  Trash2,
+  RotateCcw,
+  AlertTriangle
 } from 'lucide-react';
 import api from '../../../lib/axios';
 import { useAuth } from '../../../context/AuthContext';
 import { toast } from '../../../components/ui/Toast';
 
-type OfficeTab = 'DOCS' | 'SHEETS' | 'SLIDES' | 'FORMS' | 'DRIVE';
+type OfficeTab = 'DOCS' | 'SHEETS' | 'SLIDES' | 'FORMS' | 'DRIVE' | 'TRASH';
 
 export const CampusOfficeWorkspace: React.FC = () => {
   const { user } = useAuth();
@@ -68,14 +71,50 @@ export const CampusOfficeWorkspace: React.FC = () => {
     setLoading(true);
     try {
       const typeFilter = activeTab === 'DOCS' ? 'DOC' : activeTab === 'SHEETS' ? 'SHEET' : activeTab === 'SLIDES' ? 'SLIDE' : activeTab === 'FORMS' ? 'FORM' : undefined;
+      const statusFilter = activeTab === 'TRASH' ? 'TRASHED' : undefined;
       const res = await api.get('/campus-office/documents', {
-        params: { type: typeFilter },
+        params: { type: typeFilter, status: statusFilter },
       });
       setDocuments(res.data?.data || []);
     } catch (e) {
       console.error('Failed to load office documents', e);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleMoveToTrash = async (e: React.MouseEvent, docId: string, docTitle: string) => {
+    e.stopPropagation();
+    if (!window.confirm(`Move "${docTitle}" to Trash?`)) return;
+    try {
+      await api.delete(`/workspace/documents/${docId}`);
+      toast.success('Moved to Trash.');
+      loadDocuments();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || 'Failed to move to Trash.');
+    }
+  };
+
+  const handleRestoreFromTrash = async (e: React.MouseEvent, docId: string) => {
+    e.stopPropagation();
+    try {
+      await api.post(`/workspace/documents/${docId}/restore`);
+      toast.success('Document restored successfully.');
+      loadDocuments();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || 'Failed to restore document.');
+    }
+  };
+
+  const handlePermanentDelete = async (e: React.MouseEvent, docId: string, docTitle: string) => {
+    e.stopPropagation();
+    if (!window.confirm(`Permanently delete "${docTitle}"? This action cannot be undone.`)) return;
+    try {
+      await api.delete(`/workspace/documents/${docId}/permanent`);
+      toast.success('Document permanently deleted.');
+      loadDocuments();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || 'Failed to delete document permanently.');
     }
   };
 
@@ -250,10 +289,86 @@ export const CampusOfficeWorkspace: React.FC = () => {
           <Folder className="h-4 w-4" />
           Campus Drive
         </button>
+        <button
+          onClick={() => setActiveTab('TRASH')}
+          className={`flex items-center gap-2 px-4 py-2.5 font-semibold text-sm rounded-xl transition ${
+            activeTab === 'TRASH' ? 'bg-rose-600 text-white font-bold' : 'text-muted-foreground hover:bg-muted'
+          }`}
+        >
+          <Trash2 className="h-4 w-4 text-rose-500" />
+          Trash
+        </button>
       </div>
 
       {/* Main Content Area */}
-      {activeTab !== 'DRIVE' ? (
+      {activeTab === 'TRASH' ? (
+        <div className="space-y-4">
+          <div className="p-3.5 bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400 rounded-xl text-xs flex items-center gap-2 font-medium">
+            <AlertTriangle className="h-4 w-4 shrink-0" />
+            <span>Items in Trash are quarantined. You can restore them to active drafts or permanently remove them.</span>
+          </div>
+
+          {loading ? (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {[1, 2, 3].map(i => (
+                <div key={i} className="h-40 bg-muted/40 animate-pulse rounded-2xl" />
+              ))}
+            </div>
+          ) : filteredDocs.length === 0 ? (
+            <div className="text-center py-16 bg-card rounded-2xl border border-dashed border-border">
+              <Trash2 className="h-10 w-10 text-muted-foreground/40 mx-auto mb-3" />
+              <h3 className="text-lg font-bold">Trash is empty</h3>
+              <p className="text-sm text-muted-foreground max-w-sm mx-auto mt-1">
+                No deleted documents or reports in trash.
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {filteredDocs.map(doc => (
+                <div
+                  key={doc.id}
+                  className="bg-card border border-border/80 p-5 rounded-2xl flex flex-col justify-between shadow-xs opacity-90 hover:opacity-100 transition"
+                >
+                  <div>
+                    <div className="flex items-start justify-between gap-2 mb-2">
+                      <span className="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-rose-500/10 text-rose-600">
+                        TRASHED
+                      </span>
+                      <span className="text-[11px] font-semibold text-muted-foreground uppercase">{doc.type}</span>
+                    </div>
+                    <h3 className="font-bold text-base line-clamp-2">{doc.title}</h3>
+                  </div>
+                  <div className="border-t border-border/70 pt-3 mt-4 space-y-3">
+                    <div className="flex items-center justify-between text-xs text-muted-foreground">
+                      <span className="flex items-center gap-1">
+                        <Clock className="h-3 w-3" />
+                        {new Date(doc.updatedAt).toLocaleDateString()}
+                      </span>
+                      <span>{doc.author?.firstName} {doc.author?.lastName}</span>
+                    </div>
+                    <div className="flex items-center gap-2 pt-1">
+                      <button
+                        onClick={(e) => handleRestoreFromTrash(e, doc.id)}
+                        className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 bg-primary/10 hover:bg-primary/20 text-primary text-xs font-bold rounded-xl transition"
+                      >
+                        <RotateCcw className="h-3.5 w-3.5" />
+                        Restore
+                      </button>
+                      <button
+                        onClick={(e) => handlePermanentDelete(e, doc.id, doc.title)}
+                        className="flex items-center justify-center gap-1.5 py-2 px-3 bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 text-xs font-bold rounded-xl transition"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                        Delete Permanently
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      ) : activeTab !== 'DRIVE' ? (
         <div className="space-y-4">
           <div className="flex items-center justify-between gap-4">
             <div className="relative flex-1 max-w-md">
@@ -306,7 +421,16 @@ export const CampusOfficeWorkspace: React.FC = () => {
                       }`}>
                         {doc.status} (v{doc.currentVersion})
                       </span>
-                      <span className="text-[11px] font-semibold text-muted-foreground uppercase">{doc.type}</span>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[11px] font-semibold text-muted-foreground uppercase">{doc.type}</span>
+                        <button
+                          onClick={(e) => handleMoveToTrash(e, doc.id, doc.title)}
+                          title="Move to Trash"
+                          className="opacity-0 group-hover:opacity-100 p-1 text-muted-foreground hover:text-rose-500 hover:bg-rose-500/10 rounded-lg transition"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
                     </div>
                     <h3 className="font-bold text-base group-hover:text-primary transition line-clamp-2">{doc.title}</h3>
                     {doc.templateKey && (
@@ -484,7 +608,7 @@ export const CampusOfficeWorkspace: React.FC = () => {
               {/* Institutional Watermark Layer for Office Docs */}
               <div aria-hidden="true" className="print-watermark-overlay pointer-events-none absolute inset-0 z-0 flex items-center justify-center select-none overflow-hidden">
                 <img
-                  src="/branding/al-ameen-logo.png"
+                  src="/branding/official-logo.png"
                   alt=""
                   className="w-1/2 max-w-[380px] opacity-[0.04] object-contain filter grayscale contrast-125"
                 />

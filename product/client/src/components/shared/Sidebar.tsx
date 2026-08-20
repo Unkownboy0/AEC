@@ -240,7 +240,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed }) => {
                 { name: 'Governance suite', path: '/governance', icon: LucideIcons.GitBranch },
               ]},
               { label: 'Configuration', items: [
-                { name: 'Settings', path: '/settings', icon: LucideIcons.Settings2 },
+                { name: 'Settings', path: '/admin/settings', icon: LucideIcons.Settings2 },
                 { name: 'Backup', path: '/backups', icon: LucideIcons.HardDriveDownload },
                 { name: 'Audit & security', path: '/security-logs', icon: LucideIcons.ScrollText },
               ]},

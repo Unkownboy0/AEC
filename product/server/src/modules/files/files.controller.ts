@@ -1,6 +1,9 @@
 import { Request, Response, NextFunction } from 'express';
 import { prisma } from '../../lib/prisma';
-import { NotFoundException, BadRequestException } from '../../utils/exceptions';
+import { NotFoundException, BadRequestException, ForbiddenException } from '../../utils/exceptions';
+import { checkPermission } from '../../core/middlewares/auth.middleware';
+import { GovernedFileService } from '../campus-workspace/governed-file.service';
+import { AuditService } from '../security/audit.service';
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
@@ -68,22 +71,143 @@ export class FilesController {
     }
   };
 
+  /**
+   * Converts legacy absolute Windows/Linux paths or URLs into canonical storage keys
+   */
+  private normalizeStorageKey(filePathOrKey: string): string {
+    if (!filePathOrKey || filePathOrKey.trim() === '') return '';
+    let clean = filePathOrKey.trim();
+    if (clean.startsWith('http://') || clean.startsWith('https://')) {
+      try {
+        const parsed = new URL(clean);
+        clean = parsed.pathname;
+      } catch (_) {}
+    }
+    // Remove Windows drive letters or Linux absolute root prefixes
+    clean = clean.replace(/^[a-zA-Z]:\\/, '').replace(/^[a-zA-Z]:\//, '');
+    clean = clean.replace(/^.*[/\\]uploads[/\\]?/, '').replace(/^[/\\]+/, '');
+    return clean;
+  }
+
+  private resolvePhysicalPath(filePathOrKey: string): string | null {
+    if (!filePathOrKey || filePathOrKey.trim() === '') return null;
+
+    // Prevent null byte injections
+    if (filePathOrKey.includes('\0') || filePathOrKey.includes('%00')) {
+      return null;
+    }
+
+    const clean = this.normalizeStorageKey(filePathOrKey);
+    if (!clean) return null;
+
+    const candidate = path.normalize(path.resolve(this.uploadsDir, clean));
+    const relativeToRoot = path.relative(this.uploadsDir, candidate);
+
+    // Strict storage root confinement
+    if (relativeToRoot.startsWith('..') || path.isAbsolute(relativeToRoot)) {
+      return null;
+    }
+
+    try {
+      if (fs.existsSync(candidate) && fs.statSync(candidate).isFile()) {
+        // Verify real path resolved from symlinks stays inside real uploads directory
+        const realCandidate = fs.realpathSync(candidate);
+        const realUploadsDir = fs.realpathSync(this.uploadsDir);
+        if (realCandidate.startsWith(realUploadsDir)) {
+          return realCandidate;
+        }
+      }
+    } catch (_) {}
+
+    // Fallback: basename lookup in root uploads directory
+    try {
+      const baseName = path.basename(clean);
+      const baseCandidate = path.normalize(path.join(this.uploadsDir, baseName));
+      if (fs.existsSync(baseCandidate) && fs.statSync(baseCandidate).isFile()) {
+        const realBaseCandidate = fs.realpathSync(baseCandidate);
+        const realUploadsDir = fs.realpathSync(this.uploadsDir);
+        if (realBaseCandidate.startsWith(realUploadsDir)) {
+          return realBaseCandidate;
+        }
+      }
+    } catch (_) {}
+
+    return null;
+  }
+
   download = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const file = await prisma.mediaFile.findUnique({ where: { id: req.params.id } });
+      const file: any = await prisma.mediaFile.findUnique({ where: { id: req.params.id } });
       if (!file) throw new NotFoundException('File metadata not found');
 
-      const relativePath = file.path.replace(/^[/\\]uploads[/\\]?/, '');
-      const physicalPath = path.resolve(this.uploadsDir, relativePath);
-      const relativeToRoot = path.relative(this.uploadsDir, physicalPath);
-      if (relativeToRoot.startsWith('..') || path.isAbsolute(relativeToRoot)) {
-        throw new BadRequestException('Invalid stored file path');
+      // New governed objects always pass through the canonical ACL service. Legacy
+      // media retains its existing files:read permission boundary.
+      if (file.ownerUserId || file.storageKey) {
+        if (!req.user) throw new ForbiddenException('Authentication is required');
+        const referenceId = typeof req.query.referenceId === 'string' ? req.query.referenceId : undefined;
+        const reference = referenceId
+          ? await prisma.governedFileReference.findFirst({
+              where: { id: referenceId, fileId: file.id, deletedAt: null, authorizationMode: 'PARENT_RESOURCE' },
+            })
+          : null;
+        await GovernedFileService.authorizeFileAccess({
+          userId: req.user.id,
+          activeRole: req.user.role,
+          fileId: file.id,
+          action: 'DOWNLOAD',
+          driveItemId: typeof req.query.driveItemId === 'string' ? req.query.driveItemId : undefined,
+          parentResource: reference ? {
+            module: reference.module,
+            resourceType: reference.resourceType,
+            resourceId: reference.resourceId,
+            authorizeParentResource: async () => {
+              if (reference.resourceType !== 'TASK') return false;
+              const task = await prisma.task.findFirst({
+                where: {
+                  id: reference.resourceId,
+                  OR: [
+                    { createdById: req.user!.id },
+                    { assignees: { some: { assigneeId: req.user!.id } } },
+                  ],
+                },
+                select: { id: true },
+              });
+              return Boolean(task);
+            },
+          } : undefined,
+        });
+      } else if (!req.user || !checkPermission(req.user.permissions, 'files:read')) {
+        throw new ForbiddenException('You do not have permission to download this legacy file');
       }
-      if (!fs.existsSync(physicalPath)) throw new NotFoundException('File content not found');
 
-      res.setHeader('Content-Type', file.mimeType);
-      res.setHeader('Content-Disposition', `attachment; filename="${file.name.replace(/["\\\r\n]/g, '_')}"`);
+      const physicalPath = this.resolvePhysicalPath(file.storageKey || file.path);
+      if (!physicalPath) throw new NotFoundException('File content not found on server storage');
+
+      const stat = fs.statSync(physicalPath);
+      if (stat.size === 0) {
+        throw new BadRequestException('The requested file is empty (0 bytes)');
+      }
+
+      const mimeType = file.mimeType || this.inferMimeType(file.name);
+      const sanitizedFilename = file.name.replace(/[\r\n"\\/]/g, '_');
+      const encodedFilename = encodeURIComponent(sanitizedFilename);
+
+      res.setHeader('Content-Type', mimeType);
+      res.setHeader('Content-Length', stat.size.toString());
+      res.setHeader(
+        'Content-Disposition',
+        `attachment; filename="${sanitizedFilename}"; filename*=UTF-8''${encodedFilename}`
+      );
       res.setHeader('X-Content-Type-Options', 'nosniff');
+      // Private no-store header for sensitive document downloads
+      res.setHeader('Cache-Control', 'private, no-store, max-age=0, must-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+      await AuditService.log({
+        actorId: req.user?.id,
+        action: 'DOWNLOAD', entityType: 'FILE', entityId: file.id,
+        description: `Downloaded ${file.originalName || file.name}`,
+        req,
+      });
       res.sendFile(physicalPath);
     } catch (error) {
       next(error);
@@ -101,7 +225,7 @@ export class FilesController {
       }
 
       // 1. Try finding by ID or filename or path in database
-      let file = await prisma.mediaFile.findUnique({ where: { id: targetId } }).catch(() => null);
+      let file: any = await prisma.mediaFile.findUnique({ where: { id: targetId } }).catch(() => null);
       if (!file) {
         file = await prisma.mediaFile.findFirst({
           where: {
@@ -115,30 +239,33 @@ export class FilesController {
         }).catch(() => null);
       }
 
+      // Public inline content exists for approved branding/avatar media only. A
+      // governed Drive binary must never bypass its authenticated download route.
+      if (file && file.sourceModule !== 'MEDIA' && file.sourceModule !== 'MEDIA_LIBRARY') {
+        return this.sendFallbackSvg(res);
+      }
+
       let physicalPath: string | null = null;
       let mimeType = 'image/jpeg';
 
       if (file) {
-        const relativePath = file.path.replace(/^[/\\]uploads[/\\]?/, '');
-        physicalPath = path.resolve(this.uploadsDir, relativePath);
+        physicalPath = this.resolvePhysicalPath(file.path);
         mimeType = file.mimeType || this.inferMimeType(file.name);
       } else {
-        // Direct physical lookup in uploadsDir
-        const cleanTarget = targetId.replace(/^(\/api\/files\/|\/uploads\/|\/)/, '');
-        const candidate = path.resolve(this.uploadsDir, cleanTarget);
-        const relativeToRoot = path.relative(this.uploadsDir, candidate);
-        if (!relativeToRoot.startsWith('..') && !path.isAbsolute(relativeToRoot) && fs.existsSync(candidate)) {
-          physicalPath = candidate;
-          mimeType = this.inferMimeType(candidate);
-        }
+        physicalPath = this.resolvePhysicalPath(targetId);
+        if (physicalPath) mimeType = this.inferMimeType(physicalPath);
       }
 
       if (physicalPath && fs.existsSync(physicalPath) && fs.statSync(physicalPath).isFile()) {
-        res.setHeader('Content-Type', mimeType);
-        res.setHeader('Content-Disposition', 'inline');
-        res.setHeader('X-Content-Type-Options', 'nosniff');
-        res.setHeader('Cache-Control', 'public, max-age=86400, stale-while-revalidate=604800');
-        return res.sendFile(physicalPath);
+        const stat = fs.statSync(physicalPath);
+        if (stat.size > 0) {
+          res.setHeader('Content-Type', mimeType);
+          res.setHeader('Content-Length', stat.size.toString());
+          res.setHeader('Content-Disposition', 'inline');
+          res.setHeader('X-Content-Type-Options', 'nosniff');
+          res.setHeader('Cache-Control', 'public, max-age=86400, stale-while-revalidate=604800');
+          return res.sendFile(physicalPath);
+        }
       }
 
       // Safe fallback SVG to prevent broken image icons
@@ -245,17 +372,30 @@ export class FilesController {
 
       const targetWebPath = `/uploads/${sanitizedFolder ? `${sanitizedFolder}/` : ''}${safeFilename}`;
 
-      const mediaFile = await prisma.mediaFile.upsert({
+      const mediaFile = await (prisma.mediaFile as any).upsert({
         where: { path: targetWebPath },
         update: {
           fileSize: buffer.length,
           mimeType,
+          storageKey: `${sanitizedFolder ? `${sanitizedFolder}/` : ''}${safeFilename}`,
+          originalName: name,
+          safeName: safeFilename,
+          checksum: crypto.createHash('sha256').update(buffer).digest('hex'),
+          ownerUserId: req.user!.id,
+          createdByUserId: req.user!.id,
         },
         create: {
           name: safeFilename,
           path: targetWebPath,
+          storageKey: `${sanitizedFolder ? `${sanitizedFolder}/` : ''}${safeFilename}`,
+          originalName: name,
+          safeName: safeFilename,
           mimeType,
           fileSize: buffer.length,
+          checksum: crypto.createHash('sha256').update(buffer).digest('hex'),
+          ownerUserId: req.user!.id,
+          createdByUserId: req.user!.id,
+          sourceModule: 'MEDIA_LIBRARY',
           folder: sanitizedFolder,
         },
       });
@@ -285,10 +425,13 @@ export class FilesController {
   };
 
   /**
-   * Delete media file
+   * Delete media file (Safe soft-delete / move to trash with reference protection)
    */
   delete = async (req: Request, res: Response, next: NextFunction) => {
     try {
+      const user = (req as any).user;
+      if (!user) throw new ForbiddenException('Authentication required');
+
       const file = await prisma.mediaFile.findUnique({
         where: { id: req.params.id },
       });
@@ -297,23 +440,31 @@ export class FilesController {
         throw new NotFoundException('File metadata not found');
       }
 
-      // Remove from disk
-      const physicalPath = path.join(this.uploadsDir, file.path.replace(/^\/uploads/, ''));
-      if (fs.existsSync(physicalPath)) {
-        fs.unlinkSync(physicalPath);
+      const isOwner = file.ownerUserId === user.id || file.createdByUserId === user.id;
+      const isAdmin = ['Super Admin', 'College Admin', 'Principal'].includes(user.role);
+      if (!isOwner && !isAdmin) {
+        throw new ForbiddenException('You do not have permission to delete this file');
       }
 
-      await prisma.mediaFile.delete({
-        where: { id: req.params.id },
+      // 1. Soft-delete MediaFile metadata
+      await prisma.mediaFile.update({
+        where: { id: file.id },
+        data: { deletedAt: new Date() },
       });
 
-      // Audit Log
+      // 2. Cascade soft-delete to CampusDriveItems owned by user
+      await (prisma.campusDriveItem as any).updateMany({
+        where: { fileId: file.id, ownerId: user.id, isTrashed: false },
+        data: { isTrashed: true, trashedAt: new Date() },
+      });
+
+      // 3. Audit Log
       await prisma.userActivityLog.create({
         data: {
-          userId: req.user!.id,
+          userId: user.id,
           action: 'DELETE',
           module: 'FILE',
-          description: `Deleted media file: ${file.name}`,
+          description: `Moved media file to trash: ${file.name}`,
           ipAddress: req.ip,
           userAgent: req.headers['user-agent'],
         },
@@ -321,7 +472,8 @@ export class FilesController {
 
       res.status(200).json({
         status: 'success',
-        message: 'File deleted successfully',
+        message: 'File moved to trash successfully',
+        data: { id: file.id, deletedAt: new Date() },
       });
     } catch (error) {
       next(error);

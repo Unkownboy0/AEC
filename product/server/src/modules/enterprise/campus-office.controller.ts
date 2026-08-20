@@ -19,7 +19,8 @@ export class CampusOfficeController {
     try {
       const userId = (req as any).user?.id || req.query.userId as string;
       const type = req.query.type as string;
-      const docs = await CampusOfficeService.getUserOfficeDocuments(userId, type);
+      const status = req.query.status as string;
+      const docs = await CampusOfficeService.getUserOfficeDocuments(userId, type, status);
       return res.json({ success: true, data: docs });
     } catch (err: any) {
       return res.status(500).json({ success: false, error: err.message });

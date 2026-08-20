@@ -4,7 +4,7 @@
  */
 
 export type DocumentType = 'DOC' | 'SHEET' | 'SLIDE' | 'FORM' | 'QUIZ' | 'PDF' | 'NOTE' | 'REPORT';
-export type DocumentStatus = 'DRAFT' | 'SUBMITTED' | 'IN_REVIEW' | 'RETURNED' | 'APPROVED' | 'PUBLISHED' | 'ARCHIVED';
+export type DocumentStatus = 'DRAFT' | 'SUBMITTED' | 'IN_REVIEW' | 'RETURNED' | 'APPROVED' | 'PUBLISHED' | 'ARCHIVED' | 'TRASHED';
 export type SharePermission = 'OWNER' | 'EDITOR' | 'COMMENTER' | 'VIEWER';
 export type DriveScope = 'PERSONAL' | 'DEPARTMENT' | 'COLLEGE' | 'SHARED';
 

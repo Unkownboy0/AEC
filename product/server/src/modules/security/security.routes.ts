@@ -5,6 +5,7 @@ import { requireAuth, requirePermission } from '../../core/middlewares/auth.midd
 const router = Router();
 const controller = new SecurityController();
 
+router.post('/mobile-events', requireAuth, controller.recordMobileSecurityEvent);
 router.get('/audits', requireAuth, requirePermission('audit:read'), controller.getAudits);
 router.get('/logins', requireAuth, requirePermission('audit:read'), controller.getLogins);
 router.get('/sessions', requireAuth, requirePermission('audit:read'), controller.getSessions);

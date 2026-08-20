@@ -31,10 +31,10 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
   return (
     <div className={clsx('space-y-1', className)}>
       {breadcrumbs && <div className="mb-2">{breadcrumbs}</div>}
-      <div className="flex items-start justify-between gap-4 flex-wrap">
+      <div className="flex items-start justify-between gap-3 sm:gap-4 flex-wrap">
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-3">
-            <h1 className="text-page-title-sm md:text-page-title font-semibold tracking-tight text-foreground truncate">
+          <div className="flex min-w-0 items-start gap-2 sm:gap-3">
+            <h1 className="min-w-0 text-[clamp(1.125rem,5.5vw,1.375rem)] md:text-page-title font-semibold leading-tight tracking-tight text-foreground line-clamp-2 text-pretty">
               {title}
             </h1>
             {badge && badge}
@@ -45,7 +45,7 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
             </p>
           )}
         </div>
-        {action && <div className="shrink-0 flex items-center gap-2">{action}</div>}
+        {action && <div className="page-header-action shrink-0 flex items-center gap-2">{action}</div>}
       </div>
     </div>
   );

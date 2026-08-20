@@ -8,32 +8,33 @@ export interface EnvironmentConfig {
   vapidKey: string;
   isNative: boolean;
   platform: 'web' | 'android' | 'ios';
+  deploymentMode: 'INTERNET_PRODUCTION' | 'LOCAL_ON_PREM';
 }
 
 function resolveApiBaseUrl(): string {
   const appEnv = (import.meta.env.VITE_APP_ENV || 'production').toLowerCase();
-  // 1. Canonical environment variable override
+
+  // 1. Native Capacitor resolution: custom LAN IP explicitly set by user on device
+  if (appEnv !== 'production' && Capacitor.isNativePlatform() && typeof window !== 'undefined') {
+    const customLanIp = localStorage.getItem('campusos_api_lan_ip');
+    if (customLanIp && customLanIp.trim() !== '') {
+      const cleaned = customLanIp.trim();
+      if (cleaned.startsWith('http://') || cleaned.startsWith('https://')) {
+        return cleaned.endsWith('/api') ? cleaned : `${cleaned}/api`;
+      }
+      return `http://${cleaned}:5000/api`;
+    }
+  }
+
+  // 2. Canonical environment variable override
   const envUrl = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_SERVER_BASE_URL || import.meta.env.VITE_API_URL;
   if (envUrl && envUrl !== 'undefined' && envUrl !== '') {
     return envUrl.endsWith('/api') ? envUrl : `${envUrl}/api`;
   }
 
-  // 2. Native Capacitor resolution
+  // Production native builds fail closed when no API endpoint is configured.
   if (Capacitor.isNativePlatform()) {
-    // Check custom LAN IP/host stored on device
-    if (typeof window !== 'undefined') {
-      const customLanIp = localStorage.getItem('campusos_api_lan_ip');
-      if (customLanIp && customLanIp.trim() !== '') {
-        const cleaned = customLanIp.trim();
-        if (cleaned.startsWith('http://') || cleaned.startsWith('https://')) {
-          return cleaned.endsWith('/api') ? cleaned : `${cleaned}/api`;
-        }
-        return `http://${cleaned}:5000/api`;
-      }
-    }
-
-    // Default to PC LAN host IP for physical device over Wi-Fi
-    return 'http://10.226.116.201:5000/api';
+    return '';
   }
 
   // 3. Browser development/production fallback
@@ -74,7 +75,7 @@ function resolveSocketUrl(apiUrl: string): string {
     return `${wsProtocol}//${host}`;
   }
 
-  return 'http://localhost:5000';
+  return '';
 }
 
 export function getEnvironmentConfig(): EnvironmentConfig {
@@ -82,6 +83,7 @@ export function getEnvironmentConfig(): EnvironmentConfig {
   const socketUrl = resolveSocketUrl(apiUrl);
   const appName = import.meta.env.VITE_APP_NAME || 'CampusOS';
   const appEnv = (import.meta.env.VITE_APP_ENV || 'production') as EnvironmentConfig['appEnv'];
+  const deploymentMode = (import.meta.env.VITE_DEPLOYMENT_MODE || 'INTERNET_PRODUCTION') as EnvironmentConfig['deploymentMode'];
   const vapidKey = import.meta.env.VITE_FIREBASE_VAPID_KEY || '';
   
   const isNative = Capacitor.isNativePlatform();
@@ -95,6 +97,7 @@ export function getEnvironmentConfig(): EnvironmentConfig {
     vapidKey,
     isNative,
     platform,
+    deploymentMode,
   };
 }
 

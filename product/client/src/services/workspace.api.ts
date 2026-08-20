@@ -1,87 +1,206 @@
 /**
- * Campus Workspace — API Client
- * Typed API calls for all workspace operations.
+ * Campus Workspace API Client
+ * Connects frontend editors to the unified backend workspace endpoints.
  */
 
 import api from '../lib/axios';
 import { saveBlobAndOpen } from '../platform/download';
 
+// ─── Types ───────────────────────────────────────────────────────────────────
+
+export type DocumentType = 'DOC' | 'SHEET' | 'SLIDE' | 'FORM' | 'QUIZ' | 'PDF' | 'NOTE' | 'REPORT';
+export type DocumentStatus = 'DRAFT' | 'SUBMITTED' | 'IN_REVIEW' | 'RETURNED' | 'APPROVED' | 'PUBLISHED' | 'ARCHIVED' | 'TRASHED';
+export type SharePermission = 'OWNER' | 'EDITOR' | 'COMMENTER' | 'VIEWER';
+export type CampusSuiteCategory =
+  | 'workspace'
+  | 'governance'
+  | 'academic'
+  | 'operations'
+  | 'administrative'
+  | 'Productivity'
+  | 'Communication'
+  | 'Calendar'
+  | 'Academic'
+  | 'Intelligence'
+  | 'Administration'
+  | string;
+
 export interface WorkspaceDocument {
   id: string;
   title: string;
-  type: 'DOC' | 'SHEET' | 'SLIDE' | 'FORM' | 'QUIZ' | 'PDF' | 'NOTE' | 'REPORT';
-  status: 'DRAFT' | 'SUBMITTED' | 'IN_REVIEW' | 'RETURNED' | 'APPROVED' | 'PUBLISHED' | 'ARCHIVED';
-  authorId: string;
-  authorName?: string;
-  departmentId?: string;
-  currentVersion: number;
-  commentsCount: number;
-  versionsCount: number;
-  isOwner: boolean;
+  type: DocumentType;
+  category: string;
+  status: DocumentStatus;
+  templateKey?: string;
   targetScope: string;
+  tags: string[];
+  ownerId: string;
+  departmentId?: string;
+  authorName?: string;
+  isOwner?: boolean;
+  commentsCount?: number;
+  currentVersion?: number;
+  isStarred: boolean;
+  viewCount: number;
+  lastEditedById?: string;
+  currentVersionNumber: number;
+  submittedAt?: string;
+  approvedAt?: string;
   createdAt: string;
   updatedAt: string;
+  owner?: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    role?: { name: string };
+  };
+  _count?: {
+    comments: number;
+    versions: number;
+  };
 }
 
 export interface WorkspaceDocumentDetail extends WorkspaceDocument {
-  contentJson: string;
+  contentJson?: any;
   contentHtml?: string;
-  templateKey?: string;
-  tags: string;
-  metadata: string;
+  targetUsers?: Array<{ userId: string; permission: SharePermission }>;
+  targetRoles?: Array<{ roleName: string; permission: SharePermission }>;
   permissions: {
     canView: boolean;
     canEdit: boolean;
     canComment: boolean;
-    canShare: boolean;
-    canDownload: boolean;
-    canPrint: boolean;
-    canExport: boolean;
     canDelete: boolean;
+    canShare: boolean;
+    canExport: boolean;
     canSubmit: boolean;
     canReview: boolean;
-    canApprove: boolean;
-    isOwner: boolean;
+    canManagePermissions: boolean;
   };
-  versions: WorkspaceVersion[];
-  comments: WorkspaceComment[];
-  author?: { id: string; email: string; faculty?: { firstName: string; lastName: string } };
-  department?: { id: string; name: string; code: string };
-}
-
-export interface WorkspaceVersion {
-  id: string;
-  versionNumber: number;
-  contentSnapshot: string;
-  changeSummary?: string;
-  authorId: string;
-  author?: { faculty?: { firstName: string; lastName: string } };
-  createdAt: string;
+  comments?: WorkspaceComment[];
+  versions?: WorkspaceVersion[];
+  commentsCount?: number;
+  currentVersion?: number;
 }
 
 export interface WorkspaceComment {
   id: string;
-  commentText: string;
+  documentId: string;
   authorId: string;
-  author?: { faculty?: { firstName: string; lastName: string } };
+  commentText: string;
+  anchorData?: any;
   resolved: boolean;
-  anchorData?: string;
+  resolvedById?: string;
+  resolvedAt?: string;
+  createdAt: string;
+  updatedAt: string;
+  author?: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    faculty?: { firstName: string; lastName: string };
+    role?: { name: string };
+  };
+}
+
+export interface WorkspaceVersion {
+  id: string;
+  documentId: string;
+  versionNumber: number;
+  changeSummary?: string;
+  createdById: string;
+  createdAt: string;
+  contentSnapshot?: any;
+  author?: {
+    firstName?: string;
+    lastName?: string;
+    faculty?: { firstName: string; lastName: string };
+  };
+  creator?: {
+    firstName: string;
+    lastName: string;
+  };
+}
+
+export interface CampusDataContext {
+  user: {
+    id: string;
+    name: string;
+    email: string;
+    role: string;
+    departmentId?: string;
+    departmentName?: string;
+  };
+  institution: {
+    name: string;
+    code?: string;
+    address?: string;
+    phone?: string;
+    email?: string;
+    currentAcademicYear: string;
+    currentSemester: string;
+    today: string;
+    portalUrl: string;
+  };
+  faculty?: {
+    name?: string;
+    designation?: string;
+    department?: string;
+    employeeCode?: string;
+    employeeId?: string;
+    email?: string;
+  };
+  department?: {
+    name?: string;
+    code?: string;
+    hodName?: string;
+    hod?: { name?: string } | string;
+  };
+  currentDate?: string;
+  academicYear?: string;
+  semester?: string;
+}
+
+export interface CampusSuiteApplication {
+  id: string;
+  title: string;
+  name: string;
+  shortName: string;
+  path: string;
+  keywords: string[];
+  description: string;
+  route: string;
+  icon: string;
+  category: CampusSuiteCategory;
+  featureKey: string;
+  badge?: string;
+  requiredRole?: string[];
+}
+
+export interface GovernedDriveFile {
+  id: string;
+  name: string;
+  fileId: string;
+  mimeType: string;
+  fileSize: number;
+  downloadUrl: string;
+  isFolder: boolean;
+  parentId?: string;
+  scope: string;
+  ownerId: string;
+  isStarred: boolean;
+  isTrashed: boolean;
+  trashedAt?: string;
   createdAt: string;
   updatedAt: string;
 }
 
-export interface CampusDataContext {
-  institution?: { name: string; code?: string; address?: string; phone?: string; email?: string };
-  department?: { id: string; name: string; code: string; hod?: { name: string; email: string } };
-  faculty?: { id: string; name: string; employeeId: string; designation: string; email: string };
-  academicYear?: string;
-  semester?: string;
-  currentDate?: string;
-}
-
-// ─── Documents API ────────────────────────────────────────────────────────────
+// ─── API Client ──────────────────────────────────────────────────────────────
 
 export const workspaceApi = {
+  // Application launcher
+  listApplications: () =>
+    api.get('/workspace/applications').then((r: any) => r.data.data as CampusSuiteApplication[]),
+
   // List
   listDocuments: (params?: { type?: string; status?: string; search?: string }) =>
     api.get('/workspace/documents', { params }).then((r: any) => r.data.data as { owned: WorkspaceDocument[]; shared: WorkspaceDocument[] }),
@@ -102,9 +221,17 @@ export const workspaceApi = {
   shareDocument: (id: string, shareEntries: any[], targetScope?: string) =>
     api.post(`/workspace/documents/${id}/share`, { shareEntries, targetScope }).then((r: any) => r.data),
 
-  // Delete
+  // Delete (soft / move to trash)
   deleteDocument: (id: string) =>
     api.delete(`/workspace/documents/${id}`).then((r: any) => r.data),
+
+  // Restore document from trash
+  restoreDocument: (id: string) =>
+    api.post(`/workspace/documents/${id}/restore`).then((r: any) => r.data),
+
+  // Permanent Delete document
+  permanentlyDeleteDocument: (id: string) =>
+    api.delete(`/workspace/documents/${id}/permanent`).then((r: any) => r.data),
 
   // Comments
   addComment: (id: string, commentText: string, anchorData?: any) =>
@@ -149,14 +276,48 @@ export const workspaceApi = {
     api.get(`/workspace/forms/${formId}/responses`).then((r: any) => r.data),
 
   // Drive
-  getDriveItems: (scope: string, parentId?: string) =>
-    api.get('/workspace/drive/items', { params: { scope, parentId } }).then((r: any) => r.data.data),
+  getDriveItems: (scope: string, parentId?: string, options?: { search?: string; trashed?: boolean; action?: string }) =>
+    api.get('/workspace/drive/items', { params: { scope, parentId, ...options } }).then((r: any) => r.data.data),
 
   createDriveItem: (body: { name: string; isFolder?: boolean; parentId?: string; mimeType?: string; fileUrl?: string; fileSize?: number; scope?: string }) =>
     api.post('/workspace/drive/items', body).then((r: any) => r.data.data),
 
   updateDriveItem: (id: string, body: { name?: string; isStarred?: boolean; isTrashed?: boolean; parentId?: string }) =>
     api.patch(`/workspace/drive/items/${id}`, body).then((r: any) => r.data.data),
+
+  restoreDriveItem: (id: string) =>
+    api.patch(`/workspace/drive/items/${id}`, { isTrashed: false }).then((r: any) => r.data.data),
+
+  permanentlyDeleteDriveItem: (itemId: string, fileId: string) =>
+    api.delete(`/workspace/drive/files/${fileId}/items/${itemId}/permanent`).then((r: any) => r.data),
+
+  permanentlyDeleteDriveFolder: (itemId: string) =>
+    api.delete(`/workspace/drive/folders/${itemId}/permanent`).then((r: any) => r.data),
+
+  uploadDriveFile: (body: { name: string; mimeType: string; base64: string; parentId?: string; scope?: string; sourceModule?: string }) =>
+    api.post('/workspace/drive/files/upload', body).then((r: any) => r.data.data as GovernedDriveFile),
+
+  listPickerFiles: (params: { mode: 'DRIVE' | 'RECENT' | 'SHARED' | 'SEARCH'; search?: string; action: string; mimeTypes?: string[]; maxSizeBytes?: number }) =>
+    api.get('/workspace/drive/files/picker', {
+      params: { ...params, mimeTypes: params.mimeTypes?.join(',') },
+    }).then((r: any) => r.data.data as GovernedDriveFile[]),
+
+  attachFileReference: (fileId: string, body: {
+    module: string; resourceType: string; resourceId: string; purpose: string;
+    authorizationMode?: 'FILE_ACL' | 'PARENT_RESOURCE'; requiredAction?: string;
+  }) => api.post(`/workspace/drive/files/${fileId}/references`, body).then((r: any) => r.data.data),
+
+  shareDriveFile: (fileId: string, body: { driveItemId?: string; principalType: string; principalId?: string; accessLevel: string; expiresAt?: string }) =>
+    api.post(`/workspace/drive/files/${fileId}/share`, body).then((r: any) => r.data.data),
+
+  revokeDriveFileShare: (fileId: string, grantId: string) =>
+    api.delete(`/workspace/drive/files/${fileId}/shares/${grantId}`).then((r: any) => r.data.data),
+
+  shareDriveFolder: (itemId: string, body: { principalType: string; principalId?: string; accessLevel: string; expiresAt?: string }) =>
+    api.post(`/workspace/drive/items/${itemId}/share`, body).then((r: any) => r.data.data),
+
+  revokeDriveFolderShare: (itemId: string, grantId: string) =>
+    api.delete(`/workspace/drive/items/${itemId}/shares/${grantId}`).then((r: any) => r.data.data),
 };
 
 // ─── Download Helper ──────────────────────────────────────────────────────────

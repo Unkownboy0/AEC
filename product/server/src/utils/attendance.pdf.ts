@@ -4,6 +4,7 @@ import path from 'path';
 import { prisma } from '../lib/prisma';
 import { BadRequestException } from './exceptions';
 import { PdfWatermarkService } from '../services/pdf-watermark.service';
+import { ProfileMediaService } from '../modules/users/profile-media.service';
 
 interface AttendanceReportData {
   student: any;
@@ -14,9 +15,22 @@ interface AttendanceReportData {
 }
 
 /**
- * Draw college shield logo
+ * Draw official college logo
  */
 function drawCollegeLogo(doc: PDFKit.PDFDocument, x: number, y: number, size: number, color: string) {
+  const logoPath = PdfWatermarkService.getLogoPath();
+  if (logoPath && fs.existsSync(logoPath)) {
+    doc.save();
+    try {
+      doc.circle(x + size / 2, y + size / 2, size / 2 + 1).fill('#ffffff');
+      doc.image(logoPath, x, y, { width: size, height: size, fit: [size, size] });
+    } catch {
+      // fallback
+    } finally {
+      doc.restore();
+    }
+    return;
+  }
   doc.save();
   doc.moveTo(x + size / 2, y)
      .lineTo(x + size, y + size * 0.25)
@@ -27,15 +41,16 @@ function drawCollegeLogo(doc: PDFKit.PDFDocument, x: number, y: number, size: nu
      .closePath()
      .fill(color);
 
-  // Draw 'G'
+  // Draw 'AEC'
   doc.fillColor('#ffffff')
      .font('Helvetica-Bold')
-     .fontSize(size * 0.55)
-     .text('G', x + size * 0.25, y + size * 0.18, { lineBreak: false });
+     .fontSize(size * 0.35)
+     .text('AEC', x + size * 0.15, y + size * 0.25, { lineBreak: false });
   doc.restore();
 }
 
 export async function generateAttendanceReportPdf(data: AttendanceReportData): Promise<Buffer> {
+  const canonicalPhotoPath = await ProfileMediaService.resolveInternalPhysicalPath(data.student.user?.profileImageFileId);
   return new Promise((resolve, reject) => {
     const doc = new PDFDocument({
       size: 'A4',
@@ -92,7 +107,14 @@ export async function generateAttendanceReportPdf(data: AttendanceReportData): P
     currentY += 22;
 
     let photoInserted = false;
-    if (student.user?.profilePhoto) {
+    if (canonicalPhotoPath) {
+      try {
+        doc.image(canonicalPhotoPath, 40, currentY, { width: 70, height: 75 });
+        photoInserted = true;
+      } catch (e) {
+        console.error('Failed to embed canonical profile photo in PDF:', e);
+      }
+    } else if (student.user?.profilePhoto && !student.user.profilePhoto.startsWith('/users/')) {
       const cleanPath = student.user.profilePhoto.startsWith('/') ? student.user.profilePhoto.slice(1) : student.user.profilePhoto;
       const physicalPath = path.join(process.cwd(), cleanPath);
       if (fs.existsSync(physicalPath)) {
@@ -120,43 +142,45 @@ export async function generateAttendanceReportPdf(data: AttendanceReportData): P
     // Bio Details (draw in two columns next to avatar)
     const textStartCol1 = 130;
     const textStartCol2 = 350;
+    const firstValue = { width: 135, height: 12, ellipsis: true };
+    const secondValue = { width: 120, height: 12, ellipsis: true };
 
     doc.fillColor('#475569').font('Helvetica').fontSize(8.5);
 
     // Row 1
     doc.text('Full Name:', textStartCol1, currentY)
-       .fillColor('#0f172a').font('Helvetica-Bold').text(`${student.firstName} ${student.lastName}`, textStartCol1 + 75, currentY)
+       .fillColor('#0f172a').font('Helvetica-Bold').text(`${student.firstName} ${student.lastName}`, textStartCol1 + 75, currentY, firstValue)
        .fillColor('#475569').font('Helvetica').text('Admission No:', textStartCol2, currentY)
-       .fillColor('#0f172a').font('Helvetica-Bold').text(student.admissionNo, textStartCol2 + 85, currentY);
+       .fillColor('#0f172a').font('Helvetica-Bold').text(student.admissionNo, textStartCol2 + 85, currentY, secondValue);
 
     currentY += 16;
     doc.fillColor('#475569').font('Helvetica');
 
     // Row 2
     doc.text('Register No:', textStartCol1, currentY)
-       .fillColor('#0f172a').font('Helvetica-Bold').text(registerNo, textStartCol1 + 75, currentY)
+       .fillColor('#0f172a').font('Helvetica-Bold').text(registerNo, textStartCol1 + 75, currentY, firstValue)
        .fillColor('#475569').font('Helvetica').text('Roll Number:', textStartCol2, currentY)
-       .fillColor('#0f172a').font('Helvetica-Bold').text(rollNo, textStartCol2 + 85, currentY);
+       .fillColor('#0f172a').font('Helvetica-Bold').text(rollNo, textStartCol2 + 85, currentY, secondValue);
 
     currentY += 16;
     doc.fillColor('#475569').font('Helvetica');
 
     // Row 3
     doc.text('Department:', textStartCol1, currentY)
-       .fillColor('#0f172a').font('Helvetica-Bold').text(student.department?.name || 'N/A', textStartCol1 + 75, currentY)
+       .fillColor('#0f172a').font('Helvetica-Bold').text(student.department?.name || 'N/A', textStartCol1 + 75, currentY, firstValue)
        .fillColor('#475569').font('Helvetica').text('Program / Level:', textStartCol2, currentY)
-       .fillColor('#0f172a').font('Helvetica-Bold').text(`${student.program?.name || 'N/A'} (${student.program?.code || ''})`, textStartCol2 + 85, currentY);
+       .fillColor('#0f172a').font('Helvetica-Bold').text(`${student.program?.name || 'N/A'} (${student.program?.code || ''})`, textStartCol2 + 85, currentY, secondValue);
 
     currentY += 16;
     doc.fillColor('#475569').font('Helvetica');
 
     // Row 4
     doc.text('Term Placement:', textStartCol1, currentY)
-       .fillColor('#0f172a').font('Helvetica-Bold').text(`Semester ${student.semester?.number || 'N/A'} / Section ${student.section?.name || 'A'}`, textStartCol1 + 75, currentY)
+       .fillColor('#0f172a').font('Helvetica-Bold').text(`Semester ${student.semester?.number || 'N/A'} / Section ${student.section?.name || 'N/A'}`, textStartCol1 + 75, currentY, firstValue)
        .fillColor('#475569').font('Helvetica').text('Academic Term:', textStartCol2, currentY)
-       .fillColor('#0f172a').font('Helvetica-Bold').text(student.academicYear?.name || 'N/A', textStartCol2 + 85, currentY);
+       .fillColor('#0f172a').font('Helvetica-Bold').text(student.academicYear?.name || 'N/A', textStartCol2 + 85, currentY, secondValue);
 
-    currentY = Math.max(currentY + 30, 235);
+    currentY = Math.max(currentY + 30, 247);
 
     // ----------------------------------------------------
     // STATISTICS CALCULATION

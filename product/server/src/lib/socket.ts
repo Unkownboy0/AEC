@@ -3,10 +3,11 @@ import { EventEmitter } from 'events';
 export const rbacEvents = new EventEmitter();
 
 // Global connection pool for Server-Sent Events or WebSockets
-const activeSSEClients: Array<{ userId: string; res: any }> = [];
+const activeSSEClients: Array<{ userId: string; workspace: string; res: any }> = [];
+let nextEventId = 1;
 
-export function registerSSEClient(userId: string, res: any) {
-  activeSSEClients.push({ userId, res });
+export function registerSSEClient(userId: string, workspace: string, res: any) {
+  activeSSEClients.push({ userId, workspace, res });
 }
 
 export function removeSSEClient(res: any) {
@@ -17,7 +18,7 @@ export function removeSSEClient(res: any) {
 }
 
 export function broadcastRBACUpdate(data: {
-  type: 'ROLE_UPDATED' | 'PERMISSIONS_UPDATED' | 'SIDEBAR_UPDATED' | 'DASHBOARD_UPDATED' | 'APPROVAL_UPDATED' | 'WORKSPACE_UPDATED' | 'ATTENDANCE_UPDATED';
+  type: string;
   roleId?: string;
   userId?: string;
   payload?: any;
@@ -27,7 +28,8 @@ export function broadcastRBACUpdate(data: {
 
   // Deliver only to the targeted user when one is specified; events without a userId
   // (e.g. a role-wide ROLE_UPDATED) still fan out to everyone since they have no single recipient.
-  const payloadStr = `data: ${JSON.stringify({ ...data, timestamp: new Date().toISOString() })}\n\n`;
+  const eventId = String(nextEventId++);
+  const payloadStr = `id: ${eventId}\ndata: ${JSON.stringify({ ...data, eventId, timestamp: new Date().toISOString() })}\n\n`;
   const targets = data.userId
     ? activeSSEClients.filter((c) => c.userId === data.userId)
     : activeSSEClients;

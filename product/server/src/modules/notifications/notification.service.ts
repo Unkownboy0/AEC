@@ -95,6 +95,26 @@ export class NotificationService {
               },
             });
             createdNotifications.push(notif);
+
+            try {
+              const { broadcastRBACUpdate } = require('../../lib/socket');
+              broadcastRBACUpdate({
+                type: 'notification:sent',
+                userId: recipientId,
+                payload: {
+                  id: notif.id,
+                  eventType: notif.eventType,
+                  title: notif.title,
+                  message: notif.message,
+                  relatedEntityType: notif.relatedEntityType,
+                  relatedEntityId: notif.relatedEntityId,
+                  deepLinkRoute: notif.deepLinkRoute,
+                  createdAt: notif.createdAt.toISOString()
+                }
+              });
+            } catch (err) {
+              logger.warn('[NotificationEngine] SSE broadcast failed:', err);
+            }
           } catch (dbErr) {
             logger.warn(`[NotificationEngine] In-app record creation failed for recipient ${recipientId}:`, dbErr);
           }
@@ -165,7 +185,7 @@ export class NotificationService {
               },
             }).catch(() => null);
           }
-        } catch (_) {}
+        } catch (_) { }
       }
 
       return {
@@ -215,6 +235,26 @@ export class NotificationService {
           deliveryState: 'DELIVERED',
         },
       });
+
+      try {
+        const { broadcastRBACUpdate } = require('../../lib/socket');
+        broadcastRBACUpdate({
+          type: 'notification:sent',
+          userId: dto.recipientId,
+          payload: {
+            id: notification.id,
+            eventType: notification.eventType,
+            title: notification.title,
+            message: notification.message,
+            relatedEntityType: notification.relatedEntityType,
+            relatedEntityId: notification.relatedEntityId,
+            deepLinkRoute: notification.deepLinkRoute,
+            createdAt: notification.createdAt.toISOString()
+          }
+        });
+      } catch (err) {
+        logger.warn('[NotificationService] SSE broadcast failed:', err);
+      }
 
       // Dispatch push notification if push channel is allowed
       if (allowPush) {
@@ -426,8 +466,10 @@ export class NotificationService {
       prisma.notification.count({ where: { recipientId: userId, isRead: false } }),
     ]);
 
+    const enrichedNotifications = await this.enrichNotificationsWithSenderDetails(notifications);
+
     return {
-      data: notifications,
+      data: enrichedNotifications,
       meta: {
         total,
         page,
@@ -436,6 +478,345 @@ export class NotificationService {
         unreadCount,
       },
     };
+  }
+
+  /**
+   * Helper to enrich notifications with sender/actor profile pictures, roles, and names.
+   */
+  private static async enrichNotificationsWithSenderDetails(notifications: any[]) {
+    if (!notifications || notifications.length === 0) return [];
+
+    try {
+      const studentLeaveIds: string[] = [];
+      const facultyLeaveIds: string[] = [];
+      const taskIds: string[] = [];
+      const circularIds: string[] = [];
+      const docIds: string[] = [];
+      const complaintIds: string[] = [];
+
+      notifications.forEach((n) => {
+        const type = (n.relatedEntityType || '').toUpperCase();
+        const eventType = (n.eventType || '').toUpperCase();
+        if (n.relatedEntityId) {
+          if (type.includes('STUDENT_LEAVE') || eventType.includes('STUDENT_LEAVE') || eventType.includes('STUDENT_OD') || eventType.includes('LEAVE_') || eventType.includes('OD_')) {
+            studentLeaveIds.push(n.relatedEntityId);
+          } else if (type.includes('FACULTY_LEAVE') || eventType.includes('FACULTY_LEAVE') || eventType.includes('FACULTY_OD')) {
+            facultyLeaveIds.push(n.relatedEntityId);
+          } else if (type.includes('TASK') || eventType.includes('TASK')) {
+            taskIds.push(n.relatedEntityId);
+          } else if (type.includes('CIRCULAR') || eventType.includes('CIRCULAR')) {
+            circularIds.push(n.relatedEntityId);
+          } else if (type.includes('WORKSPACE') || type.includes('DOC') || eventType.includes('DOCUMENT') || eventType.includes('FILE')) {
+            docIds.push(n.relatedEntityId);
+          } else if (type.includes('COMPLAINT') || eventType.includes('COMPLAINT')) {
+            complaintIds.push(n.relatedEntityId);
+          }
+        }
+      });
+
+      const [studentLeaves, facultyLeaves, tasks, circulars, docs, complaints] = await Promise.all([
+        studentLeaveIds.length > 0
+          ? prisma.studentLeaveRequest.findMany({
+            where: { id: { in: studentLeaveIds } },
+            select: {
+              id: true,
+              type: true,
+              student: {
+                select: {
+                  id: true,
+                  firstName: true,
+                  lastName: true,
+                  gender: true,
+                  user: {
+                    select: { id: true, firstName: true, lastName: true, gender: true, profilePhoto: true, profileImageFileId: true },
+                  },
+                },
+              },
+              mentor: {
+                select: {
+                  id: true,
+                  firstName: true,
+                  lastName: true,
+                  user: { select: { id: true, firstName: true, lastName: true, gender: true, profilePhoto: true, profileImageFileId: true } },
+                },
+              },
+            },
+          }).catch(() => [])
+          : [],
+        facultyLeaveIds.length > 0
+          ? prisma.facultyLeaveRequest.findMany({
+            where: { id: { in: facultyLeaveIds } },
+            select: {
+              id: true,
+              leaveType: true,
+              faculty: {
+                select: {
+                  id: true,
+                  firstName: true,
+                  lastName: true,
+                  user: { select: { id: true, firstName: true, lastName: true, gender: true, profilePhoto: true, profileImageFileId: true } },
+                },
+              },
+            },
+          }).catch(() => [])
+          : [],
+        taskIds.length > 0
+          ? prisma.task.findMany({
+            where: { id: { in: taskIds } },
+            select: {
+              id: true,
+              title: true,
+              createdById: true,
+            },
+          }).catch(() => [])
+          : [],
+        circularIds.length > 0
+          ? prisma.institutionalCircular.findMany({
+            where: { id: { in: circularIds } },
+            select: {
+              id: true,
+              title: true,
+              authorId: true,
+            },
+          }).catch(() => [])
+          : [],
+        docIds.length > 0
+          ? prisma.campusOfficeDocument.findMany({
+            where: { id: { in: docIds } },
+            select: {
+              id: true,
+              title: true,
+              authorId: true,
+              author: {
+                select: {
+                  id: true,
+                  firstName: true,
+                  lastName: true,
+                  gender: true,
+                  profilePhoto: true,
+                  profileImageFileId: true,
+                  role: { select: { name: true } },
+                  student: { select: { firstName: true, lastName: true, gender: true } },
+                  faculty: { select: { firstName: true, lastName: true } },
+                },
+              },
+            },
+          }).catch(() => [])
+          : [],
+        complaintIds.length > 0
+          ? prisma.ticket.findMany({
+            where: { id: { in: complaintIds } },
+            select: {
+              id: true,
+              title: true,
+              student: {
+                select: {
+                  firstName: true,
+                  lastName: true,
+                  user: { select: { id: true, firstName: true, lastName: true, profilePhoto: true, profileImageFileId: true } },
+                },
+              },
+              faculty: {
+                select: {
+                  firstName: true,
+                  lastName: true,
+                  user: { select: { id: true, firstName: true, lastName: true, profilePhoto: true, profileImageFileId: true } },
+                },
+              },
+            },
+          }).catch(() => [])
+          : [],
+      ]);
+
+      const userIdsToFetch = Array.from(
+        new Set([
+          ...tasks.map((t: any) => t.createdById).filter(Boolean),
+          ...circulars.map((c: any) => c.authorId).filter(Boolean),
+        ])
+      );
+
+      const creatorUsers = userIdsToFetch.length > 0
+        ? await prisma.user.findMany({
+          where: { id: { in: userIdsToFetch } },
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            gender: true,
+            profilePhoto: true,
+            profileImageFileId: true,
+            role: { select: { name: true } },
+            student: { select: { firstName: true, lastName: true, gender: true } },
+            faculty: { select: { firstName: true, lastName: true } },
+          },
+        }).catch(() => [])
+        : [];
+
+      const userMap = new Map((creatorUsers as any[]).map((u) => [u.id, u]));
+      const studentLeaveMap = new Map((studentLeaves as any[]).map((sl) => [sl.id, sl]));
+      const facultyLeaveMap = new Map((facultyLeaves as any[]).map((fl) => [fl.id, fl]));
+      const taskMap = new Map((tasks as any[]).map((t) => [t.id, t]));
+      const circularMap = new Map((circulars as any[]).map((c) => [c.id, c]));
+      const docMap = new Map((docs as any[]).map((d) => [d.id, d]));
+      const complaintMap = new Map((complaints as any[]).map((comp) => [comp.id, comp]));
+
+      return notifications.map((n) => {
+        let actorUserId: string | undefined = undefined;
+        let actorDisplayName: string | undefined = undefined;
+        let actorProfileImage: string | undefined = undefined;
+        let actorRole: string | undefined = undefined;
+        let actorGender: string | undefined = undefined;
+        let actorType: 'HUMAN' | 'SYSTEM' = 'SYSTEM';
+
+        let subjectName: string | undefined = undefined;
+        let subjectRole: string | undefined = undefined;
+        let subjectAvatar: string | undefined = undefined;
+
+        const eventType = (n.eventType || '').toUpperCase();
+        const relatedId = n.relatedEntityId;
+
+        if (relatedId && studentLeaveMap.has(relatedId)) {
+          const req = studentLeaveMap.get(relatedId);
+          actorType = 'HUMAN';
+          const stUser = req.student?.user;
+          const studentFullName = `${req.student?.firstName || stUser?.firstName || ''} ${req.student?.lastName || stUser?.lastName || ''}`.trim() || 'Student';
+          const studentAvatar = req.student?.profilePhoto || stUser?.profilePhoto || (stUser?.profileImageFileId ? `/api/files/${stUser.profileImageFileId}/content` : undefined);
+          const studentGender = req.student?.gender || stUser?.gender || undefined;
+
+          subjectName = studentFullName;
+          subjectRole = 'Student';
+          subjectAvatar = studentAvatar;
+
+          if (eventType.includes('SUBMITTED') || eventType.includes('REQUESTED')) {
+            actorUserId = stUser?.id || req.student?.id;
+            actorDisplayName = studentFullName;
+            actorProfileImage = studentAvatar;
+            actorRole = 'Student';
+            actorGender = studentGender;
+          } else if (eventType.includes('MENTOR') || eventType.includes('FORWARDED')) {
+            const mUser = req.mentor?.user;
+            actorUserId = mUser?.id || req.mentor?.id;
+            actorDisplayName = `${req.mentor?.firstName || mUser?.firstName || ''} ${req.mentor?.lastName || mUser?.lastName || ''}`.trim() || 'Mentor';
+            actorProfileImage = mUser?.profilePhoto || (mUser?.profileImageFileId ? `/api/files/${mUser.profileImageFileId}/content` : undefined);
+            actorRole = 'Mentor';
+            actorGender = mUser?.gender || undefined;
+          } else if (eventType.includes('HOD') || eventType.includes('APPROVED') || eventType.includes('REJECTED')) {
+            actorDisplayName = eventType.includes('MENTOR') ? 'Faculty Mentor' : 'Head of Department';
+            actorRole = eventType.includes('MENTOR') ? 'Mentor' : 'HOD';
+          }
+        } else if (relatedId && facultyLeaveMap.has(relatedId)) {
+          const req = facultyLeaveMap.get(relatedId);
+          actorType = 'HUMAN';
+          const fUser = req.faculty?.user;
+          const facName = `${req.faculty?.firstName || fUser?.firstName || ''} ${req.faculty?.lastName || fUser?.lastName || ''}`.trim() || 'Faculty';
+          const facAvatar = fUser?.profilePhoto || (fUser?.profileImageFileId ? `/api/files/${fUser.profileImageFileId}/content` : undefined);
+
+          subjectName = facName;
+          subjectRole = 'Faculty';
+          subjectAvatar = facAvatar;
+
+          if (eventType.includes('SUBMITTED') || eventType.includes('REQUESTED')) {
+            actorUserId = fUser?.id || req.faculty?.id;
+            actorDisplayName = facName;
+            actorProfileImage = facAvatar;
+            actorRole = 'Faculty';
+            actorGender = fUser?.gender || undefined;
+          } else if (eventType.includes('HOD') || eventType.includes('RECOMMENDED')) {
+            actorDisplayName = 'Head of Department';
+            actorRole = 'HOD';
+          } else if (eventType.includes('PRINCIPAL') || eventType.includes('APPROVED')) {
+            actorDisplayName = 'Principal';
+            actorRole = 'Principal';
+          }
+        } else if (relatedId && docMap.has(relatedId)) {
+          const d = docMap.get(relatedId);
+          const author = d?.author;
+          if (author) {
+            actorType = 'HUMAN';
+            actorUserId = author.id;
+            actorDisplayName = author.student
+              ? `${author.student.firstName} ${author.student.lastName}`.trim()
+              : author.faculty
+                ? `${author.faculty.firstName} ${author.faculty.lastName}`.trim()
+                : `${author.firstName || ''} ${author.lastName || ''}`.trim() || author.role?.name || 'Collaborator';
+            actorProfileImage = author.profilePhoto || (author.profileImageFileId ? `/api/files/${author.profileImageFileId}/content` : undefined);
+            actorRole = author.role?.name || 'Author';
+            actorGender = author.gender || author.student?.gender || undefined;
+          }
+        } else if (relatedId && taskMap.has(relatedId)) {
+          const t = taskMap.get(relatedId);
+          const creator = t?.createdById ? userMap.get(t.createdById) : undefined;
+          if (creator) {
+            actorType = 'HUMAN';
+            actorUserId = creator.id;
+            actorDisplayName = `${creator.firstName || ''} ${creator.lastName || ''}`.trim() || 'Assigner';
+            actorProfileImage = creator.profilePhoto || (creator.profileImageFileId ? `/api/files/${creator.profileImageFileId}/content` : undefined);
+            actorRole = creator.role?.name || 'Task Assigner';
+            actorGender = creator.gender || undefined;
+          }
+        } else if (relatedId && circularMap.has(relatedId)) {
+          const c = circularMap.get(relatedId);
+          const author = c?.authorId ? userMap.get(c.authorId) : undefined;
+          if (author) {
+            actorType = 'HUMAN';
+            actorUserId = author.id;
+            actorDisplayName = `${author.firstName || ''} ${author.lastName || ''}`.trim() || 'Administration';
+            actorProfileImage = author.profilePhoto || (author.profileImageFileId ? `/api/files/${author.profileImageFileId}/content` : undefined);
+            actorRole = author.role?.name || 'Administration';
+            actorGender = author.gender || undefined;
+          }
+        } else if (relatedId && complaintMap.has(relatedId)) {
+          const comp = complaintMap.get(relatedId);
+          const cUser = comp?.student?.user || comp?.faculty?.user;
+          const cName = comp?.student ? `${comp.student.firstName} ${comp.student.lastName}` : comp?.faculty ? `${comp.faculty.firstName} ${comp.faculty.lastName}` : cUser ? `${cUser.firstName} ${cUser.lastName}` : 'Complainant';
+          actorType = 'HUMAN';
+          actorUserId = cUser?.id;
+          actorDisplayName = cName;
+          actorProfileImage = cUser?.profilePhoto || (cUser?.profileImageFileId ? `/api/files/${cUser.profileImageFileId}/content` : undefined);
+          actorRole = 'Complainant';
+          actorGender = cUser?.gender || undefined;
+        }
+
+        // Detect known human actor event categories
+        if (!actorDisplayName) {
+          if (eventType.includes('LEAVE') || eventType.includes('OD') || eventType.includes('APPROVAL') || eventType.includes('DELEGAT')) {
+            actorType = 'HUMAN';
+            actorDisplayName = eventType.includes('MENTOR') ? 'Faculty Mentor' : eventType.includes('HOD') ? 'Head of Department' : eventType.includes('PRINCIPAL') ? 'Principal' : 'Academic Reviewer';
+            actorRole = eventType.includes('MENTOR') ? 'Mentor' : eventType.includes('HOD') ? 'HOD' : eventType.includes('PRINCIPAL') ? 'Principal' : 'Authority';
+          } else if (eventType.includes('CIRCULAR') || eventType.includes('ANNOUNCEMENT')) {
+            actorType = 'HUMAN';
+            actorDisplayName = 'Institutional Administration';
+            actorRole = 'Administration';
+          } else {
+            actorType = 'SYSTEM';
+            actorDisplayName = 'CampusOS System';
+            actorRole = 'System';
+          }
+        }
+
+        return {
+          ...n,
+          actorUserId: actorUserId || undefined,
+          actorDisplayName: actorDisplayName || undefined,
+          actorProfileImage: actorProfileImage || undefined,
+          actorRole: actorRole || undefined,
+          actorGender: actorGender || undefined,
+          actorType,
+
+          senderName: actorDisplayName || undefined,
+          senderAvatar: actorProfileImage || undefined,
+          senderRole: actorRole || undefined,
+          senderGender: actorGender || undefined,
+
+          subjectName: subjectName || undefined,
+          subjectRole: subjectRole || undefined,
+          subjectAvatar: subjectAvatar || undefined,
+        };
+      });
+    } catch (err) {
+      logger.warn('[NotificationEngine] Error enriching notifications with sender details:', err);
+      return notifications;
+    }
   }
 
   /**
@@ -449,6 +830,132 @@ export class NotificationService {
   }
 
   /**
+   * Get role-aware consolidated badge summary for all workspace modules.
+   * Real server-backed source of truth for indicators.
+   */
+  static async getBadgeSummary(userId: string, roleName?: string) {
+    const unreadNotifications = await prisma.notification.count({
+      where: { recipientId: userId, isRead: false },
+    }).catch(() => 0);
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      include: {
+        role: true,
+        student: true,
+        faculty: true,
+      },
+    }).catch(() => null);
+
+    const activeRole = (roleName || user?.role?.name || '').toUpperCase().replace(/[\s_-]+/g, '');
+    let pendingApprovals = 0;
+    let pendingLeaveRequests = 0;
+    let pendingTasks = 0;
+    let unreadCirculars = 0;
+    let unreadMessages = 0;
+    let pendingAssignments = 0;
+    let pendingFees = 0;
+
+    // 1. Role-aware Pending Approvals
+    if (activeRole.includes('MENTOR') && user?.faculty?.id) {
+      pendingApprovals = await prisma.studentLeaveRequest.count({
+        where: {
+          mentorId: user.faculty.id,
+          status: { in: ['PENDING_MENTOR', 'PENDING'] },
+        },
+      }).catch(() => 0);
+    } else if (activeRole.includes('HOD') && user?.faculty?.departmentId) {
+      const [studentLeaves, facultyLeaves] = await Promise.all([
+        prisma.studentLeaveRequest.count({
+          where: {
+            departmentId: user.faculty.departmentId,
+            status: { in: ['PENDING_HOD', 'FORWARDED_TO_HOD'] },
+          },
+        }).catch(() => 0),
+        prisma.facultyLeaveRequest.count({
+          where: {
+            departmentId: user.faculty.departmentId,
+            status: { in: ['PENDING_HOD', 'PENDING', 'SUBMITTED'] },
+          },
+        }).catch(() => 0),
+      ]);
+      pendingApprovals = studentLeaves + facultyLeaves;
+    } else if (activeRole.includes('PRINCIPAL') || activeRole.includes('HEADOFINSTITUTION')) {
+      pendingApprovals = await prisma.facultyLeaveRequest.count({
+        where: {
+          status: { in: ['PENDING_PRINCIPAL', 'FORWARDED_TO_PRINCIPAL', 'PENDING'] },
+        },
+      }).catch(() => 0);
+    } else if (activeRole.includes('VP') || activeRole.includes('VICEPRINCIPAL')) {
+      pendingApprovals = await prisma.facultyLeaveRequest.count({
+        where: {
+          status: { in: ['PENDING_PRINCIPAL', 'DELEGATED_TO_VP', 'PENDING_VP'] },
+        },
+      }).catch(() => 0);
+    } else if (activeRole.includes('ACADEMICDEAN') || activeRole.includes('DEANACADEMIC')) {
+      pendingApprovals = await prisma.studentLeaveRequest.count({
+        where: {
+          status: { in: ['PENDING_DEAN', 'ESCALATED_TO_DEAN'] },
+        },
+      }).catch(() => 0);
+    } else if (activeRole.includes('ADMISSIONDEAN') || activeRole.includes('ADMINISTRATIONDEAN')) {
+      pendingApprovals = await prisma.facultyLeaveRequest.count({
+        where: {
+          status: { in: ['PENDING_ADMIN_DEAN', 'PENDING_DEAN'] },
+        },
+      }).catch(() => 0);
+    }
+
+    // 2. Pending Tasks assigned to user
+    pendingTasks = await prisma.taskAssignee.count({
+      where: {
+        assigneeId: userId,
+        status: { notIn: ['COMPLETED', 'REJECTED'] },
+      },
+    }).catch(() => 0);
+
+    // 3. Unread Circulars (published circulars without read receipt)
+    const publishedCirculars = await prisma.institutionalCircular.findMany({
+      where: { status: 'PUBLISHED' },
+      select: { id: true },
+      take: 50,
+    }).catch(() => []);
+
+    if (publishedCirculars.length > 0) {
+      const readReceipts = await prisma.circularReadReceipt.findMany({
+        where: {
+          userId,
+          circularId: { in: publishedCirculars.map((c) => c.id) },
+        },
+        select: { circularId: true },
+      }).catch(() => []);
+      const readSet = new Set(readReceipts.map((r) => r.circularId));
+      unreadCirculars = publishedCirculars.filter((c) => !readSet.has(c.id)).length;
+    }
+
+    // 4. Student active pending leave requests
+    if (activeRole.includes('STUDENT') && user?.student?.id) {
+      pendingLeaveRequests = await prisma.studentLeaveRequest.count({
+        where: {
+          studentId: user.student.id,
+          status: { in: ['PENDING_MENTOR', 'PENDING_HOD', 'PENDING_DEAN', 'RETURNED_TO_STUDENT'] },
+        },
+      }).catch(() => 0);
+    }
+
+    return {
+      unreadNotifications,
+      pendingApprovals,
+      pendingLeaveRequests,
+      pendingTasks,
+      unreadCirculars,
+      unreadMessages,
+      pendingAssignments,
+      pendingFees,
+    };
+  }
+
+  /**
    * Mark a notification as read.
    */
   static async markAsRead(notificationId: string, userId: string) {
@@ -458,6 +965,10 @@ export class NotificationService {
 
     if (!notification) {
       throw new NotFoundException('Notification not found');
+    }
+
+    if (notification.isRead) {
+      return notification;
     }
 
     return prisma.notification.update({
@@ -535,7 +1046,7 @@ export class NotificationService {
           active: true,
         },
         data: { active: false },
-      }).catch(() => {});
+      }).catch(() => { });
     }
 
     // Reassign token to this user and activate

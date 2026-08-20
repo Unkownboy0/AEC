@@ -17,6 +17,17 @@ import { BiometricAuth, BiometryError, BiometryErrorType } from '@aparajita/capa
 
 const LOCK_PREF_KEY = 'campusos_biometric_lock_enabled';
 
+type BiometricAuditEvent = 'BIOMETRIC_LOCK_ENABLED' | 'BIOMETRIC_LOCK_DISABLED' | 'APP_UNLOCK_SUCCESS' | 'APP_UNLOCK_FAILED';
+
+async function auditBiometricEvent(event: BiometricAuditEvent): Promise<void> {
+  try {
+    const { default: api } = await import('../lib/axios');
+    await api.post('/security/mobile-events', { event });
+  } catch {
+    // App-lock enforcement must never depend on audit transport availability.
+  }
+}
+
 export type BiometricAuthState = 'granted' | 'denied' | 'denied-permanently' | 'unavailable' | 'cancelled';
 
 export interface BiometricAuthResult {
@@ -53,6 +64,7 @@ export async function getBiometricLockEnabled(): Promise<boolean> {
 
 export async function setBiometricLockEnabled(enabled: boolean): Promise<void> {
   await Preferences.set({ key: LOCK_PREF_KEY, value: enabled ? 'true' : 'false' });
+  void auditBiometricEvent(enabled ? 'BIOMETRIC_LOCK_ENABLED' : 'BIOMETRIC_LOCK_DISABLED');
 }
 
 /**
@@ -83,8 +95,10 @@ export async function authenticateWithBiometrics(
       androidConfirmationRequired: false,
     });
 
+    void auditBiometricEvent('APP_UNLOCK_SUCCESS');
     return { success: true, state: 'granted' };
   } catch (err) {
+    void auditBiometricEvent('APP_UNLOCK_FAILED');
     if (err instanceof BiometryError) {
       switch (err.code) {
         case BiometryErrorType.userCancel:

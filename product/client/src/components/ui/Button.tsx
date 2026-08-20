@@ -14,7 +14,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         ref={ref}
         disabled={disabled || isLoading}
         className={cn(
-          'inline-flex items-center justify-center rounded-lg text-sm font-semibold transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50',
+          'inline-flex items-center justify-center rounded-xl text-sm font-semibold text-center leading-tight whitespace-normal transition-all duration-200 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50',
           {
             // Variants
             'bg-primary text-primary-foreground shadow hover:bg-primary/90': variant === 'primary',
@@ -25,10 +25,10 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
             'text-primary underline-offset-4 hover:underline': variant === 'link',
             
             // Sizes
-            'h-9 px-3 text-xs': size === 'sm',
-            'h-10 px-4': size === 'md',
-            'h-11 px-8 text-base': size === 'lg',
-            'h-10 w-10 p-0': size === 'icon',
+            'min-h-12 lg:min-h-9 px-3 text-xs': size === 'sm',
+            'min-h-12 lg:min-h-10 px-4': size === 'md',
+            'min-h-12 lg:min-h-11 px-6 sm:px-8 text-base': size === 'lg',
+            'h-12 w-12 lg:h-10 lg:w-10 p-0': size === 'icon',
           },
           className
         )}

@@ -54,30 +54,47 @@ export function guessMimeType(filename: string): string {
   return 'application/octet-stream';
 }
 
-function blobToBase64(blob: Blob): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onerror = () => reject(reader.error);
-    reader.onload = () => {
-      const result = reader.result as string;
-      const base64 = result.split(',')[1] || result;
-      resolve(base64);
-    };
-    reader.readAsDataURL(blob);
-  });
+export async function blobToBase64(blob: Blob): Promise<string> {
+  if (blob.size < 5 * 1024 * 1024) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onerror = () => reject(reader.error);
+      reader.onload = () => {
+        const result = reader.result as string;
+        const base64 = result.split(',')[1] || result;
+        resolve(base64);
+      };
+      reader.readAsDataURL(blob);
+    });
+  }
+
+  const buffer = await blob.arrayBuffer();
+  const bytes = new Uint8Array(buffer);
+  let binary = '';
+  const chunkSize = 8192;
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    const chunk = bytes.subarray(i, i + chunkSize);
+    binary += String.fromCharCode.apply(null, chunk as unknown as number[]);
+  }
+  return btoa(binary);
 }
 
 /**
  * Universal Mobile + Web Download Service.
  * Fetches endpoint (authenticated), checks for error JSON bodies, writes bytes to native storage,
- * and launches the Android/iOS system sheet to open or share the file.
+ * and launches the Android/iOS system sheet or saves persistently.
  */
 export async function downloadFile(options: DownloadOptions | string, fallbackFilename?: string): Promise<DownloadResult> {
   const opts: DownloadOptions = typeof options === 'string' ? { endpoint: options, filename: fallbackFilename } : options;
-  const endpoint = opts.endpoint || (opts.resourceId ? `/files/${opts.resourceId}/download` : '');
+  let endpoint = opts.endpoint || (opts.resourceId ? `/files/${opts.resourceId}/download` : '');
 
   if (!endpoint) {
     return { success: false, error: 'No download endpoint specified.' };
+  }
+
+  // Prevent double /api/ prefixing if endpoint was passed with /api/
+  if (endpoint.startsWith('/api/')) {
+    endpoint = endpoint.slice(4);
   }
 
   let blob: Blob;
@@ -88,7 +105,6 @@ export async function downloadFile(options: DownloadOptions | string, fallbackFi
       responseType: 'blob',
     });
 
-    // Check if response is an error wrapped in JSON blob
     const contentType = String(res.headers?.['content-type'] || '').toLowerCase();
     if (contentType.includes('application/json')) {
       try {
@@ -100,7 +116,6 @@ export async function downloadFile(options: DownloadOptions | string, fallbackFi
       }
     }
 
-    // Extract filename from Content-Disposition header if available
     const disposition = String(res.headers?.['content-disposition'] || '');
     if (disposition && !serverFilename) {
       const utf8Match = disposition.match(/filename\*=UTF-8''([^;]+)/i);
@@ -130,20 +145,21 @@ export async function downloadFile(options: DownloadOptions | string, fallbackFi
   const finalFilename = sanitizeFilename(serverFilename || opts.filename || 'CampusOS_Document.pdf');
   const mimeType = opts.mimeType || guessMimeType(finalFilename);
 
-  return saveBlobAndOpen(blob, finalFilename, mimeType, opts.dialogTitle);
+  return saveBlobAndOpen(blob, finalFilename, mimeType, opts.dialogTitle, opts.action || 'open');
 }
 
 /** Legacy alias for backward compatibility */
 export async function downloadAndOpen(url: string, filename: string): Promise<DownloadResult> {
-  return downloadFile({ endpoint: url, filename });
+  return downloadFile({ endpoint: url, filename, action: 'open' });
 }
 
-/** Same as downloadFile, but for a pre-generated Blob (e.g. client-built PDF, ICS, CSV) */
+/** Save Blob to storage, supporting persistent device save vs temporary cache open */
 export async function saveBlobAndOpen(
   blob: Blob,
   filename: string,
   mimeType?: string,
-  dialogTitle?: string
+  dialogTitle?: string,
+  action: 'open' | 'save' | 'share' = 'open'
 ): Promise<DownloadResult> {
   if (!blob || blob.size === 0) {
     return { success: false, error: 'The document file is empty.' };
@@ -173,27 +189,49 @@ export async function saveBlobAndOpen(
   // 2. Mobile Native (Android / iOS)
   try {
     const base64Data = await blobToBase64(blob);
+    const targetDirectory = action === 'save' ? Directory.Documents : Directory.Cache;
 
-    // Write file to Cache directory
-    const writeResult = await Filesystem.writeFile({
-      path: safeFilename,
-      data: base64Data,
-      directory: Directory.Cache,
-      recursive: true,
-    });
+    let writeResult;
+    try {
+      writeResult = await Filesystem.writeFile({
+        path: safeFilename,
+        data: base64Data,
+        directory: targetDirectory,
+        recursive: true,
+      });
+    } catch (dirErr) {
+      // Fallback to Directory.Cache if Directory.Documents write fails
+      writeResult = await Filesystem.writeFile({
+        path: safeFilename,
+        data: base64Data,
+        directory: Directory.Cache,
+        recursive: true,
+      });
+    }
 
     const fileUri = writeResult.uri;
 
-    // Use Native Share with files array (which uses FileProvider on Android to provide content:// URI)
+    if (action === 'save') {
+      return { success: true, uri: fileUri };
+    }
+
+    // For 'open' or 'share', trigger native Share/Open Intent via FileProvider
     try {
+      const capability = await Share.canShare();
+      if (!capability.value) {
+        return { success: false, uri: fileUri, error: 'No compatible app is available to open or share this file.' };
+      }
       await Share.share({
         title: safeFilename,
         dialogTitle: dialogTitle || `Open or Share ${safeFilename}`,
         files: [fileUri],
       });
     } catch (shareErr: any) {
-      // If user dismisses the share sheet, the file is still saved successfully in cache
-      console.log('[Download] Share dialog completed or dismissed:', shareErr?.message);
+      return {
+        success: false,
+        uri: fileUri,
+        error: shareErr?.message || 'The device could not open the native share sheet.',
+      };
     }
 
     return { success: true, uri: fileUri };

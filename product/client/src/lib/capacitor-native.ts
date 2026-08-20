@@ -1,9 +1,6 @@
 import { Capacitor } from '@capacitor/core';
-import { PushNotifications } from '@capacitor/push-notifications';
 import { SplashScreen } from '@capacitor/splash-screen';
 import { Network } from '@capacitor/network';
-import { Preferences } from '@capacitor/preferences';
-import { LocalNotifications } from '@capacitor/local-notifications';
 
 export class CapacitorNativeService {
   public static isNative(): boolean {
@@ -31,71 +28,6 @@ export class CapacitorNativeService {
       await SplashScreen.hide();
     } catch (err) {
       console.warn('Native UI initialization warning:', err);
-    }
-  }
-
-  /**
-   * Registers native device push notifications
-   */
-  public static async registerPushNotifications(
-    onTokenReceived?: (token: string) => void,
-    onNotificationOpened?: (notification: any) => void
-  ): Promise<void> {
-    if (!this.isNative()) return;
-
-    try {
-      let permStatus = await PushNotifications.checkPermissions();
-
-      if (permStatus.receive === 'prompt') {
-        permStatus = await PushNotifications.requestPermissions();
-      }
-
-      if (permStatus.receive === 'granted') {
-        await PushNotifications.register();
-
-        await PushNotifications.addListener('registration', (token) => {
-          // SECURITY: never log full FCM token — masked prefix only
-          console.log('[Push] FCM registration OK (token masked for security)');
-          if (onTokenReceived) onTokenReceived(token.value);
-        });
-
-        await PushNotifications.addListener('registrationError', (err) => {
-          console.error('Push registration error:', err);
-        });
-
-        await PushNotifications.addListener('pushNotificationReceived', (notification) => {
-          console.log('Push received:', notification);
-        });
-
-        await PushNotifications.addListener('pushNotificationActionPerformed', (action) => {
-          console.log('Push action performed:', action);
-          if (onNotificationOpened) onNotificationOpened(action.notification);
-        });
-      }
-    } catch (err) {
-      console.warn('Push notification setup failed:', err);
-    }
-  }
-
-  /**
-   * Schedules a local notification
-   */
-  public static async scheduleLocalNotification(title: string, body: string, id: number = 1): Promise<void> {
-    try {
-      await LocalNotifications.schedule({
-        notifications: [
-          {
-            title,
-            body,
-            id,
-            schedule: { at: new Date(Date.now() + 500) },
-            actionTypeId: '',
-            extra: null,
-          },
-        ],
-      });
-    } catch (err) {
-      console.warn('Local notification schedule error:', err);
     }
   }
 

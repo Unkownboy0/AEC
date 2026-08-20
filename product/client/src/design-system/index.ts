@@ -14,5 +14,6 @@ export * from './primitives';
 // Components
 export * from './components';
 
-// Icon System (v2)
-export * from './icons';
+// Motion
+export * from './motion';
+

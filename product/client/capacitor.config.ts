@@ -2,6 +2,7 @@
 import { CapacitorConfig } from '@capacitor/cli';
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
+import { validateApiUrlForDeployment, type DeploymentMode } from './src/config/api-url-policy';
 
 /**
  * Load .env files manually so CAPACITOR_* and VITE_* vars are available
@@ -55,6 +56,17 @@ loadEnvFile('.env.development');
  *   Production builds: set CAPACITOR_ANDROID_SCHEME=https AND use an HTTPS API endpoint.
  */
 const developmentServerUrl = process.env.CAPACITOR_DEV_SERVER_URL?.trim();
+const isProduction = (process.env.VITE_APP_ENV || 'production').toLowerCase() === 'production';
+const deploymentMode = (process.env.VITE_DEPLOYMENT_MODE || 'INTERNET_PRODUCTION') as DeploymentMode;
+const configuredApiUrl = process.env.VITE_API_BASE_URL?.trim() || '';
+if (isProduction && !validateApiUrlForDeployment(configuredApiUrl, deploymentMode)) {
+  throw new Error(deploymentMode === 'LOCAL_ON_PREM'
+    ? 'LOCAL_ON_PREM requires an explicit private-LAN IPv4 VITE_API_BASE_URL ending in /api.'
+    : 'INTERNET_PRODUCTION requires an explicit public HTTPS VITE_API_BASE_URL ending in /api.');
+}
+if (isProduction && developmentServerUrl) {
+  throw new Error('CAPACITOR_DEV_SERVER_URL is forbidden in production builds. Bundle the app and configure VITE_API_BASE_URL with HTTPS.');
+}
 
 // Production: CAPACITOR_ANDROID_SCHEME must be 'https' (and VITE_SERVER_BASE_URL must be https://)
 const androidScheme = process.env.CAPACITOR_ANDROID_SCHEME === 'http' ? 'http' : 'https';
@@ -73,11 +85,11 @@ const config: CapacitorConfig = {
     ? {
         url: developmentServerUrl,
         androidScheme: developmentServerUrl.startsWith('https:') ? 'https' : 'http',
-        cleartext: true,
+        cleartext: developmentServerUrl.startsWith('http:'),
       }
     : {
         androidScheme,
-        cleartext: true,
+        cleartext: false,
         // Production: hostname is optional but helps with deep link handling
         ...(process.env.VITE_API_BASE_URL ? { hostname: new URL(process.env.VITE_API_BASE_URL).hostname } : {}),
       },
@@ -99,15 +111,14 @@ const config: CapacitorConfig = {
     // options are no-ops. insetsHandling: 'css' injects reliable --safe-area-inset-*
     // CSS variables into the WebView (works around the Android WebView <140 env() bug).
     SystemBars: {
-      style: 'DARK',
+      style: 'DEFAULT',
       insetsHandling: 'css',
     },
-    // Legacy plugin kept only for backward compatibility with old WebViews / iOS status
-    // bar style calls elsewhere. On Android 15+/16 its overlaysWebView/backgroundColor
-    // options are ignored by the OS — do not rely on them for layout. See ThemeContext.tsx.
+    // Legacy plugin kept for backward compatibility with older WebViews / iOS status
+    // bar style calls. Synchronized dynamically with resolved theme via ThemeContext.
     StatusBar: {
-      style: 'DARK',
-      backgroundColor: brandColor,
+      style: 'DEFAULT',
+      backgroundColor: '#F7F8FC',
       overlaysWebView: false,
     },
     Keyboard: {

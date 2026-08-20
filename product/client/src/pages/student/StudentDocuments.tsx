@@ -6,6 +6,7 @@ import {
 import { toast } from '../../components/ui/Toast';
 import { Loading } from '../../components/ui/Loading';
 import api from '../../lib/axios';
+import { downloadFile } from '../../platform/download';
 
 interface DocumentRequest {
   id: string;
@@ -205,17 +206,38 @@ export const StudentDocuments: React.FC = () => {
 
                   <div className="flex items-center justify-between pt-1 border-t">
                     <span className="text-[9px] font-mono font-bold text-slate-400">ID: {doc.id.slice(0, 8)}</span>
-                    <button
-                      onClick={() => {
-                        toast.success(`Downloading official signed ${doc.title}...`);
-                        if (doc.documentUrl) {
-                          window.open(doc.documentUrl, '_blank');
-                        }
-                      }}
-                      className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-lg flex items-center gap-1.5 transition-all"
-                    >
-                      <Download className="h-3.5 w-3.5" /> Download Approved PDF
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={async () => {
+                          const targetUrl = doc.documentUrl || `/api/files/${doc.id}/download`;
+                          toast.show(`Opening ${doc.title}...`, 'info');
+                          const res = await downloadFile({ endpoint: targetUrl, filename: `${doc.title.replace(/\s+/g, '_')}.pdf`, action: 'open' });
+                          if (res.success) {
+                            toast.success(`Opened ${doc.title}`);
+                          } else {
+                            toast.error(res.error || 'Failed to open document');
+                          }
+                        }}
+                        className="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-500 text-white text-[11px] font-bold rounded-lg flex items-center gap-1 transition-all"
+                      >
+                        <Eye className="h-3 w-3" /> Open
+                      </button>
+                      <button
+                        onClick={async () => {
+                          const targetUrl = doc.documentUrl || `/api/files/${doc.id}/download`;
+                          toast.show(`Saving ${doc.title} to device...`, 'info');
+                          const res = await downloadFile({ endpoint: targetUrl, filename: `${doc.title.replace(/\s+/g, '_')}.pdf`, action: 'save' });
+                          if (res.success) {
+                            toast.success(`Saved ${doc.title} to device successfully`);
+                          } else {
+                            toast.error(res.error || 'Failed to save document');
+                          }
+                        }}
+                        className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 text-[11px] font-bold rounded-lg flex items-center gap-1 transition-all border border-slate-700"
+                      >
+                        <Download className="h-3 w-3" /> Save to Device
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))}

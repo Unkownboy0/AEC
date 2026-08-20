@@ -8,8 +8,34 @@ import { WorkspaceDocumentService } from './workspace.document.service';
 import { CampusDataProvider } from './campus-data.provider';
 import { WorkspaceExportService } from './workspace.export.service';
 import { DocumentType } from './workspace.types';
+import { listCampusSuiteApps } from './campus-suite.catalog';
+import { GovernedFileService } from './governed-file.service';
+import { WorkspaceRecipientService } from './workspace-recipient.service';
 
 export class WorkspaceController {
+  static searchShareRecipients = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const user = (req as any).user;
+      const data = await WorkspaceRecipientService.search(
+        { id: user.id, role: user.role, departmentId: user.departmentId },
+        String(req.query.q || ''),
+        Number(req.query.limit || 15),
+      );
+      res.json({ success: true, data });
+    } catch (e) { next(e); }
+  };
+
+  static listApplications = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const user = (req as any).user;
+      const applications = await listCampusSuiteApps({
+        role: user.role,
+        permissions: user.permissions || [],
+      });
+      res.json({ success: true, data: applications, count: applications.length });
+    } catch (e) { next(e); }
+  };
+
   // ─── Document CRUD ──────────────────────────────────────────────────────────
 
   static listDocuments = async (req: Request, res: Response, next: NextFunction) => {
@@ -60,6 +86,15 @@ export class WorkspaceController {
     try {
       const user = (req as any).user;
       const { shareEntries, targetScope } = req.body;
+      WorkspaceRecipientService.assertShareEnvelope(
+        { id: user.id, role: user.role, departmentId: user.departmentId },
+        shareEntries,
+        targetScope,
+      );
+      await WorkspaceRecipientService.assertEligible(
+        { id: user.id, role: user.role, departmentId: user.departmentId },
+        Array.isArray(shareEntries) ? shareEntries.map((entry: any) => entry?.userId).filter(Boolean) : [],
+      );
       const result = await WorkspaceDocumentService.shareDocument(
         req.params.id, user.id, user.role, user.departmentId, shareEntries, targetScope
       );
@@ -71,7 +106,23 @@ export class WorkspaceController {
     try {
       const user = (req as any).user;
       await WorkspaceDocumentService.deleteDocument(req.params.id, user.id, user.role, user.departmentId);
-      res.json({ success: true });
+      res.json({ success: true, message: 'Document moved to trash' });
+    } catch (e) { next(e); }
+  };
+
+  static restoreDocument = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const user = (req as any).user;
+      const result = await WorkspaceDocumentService.restoreDocument(req.params.id, user.id, user.role, user.departmentId);
+      res.json(result);
+    } catch (e) { next(e); }
+  };
+
+  static permanentlyDeleteDocument = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const user = (req as any).user;
+      const result = await WorkspaceDocumentService.permanentlyDeleteDocument(req.params.id, user.id, user.role, user.departmentId);
+      res.json(result);
     } catch (e) { next(e); }
   };
 
@@ -223,44 +274,61 @@ export class WorkspaceController {
   static getDriveItems = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const user = (req as any).user;
-      const { scope, parentId } = req.query;
-      const { prisma } = await import('../../lib/prisma');
-
-      const items = await prisma.campusDriveItem.findMany({
-        where: {
-          ...(scope ? { scope: scope as string } : {}),
-          ...(parentId ? { parentId: parentId as string } : { parentId: null }),
-          ...(scope === 'PERSONAL' ? { ownerId: user.id } : {}),
-          ...(scope === 'DEPARTMENT' ? { departmentId: user.departmentId } : {}),
-          isTrashed: false,
-        },
-        include: { owner: { select: { faculty: { select: { firstName: true, lastName: true } } } } },
-        orderBy: [{ isFolder: 'desc' }, { updatedAt: 'desc' }],
-        take: 200,
+      const { scope, parentId, search, trashed, action } = req.query;
+      const items = await GovernedFileService.listDriveItems({
+        userId: user.id,
+        activeRole: user.role,
+        scope: scope as string,
+        parentId: parentId as string | undefined,
+        search: search as string | undefined,
+        includeTrashed: trashed === 'true',
+        action: (action as any) || 'VIEW',
       });
       res.json({ success: true, data: items });
+    } catch (e) { next(e); }
+  };
+
+  static getDrivePickerFiles = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const user = (req as any).user;
+      const mode = String(req.query.mode || 'DRIVE').toUpperCase();
+      if (!['DRIVE', 'RECENT', 'SHARED', 'SEARCH'].includes(mode)) {
+        return res.status(400).json({ success: false, message: 'Invalid picker mode.' });
+      }
+      const mimeTypes = typeof req.query.mimeTypes === 'string'
+        ? req.query.mimeTypes.split(',').map((value) => value.trim()).filter(Boolean)
+        : undefined;
+      const data = await GovernedFileService.listPickerFiles({
+        userId: user.id,
+        activeRole: user.role,
+        mode: mode as any,
+        search: req.query.search as string | undefined,
+        action: (String(req.query.action || 'VIEW').toUpperCase() as any),
+        mimeTypes,
+        maxSizeBytes: req.query.maxSizeBytes ? Number(req.query.maxSizeBytes) : undefined,
+      });
+      res.json({ success: true, data });
+    } catch (e) { next(e); }
+  };
+
+  static uploadDriveFile = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const user = (req as any).user;
+      const { name, mimeType, base64, parentId, scope, sourceModule } = req.body;
+      if (!name || !mimeType || !base64) return res.status(400).json({ success: false, message: 'name, mimeType and base64 are required.' });
+      const item = await GovernedFileService.upload({
+        userId: user.id, activeRole: user.role, name, mimeType, base64, parentId, scope, sourceModule,
+      });
+      res.status(201).json({ success: true, data: item });
     } catch (e) { next(e); }
   };
 
   static createDriveItem = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const user = (req as any).user;
-      const { name, isFolder, parentId, mimeType, fileUrl, fileSize, scope } = req.body;
-      const { prisma } = await import('../../lib/prisma');
-
-      const item = await prisma.campusDriveItem.create({
-        data: {
-          name,
-          isFolder: isFolder ?? false,
-          parentId,
-          mimeType,
-          fileUrl,
-          fileSize,
-          scope: scope || 'PERSONAL',
-          ownerId: user.id,
-          departmentId: scope === 'DEPARTMENT' ? user.departmentId : undefined,
-        },
-      });
+      const { name, isFolder, parentId, scope } = req.body;
+      if (!isFolder) return res.status(400).json({ success: false, message: 'Use /drive/files/upload for binary files.' });
+      const item = await GovernedFileService.createFolder({ userId: user.id, activeRole: user.role, name, parentId, scope });
       res.status(201).json({ success: true, data: item });
     } catch (e) { next(e); }
   };
@@ -269,24 +337,88 @@ export class WorkspaceController {
     try {
       const user = (req as any).user;
       const { name, isStarred, isTrashed, parentId } = req.body;
-      const { prisma } = await import('../../lib/prisma');
-
-      const item = await prisma.campusDriveItem.findUnique({ where: { id: req.params.id } });
-      if (!item) return res.status(404).json({ message: 'Item not found.' });
-      if (item.ownerId !== user.id && !['Super Admin', 'College Admin'].includes(user.role)) {
-        return res.status(403).json({ message: 'Access denied.' });
-      }
-
-      const updated = await prisma.campusDriveItem.update({
-        where: { id: req.params.id },
-        data: {
-          ...(name !== undefined ? { name } : {}),
-          ...(isStarred !== undefined ? { isStarred } : {}),
-          ...(isTrashed !== undefined ? { isTrashed, trashedAt: isTrashed ? new Date() : null } : {}),
-          ...(parentId !== undefined ? { parentId } : {}),
-        },
+      const updated = await GovernedFileService.updateDriveItem({
+        userId: user.id, activeRole: user.role, itemId: req.params.id, name, isStarred, isTrashed, parentId,
       });
       res.json({ success: true, data: updated });
+    } catch (e) { next(e); }
+  };
+
+  static shareDriveFile = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const user = (req as any).user;
+      const grant = await GovernedFileService.share({
+        userId: user.id, activeRole: user.role, fileId: req.params.fileId,
+        driveItemId: req.body.driveItemId, principalType: req.body.principalType,
+        principalId: req.body.principalId, accessLevel: req.body.accessLevel,
+        expiresAt: req.body.expiresAt,
+      });
+      res.status(201).json({ success: true, data: grant });
+    } catch (e) { next(e); }
+  };
+
+  static revokeDriveFileShare = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const user = (req as any).user;
+      const grant = await GovernedFileService.revokeShare({
+        userId: user.id, activeRole: user.role, fileId: req.params.fileId, grantId: req.params.grantId,
+      });
+      res.json({ success: true, data: grant });
+    } catch (e) { next(e); }
+  };
+
+  static shareDriveFolder = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const user = (req as any).user;
+      const grant = await GovernedFileService.shareDriveFolder({
+        userId: user.id, activeRole: user.role, itemId: req.params.itemId,
+        principalType: req.body.principalType, principalId: req.body.principalId,
+        accessLevel: req.body.accessLevel, expiresAt: req.body.expiresAt,
+      });
+      res.status(201).json({ success: true, data: grant });
+    } catch (e) { next(e); }
+  };
+
+  static revokeDriveFolderShare = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const user = (req as any).user;
+      const grant = await GovernedFileService.revokeDriveFolderShare({
+        userId: user.id, activeRole: user.role, itemId: req.params.itemId, grantId: req.params.grantId,
+      });
+      res.json({ success: true, data: grant });
+    } catch (e) { next(e); }
+  };
+
+  static attachDriveFileReference = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const user = (req as any).user;
+      const reference = await GovernedFileService.attachReference({
+        userId: user.id, activeRole: user.role, fileId: req.params.fileId,
+        module: req.body.module, resourceType: req.body.resourceType, resourceId: req.body.resourceId,
+        purpose: req.body.purpose, authorizationMode: req.body.authorizationMode,
+        requiredAction: req.body.requiredAction,
+      });
+      res.status(201).json({ success: true, data: reference });
+    } catch (e) { next(e); }
+  };
+
+  static permanentlyDeleteDriveFile = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const user = (req as any).user;
+      const result = await GovernedFileService.requestPermanentDelete({
+        userId: user.id, activeRole: user.role, fileId: req.params.fileId, driveItemId: req.params.itemId,
+      });
+      res.json({ success: true, data: result });
+    } catch (e) { next(e); }
+  };
+
+  static permanentlyDeleteDriveFolder = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const user = (req as any).user;
+      const result = await GovernedFileService.permanentlyDeleteFolder({
+        userId: user.id, activeRole: user.role, driveItemId: req.params.itemId,
+      });
+      res.json({ success: true, data: result });
     } catch (e) { next(e); }
   };
 }

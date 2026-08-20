@@ -56,6 +56,8 @@ export type DomainEventType =
 
   // ─── Tasks & Governance ───────────────────────────────────────────────────
   | 'TASK_ASSIGNED'
+  | 'HOD_TASK_ASSIGNED'
+  | 'DEAN_TASK_ASSIGNED'
   | 'TASK_UPDATED'
   | 'TASK_COMMENTED'
   | 'TASK_SUBMITTED'
@@ -67,6 +69,12 @@ export type DomainEventType =
   | 'DEPARTMENT_TASK_COMPLETED'
   | 'PRINCIPAL_TASK_UPDATED'
   | 'OVERDUE_HIGH_PRIORITY_TASK'
+  | 'PRINCIPAL_DELEGATION_CREATED'
+  | 'DELEGATED_REQUEST_PENDING'
+  | 'DELEGATION_EXPIRY'
+  | 'PRINCIPAL_DELEGATION_REVOKED'
+  | 'DELEGATION_REVOKED'
+
 
   // ─── Academic & Curriculum ────────────────────────────────────────────────
   | 'ASSIGNMENT_PUBLISHED'
@@ -77,6 +85,7 @@ export type DomainEventType =
   | 'ASSIGNMENT_SUBMISSION_RECEIVED'
   | 'ASSIGNMENT_GRADED'
   | 'ATTENDANCE_MARKED'
+  | 'ATTENDANCE_ABSENT'
   | 'ATTENDANCE_CORRECTED'
   | 'ATTENDANCE_CORRECTION_RESULT'
   | 'ATTENDANCE_SHORTAGE'
@@ -121,9 +130,12 @@ export type DomainEventType =
   | 'REVALUATION_UPDATE'
   | 'RESULT_PROCESSING_MILESTONE'
   | 'RESULT_FINAL_REVIEW'
+  | 'RESULT_DRAFT'
+  | 'RESULT_PROCESSING'
   | 'RESULT_PUBLISHED'
   | 'EXAM_RESULT_PUBLISHED'
   | 'MARKS_PUBLISHED'
+
 
   // ─── Fees & Finance (Accounts / AO) ───────────────────────────────────────
   | 'FEE_BILL_CREATED'
@@ -251,13 +263,16 @@ export type DomainEventType =
   | 'HOSTEL_MESS_ISSUE'
   | 'HOSTEL_MAINTENANCE_TICKET'
   | 'HOSTEL_DISCIPLINE_ALERT'
+  | 'HOSTEL_EMERGENCY'
 
   // ─── Transport Management ─────────────────────────────────────────────────
   | 'TRANSPORT_ALLOCATION_REQUIRED'
   | 'TRANSPORT_ROUTE_ALLOCATED'
+  | 'TRANSPORT_ALLOCATION_CHANGED'
   | 'ROUTE_STOP_CHANGE_REQUEST'
   | 'TRANSPORT_BUS_DELAY'
   | 'BUS_BREAKDOWN_ALERT'
+  | 'TRANSPORT_BREAKDOWN'
   | 'VEHICLE_MAINTENANCE_ALERT'
   | 'TRANSPORT_COMPLAINT_SUBMITTED'
   | 'ROUTE_ALLOCATION_CONFLICT'
@@ -266,6 +281,7 @@ export type DomainEventType =
   | 'LIBRARY_BOOK_ISSUED'
   | 'LIBRARY_BOOK_RETURNED'
   | 'LIBRARY_BOOK_OVERDUE'
+  | 'LIBRARY_OVERDUE'
   | 'LIBRARY_FINE_GENERATED'
   | 'BOOK_RESERVATION_REQUEST'
   | 'BOOK_LOST_DAMAGED'
@@ -276,12 +292,14 @@ export type DomainEventType =
   | 'COMPANY_JOB_POSTED'
   | 'PLACEMENT_DRIVE_SCHEDULED'
   | 'STUDENT_JOB_APPLIED'
+  | 'PLACEMENT_APPLICATION_UPDATE'
   | 'INTERVIEW_ROUND_SCHEDULED'
   | 'PLACEMENT_OFFER_RECEIVED'
   | 'JOB_OFFER_ISSUED'
 
   // ─── IQAC Quality & Compliance ────────────────────────────────────────────
   | 'EVIDENCE_SUBMITTED'
+  | 'IQAC_EVIDENCE_SUBMITTED'
   | 'EVIDENCE_RETURNED'
   | 'EVIDENCE_MISSING'
   | 'ACCREDITATION_TASK'
@@ -289,7 +307,10 @@ export type DomainEventType =
   | 'RESEARCH_PUBLICATION_VERIFIED'
   | 'DEPARTMENT_QUALITY_ISSUE'
 
-  // ─── Admissions (A&A Dean) ────────────────────────────────────────────────
+  // ─── Grievances, Complaints & Admissions ──────────────────────────────────
+  | 'COMPLAINT_ACADEMIC'
+  | 'COMPLAINT_HOSTEL'
+  | 'COMPLAINT_IT'
   | 'ADMISSION_VERIFICATION_REQUIRED'
   | 'APPLICATION_STATUS_ESCALATED'
 
@@ -298,13 +319,19 @@ export type DomainEventType =
   | 'PRINCIPAL_DELEGATION_EXPIRED'
   | 'PRINCIPAL_STATUS_CHANGED'
 
+  // ─── Campus Workspace & Drive ─────────────────────────────────────────────
+  | 'FILE_SHARED'
+  | 'DOCUMENT_SHARED'
+  | 'DOCUMENT_REVIEW_REQUESTED'
+
   // ─── Emergency & Security ─────────────────────────────────────────────────
   | 'EMERGENCY_ALERT'
   | 'CAMPUS_ANNOUNCEMENT'
   | 'SECURITY_ALERT'
   | 'MAJOR_INCIDENT_ALERT';
 
-export type NotificationPriority = 'LOW' | 'NORMAL' | 'HIGH' | 'CRITICAL';
+
+export type NotificationPriority = 'LOW' | 'NORMAL' | 'IMPORTANT' | 'ACTION_REQUIRED' | 'HIGH' | 'CRITICAL' | 'URGENT';
 
 export type NotificationCategory =
   | 'ACADEMIC'
@@ -363,6 +390,7 @@ export interface DomainEvent {
   actorUserId?: string;
   actorRole?: string;
   actorWorkspace?: WorkspaceType | string;
+  workspaceContext?: string;
   entityType: string;
   entityId: string;
   action?: string;
@@ -386,3 +414,4 @@ export interface DomainEvent {
   transportRouteId?: string;
   audience?: CircularAudienceTarget;
 }
+
